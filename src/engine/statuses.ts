@@ -91,6 +91,13 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
     fx(b, { who: target.id, kind: "block", text: "Warded", icon: "✨" });
     return;
   }
+  // Nullifying (a rare Elite/boss trait): the first positive status you'd gain each round fizzles.
+  if (!isNegative(id) && (other(b, target).items["x_nullifying"] ?? 0) > 0 && target.flags["nulled"] !== b.round) {
+    target.flags["nulled"] = b.round;
+    log(b, `${other(b, target).name} nullifies ${target.name}'s ${STATUS_INFO[id].name}.`);
+    fx(b, { who: target.id, kind: "block", text: `Nullified ${STATUS_INFO[id].name}`, icon: "🚫" });
+    return;
+  }
   eachHook(target, "incomingStatus", (h, s) => (amount = h(b, target, id, amount, s)));
   if (amount <= 0) return;
 
@@ -114,7 +121,8 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
 function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, depth: number) {
   const name = REACTIONS.find(r => r.id === id)!.name;
   fx(b, { who: t.id, kind: "reaction", text: `${name}!` });
-  if (source && source !== t && (source.items["l_ouroboros"] ?? 0) > 0) heal(b, source, 3, "Ouroboros");
+  if (source && source !== t && (source.items["l_ouroboros"] ?? 0) > 0) heal(b, source, 5, "Ouroboros");
+  if (source && source !== t && (source.items["l_codex_ruin"] ?? 0) > 0) applyStatus(b, source, t, "doom", 3, depth + 1);
   const m = reactionMult(b, source);
   switch (id) {
     case "combustion": {
@@ -185,7 +193,7 @@ export function endOfRound(b: Battle, f: Fighter) {
   const regen = st(f, "regen");
   if (regen > 0) {
     heal(b, f, regen, "Regen");
-    if (f.flags["bastion"]) f.statuses.barrier = st(f, "barrier") + regen;
+    if (f.flags["bastion"]) f.statuses.barrier = Math.min(st(f, "barrier") + regen, 4 + 4 * (f.persist["floor"] ?? 1));
     f.statuses.regen = regen - 1;
   }
   for (const s of ["spikes", "chill", "weak", "exposed", "blind"] as StatusId[]) {

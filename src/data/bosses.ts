@@ -32,25 +32,30 @@ export const MOVE_LIBRARY: Record<string, (p: number) => Move> = {
   thorns: p => ({ name: "Bristle", icon: "🌵", text: `Gains Ward and ${2 + p} Spikes`, act: (b, s) => { applyStatus(b, s, s, "ward", 1); applyStatus(b, s, s, "spikes", 2 + p); } }),
   charge: () => ({ name: "Gather Power", icon: "🌀", text: "Does nothing now; its next Cataclysm deals triple", act: (b, s) => { s.flags["charged"] = 1; log(b, `${s.name} gathers power…`); } }),
   smash: () => ({ name: "Cataclysm", icon: "☄️", text: "Attacks for 2× damage (3× if charged)", act: (b, s, f) => { const m = s.flags["charged"] ? 3 : 2; s.flags["charged"] = 0; hit(b, s, f, m); } }),
+  concuss: () => ({ name: "Skull Crack", icon: "💫", text: "Attacks and Stuns you", act: (b, s, f) => { const before = f.hp; hit(b, s, f); if (f.hp < before) applyStatus(b, s, f, "stun", 1); } }),
   drain: () => ({ name: "Life Drain", icon: "🦇", text: "Attacks and heals what it deals", act: (b, s, f) => { const before = f.hp; hit(b, s, f); const n = Math.max(0, before - f.hp); if (n) heal(b, s, n, "Life Drain"); } })
 };
 
 interface BossDef { name: string; title: string; family: string; moves: string[]; traits?: string[]; armor?: number; faces?: FaceSpec[]; hpMult?: number }
 
-/** The ten campaign bosses, one per floor. */
-export const CAMPAIGN_BOSSES: BossDef[] = [
-  { name: "Gnasher", title: "the Pack Lord", family: "Beast", moves: ["strike", "flurry", "rend"], traits: ["m_ambush"] },
-  { name: "The Mother of Rot", title: "Queen of the Sewers", family: "Undead", moves: ["venom", "strike", "regrow"] },
-  { name: "Brother Cinder", title: "the Ashen Zealot", family: "Cultist", moves: ["fire", "strike", "enrage"] },
-  { name: "Varkas", title: "the Iron Warden", family: "Construct", moves: ["bulwark", "heavy", "strike"], armor: 2, hpMult: 0.85 },
-  { name: "The Pale Widow", title: "Spinner of Graves", family: "Beast", moves: ["hex", "rend", "venom", "strike"] },
-  { name: "Skarn", title: "the Storm Herald", family: "Cultist", moves: ["thunder", "charge", "smash"] },
-  { name: "Morwen", title: "the Frost Queen", family: "Undead", moves: ["frost", "gaze", "strike", "bulwark"] },
-  { name: "The Gilded Glutton", title: "Hoarder of the Deep", family: "Beast", moves: ["drain", "flurry", "regrow", "heavy"], traits: ["x_regenerating"] },
-  { name: "Oathbreaker", title: "the Fallen Paladin", family: "Undead", moves: ["thorns", "heavy", "hex", "drain"], armor: 4 },
-  { name: "The Hollow King", title: "Who Waits Below", family: "Construct", moves: ["doom", "strike", "bulwark", "charge", "smash"], armor: 4,
+/** Named bosses. The campaign draws five (Hollow King last); the rest return in Endless. */
+export const NAMED_BOSSES: Record<string, BossDef> = {
+  gnasher: { name: "Gnasher", title: "the Pack Lord", family: "Beast", moves: ["strike", "flurry", "rend"], traits: ["m_ambush"] },
+  rot: { name: "The Mother of Rot", title: "Queen of the Sewers", family: "Undead", moves: ["venom", "strike", "regrow"] },
+  cinder: { name: "Brother Cinder", title: "the Ashen Zealot", family: "Cultist", moves: ["fire", "strike", "enrage"] },
+  varkas: { name: "Varkas", title: "the Iron Warden", family: "Construct", moves: ["bulwark", "concuss", "heavy", "strike"], armor: 2, hpMult: 0.9 },
+  widow: { name: "The Pale Widow", title: "Spinner of Graves", family: "Beast", moves: ["hex", "rend", "venom", "strike"] },
+  skarn: { name: "Skarn", title: "the Storm Herald", family: "Cultist", moves: ["thunder", "charge", "smash", "concuss"] },
+  morwen: { name: "Morwen", title: "the Frost Queen", family: "Undead", moves: ["frost", "gaze", "strike", "bulwark"] },
+  glutton: { name: "The Gilded Glutton", title: "Hoarder of the Deep", family: "Beast", moves: ["drain", "flurry", "regrow", "heavy"], traits: ["x_regenerating"] },
+  oathbreaker: { name: "Oathbreaker", title: "the Fallen Paladin", family: "Undead", moves: ["thorns", "heavy", "hex", "drain"], armor: 3, traits: ["x_nullifying"] },
+  hollow: { name: "The Hollow King", title: "Who Waits Below", family: "Construct", moves: ["doom", "concuss", "bulwark", "charge", "smash"], armor: 3, traits: ["x_nullifying"],
     faces: [GRAZE, HIT, HIT, HIT, HIT, { ...CRIT, name: "Hollow Decree", run: hex("doom", 3) }] }
-];
+};
+
+/** Campaign line-up by floor: a choice of bosses per floor, the Hollow King always last. */
+const CAMPAIGN_POOLS = [["gnasher", "rot"], ["cinder", "widow", "rot"], ["varkas", "morwen", "skarn"], ["oathbreaker", "glutton", "skarn"], ["hollow"]];
+export const CAMPAIGN_FLOORS = CAMPAIGN_POOLS.length;
 
 export const BOSS_NAMES = [
   "Azhul", "Vexmora", "Kragg", "Seraphine", "Mordrake", "Ylva", "Thessaly", "Grummoch", "Nhal", "Ishtavar", "Corvane", "Belgrith",
@@ -73,11 +78,11 @@ const WALL: BossDef = { name: "Ur-Thane", title: "the Unbroken Gate", family: "C
 
 /** HP and Power for a boss on a floor. Past the wall, everything grows much faster. */
 export function bossStats(floor: number) {
-  let hp = 28 + 18 * (floor - 1);
-  let power = 3.5 + 1.4 * (floor - 1);
-  if (floor > 10) {
-    hp *= 1 + 0.08 * (floor - 10);
-    power *= 1 + 0.04 * (floor - 10);
+  let hp = 32 + 22 * (floor - 1);
+  let power = 4 + 1.7 * (floor - 1);
+  if (floor > 5) {
+    hp *= 1 + 0.08 * (floor - 5);
+    power *= 1 + 0.04 * (floor - 5);
   }
   if (floor > WALL_FLOOR) {
     hp *= Math.pow(1.25, floor - WALL_FLOOR);
@@ -89,7 +94,7 @@ export function bossStats(floor: number) {
 function build(def: BossDef, floor: number): Fighter {
   const { hp: baseHp, power } = bossStats(floor);
   const hp = Math.round(baseHp * (def.hpMult ?? 1));
-  const p = Math.ceil(floor / 2);
+  const p = floor <= 5 ? floor : 5 + Math.ceil((floor - 5) / 2);
   const items: Record<string, number> = {};
   for (const t of def.traits ?? []) items[t] = 1;
   return {
@@ -99,9 +104,21 @@ function build(def: BossDef, floor: number): Fighter {
   };
 }
 
-export function makeBoss(floor: number, rng: () => number): Fighter {
-  if (floor <= CAMPAIGN_BOSSES.length) return build(CAMPAIGN_BOSSES[floor - 1], floor);
+export function makeBoss(floor: number, rng: () => number, seen: Set<string> = new Set()): Fighter {
+  if (floor <= CAMPAIGN_POOLS.length) {
+    const options = CAMPAIGN_POOLS[floor - 1].filter(k => !seen.has(k));
+    const key = pick(rng, options.length ? options : CAMPAIGN_POOLS[floor - 1]);
+    seen.add(key);
+    return build(NAMED_BOSSES[key], floor);
+  }
   if (floor === WALL_FLOOR) return build(WALL, floor);
+  // Endless: named bosses you haven't met return first (a third of the time), then generated ones.
+  const unmet = Object.keys(NAMED_BOSSES).filter(k => !seen.has(k) && k !== "hollow");
+  if (unmet.length && rng() < 0.35) {
+    const key = pick(rng, unmet);
+    seen.add(key);
+    return build(NAMED_BOSSES[key], floor);
+  }
   // Endless: a generated boss from the name, title, move and trait libraries.
   const moves = Object.keys(MOVE_LIBRARY);
   const n = 3 + Math.min(3, Math.floor((floor - 10) / 6));
@@ -109,7 +126,7 @@ export function makeBoss(floor: number, rng: () => number): Fighter {
   while (chosen.size < n) chosen.add(pick(rng, moves));
   if (chosen.has("charge")) chosen.add("smash");
   const traits = [pick(rng, ELITE_AFFIX_IDS)];
-  if (floor >= 20) traits.push(pick(rng, ELITE_AFFIX_IDS.filter(t => !traits.includes(t))));
+  if (floor >= 15) traits.push(pick(rng, ELITE_AFFIX_IDS.filter(t => !traits.includes(t))));
   const def: BossDef = { name: pick(rng, BOSS_NAMES), title: pick(rng, BOSS_TITLES), family: pick(rng, FAMILIES), moves: [...chosen].sort(() => rng() - 0.5), traits, armor: Math.floor(rng() * 4) };
   const f = build(def, floor);
   f.title = `${f.title} · ${traits.map(t => TRAITS.find(x => x.id === t)!.name).join(", ")}`;

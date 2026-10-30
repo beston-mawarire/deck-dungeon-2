@@ -39,4 +39,7 @@ export const cast = (name: string, kind: FaceSpec["kind"], run: FaceSpec["run"])
 export const hex = (status: StatusId, n: number) => (b: Battle, ctx: AttackCtx) => applyStatus(b, ctx.attacker, ctx.defender, status, n);
 export const self = (status: StatusId, n: number) => (b: Battle, ctx: AttackCtx) => applyStatus(b, ctx.attacker, ctx.attacker, status, n);
 
+/** How deep the run is (set by the run each fight). Early-game defensive effects scale with it. */
+export const depth = (f: Fighter) => f.persist["floor"] ?? 1;
+
 export { applyStatus, heal, log, loseHp, other, st };

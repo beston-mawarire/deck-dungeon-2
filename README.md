@@ -29,11 +29,11 @@ npm run build:single  # one self-contained HTML file in dist-single/
     13 Legendaries.
   - `relics.ts` (58), `fusions.ts` (8 recipes), `talents.ts` (18), `origins.ts` (4 origins, 6 curses),
     `events.ts` (10), `monsters.ts` (11 monsters in 4 families, 8 Elite affixes),
-    `bosses.ts` (a move library, 10 campaign bosses, generated Endless bosses and the floor-30 wall).
+    `bosses.ts` (a move library, 10 named bosses — 5 per campaign, the rest return in Endless — generated Endless bosses and the floor-30 wall).
 - `src/game/` — the run.
   - `hero.ts` — equipping, two-handers, backpack (4), salvage, reveal, stat rebuild.
   - `loot.ts` — rarity tables, item rolling with tag weighting, Resplendent chests, bad-luck protection.
-  - `run.ts` — 10 floors (or Endless), path choices, rooms (fights, chests, Mimics, vaults, altars,
+  - `run.ts` — 5 floors (or Endless), path choices, rooms (fights, chests, Mimics, vaults, altars,
     shrines, shops, forges with fusions, campfires, events, bosses), XP and Talents.
   - `meta.ts` — Renown, unlock tiers and the Codex, saved in the browser.
 - `src/ui/` — the game screen (plain DOM, mobile-first): turn-by-turn combat playback with dice rolls,
@@ -45,7 +45,14 @@ Common (base) → Uncommon (+1 bonus) → Rare (+2 bonuses) → Epic (+2 bonuses
 Legendary (one of a kind; found unrevealed and works as a Common until a Scroll of Revelation reveals it).
 Item level follows the floor; the Forge raises it.
 
+## Forge
+
+Upgrade (level +1), reroll a bonus (each reroll of an item costs more), fuse relic pairs, make an
+Offering (sacrifice 2+ items for one; more and rarer items give better odds), combine two of the same
+item (stronger, 30% chance to rise a rarity), and — with the rare Transmuter's Crucible — turn a Common
+into a Legendary with 3 Starmetal (dropped by Champions, or from scrapping Legendaries).
+
 ## Balance
 
-`npm test` runs a bot through 400 campaigns. Current: about 12% wins for the bot (Rogue 19%, Cleric 14%,
-Warrior 11%, Mage 4%); a thoughtful player should do noticeably better.
+`npm test` runs a bot through 400 campaigns. Current: about 11% wins for the bot (Rogue 21%, Warrior 12%,
+Mage 7%, Cleric 6%); a thoughtful player should do noticeably better.

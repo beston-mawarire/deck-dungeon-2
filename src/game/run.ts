@@ -1,6 +1,6 @@
 // A run: three floors of path choices, fights, chests, shops, forges and bosses.
-import { CURSES, RELICS, TALENTS } from "../data";
-import { makeBoss, WALL_FLOOR } from "../data/bosses";
+import { CURSES, EPIC_POWERS, LEGENDARIES, RELICS, TALENTS } from "../data";
+import { CAMPAIGN_FLOORS, makeBoss, WALL_FLOOR } from "../data/bosses";
 import { EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
 import { makeMonster, type MonsterRank } from "../data/monsters";
@@ -9,12 +9,13 @@ import { getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
 import { heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
-import { addToBackpack, baseOf, equipItem, findItem, type Hero, heroTags, newHero, recompute, REROLL_COST, upgradeCost, xpToLevel } from "./hero";
+import { RARITIES } from "../engine/types";
+import { addToBackpack, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, upgradeCost, xpToLevel } from "./hero";
 import { isLocked, type LootState, type ResplendentCard, resplendentCards, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
-/** The campaign is ten floors (ten bosses). Endless keeps going; floor 30 is the wall. */
-export const FLOORS = 10;
-export const STEPS_PER_FLOOR = 6;
+/** The campaign is five floors (five bosses). Endless keeps going; floor 30 is the wall. */
+export const FLOORS = CAMPAIGN_FLOORS;
+export const STEPS_PER_FLOOR = 7;
 export { WALL_FLOOR };
 export type Mode = "campaign" | "endless";
 
@@ -71,13 +72,17 @@ export interface Run {
   found: Set<string>;
   /** Ids allowed in loot this run (unlocked by Renown); empty = everything. */
   locked: Set<string>;
+  /** Named bosses already met this run. */
+  seenBosses: Set<string>;
+  /** Shop rerolls used at the current Merchant (each costs more). */
+  shopRerolls: number;
 }
 
 export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: Mode = "campaign", locked: Set<string> = new Set()): Run {
   const run: Run = {
     mode, seed, rng: makeRng(seed), hero: newHero(origin), floor: 1, step: 0, choices: [], scene: { t: "map" },
     loot: { pity: 0 }, carry: 0, pendingTalents: 0, message: "", stats: { kills: 0, bestHit: 0, bosses: 0, legendaries: 0, fusions: 0 },
-    found: new Set(), locked
+    found: new Set(), locked, seenBosses: new Set(), shopRerolls: 0
   };
   setLocked(locked);
   run.choices = genChoices(run);
@@ -157,7 +162,7 @@ function enterRoom(run: Run, room: RoomType) {
       run.message = `You are cursed: ${c.name} — ${c.text}.`;
       return openResplendent(run);
     }
-    case "shop": run.scene = { t: "shop", stock: shopStock(run) }; return;
+    case "shop": run.shopRerolls = 0; run.scene = { t: "shop", stock: shopStock(run) }; return;
     case "forge": run.scene = { t: "forge" }; return;
     case "rest": run.scene = { t: "rest", done: false }; return;
     case "event": run.scene = { t: "event", ev: EVENTS[Math.floor(run.rng() * EVENTS.length)], result: null, found: [] }; return;
@@ -177,7 +182,8 @@ function openResplendent(run: Run) {
 // ---------- Combat ----------
 
 function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic") {
-  const enemy = rank === "boss" ? makeBoss(run.floor, run.rng) : makeMonster(run.rng, run.floor, rank);
+  run.hero.f.persist["floor"] = run.floor;
+  const enemy = rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : makeMonster(run.rng, run.floor, rank);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
@@ -206,8 +212,9 @@ export function drinkPotion(run: Run) {
   const h = run.hero;
   if (h.potions <= 0) return;
   h.potions--;
-  if (run.scene.t === "combat") healF(run.scene.battle, h.f, 12, "Potion");
-  else h.f.hp = Math.min(h.f.maxHp, h.f.hp + 12);
+  const amount = h.f.items["l_bottomless"] ? Math.ceil(h.f.maxHp / 2) : 12;
+  if (run.scene.t === "combat") healF(run.scene.battle, h.f, amount, "Potion");
+  else h.f.hp = Math.min(h.f.maxHp, h.f.hp + amount);
 }
 
 function afterFight(run: Run) {
@@ -244,12 +251,18 @@ function afterFight(run: Run) {
   }
   if (rank === "champion") {
     items.push(roll(TABLES.champion));
-    if (run.rng() < 0.6) scrolls++;
+    if (run.rng() < 0.2) scrolls++;
+    const metal = run.rng() < 0.65 ? 1 + (run.rng() < 0.25 ? 1 : 0) : 0;
+    if (metal) {
+      h.starmetal += metal;
+      run.message = `The Champion leaves ${metal} Starmetal behind.`;
+    }
+    if (!h.relics["transmuter"] && run.rng() < 0.12) relic = "transmuter";
     relic = randomRelic(run);
   }
   if (rank === "boss") {
     relic = randomRelic(run);
-    if (run.rng() < 0.35) scrolls++;
+    if (run.rng() < 0.15) scrolls++;
     h.f.gold += gold;
     h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.round(h.f.maxHp * 0.3));
     if (relic) {
@@ -267,7 +280,7 @@ function afterFight(run: Run) {
 
 function randomRelic(run: Run): string {
   const tags = heroTags(run.hero);
-  const pool = RELICS.filter(r => !isLocked(r.id));
+  const pool = RELICS.filter(r => !isLocked(r.id) && r.id !== "transmuter");
   const w = pool.map(r => 1 + 0.3 * r.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0) * ({ common: 1, uncommon: 0.7, rare: 0.35 }[r.rarity as "common"] ?? 0.5));
   let x = run.rng() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < pool.length; i++) {
@@ -382,7 +395,7 @@ function shopStock(run: Run): ShopEntry[] {
   }
   stock.push({ kind: "relic", relic: randomRelic(run), price: 45 });
   stock.push({ kind: "potion", price: 15 });
-  if (run.rng() < 0.3) stock.push({ kind: "scroll", price: 80 });
+  if (run.rng() < 0.12) stock.push({ kind: "scroll", price: 100 + 25 * (run.floor - 1) });
   return stock;
 }
 
@@ -409,10 +422,15 @@ export function buy(run: Run, i: number): string | null {
   return null;
 }
 
+/** Each reroll at the same Merchant costs 10 more than the last. */
+export const shopRerollCost = (run: Run) => 10 + 10 * run.shopRerolls;
+
 export function rerollShop(run: Run): string | null {
   if (run.scene.t !== "shop") return null;
-  if (run.hero.f.gold < 10) return "Not enough Gold.";
-  run.hero.f.gold -= 10;
+  const cost = shopRerollCost(run);
+  if (run.hero.f.gold < cost) return "Not enough Gold.";
+  run.hero.f.gold -= cost;
+  run.shopRerolls++;
   run.scene.stock = shopStock(run);
   return null;
 }
@@ -436,8 +454,10 @@ export function forgeReroll(run: Run, uid: number): string | null {
   if (!found) return null;
   const keys = Object.keys(found.item.bonuses);
   if (!keys.length) return "This item has no bonuses to reroll.";
-  if (h.scrap < REROLL_COST) return `Needs ${REROLL_COST} Scrap.`;
-  h.scrap -= REROLL_COST;
+  const cost = rerollCost(found.item);
+  if (h.scrap < cost) return `Needs ${cost} Scrap.`;
+  h.scrap -= cost;
+  found.item.rerolls = (found.item.rerolls ?? 0) + 1;
   const old = keys[Math.floor(run.rng() * keys.length)];
   const n = found.item.bonuses[old];
   delete found.item.bonuses[old];
@@ -529,6 +549,112 @@ export function fuse(run: Run, out: string): string | null {
   run.stats.fusions++;
   recompute(run.hero);
   return null;
+}
+
+// ---------- Forge: Offering, Combine, Transmute ----------
+
+const RARITY_POINTS: Record<Rarity, number> = { common: 1, uncommon: 2, rare: 4, epic: 8, legendary: 16 };
+
+/** The value of an Offering; more and rarer items give better odds. */
+export const offeringValue = (items: GearItem[]) => items.reduce((s, it) => s + RARITY_POINTS[it.rarity] * (1 + 0.25 * (it.level - 1)), 0);
+
+/** Rarity odds an Offering of this value gives (for showing in the UI and for rolling). */
+export function offeringOdds(value: number): Partial<Record<Rarity, number>> {
+  const t = Math.log2(Math.max(1, value)); // 1 → 0 (common) … 16 → 4
+  const odds: Partial<Record<Rarity, number>> = {};
+  let total = 0;
+  RARITIES.forEach((r, i) => {
+    let w = Math.max(0, 1.4 - Math.abs(i - 0.7 * t) * 1.1);
+    if (r === "epic") w *= 0.8;
+    if (r === "legendary") w = value >= 24 ? Math.min(0.5, (value - 24) / 80) : 0;
+    odds[r] = w;
+    total += w;
+  });
+  for (const r of RARITIES) odds[r] = Math.round(((odds[r] ?? 0) / total) * 100);
+  return odds;
+}
+
+/** Sacrifice two or more backpack items for one new item. */
+export function forgeOffer(run: Run, uids: number[]): GearItem | string {
+  const h = run.hero;
+  const items = uids.map(u => h.backpack.find(i => i.uid === u)).filter((x): x is GearItem => !!x);
+  if (items.length < 2) return "Offer at least two items from your bag.";
+  const rarity = rollRarity(run.rng, offeringOdds(offeringValue(items)));
+  for (const it of items) removeGear(h, it.uid);
+  const out = rollItem(h, rarity, Math.max(run.floor, ...items.map(i => i.level)), run.rng);
+  h.backpack.push(out);
+  markFound(run, out);
+  recompute(h);
+  return out;
+}
+
+/** Two items of the same kind (same base): one stronger item, with a 30% chance to rise a rarity. */
+export function forgeCombine(run: Run, a: number, b: number): GearItem | string {
+  const h = run.hero;
+  const A = findItem(h, a)?.item;
+  const B = findItem(h, b)?.item;
+  if (!A || !B || a === b) return "Pick two items.";
+  if (A.base !== B.base) return "Only two of the same item can be combined.";
+  if (A.rarity === "legendary" || B.rarity === "legendary") return "Legendaries can't be combined.";
+  const top = RARITIES.indexOf(A.rarity) >= RARITIES.indexOf(B.rarity) ? A : B;
+  let r = RARITIES.indexOf(top.rarity);
+  const promoted = r < RARITIES.indexOf("epic") && run.rng() < 0.3;
+  if (promoted) r++;
+  const rarity = RARITIES[r];
+  const level = Math.max(A.level, B.level) + 1;
+  const slots = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0 }[rarity];
+  const merged: Record<string, number> = {};
+  for (const src of [A.bonuses, B.bonuses]) for (const [k, n] of Object.entries(src)) merged[k] = Math.max(merged[k] ?? 0, n);
+  const keep = Object.entries(merged).sort((x, y) => y[1] - x[1]).slice(0, slots);
+  const bonuses: Record<string, number> = Object.fromEntries(keep.map(([k, n]) => [k, n + 1]));
+  if (Object.keys(bonuses).length < slots) {
+    const fill = rollItem(h, rarity === "epic" ? "epic" : "rare", level, run.rng);
+    for (const [k, n] of Object.entries(fill.bonuses)) if (Object.keys(bonuses).length < slots && !(k in bonuses)) bonuses[k] = n;
+  }
+  const epic = rarity === "epic" ? A.epic ?? B.epic ?? EPIC_POWERS[Math.floor(run.rng() * EPIC_POWERS.length)].id : undefined;
+  const wasEquipped = findItem(h, top.uid)?.where;
+  removeGear(h, A.uid);
+  removeGear(h, B.uid);
+  const out: GearItem = { uid: h.nextUid++, base: top.base, rarity, level, bonuses, epic, revealed: true };
+  if (wasEquipped && wasEquipped !== "backpack") equipItem(h, out, wasEquipped);
+  else h.backpack.push(out);
+  markFound(run, out);
+  recompute(h);
+  return out;
+}
+
+/** Pairs of identical items the hero could combine. */
+export function combinablePairs(run: Run): [GearItem, GearItem][] {
+  const h = run.hero;
+  const all = [...Object.values(h.equip).filter((x): x is GearItem => !!x), ...h.backpack].filter(i => i.rarity !== "legendary");
+  const pairs: [GearItem, GearItem][] = [];
+  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) if (all[i].base === all[j].base) pairs.push([all[i], all[j]]);
+  return pairs;
+}
+
+export const TRANSMUTE_COST = 3;
+
+/** With the Transmuter's Crucible: a Common item + 3 Starmetal becomes an (unrevealed) Legendary of the same kind. */
+export function forgeTransmute(run: Run, uid: number): GearItem | string {
+  const h = run.hero;
+  if (!h.relics["transmuter"]) return "You need the Transmuter's Crucible.";
+  const found = findItem(h, uid);
+  if (!found || found.item.rarity !== "common") return "Only Common items can be transmuted.";
+  if (h.starmetal < TRANSMUTE_COST) return `Needs ${TRANSMUTE_COST} Starmetal.`;
+  const slot = effectiveBase(found.item).slot;
+  const pool = LEGENDARIES.filter(l => l.slot === slot && !isLocked(l.id));
+  const fitting = pool.filter(l => (l.legendary?.minFloor ?? 1) <= run.floor);
+  const choice = (fitting.length ? fitting : pool)[Math.floor(run.rng() * (fitting.length || pool.length))];
+  if (!choice) return "Nothing answers the Crucible.";
+  h.starmetal -= TRANSMUTE_COST;
+  const where = found.where;
+  removeGear(h, uid);
+  const out: GearItem = { uid: h.nextUid++, base: choice.id, rarity: "legendary", level: Math.max(found.item.level, run.floor), bonuses: {}, revealed: false };
+  if (where !== "backpack") equipItem(h, out, where);
+  else if (h.backpack.length < BACKPACK_SIZE) h.backpack.push(out);
+  markFound(run, out);
+  recompute(h);
+  return out;
 }
 
 // ---------- Talents and moving on ----------

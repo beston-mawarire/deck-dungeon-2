@@ -68,7 +68,7 @@ describe("origins and gear", () => {
     const h = newHero("warrior");
     const rng = makeRng(3);
     const epic = rollItem(h, "epic", 2, rng);
-    expect(Object.keys(epic.bonuses).length).toBe(2);
+    expect(Object.keys(epic.bonuses).length).toBe(3);
     expect(epic.epic).toBeDefined();
     const rare = rollItem(h, "rare", 1, rng);
     expect(Object.keys(rare.bonuses).length).toBe(2);
@@ -85,7 +85,7 @@ describe("origins and gear", () => {
     h.scrolls = 1;
     expect(reveal(h, 50)).toBeNull();
     expect(itemName(leg)).toBe("Kingsbane");
-    expect(h.f.damage).toBe(6);
+    expect(h.f.damage).toBe(8); // 7 base + 1 for Legendary
     expect(h.f.items["l_kingsbane"]).toBe(1);
   });
 
@@ -93,7 +93,7 @@ describe("origins and gear", () => {
     const h = newHero("warrior");
     equipItem(h, { uid: 51, base: "l_worldsplitter", rarity: "legendary", level: 3, bonuses: {}, revealed: true });
     expect(h.f.faces.length).toBe(12);
-    expect(weaponDamage(h.equip.main!)).toBe(9);
+    expect(weaponDamage(h.equip.main!)).toBe(11); // 8 base + 2 levels + 1 Legendary
   });
 
   it("salvage turns gear into Scrap", () => {
@@ -199,12 +199,14 @@ describe("a whole run", () => {
 });
 
 describe("bosses, endless, events, fusions", () => {
-  it("ten named campaign bosses, generated bosses after, and the wall on floor 30", async () => {
+  it("five campaign bosses (Hollow King last), Endless bosses after, and the wall on floor 30", async () => {
     const { makeBoss, WALL_FLOOR, bossStats } = await import("../src/data/bosses");
     const rng = makeRng(5);
+    const seen = new Set<string>();
     const names = new Set<string>();
-    for (let f = 1; f <= 10; f++) names.add(makeBoss(f, rng).name);
-    expect(names.size).toBe(10);
+    for (let f = 1; f <= 5; f++) names.add(makeBoss(f, rng, seen).name);
+    expect(names.size).toBe(5);
+    expect(makeBoss(5, rng).name).toBe("The Hollow King");
     for (let f = 11; f <= 40; f++) {
       const b = makeBoss(f, rng);
       expect(b.moves!.length).toBeGreaterThanOrEqual(3);
@@ -218,9 +220,9 @@ describe("bosses, endless, events, fusions", () => {
   it("boss moves run through the phased turn", async () => {
     const { makeBoss } = await import("../src/data/bosses");
     const h = newHero("warrior");
-    const b = startBattle(h.f, makeBoss(4, makeRng(1)), 9);
+    const b = startBattle(h.f, makeBoss(3, makeRng(1)), 9);
     for (let i = 0; i < 6 && !b.over; i++) playRound(b, "attack");
-    expect(b.log.some(l => l.includes("uses Bulwark"))).toBe(true);
+    expect(b.log.some(l => / uses /.test(l))).toBe(true);
     expect(b.fx.length).toBeGreaterThan(0);
   });
 
@@ -244,6 +246,58 @@ describe("bosses, endless, events, fusions", () => {
       run.scene = { t: "event", ev, result: null, found: [] };
       chooseEvent(run, i);
       expect(["event", "loot"]).toContain(run.scene.t);
+    }
+  });
+});
+
+describe("forge: offering, combine, transmute", () => {
+  it("offering odds improve with value", async () => {
+    const { offeringOdds } = await import("../src/game/run");
+    for (const v of [2, 4, 8, 16, 40]) console.log("ODDS", v, JSON.stringify(offeringOdds(v)));
+    expect(offeringOdds(2).legendary).toBe(0);
+    expect((offeringOdds(40).legendary ?? 0)).toBeGreaterThan(0);
+  });
+
+  it("combine two of the same item into a stronger one", async () => {
+    const { forgeCombine } = await import("../src/game/run");
+    const run = newRun("warrior", 21);
+    const a = { uid: 501, base: "w_axe", rarity: "rare" as const, level: 1, bonuses: { b_damage: 1, b_burn: 1 }, revealed: true };
+    const b = { uid: 502, base: "w_axe", rarity: "uncommon" as const, level: 2, bonuses: { b_bleed: 2 }, revealed: true };
+    run.hero.backpack.push(a, b);
+    const out = forgeCombine(run, 501, 502);
+    expect(typeof out).toBe("object");
+    if (typeof out === "object") {
+      expect(out.base).toBe("w_axe");
+      expect(out.level).toBe(3);
+      expect(["rare", "epic"]).toContain(out.rarity);
+      expect(Object.keys(out.bonuses).length).toBe(out.rarity === "epic" ? 3 : 2);
+    }
+  });
+
+  it("offering consumes items and gives one", async () => {
+    const { forgeOffer } = await import("../src/game/run");
+    const run = newRun("mage", 22);
+    for (let i = 0; i < 3; i++) run.hero.backpack.push({ uid: 600 + i, base: "w_dagger", rarity: "rare", level: 2, bonuses: {}, revealed: true });
+    const out = forgeOffer(run, [600, 601, 602]);
+    expect(typeof out).toBe("object");
+    expect(run.hero.backpack.length).toBe(1);
+  });
+
+  it("the Transmuter turns a Common into an unrevealed Legendary for 3 Starmetal; scrapping a Legendary gives Starmetal", async () => {
+    const { forgeTransmute } = await import("../src/game/run");
+    const run = newRun("warrior", 23);
+    const sword = run.hero.equip.main!;
+    expect(forgeTransmute(run, sword.uid)).toBe("You need the Transmuter's Crucible.");
+    run.hero.relics["transmuter"] = 1;
+    run.hero.starmetal = 3;
+    const out = forgeTransmute(run, sword.uid);
+    expect(typeof out).toBe("object");
+    if (typeof out === "object") {
+      expect(out.rarity).toBe("legendary");
+      expect(out.revealed).toBe(false);
+      expect(run.hero.equip.main?.uid).toBe(out.uid);
+      expect(salvage(run.hero, out.uid)).toBeGreaterThan(0);
+      expect(run.hero.starmetal).toBe(2);
     }
   });
 });

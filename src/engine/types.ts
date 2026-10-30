@@ -195,4 +195,6 @@ export interface GearItem {
   epic?: string;
   /** Legendaries start unrevealed and act as a Common of their base type. */
   revealed: boolean;
+  /** How many times the Forge has rerolled this item (each reroll costs more). */
+  rerolls?: number;
 }

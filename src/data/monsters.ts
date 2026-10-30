@@ -24,10 +24,14 @@ export const TRAITS: HookDef[] = [
   trait({ id: "x_spiteful", name: "Spiteful", tags: ["Thorns"], text: "When it dies, you take 5",
     hooks: { onFightEnd: (b, f) => { if (b.over === "won" && f.id === "enemy") { const p = other(b, f); p.hp -= 5; log(b, "Spiteful: you take 5 as it dies."); b.fx.push({ who: "player", kind: "dmg", value: 5 }); } } } }),
   trait({ id: "x_warded", name: "Warded", tags: ["Guard"], text: "Immune to statuses for the first 2 rounds", hooks: { incomingStatus: (b, _f, _s, n) => (b.round <= 2 ? 0 : n) } }),
+  trait({ id: "x_nullifying", name: "Nullifying", tags: ["Hex"], text: "Rare: the first positive status you'd gain each round fizzles", hooks: {} }),
+  trait({ id: "x_concussive", name: "Concussive", tags: ["Strike"], text: "Its 6s Stun you", hooks: { onHit: (b, c) => { if (c.face === 6) applyStatus(b, c.attacker, c.defender, "stun", 1); } } }),
   trait({ id: "x_regenerating", name: "Regenerating", tags: ["Blood"], text: "Heals 2 at the end of every round", hooks: { onRoundEnd: (b, f) => { heal(b, f, 2, "Regenerating"); } } }),
 ];
 
-export const ELITE_AFFIX_IDS = ["x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating"];
+export const ELITE_AFFIX_IDS = ["x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying"];
+/** How often each affix rolls (Nullifying is rare). */
+export const AFFIX_WEIGHT: Record<string, number> = { x_nullifying: 0.35, x_concussive: 0.8 };
 
 interface MonsterDef { name: string; family: string; hp: number; power: number; armor?: number; traits: string[]; faces?: FaceSpec[] }
 
@@ -41,7 +45,7 @@ export const MONSTERS: MonsterDef[] = [
   { name: "Acolyte", family: "Cultist", hp: 10, power: 2, traits: [], faces: [MISS, spell("Cinder", "hit", hex("burn", 2)), HIT, spell("Cinder", "hit", hex("burn", 2)), HIT, CRIT] },
   { name: "Hexer", family: "Cultist", hp: 9, power: 2, traits: ["m_curse_touch"] },
   { name: "Zealot", family: "Cultist", hp: 13, power: 3, traits: ["m_zeal"] },
-  { name: "Stone Golem", family: "Construct", hp: 18, power: 3, armor: 3, traits: [], faces: [MISS, MISS, HIT, HIT, HIT, CRIT] },
+  { name: "Stone Golem", family: "Construct", hp: 18, power: 3, armor: 3, traits: [], faces: [MISS, MISS, HIT, HIT, HIT, spell("Crush", "crit", hex("stun", 1))] },
   { name: "Sentry", family: "Construct", hp: 12, power: 3, armor: 1, traits: ["m_static"] }
 ];
 
@@ -49,12 +53,12 @@ export type MonsterRank = "normal" | "elite" | "champion" | "boss";
 
 /** Regular monsters grow with the floor; past floor 10 (Endless) they grow faster, and past 30 much faster. */
 export function monsterHpMult(floor: number) {
-  let m = 1 + 0.45 * (floor - 1);
-  if (floor > 10) m *= 1 + 0.06 * (floor - 10);
+  let m = 1 + 0.55 * (floor - 1);
+  if (floor > 5) m *= 1 + 0.06 * (floor - 5);
   if (floor > 30) m *= Math.pow(1.2, floor - 30);
   return m;
 }
-export const monsterPowerAdd = (floor: number) => Math.round(1.2 * (floor - 1) * (floor > 30 ? Math.pow(1.1, floor - 30) : 1));
+export const monsterPowerAdd = (floor: number) => Math.round(1.5 * (floor - 1) * (floor > 30 ? Math.pow(1.1, floor - 30) : 1));
 
 export function makeMonster(rng: () => number, floor: number, rank: MonsterRank): Fighter {
   const def = MONSTERS[Math.floor(rng() * MONSTERS.length)];
@@ -64,16 +68,21 @@ export function makeMonster(rng: () => number, floor: number, rank: MonsterRank)
   for (const t of def.traits) items[t] = 1;
   let prefix = "";
   if (rank === "elite" || rank === "champion") {
-    const n = rank === "champion" ? 2 : 1;
+    const n = rank === "champion" ? (floor >= 4 ? 3 : 2) : floor >= 4 ? 2 : 1;
     const pool = [...ELITE_AFFIX_IDS];
     const names: string[] = [];
     for (let i = 0; i < n; i++) {
-      const id = pool.splice(Math.floor(rng() * pool.length), 1)[0];
+      const total = pool.reduce((s, x) => s + (AFFIX_WEIGHT[x] ?? 1), 0);
+      let roll = rng() * total;
+      let k = 0;
+      for (; k < pool.length - 1; k++) { roll -= AFFIX_WEIGHT[pool[k]] ?? 1; if (roll < 0) break; }
+      const id = pool.splice(k, 1)[0];
       items[id] = 1;
       names.push(TRAITS.find(t => t.id === id)!.name);
     }
-    hp = Math.round(hp * (rank === "champion" ? 2 : 1.5));
-    power += rank === "champion" ? 2 : 1;
+    // Tougher than before, and tougher the deeper you go.
+    hp = Math.round(hp * (rank === "champion" ? 2.2 + 0.15 * floor : 1.5 + 0.08 * floor));
+    power += rank === "champion" ? 2 + Math.floor(floor / 2) : 1 + (floor >= 3 ? 1 : 0);
     prefix = `${names.join(" ")} `;
   }
   const name = rank === "champion" ? `Champion ${prefix}${def.name}` : `${prefix}${def.name}`;

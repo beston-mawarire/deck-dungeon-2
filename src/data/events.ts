@@ -61,7 +61,7 @@ export const EVENTS: GameEvent[] = [
     options: [{ label: "Bathe", hint: "Remove all curses", run: c => { const n = c.clearCurses(); return n ? `${n} curse${n > 1 ? "s" : ""} washed away.` : "You feel clean, though you weren't cursed."; } },
       { label: "Drink deeply", hint: "Heal 50%", run: c => { c.healPct(0.5); return "You feel restored."; } }] },
   { id: "scribe", title: "The Blind Scribe", icon: "📜", text: "An old scribe sells scrolls by touch alone.",
-    options: [{ label: "Buy a Scroll of Revelation (60 Gold)", can: c => c.gold() >= 60, run: c => { c.addGold(-60); c.addScrolls(1); return "You receive a Scroll of Revelation."; } }, leave] },
+    options: [{ label: "Buy a Scroll of Revelation (110 Gold)", can: c => c.gold() >= 110, run: c => { c.addGold(-110); c.addScrolls(1); return "You receive a Scroll of Revelation."; } }, leave] },
   { id: "idol", title: "The Cursed Idol", icon: "🗿", text: "A golden idol sits on a pedestal. Its eyes follow you.",
     options: [{ label: "Take it", hint: "An Epic item and a curse", run: c => { c.gainItem("epic"); return `It's yours. So is the curse: ${c.addCurse()}.`; } },
       { label: "Smash it", hint: "+12 Scrap", run: c => { c.addScrap(12); return "It shatters into useful pieces. +12 Scrap."; } }] },

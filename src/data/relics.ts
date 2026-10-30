@@ -13,6 +13,7 @@ export const GENERAL: HookDef[] = [
   relic({ id: "chalice", name: "Chalice", rarity: "common", tags: ["Blood", "Kill"], text: "Kills heal 2", hooks: { onKill: (b, ctx) => { heal(b, ctx.attacker, 2, "Chalice"); } } }),
   relic({ id: "gamblers_glove", name: "Gambler's Glove", rarity: "rare", tags: ["Luck"], text: "Once per Resplendent chest, after your pick flips you may give it up and take another card", hooks: {} }),
   relic({ id: "four_leaf_clover", name: "Four-Leaf Clover", rarity: "uncommon", tags: ["Luck"], text: "+3% Legendary odds on every Resplendent card (+3%)", hooks: {} }),
+  relic({ id: "transmuter", name: "Transmuter's Crucible", rarity: "rare", tags: ["Luck", "Arcane"], text: "At a Forge, turn a Common item into a Legendary of the same kind for 3 Starmetal", hooks: {} }),
   relic({ id: "skeleton_key", name: "Skeleton Key", rarity: "uncommon", tags: ["Luck"], text: "Iron chests are never Mimics and give 1 of 2", hooks: {} })
 ];
 

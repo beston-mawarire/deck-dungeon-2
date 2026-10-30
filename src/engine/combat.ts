@@ -76,14 +76,18 @@ export function resolveFace(b: Battle, a: Fighter, d: Fighter, face: number, off
     ctx.mult = 2;
     ctx.ignoreArmor = true;
   }
-  if (spec.run) {
-    a.flags["casting"] = 1;
-    spec.run(b, ctx);
-    a.flags["casting"] = 0;
+  // Echo Mask: every face effect fires twice.
+  const times = stacksOf(a, "l_echo_mask") > 0 ? 2 : 1;
+  for (let t = 0; t < times; t++) {
+    if (spec.run) {
+      a.flags["casting"] = 1;
+      spec.run(b, ctx);
+      a.flags["casting"] = 0;
+    }
+    eachHook(a, "face", (entries, s) => {
+      for (const e of entries) if (faceMatches(e.group, face)) e.run(b, ctx, s);
+    });
   }
-  eachHook(a, "face", (entries, s) => {
-    for (const e of entries) if (faceMatches(e.group, face)) e.run(b, ctx, s);
-  });
   eachHook(a, "modifyAttack", (h, s) => h(b, ctx, s));
   strike(b, ctx);
 }
@@ -118,14 +122,17 @@ function strike(b: Battle, ctx: AttackCtx) {
     return afterStrike(b, ctx);
   }
   const armor = ctx.ignoreArmor ? 0 : armorOf(d);
-  const after = Math.max(0, raw - armor);
+  // Armor can't soak a whole hit unless you're Guarding: at least a third always gets through.
+  const floorDmg = d.flags["guarding"] ? 0 : Math.floor(raw / 3);
+  const after = Math.max(floorDmg, raw - armor);
   if (ctx.kind === "crit") fx(b, { who: d.id, kind: "crit", text: "Crit!" });
   if (ctx.kind === "graze") fx(b, { who: d.id, kind: "text", text: "Graze" });
   ctx.dealt = loseHp(b, d, after);
   const label = ctx.kind === "crit" ? "Crit! " : ctx.kind === "graze" ? "Graze. " : "";
   log(b, `${label}${a.name} hits ${d.name} for ${ctx.dealt}${armor && raw > 0 ? ` (${raw} − ${armor} Armor)` : ""}.`);
   if (shatter) applyStatus(b, a, d, "stun", 1);
-  if (raw > 0 && after === 0) {
+  if (armor > 0 && raw > after) d.flags["absorbed"] = (d.flags["absorbed"] ?? 0) + (raw - after);
+  if (raw > 0 && after === 0 && armor > 0) {
     d.flags["blocked"] = (d.flags["blocked"] ?? 0) + raw;
     d.flags["blockedNow"] = 1;
     log(b, `${d.name} blocks it all.`);
@@ -179,7 +186,8 @@ function act(b: Battle, f: Fighter, doIt: () => void) {
 }
 
 function heroAttack(b: Battle) {
-  attack(b, b.player, b.enemy);
+  const swings = stacksOf(b.player, "l_thousand_hands") > 0 ? 3 : 1;
+  for (let i = 0; i < swings && b.enemy.hp > 0; i++) attack(b, b.player, b.enemy);
   if (b.player.offFaces && b.enemy.hp > 0) attack(b, b.player, b.enemy, true);
 }
 
@@ -207,6 +215,14 @@ function tryRewind(b: Battle): boolean {
 function checkOver(b: Battle) {
   if (b.over) return true;
   if (b.player.hp <= 0 && tryRewind(b)) return true;
+  // Phoenix Plume: once per fight, rise from death.
+  if (b.player.hp <= 0 && stacksOf(b.player, "l_phoenix") > 0 && !b.player.flags["phoenix"]) {
+    b.player.flags["phoenix"] = 1;
+    b.player.hp = Math.ceil(b.player.maxHp / 2);
+    log(b, "🔥 The Phoenix Plume flares: you rise from the ashes!");
+    fx(b, { who: "player", kind: "text", text: "Reborn!", icon: "🔥" });
+    applyStatus(b, b.player, b.enemy, "burn", 15);
+  }
   if (b.enemy.hp <= 0) {
     b.over = "won";
     log(b, `${b.enemy.name} is defeated!`);
