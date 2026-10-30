@@ -1,5 +1,5 @@
 // Status effects (both sides), their reactions, and their per-round ticks.
-import { eachHook, log } from "./registry";
+import { eachHook, fx, log } from "./registry";
 import type { Battle, Fighter, StatusId } from "./types";
 import { NEGATIVE_STATUSES } from "./types";
 
@@ -55,6 +55,8 @@ export function loseHp(b: Battle, f: Fighter, amount: number): number {
     amount -= used;
   }
   f.hp -= amount;
+  if (amount > 0) fx(b, { who: f.id, kind: "dmg", value: amount });
+  else if (bar > 0) fx(b, { who: f.id, kind: "block", text: "Barrier", icon: "🛡️" });
   return amount;
 }
 
@@ -64,7 +66,10 @@ export function heal(b: Battle, f: Fighter, amount: number, why = "") {
   const before = f.hp;
   f.hp = Math.min(f.maxHp, f.hp + amount);
   const got = f.hp - before;
-  if (got > 0) log(b, `${f.name} heals ${got}${why ? ` (${why})` : ""}.`);
+  if (got > 0) {
+    log(b, `${f.name} heals ${got}${why ? ` (${why})` : ""}.`);
+    fx(b, { who: f.id, kind: "heal", value: got });
+  }
   return got;
 }
 
@@ -83,6 +88,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   if (isNegative(id) && st(target, "ward") > 0) {
     target.statuses.ward = st(target, "ward") - 1;
     log(b, `${target.name}'s Ward blocks ${STATUS_INFO[id].name}.`);
+    fx(b, { who: target.id, kind: "block", text: "Warded", icon: "✨" });
     return;
   }
   eachHook(target, "incomingStatus", (h, s) => (amount = h(b, target, id, amount, s)));
@@ -93,6 +99,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   else if (id === "shock") target.statuses.shock = Math.max(st(target, "shock"), amount);
   else target.statuses[id] = st(target, id) + amount;
   log(b, `${target.name} gains ${STATUS_INFO[id].icon} ${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` ${amount}`}.`);
+  fx(b, { who: target.id, kind: "status", icon: STATUS_INFO[id].icon, text: `${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` +${amount}`}`, value: isNegative(id) ? -1 : 1 });
 
   if (depth === 0) {
     for (const r of REACTIONS) {
@@ -106,6 +113,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
 
 function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, depth: number) {
   const name = REACTIONS.find(r => r.id === id)!.name;
+  fx(b, { who: t.id, kind: "reaction", text: `${name}!` });
   const m = reactionMult(b, source);
   switch (id) {
     case "combustion": {
@@ -186,6 +194,7 @@ export function endOfRound(b: Battle, f: Fighter) {
     if (f.flags["despair"]) f.statuses.doom = st(f, "doom") + 1;
     if (st(f, "doom") >= f.hp && f.hp > 0) {
       log(b, `💀 Doom claims ${f.name}.`);
+      fx(b, { who: f.id, kind: "text", text: "Doomed", icon: "💀" });
       f.hp = 0;
     }
   }

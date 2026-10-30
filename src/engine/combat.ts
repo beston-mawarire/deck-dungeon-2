@@ -1,5 +1,5 @@
 // Combat: your weapon is your die. Roll it, read the face, fire every effect on that face, then deal damage.
-import { eachHook, log, stacksOf } from "./registry";
+import { eachHook, fx, log, stacksOf } from "./registry";
 import { makeRng, rollDie } from "./rng";
 import { applyStatus, endOfRound, loseHp, other, st, startOfTurn } from "./statuses";
 import type { AttackCtx, Battle, FaceGroup, FaceKind, FaceSpec, Fighter, Statuses } from "./types";
@@ -61,8 +61,10 @@ export function resolveFace(b: Battle, a: Fighter, d: Fighter, face: number, off
   const faces = (offhand ? a.offFaces : a.faces) ?? PLAIN_FACES;
   const spec = faces[Math.min(face, faces.length) - 1];
   log(b, `${a.name} rolls ${face}${offhand ? " (off-hand)" : ""}: ${faceName(spec)}.`);
+  fx(b, { who: a.id, kind: "roll", face, faceName: faceName(spec), faceKind: spec.kind, sides: faces.length, offhand });
   if (st(a, "blind") > 0 && face <= 2) {
     log(b, `${a.name} is Blind and misses.`);
+    fx(b, { who: d.id, kind: "miss", text: "Blind — miss" });
     return;
   }
   const ctx: AttackCtx = {
@@ -89,7 +91,10 @@ export function resolveFace(b: Battle, a: Fighter, d: Fighter, face: number, off
 function strike(b: Battle, ctx: AttackCtx) {
   const { attacker: a, defender: d } = ctx;
   if (ctx.noDamage || d.hp <= 0) {
-    if (ctx.kind === "miss") log(b, `${a.name} misses.`);
+    if (ctx.kind === "miss") {
+      log(b, `${a.name} misses.`);
+      fx(b, { who: d.id, kind: "miss", text: "Miss" });
+    }
     return afterStrike(b, ctx);
   }
   let raw = (damageOf(a, ctx.offhand) + ctx.bonus) * ctx.mult;
@@ -109,10 +114,13 @@ function strike(b: Battle, ctx: AttackCtx) {
   if (st(d, "evade") > 0) {
     d.statuses.evade = 0;
     log(b, `${d.name} evades!`);
+    fx(b, { who: d.id, kind: "miss", text: "Evaded" });
     return afterStrike(b, ctx);
   }
   const armor = ctx.ignoreArmor ? 0 : armorOf(d);
   const after = Math.max(0, raw - armor);
+  if (ctx.kind === "crit") fx(b, { who: d.id, kind: "crit", text: "Crit!" });
+  if (ctx.kind === "graze") fx(b, { who: d.id, kind: "text", text: "Graze" });
   ctx.dealt = loseHp(b, d, after);
   const label = ctx.kind === "crit" ? "Crit! " : ctx.kind === "graze" ? "Graze. " : "";
   log(b, `${label}${a.name} hits ${d.name} for ${ctx.dealt}${armor && raw > 0 ? ` (${raw} − ${armor} Armor)` : ""}.`);
@@ -121,6 +129,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     d.flags["blocked"] = (d.flags["blocked"] ?? 0) + raw;
     d.flags["blockedNow"] = 1;
     log(b, `${d.name} blocks it all.`);
+    fx(b, { who: d.id, kind: "block", text: "Blocked" });
   }
   if (ctx.dealt > 0) {
     eachHook(a, "onHit", (h, s) => h(b, ctx, s));
@@ -157,12 +166,14 @@ function act(b: Battle, f: Fighter, doIt: () => void) {
   if (st(f, "stun") > 0) {
     f.statuses.stun = 0;
     log(b, `${f.name} is Stunned and skips a turn.`);
+    fx(b, { who: f.id, kind: "text", text: "Stunned", icon: "💫" });
     return;
   }
   doIt();
   if (st(f, "haste") > 0 && other(b, f).hp > 0) {
     f.statuses.haste = 0;
     log(b, `💨 ${f.name} acts again (Haste).`);
+    fx(b, { who: f.id, kind: "text", text: "Haste!", icon: "💨" });
     doIt();
   }
 }
@@ -189,6 +200,7 @@ function tryRewind(b: Battle): boolean {
   e.statuses = before.e.statuses;
   e.flags["dead"] = 0;
   log(b, "⏳ Chronoglass rewinds the round. Play it again.");
+  fx(b, { who: "player", kind: "text", text: "Rewound!", icon: "⏳" });
   return true;
 }
 
@@ -208,27 +220,27 @@ function checkOver(b: Battle) {
 
 export type Action = "attack" | "guard" | "flee";
 
-/** One full round: the hero's action, the enemy's, then end-of-round ticks. */
-export function playRound(b: Battle, action: Action) {
-  if (b.over) return;
+/** Begin a round. Returns true if the enemy acts first this round (Ambush). */
+export function beginRound(b: Battle): boolean {
   const p = b.player;
   const e = b.enemy;
   b.round++;
   log(b, `— Round ${b.round} —`);
   roundStart.set(b, { p: snap(p), e: snap(e) });
   for (const f of [p, e]) eachHook(f, "onRoundStart", (h, s) => h(b, f, s));
-
-  const enemyFirst = b.round === 1 && e.flags["ambush"];
-  const enemyTurn = () => {
-    startOfTurn(b, e);
-    if (!checkOver(b)) act(b, e, () => attack(b, e, p));
-  };
-  if (enemyFirst) {
+  const first = b.round === 1 && !!e.flags["ambush"];
+  if (first) {
     log(b, `${e.name} strikes first!`);
-    enemyTurn();
-    if (checkOver(b)) return;
+    fx(b, { who: "enemy", kind: "text", text: "Ambush!" });
   }
+  return first;
+}
 
+/** The hero's turn. */
+export function heroPhase(b: Battle, action: Action) {
+  if (b.over) return;
+  const p = b.player;
+  const e = b.enemy;
   startOfTurn(b, p);
   if (checkOver(b)) return;
   if (action === "flee") {
@@ -241,28 +253,56 @@ export function playRound(b: Battle, action: Action) {
   } else if (action === "guard") {
     p.flags["guarding"] = 1;
     log(b, `${p.name} Guards (Armor ${armorOf(p)}).`);
+    fx(b, { who: "player", kind: "text", text: `Guard · Armor ${armorOf(p)}`, icon: "🛡️" });
     eachHook(p, "onGuard", (h, s) => h(b, p, s));
   } else act(b, p, () => heroAttack(b));
+  checkOver(b);
+}
+
+/** The enemy's turn: a boss with a move set performs its shown intent; others attack. */
+export function enemyPhase(b: Battle) {
+  if (b.over) return;
+  const p = b.player;
+  const e = b.enemy;
+  startOfTurn(b, e);
   if (checkOver(b)) return;
+  act(b, e, () => {
+    const move = e.moves?.[e.intent ?? 0];
+    if (move) {
+      log(b, `${e.name} uses ${move.name}.`);
+      fx(b, { who: "enemy", kind: "text", text: move.name, icon: move.icon });
+      move.act(b, e, p);
+    } else attack(b, e, p);
+  });
+  if (e.moves?.length) e.intent = ((e.intent ?? 0) + 1) % e.moves.length;
+  checkOver(b);
+}
 
-  if (!enemyFirst) {
-    enemyTurn();
-    if (checkOver(b)) return;
-  }
-
-  for (const f of [p, e]) {
+/** End-of-round ticks for both sides. */
+export function endRound(b: Battle) {
+  if (b.over) return;
+  for (const f of [b.player, b.enemy]) {
     endOfRound(b, f);
     eachHook(f, "onRoundEnd", (h, s) => h(b, f, s));
     f.flags["guarding"] = 0;
   }
-
   if (tryRewind(b)) return;
   checkOver(b);
 }
 
+/** One full round at once (used by tests and the balance bot). */
+export function playRound(b: Battle, action: Action) {
+  if (b.over) return;
+  const first = beginRound(b);
+  if (first) enemyPhase(b);
+  heroPhase(b, action);
+  if (!first) enemyPhase(b);
+  endRound(b);
+}
+
 /** Start a fight: fight-only statuses and flags reset, carried Cleave damage lands first. */
 export function startBattle(player: Fighter, enemy: Fighter, seed: number, carry = 0): Battle {
-  const b: Battle = { player, enemy, round: 0, rng: makeRng(seed), log: [], over: null, carry: 0 };
+  const b: Battle = { player, enemy, round: 0, rng: makeRng(seed), log: [], fx: [], over: null, carry: 0 };
   const keptBarrier = player.persist["keepBarrier"] ? st(player, "barrier") : 0;
   player.statuses = keptBarrier ? { barrier: keptBarrier } : {};
   player.flags = {};

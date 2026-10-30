@@ -1,7 +1,7 @@
 // Talents. Stacks = rank (I, II, III); taking one again ranks it up.
 import { other, st } from "../engine/statuses";
 import type { HookDef } from "../engine/types";
-import { applyStatus, heal, log } from "./helpers";
+import { applyStatus, heal, log, ping } from "./helpers";
 
 const talent = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "talent", ...d });
 const rank = (s: number, ...vals: number[]) => vals[Math.min(s, vals.length) - 1];
@@ -25,7 +25,7 @@ export const SHARED_TALENTS: HookDef[] = [
   talent({ id: "t_stalwart", name: "Stalwart", tags: ["Guard"], text: "Guarding heals 1 / 2 / 3 (III: and applies Weak)",
     hooks: { onGuard: (b, self, s) => { heal(b, self, s, "Stalwart"); if (s >= 3) applyStatus(b, self, other(b, self), "weak", 1); } } }),
   talent({ id: "t_retaliate", name: "Retaliate", tags: ["Thorns"], text: "When hit, deal 1 / 2 / 4 back",
-    hooks: { whenHit: (b, ctx, s) => { const n = rank(s, 1, 2, 4); if (ctx.attacker.hp > 0) { ctx.attacker.hp -= n; log(b, `Retaliate: ${n} back.`); } } } }),
+    hooks: { whenHit: (b, ctx, s) => { ping(b, ctx.attacker, rank(s, 1, 2, 4), "Retaliate"); } } }),
   talent({ id: "t_reaper", name: "Reaper", tags: ["Kill"], text: "Enemies at 2 / 3 / 5 HP or less die instantly",
     hooks: { onHit: (b, ctx, s) => { const t = rank(s, 2, 3, 5); if (ctx.defender.hp > 0 && ctx.defender.hp <= t && !ctx.defender.boss) { ctx.defender.hp = 0; log(b, "Reaper cuts it down."); } } } })
 ];

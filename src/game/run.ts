@@ -1,5 +1,8 @@
 // A run: three floors of path choices, fights, chests, shops, forges and bosses.
 import { CURSES, RELICS, TALENTS } from "../data";
+import { makeBoss, WALL_FLOOR } from "../data/bosses";
+import { EVENTS, type GameEvent } from "../data/events";
+import { FUSION_RECIPES } from "../data/fusions";
 import { makeMonster, type MonsterRank } from "../data/monsters";
 import { type Action, playRound, startBattle } from "../engine/combat";
 import { getItem } from "../engine/registry";
@@ -7,12 +10,15 @@ import { makeRng } from "../engine/rng";
 import { heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { addToBackpack, baseOf, equipItem, findItem, type Hero, heroTags, newHero, recompute, REROLL_COST, upgradeCost, xpToLevel } from "./hero";
-import { type LootState, type ResplendentCard, resplendentCards, rollItem, rollRarity, TABLES } from "./loot";
+import { isLocked, type LootState, type ResplendentCard, resplendentCards, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
-export const FLOORS = 3;
-export const STEPS_PER_FLOOR = 8;
+/** The campaign is ten floors (ten bosses). Endless keeps going; floor 30 is the wall. */
+export const FLOORS = 10;
+export const STEPS_PER_FLOOR = 6;
+export { WALL_FLOOR };
+export type Mode = "campaign" | "endless";
 
-export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "boss";
+export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -26,6 +32,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   shop: { name: "Merchant", icon: "🪙", text: "Buy gear, potions and scrolls." },
   forge: { name: "Forge", icon: "🔨", text: "Spend Scrap to upgrade or reroll gear." },
   rest: { name: "Campfire", icon: "🔥", text: "Heal, or cleanse a curse." },
+  event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." }
 };
 
@@ -42,9 +49,11 @@ export type Scene =
   | { t: "forge" }
   | { t: "rest"; done: boolean }
   | { t: "confirm"; room: RoomType }
+  | { t: "event"; ev: GameEvent; result: string | null; found: GearItem[] }
   | { t: "over"; won: boolean };
 
 export interface Run {
+  mode: Mode;
   seed: number;
   rng: () => number;
   hero: Hero;
@@ -57,16 +66,29 @@ export interface Run {
   /** Talent level-ups waiting to be chosen. */
   pendingTalents: number;
   message: string;
-  stats: { kills: number; bestHit: number };
+  stats: { kills: number; bestHit: number; bosses: number; legendaries: number; fusions: number };
+  /** Ids found this run (for the Codex between runs). */
+  found: Set<string>;
+  /** Ids allowed in loot this run (unlocked by Renown); empty = everything. */
+  locked: Set<string>;
 }
 
-export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff): Run {
+export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: Mode = "campaign", locked: Set<string> = new Set()): Run {
   const run: Run = {
-    seed, rng: makeRng(seed), hero: newHero(origin), floor: 1, step: 0, choices: [], scene: { t: "map" },
-    loot: { pity: 0 }, carry: 0, pendingTalents: 0, message: "", stats: { kills: 0, bestHit: 0 }
+    mode, seed, rng: makeRng(seed), hero: newHero(origin), floor: 1, step: 0, choices: [], scene: { t: "map" },
+    loot: { pity: 0 }, carry: 0, pendingTalents: 0, message: "", stats: { kills: 0, bestHit: 0, bosses: 0, legendaries: 0, fusions: 0 },
+    found: new Set(), locked
   };
+  setLocked(locked);
   run.choices = genChoices(run);
   return run;
+}
+
+/** After beating the campaign, keep delving: floors 11+ with generated bosses. */
+export function continueEndless(run: Run) {
+  run.mode = "endless";
+  run.choices = genChoices(run);
+  run.scene = { t: "map" };
 }
 
 const pickW = <T extends string>(rng: () => number, w: Partial<Record<T, number>>): T => {
@@ -82,7 +104,7 @@ const pickW = <T extends string>(rng: () => number, w: Partial<Record<T, number>
 
 export function genChoices(run: Run): RoomType[] {
   if (run.step >= STEPS_PER_FLOOR) return ["boss"];
-  const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 12, wooden: 12, iron: 8, shop: 7, forge: 6, rest: 7, vault: 3, altar: 3, shrine: 3, champion: 3 };
+  const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 9, vault: 3, altar: 3, shrine: 3, champion: 3 };
   if (run.step === 0) { w.elite = 0; w.champion = 0; w.vault = 0; }
   const out = new Set<RoomType>();
   out.add("fight");
@@ -138,6 +160,7 @@ function enterRoom(run: Run, room: RoomType) {
     case "shop": run.scene = { t: "shop", stock: shopStock(run) }; return;
     case "forge": run.scene = { t: "forge" }; return;
     case "rest": run.scene = { t: "rest", done: false }; return;
+    case "event": run.scene = { t: "event", ev: EVENTS[Math.floor(run.rng() * EVENTS.length)], result: null, found: [] }; return;
   }
 }
 
@@ -154,7 +177,7 @@ function openResplendent(run: Run) {
 // ---------- Combat ----------
 
 function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic") {
-  const enemy = makeMonster(run.rng, run.floor, rank);
+  const enemy = rank === "boss" ? makeBoss(run.floor, run.rng) : makeMonster(run.rng, run.floor, rank);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
@@ -193,6 +216,7 @@ function afterFight(run: Run) {
   if (b.over === "fled") return advance(run);
   run.carry = b.carry;
   run.stats.kills++;
+  if (rank === "boss") run.stats.bosses++;
   // Catch your breath: a small heal after every won fight.
   h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.ceil(h.f.maxHp * 0.15));
   const xp = { normal: 1, elite: 3, champion: 5, boss: 6 }[rank];
@@ -220,7 +244,10 @@ function afterFight(run: Run) {
     if (run.rng() < 0.35) scrolls++;
     h.f.gold += gold;
     h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.round(h.f.maxHp * 0.3));
-    if (relic) h.relics[relic] = (h.relics[relic] ?? 0) + 1;
+    if (relic) {
+      h.relics[relic] = (h.relics[relic] ?? 0) + 1;
+      run.found.add(relic);
+    }
     h.scrolls += scrolls;
     recompute(h);
     run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: [roll(TABLES.boss), roll(TABLES.boss), roll(TABLES.boss)] };
@@ -232,7 +259,7 @@ function afterFight(run: Run) {
 
 function randomRelic(run: Run): string {
   const tags = heroTags(run.hero);
-  const pool = RELICS;
+  const pool = RELICS.filter(r => !isLocked(r.id));
   const w = pool.map(r => 1 + 0.3 * r.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0) * ({ common: 1, uncommon: 0.7, rare: 0.35 }[r.rarity as "common"] ?? 0.5));
   let x = run.rng() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < pool.length; i++) {
@@ -262,7 +289,10 @@ export function collectLoot(run: Run) {
   h.f.gold += s.gold;
   h.scrolls += s.scrolls;
   h.potions += s.potions;
-  if (s.relic) h.relics[s.relic] = (h.relics[s.relic] ?? 0) + 1;
+  if (s.relic) {
+    h.relics[s.relic] = (h.relics[s.relic] ?? 0) + 1;
+    run.found.add(s.relic);
+  }
   recompute(h);
   s.gold = 0;
   s.scrolls = 0;
@@ -278,9 +308,17 @@ export function takeItem(run: Run, uid: number, how: "equip" | "pack"): string |
   if (!item) return null;
   const err = how === "equip" ? equipItem(run.hero, item) : addToBackpack(run.hero, item);
   if (err) return err;
+  markFound(run, item);
   sc.items = sc.items.filter(i => i.uid !== uid);
   if (sc.t === "pick") finishLoot(run);
   return null;
+}
+
+export function markFound(run: Run, item: GearItem) {
+  run.found.add(item.base);
+  for (const k of Object.keys(item.bonuses)) run.found.add(k);
+  if (item.epic) run.found.add(item.epic);
+  if (item.rarity === "legendary") run.stats.legendaries++;
 }
 
 /** Salvage a found item straight into Scrap. */
@@ -352,8 +390,10 @@ export function buy(run: Run, i: number): string | null {
   }
   if (e.kind === "potion") h.potions++;
   if (e.kind === "scroll") h.scrolls++;
+  if (e.kind === "item" && e.item) markFound(run, e.item);
   if (e.kind === "relic" && e.relic) {
     h.relics[e.relic] = (h.relics[e.relic] ?? 0) + 1;
+    run.found.add(e.relic);
     recompute(h);
   }
   h.f.gold -= e.price;
@@ -414,11 +454,80 @@ export function rest(run: Run, choice: "heal" | "cleanse"): string | null {
   return null;
 }
 
+// ---------- Events ----------
+
+export function chooseEvent(run: Run, i: number) {
+  const s = run.scene;
+  if (s.t !== "event" || s.result) return;
+  const h = run.hero;
+  const found: GearItem[] = [];
+  const ctx = {
+    rng: run.rng,
+    gold: () => h.f.gold,
+    addGold: (n: number) => { h.f.gold = Math.max(0, h.f.gold + n); },
+    hp: () => h.f.hp,
+    hurt: (n: number) => { h.f.hp = Math.max(1, h.f.hp - n); },
+    healPct: (p: number) => { h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.round(h.f.maxHp * p)); },
+    addMaxHp: (n: number) => { h.f.persist["maxHpLoss"] = (h.f.persist["maxHpLoss"] ?? 0) - n; recompute(h); h.f.hp += n; },
+    gainItem: (r: Rarity) => { const it = rollItem(h, r, run.floor, run.rng); found.push(it); return it; },
+    gainRelic: () => { const id = randomRelic(run); h.relics[id] = (h.relics[id] ?? 0) + 1; run.found.add(id); recompute(h); return getItem(id).name; },
+    loseRelic: () => { const ids = Object.keys(h.relics); if (!ids.length) return null; const id = ids[Math.floor(run.rng() * ids.length)]; h.relics[id]--; if (!h.relics[id]) delete h.relics[id]; recompute(h); return getItem(id).name; },
+    relicCount: () => Object.keys(h.relics).length,
+    addCurse: () => { const c = CURSES[Math.floor(run.rng() * CURSES.length)]; h.curses[c.id] = (h.curses[c.id] ?? 0) + 1; recompute(h); return c.name; },
+    clearCurses: () => { const n = Object.keys(h.curses).length; h.curses = {}; recompute(h); return n; },
+    addXp: (n: number) => gainXp(run, n),
+    addScrolls: (n: number) => { h.scrolls += n; },
+    addPotions: (n: number) => { h.potions += n; },
+    addScrap: (n: number) => { h.scrap += n; },
+    addPity: (n: number) => { run.loot.pity += n; },
+    upgradeWeapon: () => { const w = h.equip.main; if (!w) return "You have no weapon."; w.level++; for (const k of Object.keys(w.bonuses)) w.bonuses[k]++; recompute(h); return null; }
+  };
+  const opt = s.ev.options[i];
+  if (!opt || (opt.can && !opt.can(ctx))) return;
+  const result = opt.run(ctx);
+  if (found.length) {
+    run.scene = { t: "loot", title: s.ev.title, items: found, gold: 0, scrolls: 0, potions: 0 };
+    run.message = result;
+  } else s.result = result;
+}
+
+export function eventOptionAvailable(run: Run, i: number): boolean {
+  const s = run.scene;
+  if (s.t !== "event") return false;
+  const h = run.hero;
+  const opt = s.ev.options[i];
+  if (!opt.can) return true;
+  // Only read-only helpers are used by `can`.
+  return opt.can({ gold: () => h.f.gold, hp: () => h.f.hp, relicCount: () => Object.keys(h.relics).length } as never);
+}
+
+// ---------- Fusions ----------
+
+export function availableFusions(run: Run) {
+  const r = run.hero.relics;
+  return FUSION_RECIPES.filter(x => (r[x.a] ?? 0) > 0 && (r[x.b] ?? 0) > 0);
+}
+
+export function fuse(run: Run, out: string): string | null {
+  const recipe = availableFusions(run).find(x => x.out === out);
+  if (!recipe) return "You don't have both pieces.";
+  const r = run.hero.relics;
+  for (const id of [recipe.a, recipe.b]) {
+    r[id]--;
+    if (!r[id]) delete r[id];
+  }
+  r[out] = (r[out] ?? 0) + 1;
+  run.found.add(out);
+  run.stats.fusions++;
+  recompute(run.hero);
+  return null;
+}
+
 // ---------- Talents and moving on ----------
 
 export function talentOptions(run: Run): string[] {
   const tags = heroTags(run.hero);
-  const pool = TALENTS.filter(t => (run.hero.talents[t.id] ?? 0) < 3);
+  const pool = TALENTS.filter(t => (run.hero.talents[t.id] ?? 0) < 3 && !isLocked(t.id));
   const out: string[] = [];
   while (out.length < 3 && out.length < pool.length) {
     const w = pool.map(t => (out.includes(t.id) ? 0 : 1 + 0.4 * t.tags.reduce((s, x) => s + Math.min(tags.get(x) ?? 0, 3), 0)));
@@ -437,6 +546,7 @@ export function talentOptions(run: Run): string[] {
 export function chooseTalent(run: Run, id: string) {
   const h = run.hero;
   h.talents[id] = (h.talents[id] ?? 0) + 1;
+  run.found.add(id);
   recompute(h);
   run.pendingTalents--;
   run.scene = { t: "map" };
@@ -449,7 +559,7 @@ export function advance(run: Run, fromTalent = false) {
     if (run.step >= STEPS_PER_FLOOR) {
       run.floor++;
       run.step = 0;
-      if (run.floor > FLOORS) {
+      if (run.floor > FLOORS && run.mode === "campaign") {
         run.scene = { t: "over", won: true };
         return;
       }

@@ -114,6 +114,7 @@ export function recompute(h: Hero) {
     }
   }
   f.items = items;
+  s.maxHp += 3 * (h.level - 1); // every level-up: +3 Max HP
   s.maxHp -= f.persist["maxHpLoss"] ?? 0;
   eachHook(f, "stats", (hk, n) => hk(s, n));
   f.maxHp = Math.max(1, s.maxHp);

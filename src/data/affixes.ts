@@ -72,25 +72,25 @@ export const LEGENDARIES: GearBase[] = [
   legendary({ id: "l_starfall", kind: "weapon", slot: "main", name: "Starfall Staff", tags: ["Arcane", "Burn"], damage: 3,
     faces: [cast("Venom Dart", "graze", hex("poison", 3)), cast("Fire Bolt", "hit", hex("burn", 4)), cast("Frost Lance", "hit", hex("chill", 3)), cast("Arc", "hit", hex("shock", 1)), cast("Hex Bolt", "hit", hex("exposed", 2)),
       cast("Meteor", "crit", (b, c) => { const n = c.attacker.flags["burnTotal"] ?? 0; c.bonus += n; if (n) log(b, `☄️ Meteor adds all ${n} Burn you've applied this fight.`); })],
-    legendary: { minFloor: 2, asBase: "w_staff", reveal: "Every face is a spell. On a 6, a meteor adds all the Burn you've applied this fight to the hit." },
+    legendary: { minFloor: 3, asBase: "w_staff", reveal: "Every face is a spell. On a 6, a meteor adds all the Burn you've applied this fight to the hit." },
     text: "The sky answers.",
     hooks: { onStatusApplied: (_b, self, _t, status, n) => { if (status === "burn") self.flags["burnTotal"] = (self.flags["burnTotal"] ?? 0) + n; } } }),
   legendary({ id: "l_aegis_dawn", kind: "off", slot: "off", name: "Aegis of Dawn", tags: ["Guard", "Thorns"], armor: 3,
-    legendary: { minFloor: 2, asBase: "o_wooden_shield", reveal: "Damage you fully block is stored. Guarding releases it all as one hit." },
+    legendary: { minFloor: 3, asBase: "o_wooden_shield", reveal: "Damage you fully block is stored. Guarding releases it all as one hit." },
     text: "It remembers every blow.",
     hooks: { onGuard: (b, f) => { const n = f.flags["blocked"] ?? 0; if (n > 0) { f.flags["blocked"] = 0; ping(b, b.enemy === f ? b.player : b.enemy, n, "☀️ Aegis of Dawn releases the stored blows"); } } } }),
   legendary({ id: "l_mantle", kind: "armour", slot: "armour", name: "Thousand-Eyed Mantle", tags: ["Hex", "Arcane"], armor: 1,
-    legendary: { minFloor: 2, asBase: "a_cloth", reveal: "Every negative status you apply lands twice, and reactions can fire off the second." },
+    legendary: { minFloor: 4, asBase: "a_cloth", reveal: "Every negative status you apply lands twice, and reactions can fire off the second." },
     text: "It sees every weakness.",
     hooks: { onStatusApplied: (b, self, t, status, n) => {
       if (t === self || self.flags["mantle"] || ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward"].includes(status)) return;
       self.flags["mantle"] = 1; applyStatus(b, self, t, status, n); self.flags["mantle"] = 0;
     } } }),
   legendary({ id: "l_chronoglass", kind: "trinket", slot: "trinket", name: "Chronoglass", tags: ["Luck", "Tempo"],
-    legendary: { minFloor: 3, asBase: "t_brass_amulet", reveal: "Once per fight, a round that costs you HP (or your life) is rewound and played again." },
+    legendary: { minFloor: 6, asBase: "t_brass_amulet", reveal: "Once per fight, a round that costs you HP (or your life) is rewound and played again." },
     text: "Sand that falls upward.", hooks: {} }),
   legendary({ id: "l_hollow_crown", kind: "trinket", slot: "trinket", name: "Hollow Crown", tags: ["Guard", "Arcane"],
-    legendary: { minFloor: 3, asBase: "t_ring_might", reveal: "Your Max HP becomes 1. Barrier never fades between fights, every face you roll gives 3 Barrier, and each fight starts with at least 10." },
+    legendary: { minFloor: 7, asBase: "t_ring_might", reveal: "Your Max HP becomes 1. Barrier never fades between fights, every face you roll gives 3 Barrier, and each fight starts with at least 10." },
     text: "Heavy is the head.",
     hooks: {
       stats: s => { s.maxHp = 1; },
@@ -99,6 +99,6 @@ export const LEGENDARIES: GearBase[] = [
     } }),
   legendary({ id: "l_worldsplitter", kind: "weapon", slot: "main", name: "Worldsplitter", tags: ["Strike", "Kill"], damage: 7, twoHanded: true,
     faces: [MISS, MISS, HIT, HIT, HIT, ...Array.from({ length: 7 }, () => ({ kind: "crit" as const, name: "Cleave", cleave: true }))],
-    legendary: { minFloor: 3, asBase: "w_axe", reveal: "Your die has 12 faces, and faces 6–12 are all Cleaves." },
+    legendary: { minFloor: 8, asBase: "w_axe", reveal: "Your die has 12 faces, and faces 6–12 are all Cleaves." },
     text: "It was never meant for one world.", hooks: {} })
 ];

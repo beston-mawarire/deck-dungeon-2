@@ -7,21 +7,23 @@ import { type Hero, heroTags } from "./hero";
 export type Odds = Partial<Record<Rarity, number>>;
 
 export const TABLES = {
-  wooden: { common: 65, uncommon: 35 },
-  iron: { uncommon: 60, rare: 40 },
-  drop: { common: 60, uncommon: 30, rare: 10 },
-  elite: { uncommon: 50, rare: 40, epic: 10 },
-  champion: { rare: 60, epic: 35, legendary: 5 },
-  boss: { rare: 50, epic: 40, legendary: 10 },
-  shop: { uncommon: 50, rare: 40, epic: 10 }
+  wooden: { common: 70, uncommon: 30 },
+  iron: { uncommon: 70, rare: 30 },
+  drop: { common: 65, uncommon: 28, rare: 7 },
+  elite: { uncommon: 60, rare: 35, epic: 5 },
+  champion: { rare: 70, epic: 27, legendary: 3 },
+  boss: { rare: 62, epic: 33, legendary: 5 },
+  shop: { uncommon: 55, rare: 40, epic: 5 }
 } satisfies Record<string, Odds>;
 
-/** Resplendent card odds by floor (from the design doc). */
-export const RESPLENDENT: Record<number, Odds> = {
-  1: { uncommon: 45, rare: 40, epic: 13, legendary: 2 },
-  2: { uncommon: 25, rare: 45, epic: 24, legendary: 6 },
-  3: { uncommon: 10, rare: 40, epic: 38, legendary: 12 }
-};
+/** Resplendent card odds: Epic and Legendary grow with depth, and are rare early on. */
+export function resplendentOdds(floor: number): Odds {
+  const t = Math.min(1, (floor - 1) / 9);
+  const legendary = 1 + 7 * t;
+  const epic = 7 + 21 * t;
+  const rare = 38 + 7 * t;
+  return { uncommon: 100 - legendary - epic - rare, rare, epic, legendary };
+}
 
 export function rollRarity(rng: () => number, odds: Odds): Rarity {
   const total = RARITIES.reduce((s, r) => s + (odds[r] ?? 0), 0);
@@ -48,26 +50,31 @@ const tagWeight = (tags: Map<string, number>, own: readonly string[]) => 1 + 0.3
 
 const rank = (r: Rarity) => RARITIES.indexOf(r);
 
+/** Items still locked behind Renown (set at the start of each run). */
+let LOCKED = new Set<string>();
+export const setLocked = (ids: Set<string>) => { LOCKED = ids; };
+export const isLocked = (id: string) => LOCKED.has(id);
+
 export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => number): GearItem {
   const tags = heroTags(h);
   if (rarity === "legendary") {
-    const pool = LEGENDARIES.filter(l => (l.legendary?.minFloor ?? 1) <= floor);
+    const pool = LEGENDARIES.filter(l => (l.legendary?.minFloor ?? 1) <= floor && !LOCKED.has(l.id));
     if (pool.length === 0) rarity = "epic";
     else {
       const base = weighted(rng, pool, b => tagWeight(tags, b.tags));
       return { uid: h.nextUid++, base: base.id, rarity: "legendary", level: floor, bonuses: {}, revealed: false };
     }
   }
-  const base: GearBase = weighted(rng, GEAR_BASES, b => tagWeight(tags, b.tags));
+  const base: GearBase = weighted(rng, GEAR_BASES.filter(g => !LOCKED.has(g.id)), b => tagWeight(tags, b.tags));
   const nBonuses = { common: 0, uncommon: 1, rare: 2, epic: 2, legendary: 0 }[rarity];
   const bonuses: Record<string, number> = {};
-  const pool = BONUSES.filter(x => rank(rarity) >= rank(x.minRarity ?? "uncommon"));
+  const pool = BONUSES.filter(x => rank(rarity) >= rank(x.minRarity ?? "uncommon") && !LOCKED.has(x.id));
   for (let i = 0; i < nBonuses && pool.length; i++) {
     const pick = weighted(rng, pool, x => 1 + 0.6 * x.tags.filter(t => base.tags.includes(t)).length + 0.25 * x.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0));
     pool.splice(pool.indexOf(pick), 1);
     bonuses[pick.id] = floor;
   }
-  const epic = rarity === "epic" ? weighted(rng, EPIC_POWERS, e => tagWeight(tags, e.tags)).id : undefined;
+  const epic = rarity === "epic" ? weighted(rng, EPIC_POWERS.filter(e => !LOCKED.has(e.id)), e => tagWeight(tags, e.tags)).id : undefined;
   return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses, epic, revealed: true };
 }
 
@@ -80,7 +87,7 @@ export interface LootState {
 
 /** Deal the face-down cards of a Resplendent chest. */
 export function resplendentCards(h: Hero, floor: number, loot: LootState, rng: () => number): ResplendentCard[] {
-  const base = { ...RESPLENDENT[Math.min(3, Math.max(1, floor))] };
+  const base = resplendentOdds(floor);
   const clover = 3 * (h.relics["four_leaf_clover"] ?? 0);
   base.epic = (base.epic ?? 0) + loot.pity;
   base.legendary = (base.legendary ?? 0) + loot.pity / 2 + clover;

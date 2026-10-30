@@ -1,6 +1,7 @@
 // Registers the whole library with the engine. Import this once at startup.
 import { register } from "../engine/registry";
 import { BONUSES, EPIC_POWERS, LEGENDARIES } from "./affixes";
+import { FUSION_RELICS } from "./fusions";
 import { GEAR_BASES } from "./gear";
 import { TRAITS } from "./monsters";
 import { CURSES, ORIGIN_PASSIVES } from "./origins";
@@ -11,7 +12,7 @@ let done = false;
 export function loadLibrary() {
   if (done) return;
   done = true;
-  register([...GEAR_BASES, ...LEGENDARIES, ...BONUSES, ...EPIC_POWERS, ...RELICS, ...TALENTS, ...TRAITS, ...ORIGIN_PASSIVES, ...CURSES]);
+  register([...GEAR_BASES, ...LEGENDARIES, ...BONUSES, ...EPIC_POWERS, ...RELICS, ...FUSION_RELICS, ...TALENTS, ...TRAITS, ...ORIGIN_PASSIVES, ...CURSES]);
 }
 
-export { BONUSES, CURSES, EPIC_POWERS, GEAR_BASES, LEGENDARIES, ORIGIN_PASSIVES, RELICS, TALENTS, TRAITS };
+export { BONUSES, CURSES, FUSION_RELICS, EPIC_POWERS, GEAR_BASES, LEGENDARIES, ORIGIN_PASSIVES, RELICS, TALENTS, TRAITS };

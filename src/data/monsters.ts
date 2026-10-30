@@ -1,7 +1,7 @@
 // Monsters: four families, Elite affixes, and the three floor bosses.
 import { PLAIN_FACES } from "../engine/combat";
 import type { FaceSpec, Fighter, HookDef } from "../engine/types";
-import { applyStatus, CRIT, GRAZE, heal, hex, HIT, log, MISS, other, ping, spell, st } from "./helpers";
+import { applyStatus, CRIT, GRAZE, heal, hex, HIT, log, MISS, other, ping, spell } from "./helpers";
 
 const trait = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "trait", ...d });
 
@@ -22,15 +22,9 @@ export const TRAITS: HookDef[] = [
   trait({ id: "x_vampiric", name: "Vampiric", tags: ["Blood"], text: "Heals half the damage it deals", hooks: { onHit: (b, c) => { heal(b, c.attacker, Math.floor(c.dealt / 2), "Vampiric"); } } }),
   trait({ id: "x_swift", name: "Swift", tags: ["Tempo"], text: "Starts with Haste and strikes first", hooks: { onFightStart: (b, f) => { f.flags["ambush"] = 1; applyStatus(b, f, f, "haste", 1); } } }),
   trait({ id: "x_spiteful", name: "Spiteful", tags: ["Thorns"], text: "When it dies, you take 5",
-    hooks: { onFightEnd: (b, f) => { if (b.over === "won" && f.id === "enemy") { other(b, f).hp -= 5; log(b, "Spiteful: you take 5 as it dies."); } } } }),
+    hooks: { onFightEnd: (b, f) => { if (b.over === "won" && f.id === "enemy") { const p = other(b, f); p.hp -= 5; log(b, "Spiteful: you take 5 as it dies."); b.fx.push({ who: "player", kind: "dmg", value: 5 }); } } } }),
   trait({ id: "x_warded", name: "Warded", tags: ["Guard"], text: "Immune to statuses for the first 2 rounds", hooks: { incomingStatus: (b, _f, _s, n) => (b.round <= 2 ? 0 : n) } }),
   trait({ id: "x_regenerating", name: "Regenerating", tags: ["Blood"], text: "Heals 2 at the end of every round", hooks: { onRoundEnd: (b, f) => { heal(b, f, 2, "Regenerating"); } } }),
-  // Boss traits
-  trait({ id: "k_pack_lord", name: "Pack Lord", tags: ["Tempo"], text: "Every 3rd round it attacks twice", hooks: { onRoundStart: (b, f) => { if (b.round % 3 === 0) applyStatus(b, f, f, "haste", 1); } } }),
-  trait({ id: "k_rot_mother", name: "Mother of Rot", tags: ["Poison"], text: "Its hits apply 1 Poison; each round it heals 1 for every 3 Poison on you",
-    hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "poison", 1), onRoundEnd: (b, f) => { const n = Math.floor(st(other(b, f), "poison") / 3); if (n) heal(b, f, n, "feeds on Poison"); } } }),
-  trait({ id: "k_hollow_king", name: "The Hollow King", tags: ["Guard", "Hex"], text: "Every 3rd round gains 10 Barrier; its 6s apply 3 Doom",
-    hooks: { onRoundStart: (b, f) => { if (b.round % 3 === 0) applyStatus(b, f, f, "barrier", 10); } } })
 ];
 
 export const ELITE_AFFIX_IDS = ["x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating"];
@@ -51,19 +45,21 @@ export const MONSTERS: MonsterDef[] = [
   { name: "Sentry", family: "Construct", hp: 12, power: 3, armor: 1, traits: ["m_static"] }
 ];
 
-export const BOSSES: MonsterDef[] = [
-  { name: "Gnasher, the Pack Lord", family: "Beast", hp: 36, power: 4, traits: ["k_pack_lord", "m_ambush"] },
-  { name: "The Mother of Rot", family: "Undead", hp: 58, power: 5, armor: 1, traits: ["k_rot_mother"] },
-  { name: "The Hollow King", family: "Construct", hp: 80, power: 7, armor: 2, traits: ["k_hollow_king"],
-    faces: [GRAZE, HIT, HIT, HIT, HIT, spell("Hollow Decree", "crit", hex("doom", 3))] }
-];
-
 export type MonsterRank = "normal" | "elite" | "champion" | "boss";
 
+/** Regular monsters grow with the floor; past floor 10 (Endless) they grow faster, and past 30 much faster. */
+export function monsterHpMult(floor: number) {
+  let m = 1 + 0.45 * (floor - 1);
+  if (floor > 10) m *= 1 + 0.06 * (floor - 10);
+  if (floor > 30) m *= Math.pow(1.2, floor - 30);
+  return m;
+}
+export const monsterPowerAdd = (floor: number) => Math.round(1.2 * (floor - 1) * (floor > 30 ? Math.pow(1.1, floor - 30) : 1));
+
 export function makeMonster(rng: () => number, floor: number, rank: MonsterRank): Fighter {
-  const def = rank === "boss" ? BOSSES[Math.min(floor, BOSSES.length) - 1] : MONSTERS[Math.floor(rng() * MONSTERS.length)];
-  let hp = rank === "boss" ? def.hp : Math.round(def.hp * (1 + 0.5 * (floor - 1)));
-  let power = rank === "boss" ? def.power : def.power + Math.round(1.5 * (floor - 1));
+  const def = MONSTERS[Math.floor(rng() * MONSTERS.length)];
+  let hp = Math.round(def.hp * monsterHpMult(floor));
+  let power = def.power + monsterPowerAdd(floor);
   const items: Record<string, number> = {};
   for (const t of def.traits) items[t] = 1;
   let prefix = "";

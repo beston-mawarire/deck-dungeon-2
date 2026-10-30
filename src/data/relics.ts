@@ -1,7 +1,7 @@
 // Relics. Text matches the Library doc; "(+x)" is what each extra stack adds.
 import { loseHp, other, st } from "../engine/statuses";
 import type { HookDef } from "../engine/types";
-import { applyStatus, gain, gold, heal, inflict, log, on, scale } from "./helpers";
+import { applyStatus, gain, gold, heal, inflict, log, on, ping, scale } from "./helpers";
 
 const relic = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "relic", ...d });
 
@@ -28,7 +28,7 @@ export const BATCH1: HookDef[] = [
   relic({ id: "nightshade_vial", name: "Nightshade Vial", rarity: "common", tags: ["Poison"], text: "Start each fight by applying 2 Poison (+2)",
     hooks: { onFightStart: (b, f, s) => applyStatus(b, f, other(b, f), "poison", scale(s, 2, 2)) } }),
   relic({ id: "spiked_bracer", name: "Spiked Bracer", rarity: "common", tags: ["Thorns"], text: "When hit, deal 1 back (+1)",
-    hooks: { whenHit: (b, ctx, s) => { if (ctx.attacker.hp > 0) { ctx.attacker.hp -= s; log(b, `Spiked Bracer: ${s} back.`); } } } }),
+    hooks: { whenHit: (b, ctx, s) => { ping(b, ctx.attacker, s, "Spiked Bracer"); } } }),
   relic({ id: "coin_purse", name: "Coin Purse", rarity: "common", tags: ["Gold"], text: "+3 Gold per fight (+3)", hooks: { onFightEnd: (b, f, s) => { if (b.over === "won" && f.id === "player") gold(b, f, 3 * s); } } }),
   relic({ id: "bandage_roll", name: "Bandage Roll", rarity: "common", tags: ["Blood"], text: "Heal 2 after each fight (+2)", hooks: { onFightEnd: (b, f, s) => { if (b.over === "won") heal(b, f, 2 * s, "Bandage Roll"); } } }),
   relic({ id: "keen_eye", name: "Keen Eye", rarity: "common", tags: ["Crit"], text: "Your first attack each fight crits on 5–6 (+1 attack)",

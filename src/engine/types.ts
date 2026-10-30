@@ -63,6 +63,10 @@ export interface Fighter {
   champion?: boolean;
   boss?: boolean;
   family?: string;
+  /** Bosses: their move cycle and which move comes next. */
+  moves?: Move[];
+  intent?: number;
+  title?: string;
 }
 
 /** Everything an item can see and change while an attack resolves. */
@@ -82,12 +86,35 @@ export interface AttackCtx {
   dealt: number;
 }
 
+/** A visual beat for the UI: rolls, damage numbers, misses, crits, statuses. */
+export interface Fx {
+  who: "player" | "enemy";
+  kind: "roll" | "dmg" | "heal" | "miss" | "crit" | "block" | "status" | "reaction" | "text";
+  value?: number;
+  text?: string;
+  icon?: string;
+  face?: number;
+  faceName?: string;
+  faceKind?: FaceKind;
+  sides?: number;
+  offhand?: boolean;
+}
+
+/** A boss move. Bosses show their next move (intent) before they act. */
+export interface Move {
+  name: string;
+  icon: string;
+  text: string;
+  act: (b: Battle, self: Fighter, foe: Fighter) => void;
+}
+
 export interface Battle {
   player: Fighter;
   enemy: Fighter;
   round: number;
   rng: () => number;
   log: string[];
+  fx: Fx[];
   over: null | "won" | "lost" | "fled";
   /** Overkill from Cleave faces, carried into the next fight. */
   carry: number;

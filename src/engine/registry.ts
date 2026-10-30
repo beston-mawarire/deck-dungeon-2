@@ -1,6 +1,6 @@
 // A single place where every item definition is registered, so the engine can look items up by id
 // without the data files importing the engine in a cycle.
-import type { Battle, Fighter, HookDef, Hooks } from "./types";
+import type { Battle, Fighter, Fx, HookDef, Hooks } from "./types";
 
 const ITEMS = new Map<string, HookDef>();
 
@@ -37,4 +37,9 @@ export const stacksOf = (f: Fighter, id: string) => f.items[id] ?? 0;
 
 export function log(b: Battle, msg: string) {
   b.log.push(msg);
+}
+
+/** Queue a visual effect for the UI (floating text, rolls, numbers). */
+export function fx(b: Battle, e: Fx) {
+  b.fx.push(e);
 }
