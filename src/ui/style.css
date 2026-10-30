@@ -177,8 +177,11 @@ button.crimson-btn { background: var(--crimson); border-color: var(--crimson); c
 
 /* ---------- Wide screens: equipped gear on the left ---------- */
 .side-equip { display: none; }
-@media (min-width: 1200px) {
-  .side-equip { display: block; position: fixed; left: 16px; top: 16px; width: calc((100vw - 760px) / 2 - 40px); max-width: 320px; max-height: calc(100vh - 32px); overflow: auto; }
+/* Desktops and big tablets in landscape (iPad 13": 1366×1024). Narrower than ~1330px, the game column
+   shifts right to make room instead of sitting dead centre. */
+@media (min-width: 1000px) and (orientation: landscape) {
+  .side-equip { display: block; position: fixed; left: max(16px, env(safe-area-inset-left)); top: 16px; width: clamp(240px, calc((100vw - 760px) / 2 - 40px), 320px); max-height: calc(100vh - 32px); overflow: auto; }
+  #app.with-side { margin-left: max(272px, calc((100vw - 760px) / 2)); margin-right: auto; }
   .side-equip h2 { margin-top: 4px; }
   .se-item { background: var(--panel2); border: 2px solid var(--line); border-radius: 10px; padding: 7px 9px; margin-bottom: 7px; font-size: .84rem; }
   .se-item .nm { font-weight: 700; font-size: .92rem; }

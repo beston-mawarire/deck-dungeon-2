@@ -520,6 +520,7 @@ function celebrateScene(r: Run) {
 }
 
 function render() {
+  app.classList.toggle("with-side", !!run);
   if (!run) {
     app.innerHTML = view === "codex" ? codexScreen() : titleScreen();
     bind();
