@@ -31,7 +31,7 @@ npm run build:single  # one self-contained HTML file in dist-single/
 
 ## Status
 
-Implemented: the faces, all statuses and reactions, the four classes, 47 relics, 18 talents,
+Implemented: the faces, all statuses and reactions, the four classes, 51 relics (4 of them starting relics), 18 talents,
 4 suit traits and 8 Elite affixes.
 
 Not yet: the run (map, path cards, shops, Gold economy, level-ups), fusions and the Forge,
