@@ -11,23 +11,39 @@ export const TABLES = {
   wooden: { common: 70, uncommon: 30 },
   iron: { uncommon: 70, rare: 30 },
   drop: { common: 65, uncommon: 28, rare: 7 },
-  elite: { uncommon: 64, rare: 34.5, epic: 1.5 },
-  champion: { rare: 85, epic: 12.5, legendary: 2.5 },
-  boss: { rare: 85, epic: 12, legendary: 3 },
+  elite: { uncommon: 67, rare: 32, epic: 1 },
+  champion: { uncommon: 10, rare: 79, epic: 9, legendary: 2 },
+  boss: { rare: 89, epic: 9, legendary: 2 },
   /** Crimson Elites: harder, better loot (and sometimes a Crimson Key). */
   crimson: { rare: 62, epic: 32, legendary: 6 },
-  shop: { uncommon: 58, rare: 40, epic: 2 }
+  shop: { common: 15, uncommon: 50, rare: 33.5, epic: 1.5 }
 } satisfies Record<string, Odds>;
 
 /** Resplendent card odds: Epic and Legendary grow with depth, and are rare early on. */
 export function resplendentOdds(floor: number): Odds {
-  const legendary = Math.min(10, 0.6 + 0.9 * (floor - 1));
-  const epic = Math.min(26, 3 + 2.2 * (floor - 1));
+  const legendary = Math.min(8, 0.5 + 0.7 * (floor - 1));
+  const epic = Math.min(22, 2.5 + 1.8 * (floor - 1));
   const rare = 40;
   return { uncommon: 100 - legendary - epic - rare, rare, epic, legendary };
 }
 
-export function rollRarity(rng: () => number, odds: Odds): Rarity {
+/**
+ * Fortune: the deeper you go, the better every find. The boost is small (a few % per floor on Rare and up),
+ * but the game tells you about it, to make delving deeper feel worth it.
+ */
+export const fortune = (floor: number) => 1 + 0.03 * Math.min(floor - 1, 4) + 0.015 * Math.max(0, floor - 5);
+/** Fortune shown to the player: one ✦ per floor reached, up to ten. */
+export const fortunePips = (floor: number) => Math.min(10, floor);
+
+export function withFortune(odds: Odds, floor: number): Odds {
+  const f = fortune(floor);
+  const out: Odds = { ...odds };
+  for (const r of ["rare", "epic", "legendary"] as const) if (out[r]) out[r] = out[r]! * f;
+  return out;
+}
+
+export function rollRarity(rng: () => number, odds: Odds, floor?: number): Rarity {
+  if (floor !== undefined) odds = withFortune(odds, floor);
   const total = RARITIES.reduce((s, r) => s + (odds[r] ?? 0), 0);
   let x = rng() * total;
   for (const r of RARITIES) {
@@ -116,7 +132,7 @@ export function resplendentCards(h: Hero, floor: number, loot: LootState, rng: (
   const cards: ResplendentCard[] = [];
   for (let i = 0; i < count; i++) {
     if (rng() < 0.015) cards.push({ kind: "scroll" });
-    else cards.push({ kind: "item", item: rollItem(h, rollRarity(rng, base), floor, rng) });
+    else cards.push({ kind: "item", item: rollItem(h, rollRarity(rng, base, floor), floor, rng) });
   }
   const great = cards.some(c => c.kind === "item" && rank(c.item.rarity) >= rank("epic"));
   loot.pity = great ? 0 : loot.pity + 3;

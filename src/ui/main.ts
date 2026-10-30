@@ -17,6 +17,7 @@ import {
   combinablePairs, sellItem, sellPrice, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, TRANSMUTE_COST,
   ROOM_INFO, type Run, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR
 } from "../game/run";
+import { fortunePips } from "../game/loot";
 import { isMuted, sfx, toggleMute } from "./sound";
 
 loadLibrary();
@@ -163,6 +164,13 @@ function hud(r: Run) {
   const h = r.hero;
   const f = h.f;
   const need = xpToLevel(h.level);
+  // In a fight the HUD shrinks to one line: your HP lives in your panel at the bottom.
+  if (r.scene.t === "combat") {
+    const canDrink = h.potions > 0 && f.hp < f.maxHp && !busy;
+    return `<div class="hud compact"><div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">${floorLabel(r)}</span><span class="grow"></span>
+      <span class="stat">🪙 <b>${f.gold}</b></span>
+      <button class="small" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (+12 HP)">🧪 ${h.potions}</button><button class="small" data-bag title="Gear & build">🎒</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div></div>`;
+  }
   return `<div class="hud">
     <div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">Lv ${h.level}</span><span class="grow"></span><span class="stat">${floorLabel(r)}</span></div>
     <div class="bar"><i style="width:${Math.max(0, (f.hp / f.maxHp) * 100)}%"></i></div>
@@ -221,7 +229,9 @@ function codexScreen() {
 // ---------- Scenes ----------
 
 function mapScene(r: Run) {
-  return `<h2>${r.step >= STEPS_PER_FLOOR ? (r.floor === WALL_FLOOR ? "The Wall" : "The boss awaits") : "Choose your path"}</h2>
+  const pips = fortunePips(r.floor);
+  return `<div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds.">Fortune <span>${"✦".repeat(pips)}</span><span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span> · finds grow richer the deeper you go</div>
+  <h2>${r.step >= STEPS_PER_FLOOR ? (r.floor === WALL_FLOOR ? "The Wall" : "The boss awaits") : "Choose your path"}</h2>
   <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") ? "crimson-room" : ""}" data-room="${c}"><span class="ic">${ROOM_INFO[c].icon}</span><b>${ROOM_INFO[c].name}</b><span class="sub">${esc(ROOM_INFO[c].text)}</span></button>`).join("")}</div>`;
 }
 
@@ -248,14 +258,16 @@ function combatScene(r: Run) {
   if (r.scene.t !== "combat") return "";
   const b = r.scene.battle;
   const e = b.enemy;
-  return `${fighterPanel(e, "enemy")}
-    <div class="dice-row">${dieBox("player", "You")}${dieBox("enemy", "Enemy")}</div>
-    ${fighterPanel(b.player, "player")}
-    ${(b.player.statuses.stun ?? 0) > 0 ? `<div class="toast err">💫 You're Stunned: your next turn will be skipped.</div>` : ""}
-    <div class="row ${busy ? "busy" : ""}" style="justify-content:center;margin-top:10px">
+  return `<div class="combat">
+    <div class="c-enemy">${fighterPanel(e, "enemy")}</div>
+    <div class="c-dice dice-row">${dieBox("player", "You")}${dieBox("enemy", "Enemy")}</div>
+    <div class="c-player">${fighterPanel(b.player, "player")}
+    ${(b.player.statuses.stun ?? 0) > 0 ? `<div class="toast err">💫 You're Stunned: your next turn will be skipped.</div>` : ""}</div>
+    <div class="c-actions"><div class="row actions ${busy ? "busy" : ""}">
       <button class="primary" data-act="attack">Attack</button><button data-act="guard">Guard</button>${e.boss || e.elite ? "" : `<button data-act="flee">Flee</button>`}
     </div>
-    <p class="center sub" style="margin-top:6px">Your die: ${b.player.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind}`).join(" · ")}</p>
+    <p class="center sub diefaces">Your die: ${b.player.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind}`).join(" · ")}</p></div>
+    </div>
     <details><summary>Battle log</summary><div class="log">${b.log.slice().reverse().map(l => `<div class="${l.startsWith("—") ? "round" : ""}">${esc(l)}</div>`).join("")}</div></details>`;
 }
 
@@ -448,6 +460,21 @@ function bag(r: Run) {
   </div></div>`;
 }
 
+/** Wide screens: your equipped gear, always in view on the left. */
+function sideEquip(r: Run) {
+  const h = r.hero;
+  const slotName: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket" };
+  const rows = EQUIP_SLOTS.map(s => {
+    const it = h.equip[s];
+    if (!it) return `<div class="se-item empty"><div class="se-slot">${slotName[s]}</div><span class="sub">Empty</span></div>`;
+    const lines = itemLines(it).filter(l => !l.startsWith("Faces:") && !l.startsWith("✝️") && !l.startsWith("✨ Purify")).slice(0, 3);
+    return `<div class="se-item r-${it.rarity}"><div class="se-slot">${slotName[s]} · ${it.rarity} · lv ${it.level}</div><div class="nm">${esc(itemName(it))}</div>
+      ${lines.map(l => `<div class="se-line">${esc(l)}</div>`).join("")}</div>`;
+  }).join("");
+  const relics = Object.entries(h.relics).map(([id, n]) => `<span class="chip" title="${esc(fillText(getItem(id).text, n))}">${esc(getItem(id).name)}${n > 1 ? ` ×${n}` : ""}</span>`).join("");
+  return `<aside class="side-equip"><h2>Equipped</h2>${rows}${relics ? `<h2>Relics</h2><div class="chips">${relics}</div>` : ""}</aside>`;
+}
+
 function revealBtn(r: Run, it: GearItem) {
   const b = baseOf(it.base);
   if (!b.legendary || it.revealed) return "";
@@ -516,7 +543,7 @@ function render() {
     : s.t === "rest" ? restScene(r) : s.t === "confirm" ? confirmScene(r) : s.t === "event" ? eventScene(r) : overScene(r);
   celebrateScene(r);
   const msg = [r.message, note].filter(Boolean);
-  app.innerHTML = `${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}`;
+  app.innerHTML = `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}`;
   bind();
 }
 

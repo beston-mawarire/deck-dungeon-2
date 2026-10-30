@@ -3,6 +3,7 @@ import type { GearBase } from "../engine/types";
 import { applyStatus, cast, CRIT, depth, GRAZE, heal, HEXES, hex, HIT, MISS, on, other, ping, purify, self, spell, st } from "./helpers";
 import type { StatusId } from "../engine/types";
 import { wieldsHoly } from "../engine/combat";
+import { BASICS } from "./basics";
 import { KIT_UPGRADES } from "./kits";
 
 const NEG: StatusId[] = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder"];
@@ -297,4 +298,4 @@ export const TRINKETS: GearBase[] = [
   trinket({ id: "t_quicksilver", name: "Quicksilver Ring", tags: ["Tempo"], text: "Start each fight at full HP with Haste.", hooks: { onFightStart: (b, f) => { if (f.hp >= f.maxHp) applyStatus(b, f, f, "haste", 1); } } })
 ];
 
-export const GEAR_BASES: GearBase[] = [...WEAPONS, ...OFFHANDS, ...ARMOURS, ...TRINKETS, ...KIT_UPGRADES];
+export const GEAR_BASES: GearBase[] = [...WEAPONS, ...OFFHANDS, ...ARMOURS, ...TRINKETS, ...KIT_UPGRADES, ...BASICS];

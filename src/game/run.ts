@@ -155,7 +155,7 @@ function enterRoom(run: Run, room: RoomType) {
       h.crimsonKeys--;
       return fight(run, "boss", "crimson");
     case "wooden":
-      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, TABLES.wooden), run.floor, run.rng)], gold: 3 + run.floor, scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0 };
+      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, TABLES.wooden, run.floor), run.floor, run.rng)], gold: 3 + run.floor, scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0 };
       return;
     case "iron": {
       const key = (h.relics["skeleton_key"] ?? 0) > 0;
@@ -163,8 +163,8 @@ function enterRoom(run: Run, room: RoomType) {
         run.message = "The chest bites! It's a Mimic.";
         return fight(run, "elite", "mimic");
       }
-      const items = [rollItem(h, rollRarity(run.rng, TABLES.iron), run.floor, run.rng)];
-      if (key) items.push(rollItem(h, rollRarity(run.rng, TABLES.iron), run.floor, run.rng));
+      const items = [rollItem(h, rollRarity(run.rng, TABLES.iron, run.floor), run.floor, run.rng)];
+      if (key) items.push(rollItem(h, rollRarity(run.rng, TABLES.iron, run.floor), run.floor, run.rng));
       run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: 5 + run.floor * 2, scrolls: 0, potions: 0 };
       return;
     }
@@ -282,7 +282,7 @@ function afterFight(run: Run) {
   let scrolls = 0;
   let potions = 0;
   let relic: string | undefined;
-  const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, odds), run.floor, run.rng);
+  const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, odds, run.floor), run.floor, run.rng);
   if (rank === "normal" && run.rng() < 0.2) items.push(roll(TABLES.drop));
   if (rank === "normal" && run.rng() < 0.1) potions++;
   if (rank === "elite") {
@@ -471,7 +471,7 @@ function shopStock(run: Run): ShopEntry[] {
   const h = run.hero;
   const stock: ShopEntry[] = [];
   for (let i = 0; i < 3; i++) {
-    const item = rollItem(h, rollRarity(run.rng, TABLES.shop), run.floor, run.rng);
+    const item = rollItem(h, rollRarity(run.rng, TABLES.shop, run.floor), run.floor, run.rng);
     stock.push({ kind: "item", item, price: PRICE[item.rarity] + 5 * (run.floor - 1) });
   }
   const shopRelic = randomRelic(run);
@@ -805,6 +805,7 @@ export function advance(run: Run, fromTalent = false) {
     if (run.step >= STEPS_PER_FLOOR) {
       run.floor++;
       run.step = 0;
+      run.message = `Floor ${run.floor}. The air is colder, and the hoards are richer: your Fortune grows.`;
       if (run.floor > FLOORS && run.mode === "campaign") {
         run.scene = { t: "over", won: true };
         return;
