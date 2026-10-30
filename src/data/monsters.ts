@@ -51,7 +51,7 @@ export const MONSTERS: MonsterDef[] = [
 
 export type MonsterRank = "normal" | "elite" | "champion" | "boss";
 
-/** Regular monsters grow with the floor; past floor 10 (Endless) they grow faster, and past 30 much faster. */
+/** Regular monsters grow with the floor; past floor 5 (Endless) they grow faster, and past 30 much faster. */
 export function monsterHpMult(floor: number) {
   let m = 1 + 0.55 * (floor - 1);
   if (floor > 5) m *= 1 + 0.06 * (floor - 5);

@@ -116,8 +116,8 @@ function titleScreen() {
   <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span><span class="grow"></span><button class="small" data-codex>📖 Codex</button></div>
     ${next ? `<p class="sub">Next unlock at ${next.at} Renown: <b>${esc(next.name)}</b> (${locked.size} items still locked)</p>` : `<p class="sub">Everything is unlocked.</p>`}</div>
   <h2>Mode</h2>
-  <div class="row"><button data-mode="campaign" class="${mode === "campaign" ? "primary" : ""}">Campaign · 10 floors</button><button data-mode="endless" class="${mode === "endless" ? "primary" : ""}">Endless · how deep?</button></div>
-  <p class="sub">${mode === "campaign" ? "Ten floors, ten bosses." : `Bosses beyond floor 10 are forged from a library of names, titles and powers. Floor ${WALL_FLOOR} is a wall only a broken build gets through.`}</p>
+  <div class="row"><button data-mode="campaign" class="${mode === "campaign" ? "primary" : ""}">Campaign · ${FLOORS} floors</button><button data-mode="endless" class="${mode === "endless" ? "primary" : ""}">Endless · how deep?</button></div>
+  <p class="sub">${mode === "campaign" ? `${FLOORS} floors, ${FLOORS} bosses — the Hollow King waits at the bottom.` : `Past floor ${FLOORS}, the bosses you didn't meet return, and new ones are forged from a library of names, titles and powers. Floor ${WALL_FLOOR} is a wall only a broken build gets through.`}</p>
   <h2>Choose an origin</h2>
   <div class="cards">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
     const og = ORIGINS[o];
