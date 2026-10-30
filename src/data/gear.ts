@@ -33,6 +33,22 @@ export const WEAPONS: GearBase[] = [
     faces: [GRAZE, HIT, HIT, HIT, spell("Lunge", "hit", self("evade", 1)), CRIT], hooks: {} }),
   weapon({ id: "w_scythe", name: "Scythe", tags: ["Bleed", "Hex", "Kill"], text: "Two-handed. Reaps the dying.", damage: 5, twoHanded: true,
     faces: [GRAZE, spell("Rend", "hit", hex("bleed", 1)), HIT, spell("Rend", "hit", hex("bleed", 1)), HIT, spell("Reap", "crit", hex("doom", 3))], hooks: {} }),
+  weapon({ id: "w_katana", name: "Katana", tags: ["Crit", "Bleed"], text: "Crits on 5 and 6; a 6 is a drawing cut that Bleeds.", damage: 4,
+    faces: [GRAZE, HIT, HIT, HIT, CRIT, spell("Iaido", "crit", hex("bleed", 3))], hooks: {} }),
+  weapon({ id: "w_flail", name: "Flail", tags: ["Strike", "Hex"], text: "Wild swings. A 5 wraps the enemy (Weak).", damage: 5,
+    faces: [MISS, GRAZE, HIT, HIT, spell("Wrap", "hit", hex("weak", 2)), CRIT], hooks: {} }),
+  weapon({ id: "w_crossbow", name: "Crossbow", tags: ["Crit", "Storm"], text: "Two-handed. Heavy bolts; a 6 crackles with Shock.", damage: 6, twoHanded: true,
+    faces: [MISS, HIT, HIT, HIT, HIT, spell("Thunderbolt", "crit", hex("shock", 1))], hooks: {} }),
+  weapon({ id: "w_sickle", name: "Sickle", tags: ["Bleed", "Poison"], text: "One-handed; works in the off-hand. A 4 hooks and tears.", damage: 3, offDamage: 2,
+    faces: [GRAZE, HIT, HIT, spell("Hook", "hit", hex("bleed", 2)), HIT, CRIT], hooks: {} }),
+  weapon({ id: "w_lute", name: "Battle Lute", tags: ["Arcane", "Blood", "Tempo"], text: "Every face is a song: heal, empower, hinder, hasten.", damage: 2,
+    faces: [{ kind: "miss", name: "Off-key" }, spell("Ballad", "hit", self("regen", 2)), HIT, spell("War Song", "hit", self("might", 1)), spell("Lullaby", "hit", hex("weak", 2)), spell("Crescendo", "crit", self("haste", 1))], hooks: {} }),
+  weapon({ id: "w_whip", name: "Whip", tags: ["Hex", "Tempo"], text: "One-handed; works in the off-hand. Lashes leave the enemy open.", damage: 3, offDamage: 2,
+    faces: [GRAZE, HIT, spell("Lash", "hit", hex("exposed", 1)), HIT, HIT, spell("Crack", "crit", hex("weak", 2))], hooks: {} }),
+  weapon({ id: "w_trident", name: "Trident", tags: ["Storm", "Strike"], text: "Two-handed. A 4 sends a surge through the enemy.", damage: 5, twoHanded: true,
+    faces: [GRAZE, HIT, HIT, spell("Surge", "hit", hex("shock", 1)), HIT, CRIT], hooks: {} }),
+  weapon({ id: "w_morningstar", name: "Morningstar", tags: ["Strike", "Bleed"], text: "Spiked and brutal. A 6 stuns.", damage: 5,
+    faces: [MISS, HIT, HIT, HIT, spell("Spike", "hit", hex("bleed", 2)), spell("Bash", "crit", hex("stun", 1))], hooks: {} }),
   weapon({ id: "w_rapier", name: "Rapier", tags: ["Crit", "Tempo"], text: "Precise. A 6 sets up your next roll.", damage: 3,
     faces: [GRAZE, HIT, HIT, HIT, CRIT, spell("Riposte", "crit", self("focus", 1))], hooks: {} })
 ];
@@ -52,7 +68,18 @@ export const OFFHANDS: GearBase[] = [
     hooks: { face: [on(3, (b, ctx) => applyStatus(b, ctx.attacker, ctx.defender, "weak", 2)), on(1, (b, ctx) => applyStatus(b, ctx.attacker, ctx.defender, "exposed", 2))] } }),
   off({ id: "o_storm_lantern", name: "Storm Lantern", tags: ["Storm", "Arcane"], text: "On a 5: apply Shock.", hooks: { face: [on(5, (b, ctx) => applyStatus(b, ctx.attacker, ctx.defender, "shock", 1))] } }),
   off({ id: "o_bone_focus", name: "Bone Focus", tags: ["Hex", "Kill"], text: "On a 1: apply 2 Doom instead of grazing.",
-    hooks: { face: [on(1, (b, ctx) => { ctx.noDamage = true; applyStatus(b, ctx.attacker, ctx.defender, "doom", 2); })] } })
+    hooks: { face: [on(1, (b, ctx) => { ctx.noDamage = true; applyStatus(b, ctx.attacker, ctx.defender, "doom", 2); })] } }),
+
+  off({ id: "o_buckler", name: "Buckler", tags: ["Guard", "Tempo"], text: "+1 Armor. On a 1: gain Evade.", armor: 1,
+    hooks: { face: [on(1, (b, ctx) => applyStatus(b, ctx.attacker, ctx.attacker, "evade", 1))] } }),
+  off({ id: "o_spiked_shield", name: "Spiked Shield", tags: ["Guard", "Thorns"], text: "+1 Armor. Guarding gives 3 Spikes.", armor: 1,
+    hooks: { onGuard: (b, f) => applyStatus(b, f, f, "spikes", 3) } }),
+  off({ id: "o_censer", name: "Plague Censer", tags: ["Poison", "Blood"], text: "Each fight starts with 2 Poison on the enemy. On a 3: gain 1 Regen.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, other(b, f), "poison", 2), face: [on(3, (b, ctx) => applyStatus(b, ctx.attacker, ctx.attacker, "regen", 1))] } }),
+  off({ id: "o_grimoire", name: "Grimoire", tags: ["Arcane", "Burn", "Frost"], text: "On a 6: also apply 3 Burn and 2 Chill.",
+    hooks: { face: [on(6, (b, ctx) => { applyStatus(b, ctx.attacker, ctx.defender, "burn", 3); applyStatus(b, ctx.attacker, ctx.defender, "chill", 2); })] } }),
+  off({ id: "o_war_banner", name: "War Banner", tags: ["Strike", "Tempo"], text: "Start each fight with 2 Might.", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "might", 2) } }),
+  off({ id: "o_hourglass", name: "Sand Hourglass", tags: ["Tempo", "Luck"], text: "Every 4th round, gain Haste.", hooks: { onRoundStart: (b, f) => { if (b.round % 4 === 0) applyStatus(b, f, f, "haste", 1); } } })
 ];
 
 export const ARMOURS: GearBase[] = [
@@ -70,7 +97,18 @@ export const ARMOURS: GearBase[] = [
   armour({ id: "a_spiked", name: "Spiked Mail", tags: ["Thorns", "Guard"], text: "+2 Armor. When hit, deal 2 back.", armor: 2,
     hooks: { whenHit: (b, ctx) => ping(b, ctx.attacker, 2, "Spiked Mail") } }),
   armour({ id: "a_bloodweave", name: "Bloodweave Robe", tags: ["Blood", "Bleed"], text: "Heal 1 at the end of each round the enemy is Bleeding.",
-    hooks: { onRoundEnd: (b, f) => { if (st(other(b, f), "bleed") > 0) heal(b, f, 1, "Bloodweave"); } } })
+    hooks: { onRoundEnd: (b, f) => { if (st(other(b, f), "bleed") > 0) heal(b, f, 1, "Bloodweave"); } } }),
+
+  armour({ id: "a_scale", name: "Scale Mail", tags: ["Guard", "Blood"], text: "+3 Armor and +4 Max HP.", armor: 3, maxHp: 4, hooks: {} }),
+  armour({ id: "a_mirror_mail", name: "Mirror Mail", tags: ["Guard", "Hex"], text: "+2 Armor. The first negative status put on you each fight bounces to the enemy.", armor: 2,
+    hooks: { incomingStatus: (b, self, s, n) => { if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward"].includes(s) || self.flags["mirrored"]) return n; self.flags["mirrored"] = 1; applyStatus(b, self, other(b, self), s, n); return 0; } } }),
+  armour({ id: "a_berserker", name: "Berserker Hide", tags: ["Strike", "Blood"], text: "No Armor. Each round, gain 1 Might for every 25% of your HP that's missing.",
+    hooks: { onRoundStart: (b, f) => { const n = Math.floor((1 - f.hp / f.maxHp) * 4); if (n > 0) applyStatus(b, f, f, "might", n); } } }),
+  armour({ id: "a_frost_plate", name: "Frost Plate", tags: ["Guard", "Frost"], text: "+3 Armor. Attackers that hit you are Chilled.", armor: 3,
+    hooks: { whenHit: (b, c) => applyStatus(b, c.defender, c.attacker, "chill", 1) } }),
+  armour({ id: "a_assassin", name: "Assassin's Garb", tags: ["Crit", "Bleed"], text: "Start each fight with Evade. Your crits apply 2 Bleed.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "evade", 1), onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "bleed", 2) } }),
+  armour({ id: "a_vestments", name: "Priest's Vestments", tags: ["Blood", "Guard"], text: "+1 Armor. Healing you receive +25%.", armor: 1, hooks: { healMult: () => 1.25 } })
 ];
 
 export const TRINKETS: GearBase[] = [
@@ -88,7 +126,14 @@ export const TRINKETS: GearBase[] = [
   trinket({ id: "t_thorn_ring", name: "Thorn Ring", tags: ["Thorns"], text: "When hit, deal 1 back.", hooks: { whenHit: (b, ctx) => ping(b, ctx.attacker, 1, "Thorn Ring") } }),
   trinket({ id: "t_storm_amulet", name: "Stormcaller Amulet", tags: ["Storm", "Crit"], text: "Crits apply Shock.", hooks: { onCrit: (b, ctx) => applyStatus(b, ctx.attacker, ctx.defender, "shock", 1) } }),
   trinket({ id: "t_prospector", name: "Prospector's Ring", tags: ["Luck"], text: "Resplendent chests show a 4th card.", hooks: {} }),
-  trinket({ id: "t_monocle", name: "Seer's Monocle", tags: ["Luck"], text: "Resplendent card backs show their rarity colour.", hooks: {} })
+  trinket({ id: "t_monocle", name: "Seer's Monocle", tags: ["Luck"], text: "Resplendent card backs show their rarity colour.", hooks: {} }),
+  trinket({ id: "t_bloodstone", name: "Bloodstone", tags: ["Blood", "Kill"], text: "Kills heal 3.", hooks: { onKill: (b, c) => { heal(b, c.attacker, 3, "Bloodstone"); } } }),
+  trinket({ id: "t_hex_eye", name: "Hex Eye", tags: ["Hex"], text: "On a 1: apply 2 Weak.", hooks: { face: [on(1, (b, c) => applyStatus(b, c.attacker, c.defender, "weak", 2))] } }),
+  trinket({ id: "t_war_medal", name: "War Medal", tags: ["Strike", "Kill"], text: "+3 Damage against bosses and Elites.", hooks: { modifyAttack: (_b, c) => { if (c.defender.boss || c.defender.elite) c.bonus += 3; } } }),
+  trinket({ id: "t_glass_eye", name: "Glass Eye", tags: ["Crit", "Hex"], text: "Your 5s crit against Exposed enemies.",
+    hooks: { modifyAttack: (_b, c) => { if (c.face === 5 && st(c.defender, "exposed") > 0 && c.kind === "hit") { c.kind = "crit"; c.mult = 2; c.ignoreArmor = true; } } } }),
+  trinket({ id: "t_alchemist_ring", name: "Alchemist's Ring", tags: ["Arcane", "Hex"], text: "Reactions deal +50%.", hooks: { reactionMult: () => 1.5 } }),
+  trinket({ id: "t_quicksilver", name: "Quicksilver Ring", tags: ["Tempo"], text: "Start each fight at full HP with Haste.", hooks: { onFightStart: (b, f) => { if (f.hp >= f.maxHp) applyStatus(b, f, f, "haste", 1); } } })
 ];
 
 export const GEAR_BASES: GearBase[] = [...WEAPONS, ...OFFHANDS, ...ARMOURS, ...TRINKETS];

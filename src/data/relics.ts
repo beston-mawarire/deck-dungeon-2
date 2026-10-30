@@ -113,4 +113,21 @@ export const STATUS_RELICS: HookDef[] = [
     hooks: { onRoundEnd: (b, f, s) => applyStatus(b, f, other(b, f), "doom", s) } })
 ];
 
-export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS];
+// ---------- Batch 3 ----------
+export const BATCH3: HookDef[] = [
+  relic({ id: "battle_standard", name: "Battle Standard", rarity: "common", tags: ["Strike"], text: "Start each fight with 1 Might (+1)", hooks: { onFightStart: (b, f, s) => applyStatus(b, f, f, "might", s) } }),
+  relic({ id: "sulfur_pouch", name: "Sulfur Pouch", rarity: "uncommon", tags: ["Burn", "Poison"], text: "Burn you apply to a Poisoned enemy gets +2 (+2)",
+    hooks: { onStatusApplied: (_b, _self, t, status, _n, s) => { if (status === "burn" && st(t, "poison") > 0) t.statuses.burn = st(t, "burn") + 2 * s; } } }),
+  relic({ id: "glacier_heart", name: "Glacier Heart", rarity: "uncommon", tags: ["Frost", "Strike"], text: "Your hits deal +2 to Chilled enemies (+2)",
+    hooks: { modifyAttack: (_b, c, s) => { if (st(c.defender, "chill") > 0) c.bonus += 2 * s; } } }),
+  relic({ id: "lightning_rod", name: "Lightning Rod", rarity: "common", tags: ["Storm", "Hex"], text: "Shock you apply also applies 1 Exposed (+1)",
+    hooks: { onStatusApplied: (_b, _self, t, status, _n, s) => { if (status === "shock") t.statuses.exposed = st(t, "exposed") + s; } } }),
+  relic({ id: "war_drum", name: "War Drum", rarity: "uncommon", tags: ["Tempo"], text: "Every 3rd round, gain Haste (2 stacks: every 2nd)",
+    hooks: { onRoundStart: (b, f, s) => { if (b.round % (s >= 2 ? 2 : 3) === 0) applyStatus(b, f, f, "haste", 1); } } }),
+  relic({ id: "blood_moon", name: "Blood Moon", rarity: "rare", tags: ["Blood", "Kill"], text: "Kills heal 10% of your Max HP (+5%)",
+    hooks: { onKill: (b, c, s) => { heal(b, c.attacker, Math.ceil(c.attacker.maxHp * (0.05 + 0.05 * s)), "Blood Moon"); } } }),
+  relic({ id: "trophy_belt", name: "Trophy Belt", rarity: "common", tags: ["Kill"], text: "+1 Gold per kill for every Elite you've slain this run",
+    hooks: { onKill: (_b, c) => { if (c.defender.elite) c.attacker.persist["eliteKills"] = (c.attacker.persist["eliteKills"] ?? 0) + 1; c.attacker.gold += c.attacker.persist["eliteKills"] ?? 0; } } })
+];
+
+export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3];

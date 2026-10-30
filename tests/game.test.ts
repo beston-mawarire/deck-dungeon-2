@@ -197,3 +197,53 @@ describe("a whole run", () => {
     expect(go()).toBe(go());
   });
 });
+
+describe("bosses, endless, events, fusions", () => {
+  it("ten named campaign bosses, generated bosses after, and the wall on floor 30", async () => {
+    const { makeBoss, WALL_FLOOR, bossStats } = await import("../src/data/bosses");
+    const rng = makeRng(5);
+    const names = new Set<string>();
+    for (let f = 1; f <= 10; f++) names.add(makeBoss(f, rng).name);
+    expect(names.size).toBe(10);
+    for (let f = 11; f <= 40; f++) {
+      const b = makeBoss(f, rng);
+      expect(b.moves!.length).toBeGreaterThanOrEqual(3);
+      expect(b.hp).toBeGreaterThan(0);
+    }
+    const wall = makeBoss(WALL_FLOOR, rng);
+    expect(wall.name).toBe("Ur-Thane");
+    expect(wall.hp).toBeGreaterThan(bossStats(WALL_FLOOR).hp * 5);
+  });
+
+  it("boss moves run through the phased turn", async () => {
+    const { makeBoss } = await import("../src/data/bosses");
+    const h = newHero("warrior");
+    const b = startBattle(h.f, makeBoss(4, makeRng(1)), 9);
+    for (let i = 0; i < 6 && !b.over; i++) playRound(b, "attack");
+    expect(b.log.some(l => l.includes("uses Bulwark"))).toBe(true);
+    expect(b.fx.length).toBeGreaterThan(0);
+  });
+
+  it("fusing two relics makes a fusion relic", async () => {
+    const { availableFusions, fuse } = await import("../src/game/run");
+    const run = newRun("warrior", 4);
+    run.hero.relics = { serrated_edge: 1, keen_eye: 1 };
+    expect(availableFusions(run).map(f => f.out)).toEqual(["f_thousand_cuts"]);
+    expect(fuse(run, "f_thousand_cuts")).toBeNull();
+    expect(run.hero.relics).toEqual({ f_thousand_cuts: 1 });
+    expect(run.hero.f.items["f_thousand_cuts"]).toBe(1);
+  });
+
+  it("every event option can run", async () => {
+    const { EVENTS } = await import("../src/data/events");
+    const { chooseEvent } = await import("../src/game/run");
+    for (const ev of EVENTS) for (let i = 0; i < ev.options.length; i++) {
+      const run = newRun("cleric", 10 + i);
+      run.hero.f.gold = 200;
+      run.hero.relics = { whetstone: 1 };
+      run.scene = { t: "event", ev, result: null, found: [] };
+      chooseEvent(run, i);
+      expect(["event", "loot"]).toContain(run.scene.t);
+    }
+  });
+});

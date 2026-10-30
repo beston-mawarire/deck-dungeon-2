@@ -1,0 +1,75 @@
+// Small synthesized sound effects (Web Audio), no files needed.
+type Sfx = "roll" | "hit" | "crit" | "miss" | "block" | "status" | "heal" | "reaction" | "chest" | "legendary" | "win" | "lose" | "click";
+
+let ctx: AudioContext | null = null;
+let muted = false;
+try { muted = localStorage.getItem("dd2-muted") === "1"; } catch { /* ignore */ }
+
+export const isMuted = () => muted;
+export function toggleMute() {
+  muted = !muted;
+  try { localStorage.setItem("dd2-muted", muted ? "1" : "0"); } catch { /* ignore */ }
+}
+
+function ac(): AudioContext | null {
+  if (muted) return null;
+  try {
+    ctx ??= new AudioContext();
+    if (ctx.state === "suspended") void ctx.resume();
+    return ctx;
+  } catch {
+    return null;
+  }
+}
+
+function tone(freq: number, dur: number, type: OscillatorType, vol = 0.12, slideTo?: number, delay = 0) {
+  const a = ac();
+  if (!a) return;
+  const t = a.currentTime + delay;
+  const o = a.createOscillator();
+  const g = a.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(a.destination);
+  o.start(t);
+  o.stop(t + dur + 0.02);
+}
+
+function noise(dur: number, vol = 0.15, cutoff = 1800, delay = 0) {
+  const a = ac();
+  if (!a) return;
+  const t = a.currentTime + delay;
+  const buf = a.createBuffer(1, Math.max(1, Math.floor(a.sampleRate * dur)), a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const src = a.createBufferSource();
+  src.buffer = buf;
+  const f = a.createBiquadFilter();
+  f.type = "lowpass";
+  f.frequency.value = cutoff;
+  const g = a.createGain();
+  g.gain.value = vol;
+  src.connect(f).connect(g).connect(a.destination);
+  src.start(t);
+}
+
+export function sfx(kind: Sfx) {
+  switch (kind) {
+    case "roll": noise(0.05, 0.08, 3000); break;
+    case "hit": noise(0.12, 0.25, 900); tone(110, 0.12, "triangle", 0.15, 60); break;
+    case "crit": noise(0.18, 0.3, 1400); tone(220, 0.2, "sawtooth", 0.1, 90); tone(660, 0.15, "square", 0.05, undefined, 0.03); break;
+    case "miss": tone(500, 0.18, "sine", 0.06, 200); break;
+    case "block": tone(900, 0.08, "square", 0.06); tone(1300, 0.18, "triangle", 0.05, 900, 0.02); break;
+    case "status": tone(330, 0.12, "sine", 0.07, 260); break;
+    case "heal": tone(520, 0.12, "sine", 0.07); tone(780, 0.16, "sine", 0.06, undefined, 0.08); break;
+    case "reaction": noise(0.25, 0.2, 2500); tone(180, 0.3, "sawtooth", 0.08, 700); break;
+    case "chest": tone(392, 0.1, "triangle", 0.08); tone(523, 0.12, "triangle", 0.08, undefined, 0.08); break;
+    case "legendary": [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, "triangle", 0.08, undefined, i * 0.09)); break;
+    case "win": [392, 523, 659, 784].forEach((f, i) => tone(f, 0.2, "square", 0.05, undefined, i * 0.1)); break;
+    case "lose": [330, 262, 196].forEach((f, i) => tone(f, 0.3, "sawtooth", 0.06, undefined, i * 0.15)); break;
+    case "click": tone(700, 0.03, "square", 0.03); break;
+  }
+}

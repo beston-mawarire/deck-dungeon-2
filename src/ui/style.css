@@ -65,3 +65,36 @@ button:disabled { opacity: .4; cursor: default; }
 .won { color: var(--good); } .lost { color: var(--bad); }
 .steps { display: flex; gap: 4px; margin-top: 4px; } .steps i { flex: 1; height: 6px; border-radius: 3px; background: #2b2330; } .steps i.done { background: var(--gold); }
 details summary { cursor: pointer; color: var(--muted); }
+
+/* ---------- Combat feedback ---------- */
+.fighter { position: relative; }
+.fighter.shake { animation: shake .35s; }
+@keyframes shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
+.screen-shake { animation: shake .3s; }
+.floater { position: absolute; pointer-events: none; font-weight: 800; font-style: italic; opacity: 0; white-space: nowrap; z-index: 50;
+  text-shadow: 0 2px 6px rgba(0,0,0,.8); animation: floatup 1.15s ease-out forwards; transform: translate(-50%, 0); }
+@keyframes floatup { 0% { opacity: 0; transform: translate(-50%, 8px) scale(.9); } 15% { opacity: .6; transform: translate(-50%, 0) scale(1.05); }
+  70% { opacity: .6; } 100% { opacity: 0; transform: translate(-50%, -42px) scale(1); } }
+.floater.dmg { color: #ff6b7d; font-size: 1.7rem; opacity: 1; }
+.floater.dmg, .floater.crit, .floater.heal, .floater.reaction { animation-name: floatup-strong; }
+@keyframes floatup-strong { 0% { opacity: 0; transform: translate(-50%, 8px) scale(.8); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.15); }
+  70% { opacity: .9; } 100% { opacity: 0; transform: translate(-50%, -48px) scale(1); } }
+.floater.heal { color: #6fe39a; font-size: 1.5rem; }
+.floater.crit { color: var(--gold); font-size: 2rem; }
+.floater.miss, .floater.text { color: #e6dcf0; font-size: 1.2rem; }
+.floater.block { color: #9cc7ff; font-size: 1.25rem; }
+.floater.status-neg { color: #d79bff; font-size: 1.05rem; }
+.floater.status-pos { color: #8ff0b8; font-size: 1.05rem; }
+.floater.reaction { color: #ffa94d; font-size: 1.6rem; }
+.dice-row { display: flex; justify-content: center; gap: 22px; align-items: flex-start; margin: 6px 0; }
+.diebox { text-align: center; min-width: 90px; }
+.diebox .who { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.die.rolling { animation: tumble .5s linear; }
+@keyframes tumble { 0% { transform: rotate(0) scale(.9); } 50% { transform: rotate(180deg) scale(1.1); } 100% { transform: rotate(360deg) scale(1); } }
+.die.enemy { background: #e9c9cf; }
+.die.empty { opacity: .25; }
+.intent { margin-top: 6px; font-size: .9rem; background: #2c2133; border: 1px dashed #6a4a7a; border-radius: 8px; padding: 6px 8px; }
+.compare { margin-top: 6px; padding: 6px 8px; background: #1a1622; border-radius: 8px; font-size: .82rem; }
+.compare .up { color: var(--good); } .compare .down { color: var(--bad); }
+.busy button[data-act] { opacity: .45; pointer-events: none; }
+.topbar { display: flex; gap: 8px; align-items: center; }

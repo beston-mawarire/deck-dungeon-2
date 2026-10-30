@@ -114,6 +114,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
 function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, depth: number) {
   const name = REACTIONS.find(r => r.id === id)!.name;
   fx(b, { who: t.id, kind: "reaction", text: `${name}!` });
+  if (source && source !== t && (source.items["l_ouroboros"] ?? 0) > 0) heal(b, source, 3, "Ouroboros");
   const m = reactionMult(b, source);
   switch (id) {
     case "combustion": {

@@ -197,6 +197,11 @@ export function combatAction(run: Run, action: Action) {
   if (b.over) afterFight(run);
 }
 
+/** After the UI has played a phase, finish the fight if it's over. */
+export function settleCombat(run: Run) {
+  if (run.scene.t === "combat" && run.scene.battle.over) afterFight(run);
+}
+
 export function drinkPotion(run: Run) {
   const h = run.hero;
   if (h.potions <= 0) return;
@@ -216,7 +221,10 @@ function afterFight(run: Run) {
   if (b.over === "fled") return advance(run);
   run.carry = b.carry;
   run.stats.kills++;
-  if (rank === "boss") run.stats.bosses++;
+  if (rank === "boss") {
+    run.stats.bosses++;
+    h.f.persist["bossKills"] = (h.f.persist["bossKills"] ?? 0) + 1;
+  }
   // Catch your breath: a small heal after every won fight.
   h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.ceil(h.f.maxHp * 0.15));
   const xp = { normal: 1, elite: 3, champion: 5, boss: 6 }[rank];

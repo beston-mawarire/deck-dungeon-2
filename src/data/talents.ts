@@ -49,4 +49,17 @@ export const STATUS_TALENTS: HookDef[] = [
     } } })
 ];
 
-export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS];
+export const GEAR_TALENTS: HookDef[] = [
+  talent({ id: "t_spellweaver", name: "Spellweaver", tags: ["Arcane"], text: "Statuses your spell faces apply get +1 / +2 / +3 stacks",
+    hooks: { onStatusApplied: (_b, self, t, status, _n, s) => { if (self.flags["casting"] && t !== self && !["stun", "shock"].includes(status)) t.statuses[status] = st(t, status) + s; } } }),
+  talent({ id: "t_duelist", name: "Dual Wielder", tags: ["Tempo", "Strike"], text: "Your off-hand die deals +2 / +3 / +5",
+    hooks: { modifyAttack: (_b, c, s) => { if (c.offhand) c.bonus += rank(s, 2, 3, 5); } } }),
+  talent({ id: "t_juggernaut", name: "Juggernaut", tags: ["Guard"], text: "+1 / +2 / +3 Armor", hooks: { stats: (st_, s) => { st_.armor += s; } } }),
+  talent({ id: "t_last_stand", name: "Last Stand", tags: ["Strike", "Blood"], text: "Below 30% HP, your hits deal +3 / +5 / +8",
+    hooks: { modifyAttack: (_b, c, s) => { if (c.attacker.hp < c.attacker.maxHp * 0.3) c.bonus += rank(s, 3, 5, 8); } } }),
+  talent({ id: "t_executioner", name: "Executioner", tags: ["Kill", "Crit"], text: "Crits against enemies under half HP deal +3 / +5 / +8",
+    hooks: { modifyAttack: (_b, c, s) => { if (c.kind === "crit" && c.defender.hp < c.defender.maxHp / 2) c.bonus += rank(s, 3, 5, 8); } } }),
+  talent({ id: "t_vigor", name: "Vigor", tags: ["Blood"], text: "+6 / +12 / +20 Max HP", hooks: { stats: (st_, s) => { st_.maxHp += rank(s, 6, 12, 20); } } })
+];
+
+export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS];

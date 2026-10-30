@@ -3,7 +3,7 @@
 import { attack } from "../engine/combat";
 import { log } from "../engine/registry";
 import type { Battle, Fighter, GearBase, HookDef } from "../engine/types";
-import { applyStatus, cast, CRIT, heal, hex, HIT, MISS, on, ping, st } from "./helpers";
+import { applyStatus, cast, CRIT, GRAZE, heal, hex, HIT, MISS, on, ping, st } from "./helpers";
 
 const bonus = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "bonus", ...d });
 const epic = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "epic", rarity: "epic", ...d });
@@ -55,7 +55,14 @@ export const EPIC_POWERS: HookDef[] = [
   epic({ id: "e_executioner", name: "Executioner's", affix: "Executioner's", tags: ["Kill"], text: "Double damage to enemies under 30% HP",
     hooks: { modifyAttack: (_b, c) => { if (c.defender.hp < c.defender.maxHp * 0.3) c.mult *= 2; } } }),
   epic({ id: "e_swift", name: "Swift", affix: "Swift", tags: ["Tempo"], text: "Start each fight with Haste", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "haste", 1) } }),
-  epic({ id: "e_venomous", name: "Venomous", affix: "Venomous", tags: ["Poison"], text: "Every hit applies 2 Poison", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "poison", 2) } })
+  epic({ id: "e_venomous", name: "Venomous", affix: "Venomous", tags: ["Poison"], text: "Every hit applies 2 Poison", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "poison", 2) } }),
+  epic({ id: "e_frostbound", name: "Frostbound", affix: "Frostbound", tags: ["Frost"], text: "Every hit applies 1 Chill", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "chill", 1) } }),
+  epic({ id: "e_thundering", name: "Thundering", affix: "Thundering", tags: ["Storm", "Crit"], text: "Your 6s Stun", hooks: { face: [on(6, (b, c) => applyStatus(b, c.attacker, c.defender, "stun", 1))] } }),
+  epic({ id: "e_bloodthirsty", name: "Bloodthirsty", affix: "Bloodthirsty", tags: ["Blood", "Kill"], text: "Kills restore 15% of your Max HP", hooks: { onKill: (b, c) => { heal(b, c.attacker, Math.ceil(c.attacker.maxHp * 0.15), "Bloodthirsty"); } } }),
+  epic({ id: "e_bastion", name: "Bastion", affix: "Bastion", tags: ["Guard", "Thorns"], text: "Guarding also deals your Armor to the enemy", hooks: { onGuard: (b, f) => ping(b, b.player === f ? b.enemy : b.player, f.armor, "Bastion") } }),
+  epic({ id: "e_hexing", name: "Hexing", affix: "Hexing", tags: ["Hex"], text: "Every hit applies 1 Weak and 1 Exposed", hooks: { onHit: (b, c) => { applyStatus(b, c.attacker, c.defender, "weak", 1); applyStatus(b, c.attacker, c.defender, "exposed", 1); } } }),
+  epic({ id: "e_lucky", name: "Lucky", affix: "Lucky", tags: ["Luck"], text: "Your first 1 each fight becomes a 6",
+    hooks: { modifyRoll: (b, f, r) => { if (r === 1 && !f.flags["lucky"]) { f.flags["lucky"] = 1; log(b, "Lucky: the 1 becomes a 6!"); return 6; } return r; } } })
 ];
 
 const legendary = (d: Omit<GearBase, "rarity">): GearBase => ({ ...d, rarity: "legendary" });
@@ -97,6 +104,32 @@ export const LEGENDARIES: GearBase[] = [
       onFightStart: (b, f) => { f.persist["keepBarrier"] = 1; if (st(f, "barrier") < 10) f.statuses.barrier = 10; },
       face: [on("any", (b, c) => applyStatus(b, c.attacker, c.attacker, "barrier", 3))]
     } }),
+  legendary({ id: "l_tempest_maul", kind: "weapon", slot: "main", name: "Tempest Maul", tags: ["Storm", "Strike"], damage: 7, twoHanded: true,
+    faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT],
+    legendary: { minFloor: 5, asBase: "w_hammer", reveal: "Every hit Shocks. Your 6s Stun and deal triple instead of double." },
+    text: "Thunder in a handle.",
+    hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "shock", 1), modifyAttack: (b, c) => { if (c.face === 6 && !c.offhand) { c.mult = 3; applyStatus(b, c.attacker, c.defender, "stun", 1); } } } }),
+  legendary({ id: "l_gravecaller", kind: "off", slot: "off", name: "Gravecaller's Lantern", tags: ["Hex", "Kill"],
+    legendary: { minFloor: 5, asBase: "o_bone_focus", reveal: "Doom kills once it reaches half the enemy's HP. On a 1 or 2: apply 3 Doom." },
+    text: "It lights the way for the dying.",
+    hooks: { face: [on("low", (b, c) => applyStatus(b, c.attacker, c.defender, "doom", 3))],
+      onRoundEnd: (b, f) => { const e = b.player === f ? b.enemy : b.player; if (st(e, "doom") > 0 && st(e, "doom") * 2 >= e.hp && e.hp > 0) { e.hp = 0; log(b, "💀 The Gravecaller claims its due."); b.fx.push({ who: e.id, kind: "text", text: "Claimed", icon: "💀" }); } } } }),
+  legendary({ id: "l_ouroboros", kind: "trinket", slot: "trinket", name: "Ouroboros Band", tags: ["Arcane", "Hex"],
+    legendary: { minFloor: 5, asBase: "t_brass_amulet", reveal: "Reactions hit twice as hard, and every reaction you cause heals you 3." },
+    text: "The end feeds the beginning.",
+    hooks: { reactionMult: () => 2 } }), // healing on reactions: see statuses.ts
+  legendary({ id: "l_sanguine_regalia", kind: "armour", slot: "armour", name: "Sanguine Regalia", tags: ["Blood", "Guard"], armor: 2,
+    legendary: { minFloor: 5, asBase: "a_padded", reveal: "Heal 1 on every hit you land. Healing above your Max HP becomes Barrier." },
+    text: "Royal blood, rightly spilled.",
+    hooks: { onHit: (b, c) => { const f = c.attacker; if (f.hp >= f.maxHp) applyStatus(b, f, f, "barrier", 1); else heal(b, f, 1, "Regalia"); } } }),
+  legendary({ id: "l_crown_endless", kind: "trinket", slot: "trinket", name: "Crown of the Endless", tags: ["Strike", "Kill"],
+    legendary: { minFloor: 9, asBase: "t_ring_might", reveal: "+1 Damage for every boss you've slain this run." },
+    text: "Every throne you topple becomes a jewel.",
+    hooks: { modifyAttack: (_b, c) => { c.bonus += c.attacker.persist["bossKills"] ?? 0; } } }),
+  legendary({ id: "l_loaded_fate", kind: "trinket", slot: "trinket", name: "Loaded Fate", tags: ["Luck"],
+    legendary: { minFloor: 6, asBase: "t_lucky_coin", reveal: "Every 1 and 2 you roll is rerolled once." },
+    text: "The dice were never fair. Now they're yours.",
+    hooks: { modifyRoll: (b, f, r) => (r <= 2 ? 1 + Math.floor(b.rng() * 6) : r) } }),
   legendary({ id: "l_worldsplitter", kind: "weapon", slot: "main", name: "Worldsplitter", tags: ["Strike", "Kill"], damage: 7, twoHanded: true,
     faces: [MISS, MISS, HIT, HIT, HIT, ...Array.from({ length: 7 }, () => ({ kind: "crit" as const, name: "Cleave", cleave: true }))],
     legendary: { minFloor: 8, asBase: "w_axe", reveal: "Your die has 12 faces, and faces 6–12 are all Cleaves." },

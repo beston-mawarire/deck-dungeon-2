@@ -24,17 +24,20 @@ npm run build:single  # one self-contained HTML file in dist-single/
   - `statuses.ts` — 18 statuses (10 negative, 8 positive), 10 reactions, per-round ticks.
   - `registry.ts` — looks items up and runs their hooks.
 - `src/data/` — the content library. Adding an item means adding an entry here.
-  - `gear.ts` — 14 weapons (each with its own six faces), 8 off-hands, 8 armours, 10 trinkets.
-  - `affixes.ts` — 22 rolled bonuses (3 of them Rare-only twists on the old classes), 10 Epic powers,
-    7 Legendaries.
-  - `relics.ts` (51), `talents.ts` (12), `origins.ts` (4 origins with kit + passive, 6 curses),
-    `monsters.ts` (11 monsters in 4 families, 8 Elite affixes, 3 bosses).
+  - `gear.ts` — 22 weapons (each with its own faces), 14 off-hands, 14 armours, 16 trinkets.
+  - `affixes.ts` — 22 rolled bonuses (3 of them Rare-only twists on the old classes), 16 Epic powers,
+    13 Legendaries.
+  - `relics.ts` (58), `fusions.ts` (8 recipes), `talents.ts` (18), `origins.ts` (4 origins, 6 curses),
+    `events.ts` (10), `monsters.ts` (11 monsters in 4 families, 8 Elite affixes),
+    `bosses.ts` (a move library, 10 campaign bosses, generated Endless bosses and the floor-30 wall).
 - `src/game/` — the run.
   - `hero.ts` — equipping, two-handers, backpack (4), salvage, reveal, stat rebuild.
   - `loot.ts` — rarity tables, item rolling with tag weighting, Resplendent chests, bad-luck protection.
-  - `run.ts` — floors, path choices, rooms (fights, chests, Mimics, vaults, altars, shrines, shops,
-    forges, campfires, bosses), XP and Talents.
-- `src/ui/` — the game screen (plain DOM, mobile-first).
+  - `run.ts` — 10 floors (or Endless), path choices, rooms (fights, chests, Mimics, vaults, altars,
+    shrines, shops, forges with fusions, campfires, events, bosses), XP and Talents.
+  - `meta.ts` — Renown, unlock tiers and the Codex, saved in the browser.
+- `src/ui/` — the game screen (plain DOM, mobile-first): turn-by-turn combat playback with dice rolls,
+  floating numbers and status text, item comparison, sound (`sound.ts`, synthesized).
 
 ## Rarity
 
@@ -42,7 +45,7 @@ Common (base) → Uncommon (+1 bonus) → Rare (+2 bonuses) → Epic (+2 bonuses
 Legendary (one of a kind; found unrevealed and works as a Common until a Scroll of Revelation reveals it).
 Item level follows the floor; the Forge raises it.
 
-## Next
+## Balance
 
-More of everything in the library, events, fusions, boss move sets, meta-progression (unlocks, Codex),
-sound and visual feedback, and a smarter balance bot.
+`npm test` runs a bot through 400 campaigns. Current: about 12% wins for the bot (Rogue 19%, Cleric 14%,
+Warrior 11%, Mage 4%); a thoughtful player should do noticeably better.
