@@ -13,7 +13,8 @@ export type PositiveStatus = (typeof POSITIVE_STATUSES)[number];
 export type StatusId = NegativeStatus | PositiveStatus;
 export type Statuses = Partial<Record<StatusId, number>>;
 
-export const RARITIES = ["common", "uncommon", "rare", "epic", "legendary"] as const;
+/** Crimson sits above Legendary: it only drops from Crimson bosses (Endless, after the fifth boss). */
+export const RARITIES = ["common", "uncommon", "rare", "epic", "legendary", "crimson"] as const;
 export type Rarity = (typeof RARITIES)[number];
 
 export type OriginId = "warrior" | "rogue" | "mage" | "cleric";
@@ -62,6 +63,8 @@ export interface Fighter {
   elite?: boolean;
   champion?: boolean;
   boss?: boolean;
+  /** Crimson Elites and bosses: rare, much harder, and the only source of Crimson keys and items. */
+  crimson?: boolean;
   family?: string;
   /** Bosses: their move cycle and which move comes next. */
   moves?: Move[];
@@ -84,6 +87,8 @@ export interface AttackCtx {
   offhand: boolean;
   /** Final damage dealt to HP after Armor and Barrier. */
   dealt: number;
+  /** Damage before Armor (set when the hit lands). */
+  raw?: number;
 }
 
 /** A visual beat for the UI: rolls, damage numbers, misses, crits, statuses. */

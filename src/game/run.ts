@@ -1,6 +1,6 @@
 // A run: three floors of path choices, fights, chests, shops, forges and bosses.
 import { CURSES, EPIC_POWERS, LEGENDARIES, RELICS, TALENTS } from "../data";
-import { CAMPAIGN_FLOORS, makeBoss, WALL_FLOOR } from "../data/bosses";
+import { CAMPAIGN_FLOORS, makeBoss, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
 import { EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
 import { makeMonster, type MonsterRank } from "../data/monsters";
@@ -11,7 +11,7 @@ import { heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { addToBackpack, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, upgradeCost, xpToLevel } from "./hero";
-import { isLocked, type LootState, type ResplendentCard, resplendentCards, rollItem, rollRarity, setLocked, TABLES } from "./loot";
+import { isLocked, type LootState, resetDropped, type ResplendentCard, resplendentCards, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
 /** The campaign is five floors (five bosses). Endless keeps going; floor 30 is the wall. */
 export const FLOORS = CAMPAIGN_FLOORS;
@@ -19,7 +19,7 @@ export const STEPS_PER_FLOOR = 7;
 export { WALL_FLOOR };
 export type Mode = "campaign" | "endless";
 
-export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss";
+export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -34,14 +34,16 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   forge: { name: "Forge", icon: "🔨", text: "Spend Scrap to upgrade or reroll gear." },
   rest: { name: "Campfire", icon: "🔥", text: "Heal, or cleanse a curse." },
   event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
-  boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." }
+  boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
+  crimson_elite: { name: "Crimson Elite", icon: "🩸", text: "Rarer and deadlier than a Champion. Great loot, and often a Crimson Key." },
+  crimson_vault: { name: "Crimson Vault", icon: "🗝️", text: "Spend a Crimson Key: fight a Crimson boss for a Crimson item. Dying here doesn't end your run." }
 };
 
 export interface ShopEntry { kind: "item" | "potion" | "scroll" | "relic"; item?: GearItem; relic?: string; price: number; sold?: boolean }
 
 export type Scene =
   | { t: "map" }
-  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" }
+  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent" }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[] }
@@ -85,6 +87,7 @@ export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: M
     found: new Set(), locked, seenBosses: new Set(), shopRerolls: 0
   };
   setLocked(locked);
+  resetDropped();
   run.choices = genChoices(run);
   return run;
 }
@@ -110,18 +113,28 @@ const pickW = <T extends string>(rng: () => number, w: Partial<Record<T, number>
 export function genChoices(run: Run): RoomType[] {
   if (run.step >= STEPS_PER_FLOOR) return ["boss"];
   const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 9, vault: 3, altar: 3, shrine: 3, champion: 3 };
-  if (run.step === 0) { w.elite = 0; w.champion = 0; w.vault = 0; }
+  // After the fifth boss (Endless), Crimson Elites start to appear; they drop the keys to Crimson Vaults.
+  if (crimsonActive(run)) w.crimson_elite = 4;
+  if (run.step === 0) { w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; }
   const out = new Set<RoomType>();
   out.add("fight");
   while (out.size < 3) out.add(pickW(run.rng, w));
-  return [...out].sort(() => run.rng() - 0.5);
+  const rooms = [...out].sort(() => run.rng() - 0.5);
+  // Holding a Crimson Key: a Crimson Vault is always offered as an extra path.
+  if (crimsonActive(run) && run.hero.crimsonKeys > 0) rooms.push("crimson_vault");
+  return rooms;
+}
+
+/** The Crimson mechanic kicks in once you've beaten the campaign's fifth boss. */
+export function crimsonActive(run: Run) {
+  return run.floor > FLOORS;
 }
 
 // ---------- Rooms ----------
 
 export function chooseRoom(run: Run, room: RoomType) {
   run.message = "";
-  if (room === "vault" || room === "altar" || room === "shrine") {
+  if (room === "vault" || room === "altar" || room === "shrine" || room === "crimson_vault") {
     run.scene = { t: "confirm", room };
     return;
   }
@@ -136,6 +149,11 @@ function enterRoom(run: Run, room: RoomType) {
     case "champion": return fight(run, "champion");
     case "boss": return fight(run, "boss");
     case "vault": return fight(run, "champion", "resplendent");
+    case "crimson_elite": return fight(run, "crimson");
+    case "crimson_vault":
+      if (h.crimsonKeys <= 0) return advance(run);
+      h.crimsonKeys--;
+      return fight(run, "boss", "crimson");
     case "wooden":
       run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, TABLES.wooden), run.floor, run.rng)], gold: 3 + run.floor, scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0 };
       return;
@@ -181,9 +199,11 @@ function openResplendent(run: Run) {
 
 // ---------- Combat ----------
 
-function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic") {
+function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson") {
   run.hero.f.persist["floor"] = run.floor;
-  const enemy = rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : makeMonster(run.rng, run.floor, rank);
+  // A Crimson Vault always holds a Crimson boss; in Endless, a floor boss is rarely Crimson too.
+  const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && run.floor !== WALL_FLOOR && run.rng() < 0.06));
+  const enemy = crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : makeMonster(run.rng, run.floor, rank);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
@@ -212,7 +232,8 @@ export function drinkPotion(run: Run) {
   const h = run.hero;
   if (h.potions <= 0) return;
   h.potions--;
-  const amount = h.f.items["l_bottomless"] ? Math.ceil(h.f.maxHp / 2) : 12;
+  let amount = h.f.items["l_bottomless"] ? Math.ceil(h.f.maxHp / 2) : 12;
+  if (h.f.items["c_famine"]) amount = Math.ceil(amount / 2);
   if (run.scene.t === "combat") healF(run.scene.battle, h.f, amount, "Potion");
   else h.f.hp = Math.min(h.f.maxHp, h.f.hp + amount);
 }
@@ -222,6 +243,13 @@ function afterFight(run: Run) {
   const { battle: b, rank, then } = run.scene;
   const h = run.hero;
   if (b.over === "lost") {
+    // A Crimson Vault doesn't kill you: you crawl out and carry on.
+    if (then === "crimson") {
+      h.f.hp = Math.max(1, Math.ceil(h.f.maxHp * 0.25));
+      h.f.persist["crimsonEscapes"] = (h.f.persist["crimsonEscapes"] ?? 0) + 1;
+      run.message = `${b.enemy.name} casts you out of the vault. You crawl away at ${h.f.hp} HP; the key is spent.`;
+      return advance(run);
+    }
     run.scene = { t: "over", won: false };
     return;
   }
@@ -234,9 +262,9 @@ function afterFight(run: Run) {
   }
   // Catch your breath: a small heal after every won fight.
   h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.ceil(h.f.maxHp * 0.15));
-  const xp = { normal: 1, elite: 3, champion: 5, boss: 6 }[rank];
+  const xp = { normal: 1, elite: 3, champion: 5, crimson: 7, boss: b.enemy.crimson ? 9 : 6 }[rank];
   gainXp(run, xp);
-  const gold = { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, boss: 30 + 10 * run.floor }[rank];
+  const gold = { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank];
   const items: GearItem[] = [];
   let scrolls = 0;
   let potions = 0;
@@ -260,6 +288,14 @@ function afterFight(run: Run) {
     if (!h.relics["transmuter"] && run.rng() < 0.12) relic = "transmuter";
     relic = relic ?? randomRelic(run, 2);
   }
+  if (rank === "crimson") {
+    items.push(roll(TABLES.crimson));
+    relic = randomRelic(run, 2);
+    if (run.rng() < 0.5) {
+      h.crimsonKeys++;
+      run.message = "A Crimson Key falls from the body. 🗝️ A Crimson Vault will now be offered on your path.";
+    } else run.message = "No key this time. Crimson Elites carry one about half the time.";
+  }
   if (rank === "boss") {
     relic = randomRelic(run, 2);
     if (run.rng() < 0.15) scrolls++;
@@ -271,7 +307,9 @@ function afterFight(run: Run) {
     }
     h.scrolls += scrolls;
     recompute(h);
-    run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: [roll(TABLES.boss), roll(TABLES.boss), roll(TABLES.boss)] };
+    // Crimson bosses offer a Crimson item alongside two boss finds.
+    const offer = b.enemy.crimson ? [rollItem(h, "crimson", run.floor, run.rng), roll(TABLES.boss), roll(TABLES.boss)] : [roll(TABLES.boss), roll(TABLES.boss), roll(TABLES.boss)];
+    run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: offer };
     run.message = `+${gold} Gold${relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""} · healed 30%`;
     return;
   }
@@ -360,7 +398,7 @@ export function scrapFound(run: Run, uid: number) {
   if (sc.t !== "loot" && sc.t !== "pick") return;
   const item = sc.items.find(i => i.uid === uid);
   if (!item) return;
-  run.hero.scrap += { common: 1, uncommon: 2, rare: 4, epic: 7, legendary: 12 }[item.rarity] + item.level - 1;
+  run.hero.scrap += { common: 1, uncommon: 2, rare: 4, epic: 7, legendary: 12, crimson: 20 }[item.rarity] + item.level - 1;
   sc.items = sc.items.filter(i => i.uid !== uid);
   if (sc.t === "pick") finishLoot(run);
 }
@@ -396,7 +434,7 @@ export function claimResplendent(run: Run): string | null {
 
 // ---------- Shop, Forge, Rest ----------
 
-const PRICE: Record<Rarity, number> = { common: 10, uncommon: 20, rare: 35, epic: 60, legendary: 120 };
+const PRICE: Record<Rarity, number> = { common: 10, uncommon: 20, rare: 35, epic: 60, legendary: 120, crimson: 250 };
 
 function shopStock(run: Run): ShopEntry[] {
   const h = run.hero;
@@ -566,7 +604,7 @@ export function fuse(run: Run, out: string): string | null {
 
 // ---------- Forge: Offering, Combine, Transmute ----------
 
-const RARITY_POINTS: Record<Rarity, number> = { common: 1, uncommon: 2, rare: 4, epic: 8, legendary: 16 };
+const RARITY_POINTS: Record<Rarity, number> = { common: 1, uncommon: 2, rare: 4, epic: 8, legendary: 16, crimson: 32 };
 
 /** The value of an Offering; more and rarer items give better odds. */
 export const offeringValue = (items: GearItem[]) => items.reduce((s, it) => s + RARITY_POINTS[it.rarity] * (1 + 0.25 * (it.level - 1)), 0);
@@ -576,14 +614,15 @@ export function offeringOdds(value: number): Partial<Record<Rarity, number>> {
   const t = Math.log2(Math.max(1, value)); // 1 → 0 (common) … 16 → 4
   const odds: Partial<Record<Rarity, number>> = {};
   let total = 0;
-  RARITIES.forEach((r, i) => {
+  const FORGEABLE = RARITIES.filter(r => r !== "crimson");
+  FORGEABLE.forEach((r, i) => {
     let w = Math.max(0, 1.4 - Math.abs(i - 0.7 * t) * 1.1);
     if (r === "epic") w *= 0.8;
     if (r === "legendary") w = value >= 24 ? Math.min(0.5, (value - 24) / 80) : 0;
     odds[r] = w;
     total += w;
   });
-  for (const r of RARITIES) odds[r] = Math.round(((odds[r] ?? 0) / total) * 100);
+  for (const r of FORGEABLE) odds[r] = Math.round(((odds[r] ?? 0) / total) * 100);
   return odds;
 }
 
@@ -616,14 +655,14 @@ export function forgeCombine(run: Run, a: number, b: number): GearItem | string 
   const B = findItem(h, b)?.item;
   if (!A || !B || a === b) return "Pick two items.";
   if (A.base !== B.base) return "Only two of the same item can be combined.";
-  if (A.rarity === "legendary" || B.rarity === "legendary") return "Legendaries can't be combined.";
+  if (A.rarity === "legendary" || B.rarity === "legendary" || A.rarity === "crimson" || B.rarity === "crimson") return "Legendary and Crimson items can't be combined.";
   const top = RARITIES.indexOf(A.rarity) >= RARITIES.indexOf(B.rarity) ? A : B;
   let r = RARITIES.indexOf(top.rarity);
   const promoted = r < RARITIES.indexOf("epic") && run.rng() < 0.3;
   if (promoted) r++;
   const rarity = RARITIES[r];
   const level = Math.max(A.level, B.level) + 1;
-  const slots = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0 }[rarity];
+  const slots = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0, crimson: 2 }[rarity];
   const merged: Record<string, number> = {};
   for (const src of [A.bonuses, B.bonuses]) for (const [k, n] of Object.entries(src)) merged[k] = Math.max(merged[k] ?? 0, n);
   const keep = Object.entries(merged).sort((x, y) => y[1] - x[1]).slice(0, slots);
@@ -647,7 +686,7 @@ export function forgeCombine(run: Run, a: number, b: number): GearItem | string 
 /** Pairs of identical items the hero could combine. */
 export function combinablePairs(run: Run): [GearItem, GearItem][] {
   const h = run.hero;
-  const all = [...Object.values(h.equip).filter((x): x is GearItem => !!x), ...h.backpack].filter(i => i.rarity !== "legendary");
+  const all = [...Object.values(h.equip).filter((x): x is GearItem => !!x), ...h.backpack].filter(i => i.rarity !== "legendary" && i.rarity !== "crimson");
   const pairs: [GearItem, GearItem][] = [];
   for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) if (all[i].base === all[j].base) pairs.push([all[i], all[j]]);
   return pairs;

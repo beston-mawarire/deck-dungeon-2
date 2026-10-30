@@ -1,7 +1,7 @@
 // Combat: your weapon is your die. Roll it, read the face, fire every effect on that face, then deal damage.
 import { eachHook, fx, log, stacksOf } from "./registry";
 import { makeRng, rollDie } from "./rng";
-import { applyStatus, endOfRound, loseHp, other, st, startOfTurn } from "./statuses";
+import { applyStatus, endOfRound, heal, loseHp, other, st, startOfTurn } from "./statuses";
 import type { AttackCtx, Battle, FaceGroup, FaceKind, FaceSpec, Fighter, Statuses } from "./types";
 
 export const KIND_MULT: Record<FaceKind, number> = { miss: 0, graze: 0.5, hit: 1, crit: 2 };
@@ -30,7 +30,8 @@ export function damageOf(f: Fighter, offhand = false): number {
 
 export function armorOf(f: Fighter): number {
   let a = f.armor;
-  if (f.flags["guarding"]) a *= stacksOf(f, "r_fortress_heart") > 0 ? 3 : 2;
+  // Guarding doubles Armor (Fortress Heart: triples); "+Armor while Guarding" effects add on top.
+  if (f.flags["guarding"]) a = a * (stacksOf(f, "r_fortress_heart") > 0 ? 3 : 2) + (f.flags["guardArmor"] ?? 0);
   return Math.max(0, a);
 }
 
@@ -115,6 +116,13 @@ function strike(b: Battle, ctx: AttackCtx) {
     shatter = true;
   }
   raw = Math.max(0, Math.round(raw));
+  // Unbreakable Vow: a Guard (not two rounds running) takes no damage from hits at all.
+  if (d.flags["vow"] === b.round && d.flags["guarding"]) {
+    log(b, `${d.name}'s Vow holds: no damage.`);
+    fx(b, { who: d.id, kind: "block", text: "Vow", icon: "🛡️" });
+    raw = 0;
+  }
+  ctx.raw = raw;
   if (st(d, "evade") > 0) {
     d.statuses.evade = 0;
     log(b, `${d.name} evades!`);
@@ -153,6 +161,7 @@ function afterStrike(b: Battle, ctx: AttackCtx) {
     if (spikes > 0 && a.hp > 0) {
       const lost = loseHp(b, a, spikes);
       log(b, `🌵 Spikes deal ${lost} back to ${a.name}.`);
+      if (lost > 0 && stacksOf(d, "c_carapace") > 0) heal(b, d, lost, "Crimson Carapace");
     }
   }
   d.flags["blockedNow"] = 0;
@@ -268,9 +277,11 @@ export function heroPhase(b: Battle, action: Action) {
     }
   } else if (action === "guard") {
     p.flags["guarding"] = 1;
+    p.flags["guardArmor"] = 0;
+    p.flags["guards"] = (p.flags["guards"] ?? 0) + 1;
+    eachHook(p, "onGuard", (h, s) => h(b, p, s));
     log(b, `${p.name} Guards (Armor ${armorOf(p)}).`);
     fx(b, { who: "player", kind: "text", text: `Guard · Armor ${armorOf(p)}`, icon: "🛡️" });
-    eachHook(p, "onGuard", (h, s) => h(b, p, s));
   } else act(b, p, () => heroAttack(b));
   checkOver(b);
 }
@@ -319,7 +330,8 @@ export function playRound(b: Battle, action: Action) {
 /** Start a fight: fight-only statuses and flags reset, carried Cleave damage lands first. */
 export function startBattle(player: Fighter, enemy: Fighter, seed: number, carry = 0): Battle {
   const b: Battle = { player, enemy, round: 0, rng: makeRng(seed), log: [], fx: [], over: null, carry: 0 };
-  const keptBarrier = player.persist["keepBarrier"] ? st(player, "barrier") : 0;
+  // Kept Barrier (Hollow Crown, Bastion of Ages) is capped by depth so it can't snowball forever.
+  const keptBarrier = player.persist["keepBarrier"] ? Math.min(st(player, "barrier"), 10 + 8 * (player.persist["floor"] ?? 1)) : 0;
   player.statuses = keptBarrier ? { barrier: keptBarrier } : {};
   player.flags = {};
   log(b, `${enemy.name} appears: ${enemy.hp} HP, Power ${enemy.damage}${enemy.armor ? `, Armor ${enemy.armor}` : ""}.`);

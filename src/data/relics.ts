@@ -1,4 +1,5 @@
 // Relics. Text matches the Library doc; "(+x)" is what each extra stack adds.
+import { attack } from "../engine/combat";
 import { loseHp, other, st } from "../engine/statuses";
 import type { HookDef } from "../engine/types";
 import { applyStatus, gain, gold, heal, inflict, log, on, ping, scale } from "./helpers";
@@ -148,4 +149,27 @@ export const LEGENDARY_RELICS: HookDef[] = [
   relic({ id: "lr_twin_souls", name: "Twin Souls", rarity: "legendary", tags: ["Tempo", "Strike"], text: "You always roll a second die with your main weapon's faces, at 60% of its damage (replaces an off-hand die)", hooks: {} })
 ];
 
-export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3, ...LEGENDARY_RELICS];
+// ---------- Guard & shield relics ----------
+const NEG = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom"];
+export const GUARD_RELICS: HookDef[] = [
+  relic({ id: "r_shield_polish", name: "Shield Polish", rarity: "common", tags: ["Guard"], text: "+1 Armor while Guarding (+1)",
+    hooks: { onGuard: (_b, f, s) => { f.flags["guardArmor"] = (f.flags["guardArmor"] ?? 0) + s; } } }),
+  relic({ id: "r_bracing_strap", name: "Bracing Strap", rarity: "common", tags: ["Guard"], text: "Guarding gives 2 Barrier (+2)",
+    hooks: { onGuard: (b, f, s) => applyStatus(b, f, f, "barrier", 2 * s) } }),
+  relic({ id: "r_spiked_rim", name: "Spiked Rim", rarity: "common", tags: ["Guard", "Thorns"], text: "While Guarding, attackers take 3 (+2)",
+    hooks: { whenHit: (b, c, s) => { if (c.defender.flags["guarding"]) ping(b, c.attacker, scale(s, 3, 2), "Spiked Rim"); } } }),
+  relic({ id: "r_retribution", name: "Retribution Plate", rarity: "uncommon", tags: ["Guard", "Thorns"], text: "Blocking a hit completely deals 4 back (+3)",
+    hooks: { whenHit: (b, c, s) => { if (c.defender.flags["blockedNow"]) ping(b, c.attacker, scale(s, 4, 3), "Retribution Plate"); } } }),
+  relic({ id: "r_oathstone", name: "Oathstone", rarity: "uncommon", tags: ["Guard", "Luck"], text: "Your first Guard each fight gives Ward and Focus (+1 Guard)",
+    hooks: { onGuard: (b, f, s) => { const n = f.flags["oath"] ?? 0; if (n < s) { f.flags["oath"] = n + 1; applyStatus(b, f, f, "ward", 1); applyStatus(b, f, f, "focus", 1); } } } }),
+  relic({ id: "r_polished_mirror", name: "Polished Mirror", rarity: "uncommon", tags: ["Guard", "Hex"], text: "While Guarding, negative statuses aimed at you bounce to the enemy",
+    hooks: { incomingStatus: (b, self, status, n) => { if (!self.flags["guarding"] || !NEG.includes(status) || self.flags["bouncing"]) return n; self.flags["bouncing"] = 1; applyStatus(b, self, other(b, self), status, n); self.flags["bouncing"] = 0; log(b, "Polished Mirror bounces it back."); return 0; } } }),
+  relic({ id: "r_counterstrike", name: "Counterstrike", rarity: "rare", tags: ["Guard", "Strike"], text: "Once per round, when you're hit while Guarding, strike back with your main die",
+    hooks: { whenHit: (b, c) => { const d = c.defender; if (d.flags["guarding"] && d.flags["counter"] !== b.round && c.attacker.hp > 0 && d.hp > 0) { d.flags["counter"] = b.round; log(b, "Counterstrike!"); attack(b, d, c.attacker); } } } }),
+  relic({ id: "r_tower_crest", name: "Tower Crest", rarity: "rare", tags: ["Guard", "Strike"], text: "Your hits deal +2 for every time you've Guarded this fight (max +10)",
+    hooks: { modifyAttack: (_b, c) => { c.bonus += Math.min(10, 2 * (c.attacker.flags["guards"] ?? 0)); } } }),
+  relic({ id: "lr_unbreakable_vow", name: "Unbreakable Vow", rarity: "legendary", tags: ["Guard"], text: "Guarding makes you take no damage from hits at all — but not two rounds in a row",
+    hooks: { onGuard: (b, f) => { if (f.flags["lastGuard"] !== b.round - 1) f.flags["vow"] = b.round; f.flags["lastGuard"] = b.round; } } })
+];
+
+export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3, ...LEGENDARY_RELICS, ...GUARD_RELICS];

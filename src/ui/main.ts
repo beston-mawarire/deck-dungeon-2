@@ -1,5 +1,5 @@
 // Deck Dungeon 2 — the playable game.
-import { BONUSES, CURSES, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
+import { BONUSES, CRIMSON, CURSES, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
 import { FUSION_RECIPES } from "../data/fusions";
 import { ORIGINS } from "../data/origins";
 import { armorOf, beginRound, enemyPhase, endRound, heroPhase, type Action } from "../engine/combat";
@@ -49,11 +49,71 @@ const say = (msg: string | null, bad = true) => {
 
 // ---------- Small pieces ----------
 
+/** Reactions that leave a lasting effect on whoever has them (stored as fight flags). */
+const LASTING = ["rupture", "sepsis", "despair", "bastion", "frenzy", "clarity", "shatter"] as const;
+const reactionInfo = (id: string) => REACTIONS.find(r => r.id === id)!;
+const activeReactions = (f: Fighter) => LASTING.filter(id => (f.flags[id] ?? 0) > 0);
+
 const statusChips = (f: Fighter) =>
   (Object.entries(f.statuses) as [StatusId, number][])
     .filter(([, n]) => n > 0)
     .map(([s, n]) => `<span class="chip" title="${esc(STATUS_INFO[s].text)}">${STATUS_INFO[s].icon} ${STATUS_INFO[s].name} ${n}</span>`)
-    .join("");
+    .join("") +
+  activeReactions(f).map(id => { const r = reactionInfo(id); return `<span class="chip rx" title="${esc(r.text)}">✴️ ${r.name}</span>`; }).join("");
+
+/** Which of the hero's sources mention a status by name (gear, bonuses, relics, talents, origin, curses). */
+function statusSources(h: Hero, status: StatusId): string[] {
+  const word = new RegExp(`\\b${STATUS_INFO[status].name}\\b`, "i");
+  const out: string[] = [];
+  for (const id of Object.keys(h.f.items)) {
+    let d;
+    try { d = getItem(id); } catch { continue; }
+    const text = `${d.text} ${(d as { legendary?: { reveal: string } }).legendary?.reveal ?? ""}`;
+    if (word.test(text)) out.push(d.name);
+  }
+  // Spell faces on weapons: go by the weapon's tags (a Burn-tagged staff has fire spells, and so on).
+  const TAG_OF: Partial<Record<StatusId, string>> = { burn: "Burn", poison: "Poison", bleed: "Bleed", chill: "Frost", shock: "Storm" };
+  for (const it of [h.equip.main, h.equip.off]) {
+    if (!it) continue;
+    const eb = effectiveBase(it);
+    if (TAG_OF[status] && eb.faces?.some(f => f.run) && (eb.tags as string[]).includes(TAG_OF[status]!)) out.push(eb.name);
+  }
+  return [...new Set(out)];
+}
+
+/** The bag's Statuses & reactions panel: what's active now, what's happened this run, and what your build can set off. */
+function reactionsPanel(r: Run) {
+  const h = r.hero;
+  const b = r.scene.t === "combat" ? r.scene.battle : null;
+  const describe = (f: Fighter, who: string) => {
+    const st = (Object.entries(f.statuses) as [StatusId, number][]).filter(([, n]) => n > 0);
+    const rx = activeReactions(f);
+    if (!st.length && !rx.length) return `<p class="sub">${who}: nothing active.</p>`;
+    return `<p><b>${who}</b></p>${rx.map(id => { const x = reactionInfo(id); return `<p class="rxline">✴️ <b>${x.name}</b> — ${esc(x.text)} <span class="sub">(from ${STATUS_INFO[x.a].name} + ${STATUS_INFO[x.b].name} together)</span></p>`; }).join("")}
+      ${st.map(([s, n]) => `<p>${STATUS_INFO[s].icon} <b>${STATUS_INFO[s].name}</b> ${n} — ${esc(STATUS_INFO[s].text)}</p>`).join("")}`;
+  };
+  const counts = (side: "you" | "foe") => REACTIONS.map(x => [x, h.f.persist[`rx:${side}:${x.id}`] ?? 0] as const).filter(([, n]) => n > 0);
+  const onFoe = counts("foe");
+  const onYou = counts("you");
+  const history = onFoe.length || onYou.length
+    ? `${onFoe.length ? `<p>On enemies: ${onFoe.map(([x, n]) => `<span class="chip">${x.name} ×${n}</span>`).join(" ")}</p>` : ""}${onYou.length ? `<p>On you: ${onYou.map(([x, n]) => `<span class="chip">${x.name} ×${n}</span>`).join(" ")}</p>` : ""}`
+    : `<p class="sub">No reactions yet this run.</p>`;
+  const guide = REACTIONS.map(x => {
+    const a = statusSources(h, x.a as StatusId);
+    const c = statusSources(h, x.b as StatusId);
+    const yours = a.length > 0 && c.length > 0;
+    const src = (s: StatusId, list: string[]) => `${STATUS_INFO[s].icon} ${STATUS_INFO[s].name}${list.length ? ` <span class="sub">(${list.map(esc).join(", ")})</span>` : ""}`;
+    return `<div class="rxguide ${yours ? "yours" : ""}"><b>${x.name}</b>${yours ? ` <span class="chip rx">your build can set this off</span>` : ""}<br>
+      ${src(x.a as StatusId, a)} + ${src(x.b as StatusId, c)}<br><span class="sub">${esc(x.text)}</span></div>`;
+  }).join("");
+  return `<h2>Statuses & reactions</h2>
+    <div class="panel">
+      ${b ? `${describe(b.player, "On you")}${describe(b.enemy, `On ${b.enemy.name}`)}` : `<p class="sub">Statuses and reactions only last for a fight. Open this mid-fight to see what's active.</p>`}
+      <p style="margin-top:10px"><b>This run</b></p>${history}
+    </div>
+    <details><summary>Reaction guide — two statuses on the same fighter react</summary><p class="sub">The names in brackets are things you own that mention that status.</p>${guide}</details>
+    <details><summary>All statuses</summary>${(Object.keys(STATUS_INFO) as StatusId[]).map(s => `<p>${STATUS_INFO[s].icon} <b>${STATUS_INFO[s].name}</b> — ${esc(STATUS_INFO[s].text)}</p>`).join("")}</details>`;
+}
 
 /** "Replaces X: Damage 4 → 6" for a found item against what's equipped in its slot. */
 function compareHtml(h: Hero, it: GearItem): string {
@@ -99,7 +159,7 @@ function hud(r: Run) {
     <div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">Lv ${h.level}</span><span class="grow"></span><span class="stat">${floorLabel(r)}</span></div>
     <div class="bar"><i style="width:${Math.max(0, (f.hp / f.maxHp) * 100)}%"></i></div>
     <div class="row stat"><span><b>${Math.max(0, f.hp)}</b>/${f.maxHp} HP</span><span>⚔️ <b>${f.damage}</b>${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}</span><span>🛡️ <b>${f.armor}</b></span>
-      <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span><span>🧪 <b>${h.potions}</b></span><span>📜 <b>${h.scrolls}</b></span>${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}</div>
+      <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span><span>🧪 <b>${h.potions}</b></span><span>📜 <b>${h.scrolls}</b></span>${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
     <div class="bar xp"><i style="width:${(h.xp / need) * 100}%"></i></div>
     <div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>
     <div class="row" style="margin-top:6px"><button class="small" data-bag>🎒 Gear & build</button>${h.potions && f.hp < f.maxHp && !busy ? `<button class="small" data-potion>🧪 Potion (+12)</button>` : ""}<span class="grow"></span><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>
@@ -141,6 +201,7 @@ function codexScreen() {
     <div class="panel">${UNLOCK_TIERS.map(t => `<p>${meta.renown >= t.at ? "✅" : "🔒"} <b>${esc(t.name)}</b> — ${t.at} Renown</p>`).join("")}</div>
     ${section("Weapons & gear", GEAR_BASES)}
     ${section("Legendaries", LEGENDARIES.map(l => ({ id: l.id, name: l.name, text: l.legendary!.reveal })))}
+    ${section("Crimson", CRIMSON)}
     ${section("Epic powers", EPIC_POWERS)}
     ${section("Bonuses", BONUSES)}
     ${section("Relics", RELICS)}
@@ -153,7 +214,7 @@ function codexScreen() {
 
 function mapScene(r: Run) {
   return `<h2>${r.step >= STEPS_PER_FLOOR ? (r.floor === WALL_FLOOR ? "The Wall" : "The boss awaits") : "Choose your path"}</h2>
-  <div class="cards">${r.choices.map(c => `<button class="room" data-room="${c}"><span class="ic">${ROOM_INFO[c].icon}</span><b>${ROOM_INFO[c].name}</b><span class="sub">${esc(ROOM_INFO[c].text)}</span></button>`).join("")}</div>`;
+  <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") ? "crimson-room" : ""}" data-room="${c}"><span class="ic">${ROOM_INFO[c].icon}</span><b>${ROOM_INFO[c].name}</b><span class="sub">${esc(ROOM_INFO[c].text)}</span></button>`).join("")}</div>`;
 }
 
 function dieBox(who: "player" | "enemy", label: string) {
@@ -166,8 +227,8 @@ function fighterPanel(f: Fighter, who: "player" | "enemy") {
   const hp = dispHp[who] ?? f.hp;
   const intent = who === "enemy" && f.moves?.length ? f.moves[f.intent ?? 0] : null;
   const traits = who === "enemy" ? Object.keys(f.items).map(id => getItem(id)).map(d => `<span class="chip" title="${esc(d.text)}">${esc(d.name)}</span>`).join("") : "";
-  return `<div class="panel fighter" id="fp-${who}">
-    <div class="row"><b>${esc(f.name)}</b>${f.title ? `<span class="sub">${esc(f.title)}</span>` : ""}<span class="grow"></span><span class="sub">${who === "enemy" ? `${f.family ?? ""}${f.boss ? " · Boss" : f.champion ? " · Champion" : f.elite ? " · Elite" : ""}` : ""}</span></div>
+  return `<div class="panel fighter ${f.crimson ? "crimson-foe" : ""}" id="fp-${who}">
+    <div class="row"><b>${esc(f.name)}</b>${f.title ? `<span class="sub">${esc(f.title)}</span>` : ""}<span class="grow"></span><span class="sub">${who === "enemy" ? `${f.family ?? ""}${f.crimson ? " · Crimson" : ""}${f.boss ? " · Boss" : f.champion ? " · Champion" : f.elite ? " · Elite" : ""}` : ""}</span></div>
     <div class="bar ${who === "enemy" ? "enemy" : ""}"><i style="width:${Math.max(0, (hp / f.maxHp) * 100)}%"></i></div>
     <div class="sub">${Math.max(0, hp)}/${f.maxHp} HP · ${who === "enemy" ? `Power ${f.damage}` : `Damage ${f.damage}${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}`} · Armor ${armorOf(f)}</div>
     <div class="chips">${traits}${statusChips(f)}</div>
@@ -309,6 +370,10 @@ function eventScene(r: Run) {
 function confirmScene(r: Run) {
   if (r.scene.t !== "confirm") return "";
   const info = ROOM_INFO[r.scene.room];
+  if (r.scene.room === "crimson_vault") {
+    return `<h2>${info.icon} ${info.name}</h2><div class="panel crimson-foe"><p>${esc(info.text)}</p><p class="sub">Crimson bosses are far harder than a floor boss. Win and you choose between a Crimson item and two boss finds. Lose and you're thrown out at a quarter of your HP — the run goes on, but the key is gone. You have ${r.hero.crimsonKeys} key${r.hero.crimsonKeys === 1 ? "" : "s"}.</p></div>
+    <div class="row" style="margin-top:12px"><button class="primary crimson-btn" data-risk="yes">Turn the key</button><button data-risk="no">Not yet</button></div>`;
+  }
   return `<h2>${info.icon} ${info.name}</h2><div class="panel"><p>${esc(info.text)}</p><p class="sub">A Resplendent chest holds three face-down cards. Pick one; the rest are lost. Any of them could be Legendary.</p></div>
   <div class="row" style="margin-top:12px"><button class="primary" data-risk="yes">Accept the risk</button><button data-risk="no">Walk away</button></div>`;
 }
@@ -348,15 +413,14 @@ function bag(r: Run) {
   return `<div class="overlay"><div class="inner">
     <div class="row"><h1 class="grow">Gear & build</h1><button data-closebag>Close</button></div>
     ${stats}
-    ${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}
+    ${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>${reactionsPanel(r)}` : ""}
     <p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>
     <h2>Equipped</h2><div class="cards">${equipped}</div>
     <h2>Backpack ${h.backpack.length}/${BACKPACK_SIZE}</h2><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div>
     <h2>Relics</h2>${list(h.relics)}
     <h2>Talents</h2>${list(h.talents)}
     ${Object.keys(h.curses).length ? `<h2>Curses</h2>${list(h.curses)}` : ""}
-    <details><summary>Statuses</summary>${(Object.keys(STATUS_INFO) as StatusId[]).map(s => `<p>${STATUS_INFO[s].icon} <b>${STATUS_INFO[s].name}</b> — ${esc(STATUS_INFO[s].text)}</p>`).join("")}</details>
-    <details><summary>Reactions</summary>${REACTIONS.map(x => `<p>${STATUS_INFO[x.a].icon}+${STATUS_INFO[x.b].icon} <b>${x.name}</b> — ${esc(x.text)}</p>`).join("")}</details>
+    ${inCombat ? "" : reactionsPanel(r)}
   </div></div>`;
 }
 
@@ -372,24 +436,24 @@ function revealBtn(r: Run, it: GearItem) {
 const celebrated = new Set<number>();
 let fanfareEl: HTMLElement | null = null;
 function celebrate(rarity: string, label?: string) {
-  if (rarity !== "epic" && rarity !== "legendary") return;
+  if (rarity !== "epic" && rarity !== "legendary" && rarity !== "crimson") return;
   fanfareEl?.remove();
   const el = document.createElement("div");
   el.className = `fanfare ${rarity}`;
-  const sparks = rarity === "legendary"
+  const sparks = rarity === "legendary" || rarity === "crimson"
     ? Array.from({ length: 22 }, () => {
         const a = Math.random() * Math.PI * 2, d = 120 + Math.random() * 220;
         return `<i class="spark" style="left:50%;top:38%;--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d}px;animation-delay:${Math.random() * 0.25}s"></i>`;
       }).join("")
     : "";
-  el.innerHTML = `<div class="banner">${esc(label ?? (rarity === "legendary" ? "LEGENDARY" : "EPIC"))}</div>${sparks}`;
+  el.innerHTML = `<div class="banner">${esc(label ?? rarity.toUpperCase())}</div>${sparks}`;
   document.body.appendChild(el);
   fanfareEl = el;
-  if (rarity === "legendary") navigator.vibrate?.([60, 40, 120]);
-  sfx(rarity === "legendary" ? "legendary" : "epic");
-  setTimeout(() => { el.remove(); if (fanfareEl === el) fanfareEl = null; }, rarity === "legendary" ? 3500 : 1900);
+  if (rarity !== "epic") navigator.vibrate?.(rarity === "crimson" ? [80, 50, 80, 50, 200] : [60, 40, 120]);
+  sfx(rarity === "crimson" ? "crimson" : rarity === "legendary" ? "legendary" : "epic");
+  setTimeout(() => { el.remove(); if (fanfareEl === el) fanfareEl = null; }, rarity === "crimson" ? 4300 : rarity === "legendary" ? 3500 : 1900);
 }
-const RANK: Record<string, number> = { epic: 1, legendary: 2 };
+const RANK: Record<string, number> = { epic: 1, legendary: 2, crimson: 3 };
 /** Celebrate the best newly-seen Epic/Legendary in the current scene, once per item. */
 function celebrateScene(r: Run) {
   const s = r.scene;

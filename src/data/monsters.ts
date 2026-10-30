@@ -26,6 +26,8 @@ export const TRAITS: HookDef[] = [
   trait({ id: "x_warded", name: "Warded", tags: ["Guard"], text: "Immune to statuses for the first 2 rounds", hooks: { incomingStatus: (b, _f, _s, n) => (b.round <= 2 ? 0 : n) } }),
   trait({ id: "x_nullifying", name: "Nullifying", tags: ["Hex"], text: "Rare: the first positive status you'd gain each round fizzles", hooks: {} }),
   trait({ id: "x_concussive", name: "Concussive", tags: ["Strike"], text: "Its 6s Stun you", hooks: { onHit: (b, c) => { if (c.face === 6) applyStatus(b, c.attacker, c.defender, "stun", 1); } } }),
+  trait({ id: "x_crimson", name: "Crimson", tags: ["Blood", "Strike"], text: "Gains 1 Might and heals 2% of its Max HP every round",
+    hooks: { onRoundEnd: (b, f) => { applyStatus(b, f, f, "might", 1); heal(b, f, Math.max(1, Math.round(f.maxHp * 0.02)), "Crimson"); } } }),
   trait({ id: "x_regenerating", name: "Regenerating", tags: ["Blood"], text: "Heals 2 at the end of every round", hooks: { onRoundEnd: (b, f) => { heal(b, f, 2, "Regenerating"); } } }),
 ];
 
@@ -49,7 +51,7 @@ export const MONSTERS: MonsterDef[] = [
   { name: "Sentry", family: "Construct", hp: 12, power: 3, armor: 1, traits: ["m_static"] }
 ];
 
-export type MonsterRank = "normal" | "elite" | "champion" | "boss";
+export type MonsterRank = "normal" | "elite" | "champion" | "crimson" | "boss";
 
 /** Regular monsters grow with the floor; past floor 5 (Endless) they grow faster, and past 30 much faster. */
 export function monsterHpMult(floor: number) {
@@ -67,8 +69,8 @@ export function makeMonster(rng: () => number, floor: number, rank: MonsterRank)
   const items: Record<string, number> = {};
   for (const t of def.traits) items[t] = 1;
   let prefix = "";
-  if (rank === "elite" || rank === "champion") {
-    const n = rank === "champion" ? (floor >= 4 ? 3 : 2) : floor >= 4 ? 2 : 1;
+  if (rank === "elite" || rank === "champion" || rank === "crimson") {
+    const n = rank === "crimson" ? 3 : rank === "champion" ? (floor >= 4 ? 3 : 2) : floor >= 4 ? 2 : 1;
     const pool = [...ELITE_AFFIX_IDS];
     const names: string[] = [];
     for (let i = 0; i < n; i++) {
@@ -81,14 +83,16 @@ export function makeMonster(rng: () => number, floor: number, rank: MonsterRank)
       names.push(TRAITS.find(t => t.id === id)!.name);
     }
     // Tougher than before, and tougher the deeper you go.
-    hp = Math.round(hp * (rank === "champion" ? 2.2 + 0.15 * floor : 1.5 + 0.08 * floor));
-    power += rank === "champion" ? 2 + Math.floor(floor / 2) : 1 + (floor >= 3 ? 1 : 0);
+    // Crimson Elites: rarer and harder than Champions, with the Crimson trait on top.
+    hp = Math.round(hp * (rank === "crimson" ? 2.8 + 0.18 * floor : rank === "champion" ? 2.2 + 0.15 * floor : 1.5 + 0.08 * floor));
+    power += rank === "crimson" ? 3 + Math.floor(floor / 2) : rank === "champion" ? 2 + Math.floor(floor / 2) : 1 + (floor >= 3 ? 1 : 0);
+    if (rank === "crimson") items["x_crimson"] = 1;
     prefix = `${names.join(" ")} `;
   }
-  const name = rank === "champion" ? `Champion ${prefix}${def.name}` : `${prefix}${def.name}`;
+  const name = rank === "crimson" ? `Crimson ${prefix}${def.name}` : rank === "champion" ? `Champion ${prefix}${def.name}` : `${prefix}${def.name}`;
   return {
-    id: "enemy", name, hp, maxHp: hp, armor: def.armor ?? 0, damage: power, faces: def.faces ?? PLAIN_FACES,
+    id: "enemy", name, hp, maxHp: hp, armor: (def.armor ?? 0) + (rank === "crimson" ? 2 : 0), damage: power, faces: def.faces ?? PLAIN_FACES,
     statuses: {}, flags: {}, persist: {}, items, gold: 0,
-    elite: rank === "elite" || rank === "champion", champion: rank === "champion", boss: rank === "boss", family: def.family
+    elite: rank === "elite" || rank === "champion" || rank === "crimson", champion: rank === "champion", crimson: rank === "crimson", boss: rank === "boss", family: def.family
   };
 }

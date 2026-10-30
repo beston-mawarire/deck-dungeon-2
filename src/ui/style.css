@@ -122,3 +122,28 @@ details summary { cursor: pointer; color: var(--muted); }
   animation: fan-spark 1.6s ease-out forwards; }
 @keyframes fan-spark { 0% { opacity: 1; transform: translate(0, 0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.3); } }
 @media (prefers-reduced-motion: reduce) { .fanfare::after, .fanfare .spark { display: none; } }
+
+/* ---------- Crimson ---------- */
+:root { --crimson: #e0283f; }
+.r-crimson { border-color: var(--crimson); background: linear-gradient(160deg, #2c1620, var(--panel2) 60%); box-shadow: 0 0 18px rgba(224,40,63,.45); animation: crimsonpulse 2.6s infinite; }
+.r-crimson .nm { color: #ff5468; }
+@keyframes crimsonpulse { 50% { box-shadow: 0 0 26px rgba(224,40,63,.75); } }
+.crimson-ink { color: #ff5468; }
+.crimson-room { border-color: var(--crimson); background: linear-gradient(160deg, #3a1520, #2a2233); }
+.crimson-foe { border-color: var(--crimson); box-shadow: inset 0 0 24px rgba(224,40,63,.25); }
+.crimson-foe b:first-child { color: #ff5468; }
+button.crimson-btn { background: var(--crimson); border-color: var(--crimson); color: #fff; }
+.flip .back.tint-crimson { border-color: var(--crimson); }
+.fanfare.crimson { animation: fan-leg 4.2s ease-out forwards;
+  box-shadow: inset 0 0 110px 26px rgba(200,20,45,.92), inset 0 0 26px 6px rgba(255,120,130,.95); }
+.fanfare.crimson::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(160,0,20,.45), transparent 70%); animation: fan-flash 1.4s ease-out forwards; }
+.fanfare.crimson::after { content: ""; position: absolute; top: 0; bottom: 0; width: 45%; left: -45%;
+  background: linear-gradient(100deg, transparent, rgba(255,90,110,.4), transparent); animation: fan-sweep 1.3s .2s ease-in-out forwards; }
+.fanfare.crimson .banner { color: #ff6a7c; text-shadow: 0 0 22px rgba(224,40,63,1), 0 2px 0 #4a0710; animation-duration: 3.4s; font-size: clamp(26px, 8vw, 50px); }
+.fanfare.crimson .spark { background: #ff4a5e; box-shadow: 0 0 10px #c0102a; }
+
+/* ---------- Reactions panel ---------- */
+.chip.rx { border-color: var(--gold); color: var(--gold); }
+.rxline { background: #2b2414; border-radius: 8px; padding: 4px 8px; }
+.rxguide { border-top: 1px dashed var(--line); padding: 6px 0; font-size: .9rem; }
+.rxguide.yours b:first-child { color: var(--gold); }

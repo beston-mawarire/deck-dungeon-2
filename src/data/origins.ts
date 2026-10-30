@@ -1,13 +1,13 @@
 // Origins (starting kit + one small passive) and curses.
 import type { HookDef, OriginId } from "../engine/types";
-import { applyStatus, depth, heal, log, ping, st } from "./helpers";
+import { applyStatus, depth, heal, log, other, ping, st } from "./helpers";
 
 /** Each origin's favourite gear shows up about twice as often in its loot. */
 export const AFFINITY: Record<OriginId, string[]> = {
-  warrior: ["w_sword", "w_axe", "w_hand_axe", "w_hammer", "w_morningstar", "w_spear", "o_wooden_shield", "o_tower_shield", "o_kite_shield", "o_spiked_shield", "o_war_banner", "a_chain", "a_plate", "a_scale", "a_spiked", "t_warlord_torc"],
-  rogue: ["w_dagger", "w_throwing_knife", "w_rapier", "w_katana", "w_whip", "w_sickle", "w_main_gauche", "w_bow", "o_smoke_pouch", "o_buckler", "a_leather", "a_shadow", "a_assassin", "t_thieves_ring", "t_lucky_coin"],
-  mage: ["w_staff", "w_greatstaff", "w_wand", "w_lute", "o_ember_charm", "o_frost_orb", "o_grimoire", "o_tome", "o_storm_lantern", "o_crystal_orb", "o_runestone", "a_cloth", "a_bloodweave", "t_archmage_signet", "t_ember_pendant"],
-  cleric: ["w_mace", "w_morningstar", "w_flail", "w_hammer", "o_holy_symbol", "o_prayer_beads", "o_sun_disc", "o_reliquary", "o_censer", "a_padded", "a_vestments", "a_scale", "t_templar_seal", "t_band_vigor"]
+  warrior: ["w_longsword", "w_glaive", "o_pavise", "o_lion_shield", "a_brigandine", "a_gambeson", "a_bulwark_plate", "t_guardian_pin", "t_battle_horn", "w_sword", "w_axe", "w_hand_axe", "w_hammer", "w_morningstar", "w_spear", "o_wooden_shield", "o_tower_shield", "o_kite_shield", "o_spiked_shield", "o_war_banner", "a_chain", "a_plate", "a_scale", "a_spiked", "t_warlord_torc"],
+  rogue: ["w_blowgun", "w_cleaver", "o_targe", "a_monk_wraps", "t_bone_dice", "t_venom_gland", "w_dagger", "w_throwing_knife", "w_rapier", "w_katana", "w_whip", "w_sickle", "w_main_gauche", "w_bow", "o_smoke_pouch", "o_buckler", "a_leather", "a_shadow", "a_assassin", "t_thieves_ring", "t_lucky_coin"],
+  mage: ["w_runeblade", "o_witchwood", "a_warmage", "t_rime_ring", "w_staff", "w_greatstaff", "w_wand", "w_lute", "o_ember_charm", "o_frost_orb", "o_grimoire", "o_tome", "o_storm_lantern", "o_crystal_orb", "o_runestone", "a_cloth", "a_bloodweave", "t_archmage_signet", "t_ember_pendant"],
+  cleric: ["w_warpick", "o_heater_shield", "o_lion_shield", "a_thornhide", "t_heart_locket", "t_spite_charm", "w_mace", "w_morningstar", "w_flail", "w_hammer", "o_holy_symbol", "o_prayer_beads", "o_sun_disc", "o_reliquary", "o_censer", "a_padded", "a_vestments", "a_scale", "t_templar_seal", "t_band_vigor"]
 };
 
 export const ORIGINS: Record<OriginId, { name: string; hp: number; kit: string[]; passive: string; blurb: string }> = {
@@ -35,5 +35,13 @@ export const CURSES: HookDef[] = [
   curse({ id: "c_fragile", name: "Fragile", tags: ["Blood"], text: "−5 Max HP", hooks: { stats: s => { s.maxHp -= 5; } } }),
   curse({ id: "c_clumsy", name: "Clumsy", tags: ["Luck"], text: "Your 1s miss and deal 2 to you",
     hooks: { modifyAttack: (b, c) => { if (c.face === 1 && !c.offhand) { c.noDamage = true; ping(b, c.attacker, 2, "Clumsy"); } } } }),
-  curse({ id: "c_dread", name: "Dread", tags: ["Hex"], text: "Start every fight Weak for 2 rounds", hooks: { onFightStart: (b, f) => { applyStatus(b, null, f, "weak", 2); log(b, "Dread weighs on you."); } } })
+  curse({ id: "c_dread", name: "Dread", tags: ["Hex"], text: "Start every fight Weak for 2 rounds", hooks: { onFightStart: (b, f) => { applyStatus(b, null, f, "weak", 2); log(b, "Dread weighs on you."); } } }),
+  curse({ id: "c_greed", name: "Greed", tags: ["Gold"], text: "Lose 4 Gold after every fight you win", hooks: { onFightEnd: (b, f) => { if (b.over === "won" && f.id === "player") f.gold = Math.max(0, f.gold - 4); } } }),
+  curse({ id: "c_sluggish", name: "Sluggish", tags: ["Tempo"], text: "Enemies always strike first", hooks: { onFightStart: (b, f) => { other(b, f).flags["ambush"] = 1; } } }),
+  curse({ id: "c_bleeder", name: "Bleeder", tags: ["Bleed"], text: "Start every fight with 2 Bleed", hooks: { onFightStart: (b, f) => applyStatus(b, null, f, "bleed", 2) } }),
+  curse({ id: "c_jinxed", name: "Jinxed", tags: ["Luck"], text: "Your 6s become 5s", hooks: { modifyRoll: (_b, _f, r) => (r === 6 ? 5 : r) } }),
+  curse({ id: "c_marked", name: "Marked", tags: ["Hex"], text: "Start every fight Exposed for 2 rounds", hooks: { onFightStart: (b, f) => applyStatus(b, null, f, "exposed", 2) } }),
+  curse({ id: "c_glass_bones", name: "Glass Bones", tags: ["Guard"], text: "Every hit you take deals 1 more", hooks: { whenHit: (b, c) => { if (c.dealt > 0) ping(b, c.defender, 1, "Glass Bones"); } } }),
+  curse({ id: "c_famine", name: "Famine", tags: ["Blood"], text: "Potions heal half as much", hooks: {} }),
+  curse({ id: "c_feeble", name: "Feeble", tags: ["Strike"], text: "−1 Damage", hooks: { stats: s => { s.damage -= 1; s.offDamage -= 1; } } })
 ];

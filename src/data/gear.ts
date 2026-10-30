@@ -21,7 +21,7 @@ export const WEAPONS: GearBase[] = [
     faces: [MISS, HIT, HIT, HIT, HIT, spell("Crush", "crit", hex("stun", 1))], hooks: {} }),
   weapon({ id: "w_mace", name: "Mace", tags: ["Strike", "Guard"], text: "A 5 dazes (Weak).", damage: 4,
     faces: [GRAZE, HIT, HIT, HIT, spell("Daze", "hit", hex("weak", 2)), CRIT], hooks: {} }),
-  weapon({ id: "w_staff", name: "Apprentice Staff", tags: ["Arcane", "Burn", "Frost"], text: "Light blows, but its faces cast spells.", damage: 4,
+  weapon({ id: "w_staff", name: "Apprentice Staff", tags: ["Arcane", "Burn", "Frost", "Storm"], text: "Light blows, but its faces cast spells.", damage: 4,
     faces: [{ kind: "miss", name: "Fizzle" }, cast("Fire Bolt", "hit", hex("burn", 3)), HIT, cast("Frost Lance", "hit", hex("chill", 2)), HIT, cast("Arc", "crit", hex("shock", 1))], hooks: {} }),
   weapon({ id: "w_greatstaff", name: "Greatstaff", tags: ["Arcane", "Storm", "Poison"], text: "Two-handed. More spells, bigger spells.", damage: 3, twoHanded: true,
     faces: [cast("Venom Mist", "graze", hex("poison", 3)), cast("Fire Bolt", "hit", hex("burn", 4)), cast("Frost Lance", "hit", hex("chill", 3)), HIT, cast("Hex Bolt", "hit", hex("exposed", 2)), cast("Chain Lightning", "crit", hex("shock", 2))], hooks: {} }),
@@ -52,7 +52,19 @@ export const WEAPONS: GearBase[] = [
   weapon({ id: "w_main_gauche", name: "Main Gauche", tags: ["Guard", "Tempo"], text: "A parrying blade; best in the off-hand. A 5 sets you up to dodge.", damage: 2, offDamage: 2,
     faces: [GRAZE, HIT, HIT, HIT, spell("Parry", "hit", self("evade", 1)), CRIT], hooks: {} }),
   weapon({ id: "w_rapier", name: "Rapier", tags: ["Crit", "Tempo"], text: "Precise. A 6 sets up your next roll.", damage: 3,
-    faces: [GRAZE, HIT, HIT, HIT, CRIT, spell("Riposte", "crit", self("focus", 1))], hooks: {} })
+    faces: [GRAZE, HIT, HIT, HIT, CRIT, spell("Riposte", "crit", self("focus", 1))], hooks: {} }),
+  weapon({ id: "w_longsword", name: "Longsword", tags: ["Strike", "Crit"], text: "Two-handed. Crits on 5 and 6.", damage: 6, twoHanded: true,
+    faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT], hooks: {} }),
+  weapon({ id: "w_warpick", name: "War Pick", tags: ["Strike", "Hex"], text: "A 4 punches through Armor; a 5 leaves the enemy Exposed.", damage: 5,
+    faces: [MISS, HIT, HIT, spell("Puncture", "hit", (_b, c) => { c.ignoreArmor = true; }), spell("Pierce", "hit", hex("exposed", 2)), CRIT], hooks: {} }),
+  weapon({ id: "w_cleaver", name: "Butcher's Cleaver", tags: ["Bleed", "Kill"], text: "A 6 butchers: Cleave and 2 Bleed.", damage: 5,
+    faces: [MISS, HIT, HIT, HIT, HIT, { kind: "crit", name: "Butcher", cleave: true, run: hex("bleed", 2) }], hooks: {} }),
+  weapon({ id: "w_runeblade", name: "Runeblade", tags: ["Arcane", "Frost", "Strike"], text: "A sword with runes: a 3 casts Rime, a 5 a Rune Burst.", damage: 4,
+    faces: [GRAZE, HIT, cast("Rime", "hit", hex("chill", 2)), HIT, cast("Rune Burst", "hit", hex("exposed", 1)), CRIT], hooks: {} }),
+  weapon({ id: "w_glaive", name: "Glaive", tags: ["Strike", "Guard"], text: "Two-handed. A 5 sweeps and braces you (3 Barrier).", damage: 6, twoHanded: true,
+    faces: [GRAZE, HIT, HIT, HIT, spell("Sweep", "hit", self("barrier", 3)), CRIT], hooks: {} }),
+  weapon({ id: "w_blowgun", name: "Blowgun", tags: ["Poison", "Tempo"], text: "One-handed; works in the off-hand. Darts on 2, 4 and 6.", damage: 2, offDamage: 2,
+    faces: [MISS, spell("Dart", "hit", hex("poison", 2)), HIT, spell("Dart", "hit", hex("poison", 2)), HIT, spell("Toxin", "crit", hex("poison", 4))], hooks: {} })
 ];
 
 export const OFFHANDS: GearBase[] = [
@@ -95,6 +107,16 @@ export const OFFHANDS: GearBase[] = [
   off({ id: "o_grimoire", name: "Grimoire", tags: ["Arcane", "Burn", "Frost"], text: "On a 6: also apply 3 Burn and 2 Chill.",
     hooks: { face: [on(6, (b, ctx) => { applyStatus(b, ctx.attacker, ctx.defender, "burn", 3); applyStatus(b, ctx.attacker, ctx.defender, "chill", 2); })] } }),
   off({ id: "o_war_banner", name: "War Banner", tags: ["Strike", "Tempo"], text: "Start each fight with 2 Might.", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "might", 2) } }),
+  off({ id: "o_pavise", name: "Pavise", tags: ["Guard"], text: "+3 Armor. Guarding gives Barrier equal to your Armor (at most 3 per floor).", armor: 3,
+    hooks: { onGuard: (b, f) => applyStatus(b, f, f, "barrier", Math.min(f.armor, 3 * depth(f))) } }),
+  off({ id: "o_lion_shield", name: "Lion Shield", tags: ["Guard", "Hex"], text: "+2 Armor. Enemies that hit you while you Guard are Weakened.", armor: 2,
+    hooks: { whenHit: (b, c) => { if (c.defender.flags["guarding"]) applyStatus(b, c.defender, c.attacker, "weak", 2); } } }),
+  off({ id: "o_targe", name: "Targe", tags: ["Guard", "Luck"], text: "+1 Armor. Guarding gives Focus.", armor: 1,
+    hooks: { onGuard: (b, f) => applyStatus(b, f, f, "focus", 1) } }),
+  off({ id: "o_heater_shield", name: "Heater Shield", tags: ["Guard", "Blood"], text: "+2 Armor. Guarding gives 2 Regen.", armor: 2,
+    hooks: { onGuard: (b, f) => applyStatus(b, f, f, "regen", 2) } }),
+  off({ id: "o_witchwood", name: "Witchwood Focus", tags: ["Poison", "Hex", "Arcane"], text: "On a 2: apply 2 Poison and 1 Weak.",
+    hooks: { face: [on(2, (b, c) => { applyStatus(b, c.attacker, c.defender, "poison", 2); applyStatus(b, c.attacker, c.defender, "weak", 1); })] } }),
   off({ id: "o_hourglass", name: "Sand Hourglass", tags: ["Tempo", "Luck"], text: "Every 4th round, gain Haste.", hooks: { onRoundStart: (b, f) => { if (b.round % 4 === 0) applyStatus(b, f, f, "haste", 1); } } })
 ];
 
@@ -124,6 +146,17 @@ export const ARMOURS: GearBase[] = [
     hooks: { whenHit: (b, c) => applyStatus(b, c.defender, c.attacker, "chill", 1) } }),
   armour({ id: "a_assassin", name: "Assassin's Garb", tags: ["Crit", "Bleed"], text: "Start each fight with Evade. Your crits apply 2 Bleed.",
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "evade", 1), onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "bleed", 2) } }),
+  armour({ id: "a_brigandine", name: "Brigandine", tags: ["Guard", "Tempo"], text: "+3 Armor. Guarding gives Evade.", armor: 3,
+    hooks: { onGuard: (b, f) => applyStatus(b, f, f, "evade", 1) } }),
+  armour({ id: "a_warmage", name: "Warmage Coat", tags: ["Arcane", "Storm"], text: "+1 Armor. Start each fight with Ward. Your spells deal +1.", armor: 1,
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1), modifyAttack: (_b, c) => { if (c.spec.magic) c.bonus += 1; } } }),
+  armour({ id: "a_thornhide", name: "Thornhide", tags: ["Thorns", "Blood"], text: "+1 Armor. Start each fight with 4 Spikes.", armor: 1,
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "spikes", 4) } }),
+  armour({ id: "a_gambeson", name: "Gambeson", tags: ["Guard", "Blood"], text: "+2 Armor and +6 Max HP.", armor: 2, maxHp: 6, hooks: {} }),
+  armour({ id: "a_monk_wraps", name: "Monk's Wraps", tags: ["Tempo", "Luck"], text: "No Armor. Start each fight with Evade. Your 1s become 2s.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "evade", 1), modifyRoll: (_b, _f, r) => (r === 1 ? 2 : r) } }),
+  armour({ id: "a_bulwark_plate", name: "Bulwark Plate", tags: ["Guard"], text: "Very heavy: +5 Armor, but −1 Damage.", armor: 5,
+    hooks: { stats: s => { s.damage -= 1; s.offDamage -= 1; } } }),
   armour({ id: "a_vestments", name: "Priest's Vestments", tags: ["Blood", "Guard"], text: "+1 Armor. Healing you receive +25%.", armor: 1, hooks: { healMult: () => 1.25 } })
 ];
 
@@ -154,6 +187,17 @@ export const TRINKETS: GearBase[] = [
   trinket({ id: "t_glass_eye", name: "Glass Eye", tags: ["Crit", "Hex"], text: "Your 5s crit against Exposed enemies.",
     hooks: { modifyAttack: (_b, c) => { if (c.face === 5 && st(c.defender, "exposed") > 0 && c.kind === "hit") { c.kind = "crit"; c.mult = 2; c.ignoreArmor = true; } } } }),
   trinket({ id: "t_alchemist_ring", name: "Alchemist's Ring", tags: ["Arcane", "Hex"], text: "Reactions deal +50%.", hooks: { reactionMult: () => 1.5 } }),
+  trinket({ id: "t_guardian_pin", name: "Guardian's Pin", tags: ["Guard"], text: "+2 Armor while Guarding.",
+    hooks: { onGuard: (_b, f) => { f.flags["guardArmor"] = (f.flags["guardArmor"] ?? 0) + 2; } } }),
+  trinket({ id: "t_spite_charm", name: "Spite Charm", tags: ["Thorns"], text: "Spikes you gain +2.",
+    hooks: { onStatusApplied: (_b, self, t, status) => { if (status === "spikes" && t === self) t.statuses.spikes = st(t, "spikes") + 2; } } }),
+  trinket({ id: "t_rime_ring", name: "Rime Ring", tags: ["Frost"], text: "On a 2: apply 2 Chill.", hooks: { face: [on(2, (b, c) => applyStatus(b, c.attacker, c.defender, "chill", 2))] } }),
+  trinket({ id: "t_bone_dice", name: "Bone Dice", tags: ["Luck", "Crit"], text: "Your 5s crit.",
+    hooks: { modifyAttack: (_b, c) => { if (c.face === 5 && c.kind === "hit") { c.kind = "crit"; c.mult = 2; c.ignoreArmor = true; } } } }),
+  trinket({ id: "t_battle_horn", name: "Battle Horn", tags: ["Strike", "Tempo"], text: "Start each fight with 2 Might.", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "might", 2) } }),
+  trinket({ id: "t_heart_locket", name: "Heart Locket", tags: ["Blood", "Guard"], text: "+4 Max HP. Guarding heals 2.", maxHp: 4, hooks: { onGuard: (b, f) => { heal(b, f, 2, "Heart Locket"); } } }),
+  trinket({ id: "t_venom_gland", name: "Venom Gland", tags: ["Poison"], text: "Poison you apply +1.",
+    hooks: { onStatusApplied: (_b, self, t, status) => { if (status === "poison" && t !== self) t.statuses.poison = st(t, "poison") + 1; } } }),
   trinket({ id: "t_quicksilver", name: "Quicksilver Ring", tags: ["Tempo"], text: "Start each fight at full HP with Haste.", hooks: { onFightStart: (b, f) => { if (f.hp >= f.maxHp) applyStatus(b, f, f, "haste", 1); } } })
 ];
 

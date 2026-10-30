@@ -41,7 +41,7 @@ export const REACTIONS = [
   { id: "despair", name: "Despair", a: "weak", b: "doom", text: "Doom grows by 1 each round" },
   { id: "bastion", name: "Bastion", a: "barrier", b: "regen", text: "Regen also refills Barrier" },
   { id: "frenzy", name: "Frenzy", a: "might", b: "haste", text: "Your 5s count as crits for the rest of the fight" },
-  { id: "clarity", name: "Clarity", a: "focus", b: "ward", text: "On your next roll, choose the face" }
+  { id: "clarity", name: "Clarity", a: "focus", b: "ward", text: "Your next roll lands on your die's highest face" }
 ] as const;
 export type ReactionId = (typeof REACTIONS)[number]["id"];
 
@@ -71,6 +71,12 @@ export function heal(b: Battle, f: Fighter, amount: number, why = "") {
   if (got > 0) {
     log(b, `${f.name} heals ${got}${why ? ` (${why})` : ""}.`);
     fx(b, { who: f.id, kind: "heal", value: got });
+    // Robe of the Red Moon: every heal also hits the enemy.
+    const foe = other(b, f);
+    if ((f.items["c_red_moon"] ?? 0) > 0 && foe.hp > 0) {
+      const lost = loseHp(b, foe, got);
+      log(b, `🌕 The Red Moon turns ${got} healing into ${lost} damage.`);
+    }
   }
   return got;
 }
@@ -120,9 +126,20 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   if (source) eachHook(source, "onStatusApplied", (h, s) => h(b, source, target, id, amount, s));
 }
 
+/** Reactions that hurt whoever has them: the ones a "random extra reaction" may pick. */
+const HARMFUL_REACTIONS: ReactionId[] = ["combustion", "steam", "shatter", "rupture", "sepsis", "overload", "despair"];
+
 function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, depth: number) {
   const name = REACTIONS.find(r => r.id === id)!.name;
   fx(b, { who: t.id, kind: "reaction", text: `${name}!` });
+  // Run-long record (shown in the bag): which reactions happened on you, and on your enemies.
+  const key = `rx:${t.id === "player" ? "you" : "foe"}:${id}`;
+  b.player.persist[key] = (b.player.persist[key] ?? 0) + 1;
+  // The Red Litany: the first reaction you cause each round gives you Haste.
+  if (source && source !== t && (source.items["c_red_litany"] ?? 0) > 0 && source.flags["litany"] !== b.round) {
+    source.flags["litany"] = b.round;
+    applyStatus(b, source, source, "haste", 1, depth + 1);
+  }
   if (source && source !== t && (source.items["l_ouroboros"] ?? 0) > 0) heal(b, source, 5, "Ouroboros");
   if (source && source !== t && (source.items["l_codex_ruin"] ?? 0) > 0) applyStatus(b, source, t, "doom", 3, depth + 1);
 
@@ -160,6 +177,13 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
         t.statuses.ward = 0;
       }
       log(b, `✴️ ${name} on ${t.name}: ${REACTIONS.find(r => r.id === id)!.text}.`);
+  }
+  // Eye of Ruin: a second, random reaction on the enemy.
+  if (depth === 0 && source && source !== t && (source.items["c_eye_of_ruin"] ?? 0) > 0 && t.hp > 0) {
+    const pool = HARMFUL_REACTIONS.filter(x => x !== id);
+    const extra = pool[Math.floor(b.rng() * pool.length)];
+    log(b, "👁️ The Eye of Ruin opens.");
+    react(b, source, t, extra, depth + 1);
   }
   // Philosopher's Stone: the ingredients come back, ready to react again next time.
   if (source && source !== t && (source.items["lr_philosophers_stone"] ?? 0) > 0) {

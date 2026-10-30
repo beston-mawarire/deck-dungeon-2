@@ -1,5 +1,5 @@
 // The hero: origin, equipped gear, backpack, relics, talents, curses — and turning all of that into a Fighter.
-import { GEAR_BASES, LEGENDARIES } from "../data";
+import { CRIMSON, GEAR_BASES, LEGENDARIES } from "../data";
 import { ORIGINS } from "../data/origins";
 import { PLAIN_FACES } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
@@ -22,12 +22,14 @@ export interface Hero {
   scrap: number;
   /** Starmetal: dropped only by Champions (and scrapped Legendaries); fuels the Transmuter. */
   starmetal: number;
+  /** Crimson Keys (from Crimson Elites): each opens one Crimson Vault. */
+  crimsonKeys: number;
   xp: number;
   level: number;
   nextUid: number;
 }
 
-const BASES = new Map<string, GearBase>([...GEAR_BASES, ...LEGENDARIES].map(g => [g.id, g]));
+const BASES = new Map<string, GearBase>([...GEAR_BASES, ...LEGENDARIES, ...CRIMSON].map(g => [g.id, g]));
 export const baseOf = (id: string) => {
   const b = BASES.get(id);
   if (!b) throw new Error(`Unknown gear base ${id}`);
@@ -40,8 +42,8 @@ export function effectiveBase(item: GearItem): GearBase {
   return b.legendary && !item.revealed ? baseOf(b.legendary.asBase) : b;
 }
 
-export const RARITY_DAMAGE: Record<Rarity, number> = { common: 0, uncommon: 0, rare: 1, epic: 3, legendary: 1 };
-export const RARITY_COLOR: Record<Rarity, string> = { common: "#9a9aa2", uncommon: "#4fc074", rare: "#4f9cf0", epic: "#b06cf0", legendary: "#f08a2a" };
+export const RARITY_DAMAGE: Record<Rarity, number> = { common: 0, uncommon: 0, rare: 1, epic: 3, legendary: 1, crimson: 3 };
+export const RARITY_COLOR: Record<Rarity, string> = { common: "#9a9aa2", uncommon: "#4fc074", rare: "#4f9cf0", epic: "#b06cf0", legendary: "#f08a2a", crimson: "#e0283f" };
 
 export function weaponDamage(item: GearItem, offhand = false): number {
   const base = effectiveBase(item);
@@ -136,13 +138,13 @@ export function recompute(h: Hero) {
     f.offFaces = f.faces;
     f.offDamage = Math.max(1, Math.floor(f.damage * 0.6));
   }
-  if (!items["l_hollow_crown"]) delete f.persist["keepBarrier"];
+  if (!items["l_hollow_crown"] && !items["l_bastion_ages"]) delete f.persist["keepBarrier"];
 }
 
 export function newHero(origin: OriginId): Hero {
   const o = ORIGINS[origin];
   const f: Fighter = { id: "player", name: o.name, hp: o.hp, maxHp: o.hp, armor: 0, damage: 1, faces: PLAIN_FACES, statuses: {}, flags: {}, persist: {}, items: {}, gold: 0 };
-  const h: Hero = { origin, f, equip: {}, backpack: [], relics: {}, talents: {}, curses: {}, potions: 1, scrolls: 0, scrap: 0, starmetal: 0, xp: 0, level: 1, nextUid: 1 };
+  const h: Hero = { origin, f, equip: {}, backpack: [], relics: {}, talents: {}, curses: {}, potions: 1, scrolls: 0, scrap: 0, starmetal: 0, crimsonKeys: 0, xp: 0, level: 1, nextUid: 1 };
   const [main, off, arm] = o.kit;
   h.equip.main = { uid: h.nextUid++, base: main, rarity: "common", level: 1, bonuses: {}, revealed: true };
   h.equip.off = { uid: h.nextUid++, base: off, rarity: "common", level: 1, bonuses: {}, revealed: true };
@@ -210,7 +212,7 @@ export function addToBackpack(h: Hero, item: GearItem): string | null {
   return null;
 }
 
-export const SCRAP_VALUE: Record<Rarity, number> = { common: 1, uncommon: 2, rare: 4, epic: 7, legendary: 12 };
+export const SCRAP_VALUE: Record<Rarity, number> = { common: 1, uncommon: 2, rare: 4, epic: 7, legendary: 12, crimson: 20 };
 
 /** Salvage into Scrap. Legendaries also give 2 Starmetal. */
 export function salvage(h: Hero, uid: number): number {
@@ -220,6 +222,7 @@ export function salvage(h: Hero, uid: number): number {
   removeItem(h, uid);
   h.scrap += n;
   if (found.item.rarity === "legendary") h.starmetal += 2;
+  if (found.item.rarity === "crimson") h.starmetal += 4;
   recompute(h);
   return n;
 }

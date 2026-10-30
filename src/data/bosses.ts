@@ -33,6 +33,8 @@ export const MOVE_LIBRARY: Record<string, (p: number) => Move> = {
   charge: () => ({ name: "Gather Power", icon: "🌀", text: "Does nothing now; its next Cataclysm deals triple", act: (b, s) => { s.flags["charged"] = 1; log(b, `${s.name} gathers power…`); } }),
   smash: () => ({ name: "Cataclysm", icon: "☄️", text: "Attacks for 2× damage (3× if charged)", act: (b, s, f) => { const m = s.flags["charged"] ? 3 : 2; s.flags["charged"] = 0; hit(b, s, f, m); } }),
   concuss: () => ({ name: "Skull Crack", icon: "💫", text: "Attacks and Stuns you", act: (b, s, f) => { const before = f.hp; hit(b, s, f); if (f.hp < before) applyStatus(b, s, f, "stun", 1); } }),
+  crimson: p => ({ name: "Crimson Rite", icon: "🩸", text: `Heals 8% of its Max HP, gains ${1 + Math.ceil(p / 3)} Might and applies ${2 + p} Bleed`,
+    act: (b, s, f) => { heal(b, s, Math.round(s.maxHp * 0.08), "Crimson Rite"); applyStatus(b, s, s, "might", 1 + Math.ceil(p / 3)); applyStatus(b, s, f, "bleed", 2 + p); } }),
   drain: () => ({ name: "Life Drain", icon: "🦇", text: "Attacks and heals what it deals", act: (b, s, f) => { const before = f.hp; hit(b, s, f); const n = Math.max(0, before - f.hp); if (n) heal(b, s, n, "Life Drain"); } })
 };
 
@@ -102,6 +104,24 @@ function build(def: BossDef, floor: number): Fighter {
     faces: def.faces ?? PLAIN_FACES, statuses: {}, flags: {}, persist: {}, items, gold: 0, boss: true, family: def.family,
     moves: def.moves.map(m => MOVE_LIBRARY[m](p)), intent: 0
   };
+}
+
+/** Crimson bosses: rare, much harder at every depth, and the only source of Crimson items. */
+export const CRIMSON_NAMES = ["The Red Abbess", "Sanguinor", "The Crimson Choir", "Vermilion Rex", "The Bleeding Saint", "Carmine", "The Scarlet Warden", "Lord Ichor", "Mother Gore", "The Rubric", "Haemon", "The Wine-Dark King"];
+const CRIMSON_TITLES = ["Keeper of the Red Vault", "Who Drinks the Dark", "the Unquenched", "Lord of the Red Tithe", "the Bleeding Crown", "Voice of the Red Moon"];
+
+export function makeCrimsonBoss(floor: number, rng: () => number): Fighter {
+  const moves = Object.keys(MOVE_LIBRARY).filter(m => m !== "crimson");
+  const chosen = new Set<string>(["strike", "crimson"]);
+  while (chosen.size < 5) chosen.add(pick(rng, moves));
+  if (chosen.has("charge")) chosen.add("smash");
+  const traits = ["x_crimson", pick(rng, ELITE_AFFIX_IDS)];
+  const def: BossDef = { name: pick(rng, CRIMSON_NAMES), title: pick(rng, CRIMSON_TITLES), family: pick(rng, FAMILIES), moves: [...chosen].sort(() => rng() - 0.5), traits, armor: 3 + Math.floor(rng() * 3), hpMult: 1.7 };
+  const f = build(def, floor);
+  f.damage = Math.round(f.damage * 1.35);
+  f.crimson = true;
+  f.title = `${f.title} · ${traits.map(t => TRAITS.find(x => x.id === t)!.name).join(", ")}`;
+  return f;
 }
 
 export function makeBoss(floor: number, rng: () => number, seen: Set<string> = new Set()): Fighter {

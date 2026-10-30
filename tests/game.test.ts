@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { loadLibrary } from "../src/data";
+import { LEGENDARIES, loadLibrary } from "../src/data";
 import { makeMonster } from "../src/data/monsters";
 import { playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
@@ -7,8 +7,8 @@ import { makeRng } from "../src/engine/rng";
 import { applyStatus, endOfRound, st } from "../src/engine/statuses";
 import { TAGS } from "../src/engine/types";
 import { equipItem, itemName, newHero, recompute, reveal, salvage, weaponDamage } from "../src/game/hero";
-import { resplendentCards, rollItem } from "../src/game/loot";
-import { advance, chooseRoom, chooseTalent, combatAction, finishLoot, newRun, takeItem } from "../src/game/run";
+import { resetDropped, resplendentCards, rollItem } from "../src/game/loot";
+import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, takeItem } from "../src/game/run";
 
 beforeAll(() => loadLibrary());
 
@@ -156,10 +156,17 @@ describe("loot", () => {
   it("Legendaries respect their earliest floor", () => {
     const h = newHero("warrior");
     const rng = makeRng(9);
-    for (let i = 0; i < 50; i++) {
+    resetDropped();
+    const early = LEGENDARIES.filter(l => (l.legendary?.minFloor ?? 1) <= 1).map(l => l.id);
+    const seen = new Set<string>();
+    for (let i = 0; i < early.length; i++) {
       const it = rollItem(h, "legendary", 1, rng);
-      expect(["l_kingsbane"]).toContain(it.base);
+      expect(early).toContain(it.base);
+      expect(seen.has(it.base)).toBe(false); // never the same Legendary twice in a run
+      seen.add(it.base);
     }
+    // Once the floor-1 pool is used up, a Legendary roll falls back to Epic.
+    expect(rollItem(h, "legendary", 1, rng).rarity).toBe("epic");
   });
 });
 
@@ -337,5 +344,67 @@ describe("relic rarity by depth and legendary relics", () => {
     expect(b.log.some(l => l.includes("Combustion"))).toBe(true);
     expect(st(b.enemy, "poison")).toBeGreaterThanOrEqual(3);
     expect(st(b.enemy, "burn")).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("crimson", () => {
+  it("Crimson rooms only appear after the fifth boss", () => {
+    const run = newRun("warrior", 5);
+    for (let i = 0; i < 200; i++) expect(genChoices(run).some(c => c.startsWith("crimson"))).toBe(false);
+    run.hero.crimsonKeys = 1;
+    expect(genChoices(run)).not.toContain("crimson_vault");
+    run.floor = 6;
+    continueEndless(run);
+    expect(run.choices).toContain("crimson_vault");
+  });
+
+  it("dying in a Crimson Vault doesn't end the run", () => {
+    const run = newRun("warrior", 11);
+    run.floor = 6;
+    run.mode = "endless";
+    run.hero.crimsonKeys = 1;
+    chooseRoom(run, "crimson_vault");
+    confirmRisk(run, true);
+    expect(run.scene.t).toBe("combat");
+    if (run.scene.t !== "combat") return;
+    expect(run.scene.battle.enemy.crimson).toBe(true);
+    expect(run.hero.crimsonKeys).toBe(0);
+    run.hero.f.hp = 1;
+    run.hero.f.armor = 0;
+    for (let i = 0; i < 50 && run.scene.t === "combat"; i++) combatAction(run, "attack");
+    expect(run.scene.t).not.toBe("over");
+    expect(run.hero.f.hp).toBeGreaterThan(0);
+    expect(run.hero.f.persist["crimsonEscapes"]).toBe(1);
+  });
+
+  it("Crimson bosses offer a Crimson item", () => {
+    const h = newHero("mage");
+    const it = rollItem(h, "crimson", 6, makeRng(3));
+    expect(it.rarity).toBe("crimson");
+    expect(it.revealed).toBe(true);
+    expect(Object.keys(it.bonuses).length).toBe(2);
+  });
+});
+
+describe("guard", () => {
+  it("Vanguard counts the first round as Guarding", () => {
+    const h = newHero("warrior");
+    h.talents["t_vanguard"] = 1;
+    recompute(h);
+    const e = makeMonster(makeRng(1), 1, "normal");
+    const b = startBattle(h.f, e, 1);
+    playRound(b, "attack");
+    expect(h.f.flags["guarding"]).toBe(0); // cleared at the end of the round
+    expect(b.round).toBe(1);
+  });
+
+  it("reactions are recorded for the bag", () => {
+    const h = newHero("mage");
+    const e = makeMonster(makeRng(2), 1, "normal");
+    e.hp = e.maxHp = 999;
+    const b = startBattle(h.f, e, 2);
+    applyStatus(b, h.f, e, "burn", 3);
+    applyStatus(b, h.f, e, "poison", 3);
+    expect(h.f.persist["rx:foe:combustion"]).toBe(1);
   });
 });

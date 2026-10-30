@@ -95,4 +95,27 @@ export const MORE_TALENTS: HookDef[] = [
     hooks: { reactionMult: (_b, _f, s) => 1 + rank(s, 0.25, 0.5, 1) } })
 ];
 
-export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS, ...MORE_TALENTS];
+// ---------- Guard & shield talents ----------
+const NEG = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom"] as const;
+export const GUARD_TALENTS: HookDef[] = [
+  talent({ id: "t_riposte", name: "Riposte", tags: ["Guard", "Strike"], text: "After you Guard, your next attack deals +3 / +5 / +8",
+    hooks: {
+      onGuard: (_b, f) => { f.flags["riposte"] = 1; },
+      modifyAttack: (b, c, s) => { if (c.attacker.flags["riposte"] && !c.offhand) { c.attacker.flags["riposte"] = 0; c.bonus += rank(s, 3, 5, 8); log(b, "Riposte!"); } }
+    } }),
+  talent({ id: "t_shield_bash", name: "Shield Bash", tags: ["Guard", "Strike"], text: "Guarding deals 2 / 4 / 7 to the enemy (III: and Weakens it)",
+    hooks: { onGuard: (b, f, s) => { const e = other(b, f); ping(b, e, rank(s, 2, 4, 7), "Shield Bash"); if (s >= 3) applyStatus(b, f, e, "weak", 1); } } }),
+  talent({ id: "t_iron_will", name: "Iron Will", tags: ["Guard", "Hex"], text: "While Guarding, negative statuses can't land on you (II: Guarding also removes 1 of yours; III: 2)",
+    hooks: {
+      incomingStatus: (_b, self, status, n) => (self.flags["guarding"] && (NEG as readonly string[]).includes(status) ? 0 : n),
+      onGuard: (b, f, s) => { let k = s - 1; for (const x of NEG) { if (k <= 0) break; if (st(f, x) > 0) { f.statuses[x] = 0; k--; log(b, `Iron Will shrugs off ${x}.`); } } }
+    } }),
+  talent({ id: "t_tortoise", name: "Tortoise", tags: ["Guard"], text: "+2 / +3 / +5 Armor while Guarding",
+    hooks: { onGuard: (_b, f, s) => { f.flags["guardArmor"] = (f.flags["guardArmor"] ?? 0) + rank(s, 2, 3, 5); } } }),
+  talent({ id: "t_vanguard", name: "Vanguard", tags: ["Guard", "Tempo"], text: "You count as Guarding in round 1 / rounds 1–2 / rounds 1–3 of every fight, even while attacking",
+    hooks: { onRoundStart: (b, f, s) => { if (b.round <= s) f.flags["guarding"] = 1; } } }),
+  talent({ id: "t_counter_stance", name: "Counter Stance", tags: ["Guard", "Strike"], text: "When you're hit while Guarding, gain 1 / 2 / 3 Might",
+    hooks: { whenHit: (b, c, s) => { if (c.defender.flags["guarding"]) applyStatus(b, c.defender, c.defender, "might", s); } } })
+];
+
+export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS, ...MORE_TALENTS, ...GUARD_TALENTS];

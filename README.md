@@ -24,10 +24,10 @@ npm run build:single  # one self-contained HTML file in dist-single/
   - `statuses.ts` — 18 statuses (10 negative, 8 positive), 10 reactions, per-round ticks.
   - `registry.ts` — looks items up and runs their hooks.
 - `src/data/` — the content library. Adding an item means adding an entry here.
-  - `gear.ts` — 22 weapons (each with its own faces), 14 off-hands, 14 armours, 16 trinkets.
+  - `gear.ts` — 29 weapons (each with its own faces), 26 off-hands (10 shields), 20 armours, 27 trinkets.
   - `affixes.ts` — 22 rolled bonuses (3 of them Rare-only twists on the old classes), 22 Epic powers,
-    29 Legendaries (7 of them boss trophies).
-  - `relics.ts` (67, 8 of them Legendary), `fusions.ts` (8 recipes), `talents.ts` (33), `origins.ts` (4 origins, 6 curses),
+    37 Legendaries (7 of them boss trophies). `crimson.ts` — 14 Crimson items, the tier above Legendary (Crimson bosses only).
+  - `relics.ts` (76, 9 of them Legendary), `fusions.ts` (8 recipes), `talents.ts` (39), `origins.ts` (4 origins, 14 curses),
     `events.ts` (10), `monsters.ts` (11 monsters in 4 families, 8 Elite affixes),
     `bosses.ts` (a move library, 10 named bosses — 5 per campaign, the rest return in Endless — generated Endless bosses and the floor-30 wall).
 - `src/game/` — the run.

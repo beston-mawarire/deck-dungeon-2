@@ -1,5 +1,5 @@
 // Loot: rarity tables, rolling gear, chests (Wooden, Iron, Resplendent) and bad-luck protection.
-import { BONUSES, EPIC_POWERS, GEAR_BASES, LEGENDARIES } from "../data";
+import { BONUSES, CRIMSON, EPIC_POWERS, GEAR_BASES, LEGENDARIES } from "../data";
 import type { GearBase, GearItem, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { AFFINITY } from "../data/origins";
@@ -11,16 +11,18 @@ export const TABLES = {
   wooden: { common: 70, uncommon: 30 },
   iron: { uncommon: 70, rare: 30 },
   drop: { common: 65, uncommon: 28, rare: 7 },
-  elite: { uncommon: 62, rare: 35, epic: 3 },
-  champion: { rare: 75, epic: 21, legendary: 4 },
-  boss: { rare: 68, epic: 26, legendary: 6 },
-  shop: { uncommon: 57, rare: 40, epic: 3 }
+  elite: { uncommon: 64, rare: 34.5, epic: 1.5 },
+  champion: { rare: 85, epic: 12.5, legendary: 2.5 },
+  boss: { rare: 85, epic: 12, legendary: 3 },
+  /** Crimson Elites: harder, better loot (and sometimes a Crimson Key). */
+  crimson: { rare: 62, epic: 32, legendary: 6 },
+  shop: { uncommon: 58, rare: 40, epic: 2 }
 } satisfies Record<string, Odds>;
 
 /** Resplendent card odds: Epic and Legendary grow with depth, and are rare early on. */
 export function resplendentOdds(floor: number): Odds {
-  const legendary = Math.min(12, 1 + 1.2 * (floor - 1));
-  const epic = Math.min(30, 5 + 3 * (floor - 1));
+  const legendary = Math.min(10, 0.6 + 0.9 * (floor - 1));
+  const epic = Math.min(26, 3 + 2.2 * (floor - 1));
   const rare = 40;
   return { uncommon: 100 - legendary - epic - rare, rare, epic, legendary };
 }
@@ -55,28 +57,46 @@ let LOCKED = new Set<string>();
 export const setLocked = (ids: Set<string>) => { LOCKED = ids; };
 export const isLocked = (id: string) => LOCKED.has(id);
 
+/** Legendaries (and Crimson items) already rolled this run: each drops at most once per run. */
+let DROPPED = new Set<string>();
+export const resetDropped = () => { DROPPED = new Set(); };
+
 export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => number): GearItem {
   const tags = heroTags(h);
+  if (rarity === "crimson") {
+    const pool = CRIMSON.filter(c => !DROPPED.has(c.id));
+    const base = weighted(rng, pool.length ? pool : CRIMSON, b => 1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0));
+    DROPPED.add(base.id);
+    return { uid: h.nextUid++, base: base.id, rarity: "crimson", level: floor, bonuses: rollBonuses(h, "rare", base, floor, rng, 2), revealed: true };
+  }
   if (rarity === "legendary") {
-    const pool = LEGENDARIES.filter(l => (l.legendary?.minFloor ?? 1) <= floor && !LOCKED.has(l.id));
+    const pool = LEGENDARIES.filter(l => (l.legendary?.minFloor ?? 1) <= floor && !LOCKED.has(l.id) && !DROPPED.has(l.id));
     if (pool.length === 0) rarity = "epic";
     else {
-      const base = weighted(rng, pool, b => tagWeight(tags, b.tags));
+      // A gentle lean toward your build; Legendaries should feel like a surprise, not a fixed path.
+      const base = weighted(rng, pool, b => 1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0));
+      DROPPED.add(base.id);
       return { uid: h.nextUid++, base: base.id, rarity: "legendary", level: floor, bonuses: {}, revealed: false };
     }
   }
   const fav = new Set(AFFINITY[h.origin]);
   const base: GearBase = weighted(rng, GEAR_BASES.filter(g => !LOCKED.has(g.id)), b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1));
-  const nBonuses = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0 }[rarity];
+  const nBonuses = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0, crimson: 2 }[rarity];
+  const bonuses = rollBonuses(h, rarity, base, floor, rng, nBonuses);
+  const epic = rarity === "epic" ? weighted(rng, EPIC_POWERS.filter(e => !LOCKED.has(e.id)), e => tagWeight(tags, e.tags)).id : undefined;
+  return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses, epic, revealed: true };
+}
+
+function rollBonuses(h: Hero, rarity: Rarity, base: GearBase, floor: number, rng: () => number, n: number): Record<string, number> {
+  const tags = heroTags(h);
   const bonuses: Record<string, number> = {};
   const pool = BONUSES.filter(x => rank(rarity) >= rank(x.minRarity ?? "uncommon") && !LOCKED.has(x.id));
-  for (let i = 0; i < nBonuses && pool.length; i++) {
+  for (let i = 0; i < n && pool.length; i++) {
     const pick = weighted(rng, pool, x => 1 + 0.6 * x.tags.filter(t => base.tags.includes(t)).length + 0.25 * x.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0));
     pool.splice(pool.indexOf(pick), 1);
     bonuses[pick.id] = floor;
   }
-  const epic = rarity === "epic" ? weighted(rng, EPIC_POWERS.filter(e => !LOCKED.has(e.id)), e => tagWeight(tags, e.tags)).id : undefined;
-  return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses, epic, revealed: true };
+  return bonuses;
 }
 
 export type ResplendentCard = { kind: "item"; item: GearItem } | { kind: "scroll" };
@@ -99,6 +119,6 @@ export function resplendentCards(h: Hero, floor: number, loot: LootState, rng: (
     else cards.push({ kind: "item", item: rollItem(h, rollRarity(rng, base), floor, rng) });
   }
   const great = cards.some(c => c.kind === "item" && rank(c.item.rarity) >= rank("epic"));
-  loot.pity = great ? 0 : loot.pity + 5;
+  loot.pity = great ? 0 : loot.pity + 3;
   return cards;
 }
