@@ -677,7 +677,8 @@ export function forgeCombine(run: Run, a: number, b: number): GearItem | string 
   if (A.rarity === "legendary" || B.rarity === "legendary" || A.rarity === "crimson" || B.rarity === "crimson") return "Legendary and Crimson items can't be combined.";
   const top = RARITIES.indexOf(A.rarity) >= RARITIES.indexOf(B.rarity) ? A : B;
   let r = RARITIES.indexOf(top.rarity);
-  const promoted = r < RARITIES.indexOf("epic") && run.rng() < 0.3;
+  // Greater kit items are fixed to their rarity, so they never get promoted.
+  const promoted = r < RARITIES.indexOf("epic") && !baseOf(top.base).onlyRarity && run.rng() < 0.3;
   if (promoted) r++;
   const rarity = RARITIES[r];
   const level = Math.max(A.level, B.level) + 1;

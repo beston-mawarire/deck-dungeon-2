@@ -2,12 +2,13 @@
 import type { HookDef, OriginId } from "../engine/types";
 import { applyStatus, depth, heal, log, other, ping, st } from "./helpers";
 
-/** Each origin's favourite gear shows up about twice as often in its loot. */
+/** Each origin's favourite gear shows up about twice as often in its loot. New gear joins the pool at normal odds
+ * (only the Cleric's Holy gear was deliberately leaned toward the Cleric). */
 export const AFFINITY: Record<OriginId, string[]> = {
-  warrior: ["w_emberbrand", "w_magma_maul", "a_ashen_mantle", "w_longsword", "w_glaive", "o_pavise", "o_lion_shield", "a_brigandine", "a_gambeson", "a_bulwark_plate", "t_guardian_pin", "t_battle_horn", "w_sword", "w_axe", "w_hand_axe", "w_hammer", "w_morningstar", "w_spear", "o_wooden_shield", "o_tower_shield", "o_kite_shield", "o_spiked_shield", "o_war_banner", "a_chain", "a_plate", "a_scale", "a_spiked", "t_warlord_torc"],
-  rogue: ["w_firebrand_hatchet", "w_blowgun", "w_cleaver", "o_targe", "a_monk_wraps", "t_bone_dice", "t_venom_gland", "w_dagger", "w_throwing_knife", "w_rapier", "w_katana", "w_whip", "w_sickle", "w_main_gauche", "w_bow", "o_smoke_pouch", "o_buckler", "a_leather", "a_shadow", "a_assassin", "t_thieves_ring", "t_lucky_coin"],
-  mage: ["w_frost_wand", "w_storm_wand", "w_venom_wand", "w_hex_wand", "w_bone_wand", "w_tide_wand", "o_grim_rime", "o_grim_storms", "o_grim_tides", "o_grim_embers", "o_grim_shadows", "o_grim_coil", "a_stormweave", "a_tempest_cloak", "t_spark_ring", "t_rain_charm", "t_kindling_heart", "w_runeblade", "o_witchwood", "a_warmage", "t_rime_ring", "w_staff", "w_greatstaff", "w_wand", "w_lute", "o_ember_charm", "o_frost_orb", "o_grimoire", "o_tome", "o_storm_lantern", "o_crystal_orb", "o_runestone", "a_cloth", "a_bloodweave", "t_archmage_signet", "t_ember_pendant"],
-  cleric: ["w_blessed_mace", "w_sunhammer", "w_censer_flail", "w_templar_blade", "w_aspergillum", "w_scepter", "w_pilgrim_staff", "o_thurible", "o_shield_faith", "o_sanct_lantern", "o_psalter", "o_martyr_icon", "o_absolution_bell", "o_penitent_chain", "a_inquisitor", "a_penance", "t_holy_water", "t_sin_eater", "t_zealot_brand", "w_warpick", "o_heater_shield", "o_lion_shield", "a_thornhide", "t_heart_locket", "t_spite_charm", "w_mace", "w_morningstar", "w_flail", "w_hammer", "o_holy_symbol", "o_prayer_beads", "o_sun_disc", "o_reliquary", "o_censer", "a_padded", "a_vestments", "a_scale", "t_templar_seal", "t_band_vigor"]
+  warrior: ["w_sword", "w_axe", "w_hand_axe", "w_hammer", "w_morningstar", "w_spear", "o_wooden_shield", "o_tower_shield", "o_kite_shield", "o_spiked_shield", "o_war_banner", "a_chain", "a_plate", "a_scale", "a_spiked", "t_warlord_torc"],
+  rogue: ["w_dagger", "w_throwing_knife", "w_rapier", "w_katana", "w_whip", "w_sickle", "w_main_gauche", "w_bow", "o_smoke_pouch", "o_buckler", "a_leather", "a_shadow", "a_assassin", "t_thieves_ring", "t_lucky_coin"],
+  mage: ["w_staff", "w_greatstaff", "w_wand", "w_lute", "o_ember_charm", "o_frost_orb", "o_grimoire", "o_tome", "o_storm_lantern", "o_crystal_orb", "o_runestone", "a_cloth", "a_bloodweave", "t_archmage_signet", "t_ember_pendant"],
+  cleric: ["w_mace", "w_morningstar", "w_flail", "w_hammer", "o_holy_symbol", "o_prayer_beads", "o_sun_disc", "o_reliquary", "o_censer", "a_padded", "a_vestments", "a_scale", "t_templar_seal", "t_band_vigor", "w_blessed_mace", "w_sunhammer", "w_censer_flail", "w_templar_blade", "w_aspergillum", "w_scepter", "w_pilgrim_staff", "o_thurible", "o_shield_faith", "o_sanct_lantern", "o_psalter", "o_martyr_icon", "o_absolution_bell", "o_penitent_chain", "a_inquisitor", "a_penance", "t_holy_water", "t_sin_eater", "t_zealot_brand"]
 };
 
 export const ORIGINS: Record<OriginId, { name: string; hp: number; kit: string[]; passive: string; blurb: string }> = {

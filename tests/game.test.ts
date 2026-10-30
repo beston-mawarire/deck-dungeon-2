@@ -575,3 +575,18 @@ describe("smouldering", () => {
     expect(st(e, "static")).toBe(25);
   });
 });
+
+describe("greater kits", () => {
+  it("greater kit items only roll at their own rarity", () => {
+    const h = newHero("mage");
+    const rng = makeRng(21);
+    for (let i = 0; i < 3000; i++) {
+      for (const r of ["common", "uncommon", "rare", "epic"] as const) {
+        const it = rollItem(h, r, 2, rng);
+        if (it.base.startsWith("k_")) expect(["uncommon", "rare"]).toContain(it.rarity);
+        if (it.base === "k_archmages_staff") expect(it.rarity).toBe("rare");
+        if (it.base === "k_adepts_staff") expect(it.rarity).toBe("uncommon");
+      }
+    }
+  });
+});

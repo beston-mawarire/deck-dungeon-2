@@ -189,6 +189,8 @@ export interface GearBase extends HookDef {
   /** Legendaries only: earliest floor and the effect hidden until revealed. */
   legendary?: { minFloor: number; reveal: string; asBase: string };
 
+  /** Only ever rolls at this rarity (the greater starter-kit items). */
+  onlyRarity?: Rarity;
   /** Drop weight (default 1). Electric gear is a little rarer. */
   weight?: number;
   /** Bases never rolled as loot (starting kits). */
