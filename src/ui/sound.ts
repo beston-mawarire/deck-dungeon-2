@@ -1,5 +1,5 @@
 // Small synthesized sound effects (Web Audio), no files needed.
-type Sfx = "roll" | "hit" | "crit" | "miss" | "block" | "status" | "heal" | "reaction" | "chest" | "legendary" | "win" | "lose" | "click";
+type Sfx = "roll" | "hit" | "crit" | "miss" | "block" | "status" | "heal" | "reaction" | "chest" | "epic" | "legendary" | "win" | "lose" | "click";
 
 let ctx: AudioContext | null = null;
 let muted = false;
@@ -67,7 +67,11 @@ export function sfx(kind: Sfx) {
     case "heal": tone(520, 0.12, "sine", 0.07); tone(780, 0.16, "sine", 0.06, undefined, 0.08); break;
     case "reaction": noise(0.25, 0.2, 2500); tone(180, 0.3, "sawtooth", 0.08, 700); break;
     case "chest": tone(392, 0.1, "triangle", 0.08); tone(523, 0.12, "triangle", 0.08, undefined, 0.08); break;
-    case "legendary": [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, "triangle", 0.08, undefined, i * 0.09)); break;
+    case "epic": [523, 659, 784].forEach((f, i) => tone(f, 0.22, "triangle", 0.08, undefined, i * 0.08)); break;
+    case "legendary":
+      [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, "triangle", 0.09, undefined, i * 0.1));
+      tone(1047, 0.9, "sine", 0.06, undefined, 0.5); tone(1568, 0.9, "sine", 0.035, undefined, 0.55); noise(0.6, 0.05, 6000, 0.45);
+      break;
     case "win": [392, 523, 659, 784].forEach((f, i) => tone(f, 0.2, "square", 0.05, undefined, i * 0.1)); break;
     case "lose": [330, 262, 196].forEach((f, i) => tone(f, 0.3, "sawtooth", 0.06, undefined, i * 0.15)); break;
     case "click": tone(700, 0.03, "square", 0.03); break;

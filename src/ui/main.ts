@@ -368,6 +368,42 @@ function revealBtn(r: Run, it: GearItem) {
 
 // ---------- Render ----------
 
+// ---------- Loot fanfare ----------
+const celebrated = new Set<number>();
+let fanfareEl: HTMLElement | null = null;
+function celebrate(rarity: string, label?: string) {
+  if (rarity !== "epic" && rarity !== "legendary") return;
+  fanfareEl?.remove();
+  const el = document.createElement("div");
+  el.className = `fanfare ${rarity}`;
+  const sparks = rarity === "legendary"
+    ? Array.from({ length: 22 }, () => {
+        const a = Math.random() * Math.PI * 2, d = 120 + Math.random() * 220;
+        return `<i class="spark" style="left:50%;top:38%;--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d}px;animation-delay:${Math.random() * 0.25}s"></i>`;
+      }).join("")
+    : "";
+  el.innerHTML = `<div class="banner">${esc(label ?? (rarity === "legendary" ? "LEGENDARY" : "EPIC"))}</div>${sparks}`;
+  document.body.appendChild(el);
+  fanfareEl = el;
+  if (rarity === "legendary") navigator.vibrate?.([60, 40, 120]);
+  sfx(rarity === "legendary" ? "legendary" : "epic");
+  setTimeout(() => { el.remove(); if (fanfareEl === el) fanfareEl = null; }, rarity === "legendary" ? 3500 : 1900);
+}
+const RANK: Record<string, number> = { epic: 1, legendary: 2 };
+/** Celebrate the best newly-seen Epic/Legendary in the current scene, once per item. */
+function celebrateScene(r: Run) {
+  const s = r.scene;
+  const found: GearItem[] = s.t === "loot" || s.t === "pick" ? s.items
+    : s.t === "resplendent" && s.picked !== null && s.cards[s.picked].kind === "item" ? [(s.cards[s.picked] as { item: GearItem }).item] : [];
+  let best: GearItem | null = null;
+  for (const it of found) {
+    if (celebrated.has(it.uid) || !RANK[it.rarity]) continue;
+    celebrated.add(it.uid);
+    if (!best || RANK[it.rarity] > RANK[best.rarity]) best = it;
+  }
+  if (best) celebrate(best.rarity);
+}
+
 function render() {
   if (!run) {
     app.innerHTML = view === "codex" ? codexScreen() : titleScreen();
@@ -390,6 +426,7 @@ function render() {
     s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r)
     : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r)
     : s.t === "rest" ? restScene(r) : s.t === "confirm" ? confirmScene(r) : s.t === "event" ? eventScene(r) : overScene(r);
+  celebrateScene(r);
   const msg = [r.message, note].filter(Boolean);
   app.innerHTML = `${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}`;
   bind();
@@ -526,7 +563,7 @@ function bind() {
     on("[data-mode]", el => { mode = el.dataset.mode as Mode; });
     on("[data-codex]", () => { view = "codex"; });
     on("[data-back]", () => { view = "title"; });
-    on("[data-origin]", el => { recorded = null; banked = 0; run = newRun(el.dataset.origin as OriginId, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
+    on("[data-origin]", el => { recorded = null; celebrated.clear(); banked = 0; run = newRun(el.dataset.origin as OriginId, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
     return;
   }
   const r = run;
@@ -547,7 +584,7 @@ function bind() {
     const s = r.scene;
     if (s.t === "resplendent" && s.picked !== null) {
       const c = s.cards[s.picked];
-      sfx(c.kind === "item" && (c.item.rarity === "legendary" || c.item.rarity === "epic") ? "legendary" : "chest");
+      if (!(c.kind === "item" && RANK[c.item.rarity])) sfx("chest");
     }
   });
   on("[data-claim]", () => say(claimResplendent(r)));
@@ -559,9 +596,9 @@ function bind() {
   on("[data-rr]", el => say(forgeReroll(r, Number(el.dataset.rr))));
   on("[data-forgetab]", el => { forgeTab = el.dataset.forgetab as typeof forgeTab; offerSel.clear(); });
   on("[data-offersel]", el => { const u = Number(el.dataset.offersel); if (offerSel.has(u)) offerSel.delete(u); else offerSel.add(u); });
-  on("[data-offer]", () => { const out = forgeOffer(r, [...offerSel]); offerSel.clear(); if (typeof out === "string") { say(out); sfx("lose"); } else { say(`The Forge gives you: ${itemName(out)} (${out.rarity})`, false); sfx(out.rarity === "epic" || out.rarity === "legendary" ? "legendary" : "chest"); } });
-  on("[data-combine]", el => { const [a, b] = el.dataset.combine!.split(",").map(Number); const out = forgeCombine(r, a, b); if (typeof out === "string") say(out); else { say(`Combined into ${itemName(out)} (${out.rarity}, lv ${out.level})`, false); sfx("chest"); } });
-  on("[data-transmute]", el => { const out = forgeTransmute(r, Number(el.dataset.transmute)); if (typeof out === "string") say(out); else { say("The Crucible roars. A Legendary takes shape…", false); sfx("legendary"); } });
+  on("[data-offer]", () => { const out = forgeOffer(r, [...offerSel]); offerSel.clear(); if (typeof out === "string") { say(out); sfx("lose"); } else { say(`The Forge gives you: ${itemName(out)} (${out.rarity})`, false); if (RANK[out.rarity]) { celebrated.add(out.uid); celebrate(out.rarity); } else sfx("chest"); } });
+  on("[data-combine]", el => { const [a, b] = el.dataset.combine!.split(",").map(Number); const out = forgeCombine(r, a, b); if (typeof out === "string") say(out); else { say(`Combined into ${itemName(out)} (${out.rarity}, lv ${out.level})`, false); if (RANK[out.rarity]) { celebrated.add(out.uid); celebrate(out.rarity, out.rarity === "epic" ? "EPIC FORGED" : undefined); } else sfx("chest"); } });
+  on("[data-transmute]", el => { const out = forgeTransmute(r, Number(el.dataset.transmute)); if (typeof out === "string") say(out); else { say("The Crucible roars. A Legendary takes shape…", false); celebrate("legendary", "TRANSMUTED"); } });
   on("[data-fuse]", el => { const err = fuse(r, el.dataset.fuse!); say(err ?? `Fused: ${getItem(el.dataset.fuse!).name}!`, !!err); if (!err) sfx("legendary"); });
   on("[data-rest]", el => say(rest(r, el.dataset.rest as "heal" | "cleanse")));
   on("[data-risk]", el => confirmRisk(r, el.dataset.risk === "yes"));
@@ -571,7 +608,7 @@ function bind() {
   on("[data-unequip]", el => say(unequip(r.hero, el.dataset.unequip as EquipSlot)));
   on("[data-equip]", el => { const it = r.hero.backpack.find(i => i.uid === Number(el.dataset.equip)); if (it) say(equipItem(r.hero, it, el.dataset.slot as EquipSlot)); });
   on("[data-salvage]", el => { const n = salvage(r.hero, Number(el.dataset.salvage)); say(`+${n} Scrap`, false); });
-  on("[data-reveal]", el => { const err = reveal(r.hero, Number(el.dataset.reveal)); say(err ?? "The Legendary reveals its true power!", !!err); if (!err) sfx("legendary"); });
+  on("[data-reveal]", el => { const err = reveal(r.hero, Number(el.dataset.reveal)); say(err ?? "The Legendary reveals its true power!", !!err); if (!err) celebrate("legendary", "REVEALED"); });
 }
 
 render();

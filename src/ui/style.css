@@ -98,3 +98,27 @@ details summary { cursor: pointer; color: var(--muted); }
 .compare .up { color: var(--good); } .compare .down { color: var(--bad); }
 .busy button[data-act] { opacity: .45; pointer-events: none; }
 .topbar { display: flex; gap: 8px; align-items: center; }
+
+/* ---------- Loot fanfare ---------- */
+.fanfare { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
+.fanfare.epic { box-shadow: inset 0 0 40px 6px rgba(176,108,240,.75); animation: fan-epic 1.8s ease-out forwards; }
+@keyframes fan-epic { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
+.fanfare.legendary { animation: fan-leg 3.4s ease-out forwards;
+  box-shadow: inset 0 0 90px 18px rgba(240,138,42,.9), inset 0 0 22px 4px rgba(255,220,140,.95); }
+.fanfare.legendary::before { content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, rgba(255,200,100,.28), transparent 65%); animation: fan-flash .9s ease-out forwards; }
+.fanfare.legendary::after { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -40%;
+  background: linear-gradient(100deg, transparent, rgba(255,235,180,.35), transparent); animation: fan-sweep 1.4s .15s ease-in-out forwards; }
+@keyframes fan-leg { 0% { opacity: 0; } 8% { opacity: 1; } 22% { opacity: .55; } 36% { opacity: 1; } 60% { opacity: .8; } 100% { opacity: 0; } }
+@keyframes fan-flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes fan-sweep { to { left: 110%; } }
+.fanfare .banner { position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); font-weight: 800; font-style: italic;
+  letter-spacing: .25em; font-size: clamp(22px, 7vw, 44px); white-space: nowrap; color: #ffd27a;
+  text-shadow: 0 0 18px rgba(240,138,42,.9), 0 2px 0 #6a3a08; animation: fan-banner 2.6s ease-out forwards; }
+.fanfare.epic .banner { color: #d9b4ff; font-size: clamp(18px, 5vw, 30px); text-shadow: 0 0 14px rgba(176,108,240,.9); animation-duration: 1.6s; }
+@keyframes fan-banner { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); } 15% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+  30% { transform: translate(-50%, -50%) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60%) scale(1); } }
+.fanfare .spark { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #ffd27a; box-shadow: 0 0 8px #f08a2a;
+  animation: fan-spark 1.6s ease-out forwards; }
+@keyframes fan-spark { 0% { opacity: 1; transform: translate(0, 0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.3); } }
+@media (prefers-reduced-motion: reduce) { .fanfare::after, .fanfare .spark { display: none; } }
