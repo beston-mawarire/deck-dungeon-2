@@ -1,8 +1,9 @@
 // Combat: your weapon is your die. Roll it, read the face, fire every effect on that face, then deal damage.
-import { eachHook, fx, log, stacksOf } from "./registry";
+import { eachHook, fx, getItem, log, stacksOf } from "./registry";
 import { makeRng, rollDie } from "./rng";
 import { applyStatus, endOfRound, heal, loseHp, other, st, startOfTurn } from "./statuses";
-import type { AttackCtx, Battle, FaceGroup, FaceKind, FaceSpec, Fighter, Statuses } from "./types";
+import type { AttackCtx, Battle, FaceGroup, FaceKind, FaceSpec, Fighter, StatusId, Statuses } from "./types";
+import { NEGATIVE_STATUSES } from "./types";
 
 export const KIND_MULT: Record<FaceKind, number> = { miss: 0, graze: 0.5, hit: 1, crit: 2 };
 export const KIND_NAME: Record<FaceKind, string> = { miss: "Miss", graze: "Graze", hit: "Hit", crit: "Crit" };
@@ -26,6 +27,74 @@ export const faceName = (s: FaceSpec) => s.name ?? KIND_NAME[s.kind];
 
 export function damageOf(f: Fighter, offhand = false): number {
   return (offhand ? f.offDamage ?? 0 : f.damage) + st(f, "might");
+}
+
+/** Holding a Holy weapon (either hand) or a Holy Legendary/Crimson weapon. */
+export function wieldsHoly(f: Fighter): boolean {
+  for (const id of Object.keys(f.items)) {
+    try {
+      const d = getItem(id);
+      if (d.kind === "weapon" && d.tags.includes("Holy")) return true;
+    } catch { /* not a registered def */ }
+  }
+  return false;
+}
+
+/** Undead, vampires and Crimson things: Holy weapons deal +50% to them. */
+export const isUnholy = (f: Fighter) => f.family === "Undead" || !!f.crimson || (f.items["x_vampiric"] ?? 0) > 0 || (f.items["m_lifedrink"] ?? 0) > 0;
+
+/** How many times Smite can land per fight, and how hard (fraction of the enemy's Max HP). */
+const smiteLimit = (a: Fighter) => (stacksOf(a, "l_dawnbringer") > 0 ? 99 : 1 + stacksOf(a, "r_halo_retribution"));
+const smitePct = (a: Fighter) => (stacksOf(a, "r_halo_retribution") > 0 ? 0.3 : 0.2);
+
+function trySmite(b: Battle, a: Fighter, d: Fighter) {
+  if (!a.flags["smiteReady"] || d.hp <= 0 || !wieldsHoly(a) || (a.flags["smites"] ?? 0) >= smiteLimit(a)) return;
+  a.flags["smiteReady"] = 0;
+  a.flags["smites"] = (a.flags["smites"] ?? 0) + 1;
+  const n = Math.ceil(d.maxHp * smitePct(a));
+  fx(b, { who: d.id, kind: "reaction", text: "Smite!" });
+  const lost = loseHp(b, d, n);
+  log(b, `⚡✝️ SMITE! Your Ward turned their spite into judgement: ${d.name} takes ${lost}.`);
+  if (a.id === "player") a.persist["rx:foe:smite"] = (a.persist["rx:foe:smite"] ?? 0) + 1;
+}
+
+/** Purify: strip every negative status from the enemy; each one removed deals 2× your Damage (ignores Armor). */
+function purify(b: Battle, ctx: AttackCtx) {
+  const { attacker: a, defender: d } = ctx;
+  const removed = (NEGATIVE_STATUSES as readonly StatusId[]).filter(s => st(d, s) > 0);
+  for (const s of removed) d.statuses[s] = 0;
+  const perStatus = (stacksOf(a, "l_font_absolution") > 0 ? 3 : 2) * (damageOf(a, ctx.offhand) + ctx.bonus) + [0, 1, 2, 3][Math.min(3, stacksOf(a, "t_absolution"))];
+  let raw = perStatus * removed.length * ctx.mult;
+  if (st(a, "weak") > 0) raw *= 0.75;
+  if (wieldsHoly(a) && isUnholy(d)) raw *= 1.5;
+  raw = Math.max(0, Math.round(raw));
+  ctx.raw = raw;
+  if (!removed.length) {
+    log(b, `${a.name} Purifies, but ${d.name} carries no sin to burn away.`);
+    fx(b, { who: d.id, kind: "miss", text: "Nothing to purify" });
+    return afterStrike(b, ctx);
+  }
+  if (st(d, "evade") > 0) {
+    d.statuses.evade = 0;
+    log(b, `${d.name} evades the Purify.`);
+    fx(b, { who: d.id, kind: "miss", text: "Evaded" });
+    return afterStrike(b, ctx);
+  }
+  fx(b, { who: d.id, kind: "text", text: `Purify ×${removed.length}`, icon: "✨" });
+  ctx.dealt = loseHp(b, d, raw);
+  log(b, `✨ ${a.name} Purifies ${removed.length} status${removed.length === 1 ? "" : "es"} from ${d.name} for ${ctx.dealt}.`);
+  const healPer = (stacksOf(a, "l_font_absolution") > 0 ? 2 : 0) + (stacksOf(a, "t_sin_eater") > 0 ? 2 : 0);
+  if (healPer) heal(b, a, healPer * removed.length, "Purify");
+  if (stacksOf(a, "t_absolution") >= 2) {
+    const mine = (NEGATIVE_STATUSES as readonly StatusId[]).find(s => st(a, s) > 0);
+    if (mine) { a.statuses[mine] = 0; log(b, `Absolution lifts your ${mine}.`); }
+  }
+  if (ctx.dealt > 0) {
+    trySmite(b, a, d);
+    eachHook(a, "onHit", (h, s) => h(b, ctx, s));
+    if (ctx.kind === "crit") eachHook(a, "onCrit", (h, s) => h(b, ctx, s));
+  }
+  afterStrike(b, ctx);
 }
 
 export function armorOf(f: Fighter): number {
@@ -102,8 +171,10 @@ function strike(b: Battle, ctx: AttackCtx) {
     }
     return afterStrike(b, ctx);
   }
+  if (ctx.spec.cleanse) return purify(b, ctx);
   let raw = (damageOf(a, ctx.offhand) + ctx.bonus) * ctx.mult;
   if (st(a, "weak") > 0) raw *= 0.75;
+  if (wieldsHoly(a) && isUnholy(d)) raw *= 1.5;
   if (st(d, "exposed") > 0) raw += 2;
   if (st(d, "shock") > 0) {
     raw *= 1.5;
@@ -147,6 +218,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     fx(b, { who: d.id, kind: "block", text: "Blocked" });
   }
   if (ctx.dealt > 0) {
+    trySmite(b, a, d);
     eachHook(a, "onHit", (h, s) => h(b, ctx, s));
     if (ctx.kind === "crit") eachHook(a, "onCrit", (h, s) => h(b, ctx, s));
   }

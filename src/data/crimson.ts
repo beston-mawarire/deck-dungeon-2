@@ -4,7 +4,7 @@ import { attack } from "../engine/combat";
 import { REACTIONS } from "../engine/statuses";
 import type { AttackCtx, Battle, GearBase, StatusId } from "../engine/types";
 import { NEGATIVE_STATUSES } from "../engine/types";
-import { applyStatus, cast, CRIT, GRAZE, heal, HIT, log, loseHp, other, ping, st } from "./helpers";
+import { applyStatus, cast, CRIT, GRAZE, heal, HIT, log, loseHp, other, ping, purify, st } from "./helpers";
 
 const crimson = (d: Omit<GearBase, "rarity">): GearBase => ({ ...d, rarity: "crimson" });
 
@@ -38,6 +38,11 @@ export const CRIMSON: GearBase[] = [
     faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT, heartstrike, heartstrike],
     text: "A d8. Faces 7 and 8 are Heartstrikes: crits that add a fifth of the enemy's current HP. Works in the off-hand.",
     hooks: {} }),
+
+  crimson({ id: "c_red_sacrament", kind: "weapon", slot: "main", name: "The Red Sacrament", tags: ["Holy", "Bleed", "Burn"], damage: 7,
+    faces: [GRAZE, purify(), purify(), purify(), purify(), purify("crit", "Last Rite")],
+    text: "Holy. Before every Purify, it anoints the enemy with 2 Bleed, 2 Burn and 2 Exposed — then strips them all away for 2× Damage each.",
+    hooks: { modifyAttack: (b, c) => { if (c.spec.cleanse) { for (const s of ["bleed", "burn", "exposed"] as const) applyStatus(b, c.attacker, c.defender, s, 2); } } } }),
 
   // ---------- Off-hands ----------
   crimson({ id: "c_crimson_aegis", kind: "off", slot: "off", name: "Crimson Aegis", tags: ["Guard", "Thorns"], armor: 5,

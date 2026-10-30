@@ -2,7 +2,7 @@
 import { BONUSES, CRIMSON, CURSES, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
 import { FUSION_RECIPES } from "../data/fusions";
 import { ORIGINS } from "../data/origins";
-import { armorOf, beginRound, enemyPhase, endRound, heroPhase, type Action } from "../engine/combat";
+import { armorOf, beginRound, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly } from "../engine/combat";
 import { getItem } from "../engine/registry";
 import { REACTIONS, STATUS_INFO } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
@@ -59,7 +59,8 @@ const statusChips = (f: Fighter) =>
     .filter(([, n]) => n > 0)
     .map(([s, n]) => `<span class="chip" title="${esc(STATUS_INFO[s].text)}">${STATUS_INFO[s].icon} ${STATUS_INFO[s].name} ${n}</span>`)
     .join("") +
-  activeReactions(f).map(id => { const r = reactionInfo(id); return `<span class="chip rx" title="${esc(r.text)}">✴️ ${r.name}</span>`; }).join("");
+  activeReactions(f).map(id => { const r = reactionInfo(id); return `<span class="chip rx" title="${esc(r.text)}">✴️ ${r.name}</span>`; }).join("") +
+  (f.flags["smiteReady"] && wieldsHoly(f) ? `<span class="chip rx holy" title="Your Ward stopped an enemy status: your next Holy hit Smites for 20% of the enemy's Max HP">⚡ Smite ready</span>` : "");
 
 /** Which of the hero's sources mention a status by name (gear, bonuses, relics, talents, origin, curses). */
 function statusSources(h: Hero, status: StatusId): string[] {
@@ -93,7 +94,8 @@ function reactionsPanel(r: Run) {
       ${st.map(([s, n]) => `<p>${STATUS_INFO[s].icon} <b>${STATUS_INFO[s].name}</b> ${n} — ${esc(STATUS_INFO[s].text)}</p>`).join("")}`;
   };
   const counts = (side: "you" | "foe") => REACTIONS.map(x => [x, h.f.persist[`rx:${side}:${x.id}`] ?? 0] as const).filter(([, n]) => n > 0);
-  const onFoe = counts("foe");
+  const smites = h.f.persist["rx:foe:smite"] ?? 0;
+  const onFoe = [...counts("foe"), ...(smites ? [[{ name: "Smite" }, smites] as const] : [])];
   const onYou = counts("you");
   const history = onFoe.length || onYou.length
     ? `${onFoe.length ? `<p>On enemies: ${onFoe.map(([x, n]) => `<span class="chip">${x.name} ×${n}</span>`).join(" ")}</p>` : ""}${onYou.length ? `<p>On you: ${onYou.map(([x, n]) => `<span class="chip">${x.name} ×${n}</span>`).join(" ")}</p>` : ""}`
@@ -106,12 +108,17 @@ function reactionsPanel(r: Run) {
     return `<div class="rxguide ${yours ? "yours" : ""}"><b>${x.name}</b>${yours ? ` <span class="chip rx">your build can set this off</span>` : ""}<br>
       ${src(x.a as StatusId, a)} + ${src(x.b as StatusId, c)}<br><span class="sub">${esc(x.text)}</span></div>`;
   }).join("");
+  const wardSrc = statusSources(h, "ward");
+  const holy = wieldsHoly(h.f);
+  const smiteRow = `<div class="rxguide ${holy && wardSrc.length ? "yours" : ""}"><b>Smite</b>${holy && wardSrc.length ? ` <span class="chip rx">your build can set this off</span>` : ""}<br>
+    ✨ Ward ${wardSrc.length ? `<span class="sub">(${wardSrc.map(esc).join(", ")})</span>` : ""} blocks an enemy's status + a ✝️ Holy weapon ${holy ? "" : `<span class="sub">(you have none)</span>`}<br>
+    <span class="sub">Your next Holy hit deals 20% of the enemy's Max HP on top, once per fight.</span></div>`;
   return `<h2>Statuses & reactions</h2>
     <div class="panel">
       ${b ? `${describe(b.player, "On you")}${describe(b.enemy, `On ${b.enemy.name}`)}` : `<p class="sub">Statuses and reactions only last for a fight. Open this mid-fight to see what's active.</p>`}
       <p style="margin-top:10px"><b>This run</b></p>${history}
     </div>
-    <details><summary>Reaction guide — two statuses on the same fighter react</summary><p class="sub">The names in brackets are things you own that mention that status.</p>${guide}</details>
+    <details><summary>Reaction guide — two statuses on the same fighter react</summary><p class="sub">The names in brackets are things you own that mention that status.</p>${smiteRow}${guide}</details>
     <details><summary>All statuses</summary>${(Object.keys(STATUS_INFO) as StatusId[]).map(s => `<p>${STATUS_INFO[s].icon} <b>${STATUS_INFO[s].name}</b> — ${esc(STATUS_INFO[s].text)}</p>`).join("")}</details>`;
 }
 
@@ -226,7 +233,7 @@ function dieBox(who: "player" | "enemy", label: string) {
 function fighterPanel(f: Fighter, who: "player" | "enemy") {
   const hp = dispHp[who] ?? f.hp;
   const intent = who === "enemy" && f.moves?.length ? f.moves[f.intent ?? 0] : null;
-  const traits = who === "enemy" ? Object.keys(f.items).map(id => getItem(id)).map(d => `<span class="chip" title="${esc(d.text)}">${esc(d.name)}</span>`).join("") : "";
+  const traits = who === "enemy" ? `${isUnholy(f) ? `<span class="chip holy" title="Holy weapons deal +50% to it">☠️ Unholy</span>` : ""}${Object.keys(f.items).map(id => getItem(id)).map(d => `<span class="chip" title="${esc(d.text)}">${esc(d.name)}</span>`).join("")}` : "";
   return `<div class="panel fighter ${f.crimson ? "crimson-foe" : ""}" id="fp-${who}">
     <div class="row"><b>${esc(f.name)}</b>${f.title ? `<span class="sub">${esc(f.title)}</span>` : ""}<span class="grow"></span><span class="sub">${who === "enemy" ? `${f.family ?? ""}${f.crimson ? " · Crimson" : ""}${f.boss ? " · Boss" : f.champion ? " · Champion" : f.elite ? " · Elite" : ""}` : ""}</span></div>
     <div class="bar ${who === "enemy" ? "enemy" : ""}"><i style="width:${Math.max(0, (hp / f.maxHp) * 100)}%"></i></div>

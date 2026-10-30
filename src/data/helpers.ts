@@ -34,6 +34,10 @@ export const GRAZE: FaceSpec = { kind: "graze" };
 export const HIT: FaceSpec = { kind: "hit" };
 export const CRIT: FaceSpec = { kind: "crit" };
 export const spell = (name: string, kind: FaceSpec["kind"], run: FaceSpec["run"]): FaceSpec => ({ kind, name, run });
+/** A Purify face (Holy cleansing weapons): strips the enemy's negative statuses for 2× Damage each. */
+export const purify = (kind: FaceSpec["kind"] = "hit", name = "Purify"): FaceSpec => ({ kind, name, cleanse: true });
+/** The negative statuses, for "random status" effects. */
+export const HEXES: StatusId[] = ["burn", "poison", "chill", "bleed", "weak", "exposed"];
 /** A spell from an Arcane weapon: ignores Armor. */
 export const cast = (name: string, kind: FaceSpec["kind"], run: FaceSpec["run"]): FaceSpec => ({ kind, name, run, magic: true });
 export const hex = (status: StatusId, n: number) => (b: Battle, ctx: AttackCtx) => applyStatus(b, ctx.attacker, ctx.defender, status, n);

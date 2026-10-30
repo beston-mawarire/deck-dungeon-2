@@ -147,3 +147,4 @@ button.crimson-btn { background: var(--crimson); border-color: var(--crimson); c
 .rxline { background: #2b2414; border-radius: 8px; padding: 4px 8px; }
 .rxguide { border-top: 1px dashed var(--line); padding: 6px 0; font-size: .9rem; }
 .rxguide.yours b:first-child { color: var(--gold); }
+.chip.holy { border-color: #f3e3a0; color: #f6e7b0; }

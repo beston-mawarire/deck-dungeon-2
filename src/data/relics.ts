@@ -172,4 +172,16 @@ export const GUARD_RELICS: HookDef[] = [
     hooks: { onGuard: (b, f) => { if (f.flags["lastGuard"] !== b.round - 1) f.flags["vow"] = b.round; f.flags["lastGuard"] = b.round; } } })
 ];
 
-export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3, ...LEGENDARY_RELICS, ...GUARD_RELICS];
+// ---------- Holy relics ----------
+const HEX = ["burn", "poison", "chill", "bleed", "weak", "exposed"] as const;
+export const HOLY_RELICS: HookDef[] = [
+  relic({ id: "r_votive_candle", name: "Votive Candle", rarity: "common", tags: ["Holy", "Burn"], text: "Start each fight with Ward and apply 2 Burn (+2)",
+    hooks: { onFightStart: (b, f, s) => { applyStatus(b, f, f, "ward", 1); applyStatus(b, f, other(b, f), "burn", 2 * s); } } }),
+  relic({ id: "r_sin_ledger", name: "Ledger of Sins", rarity: "uncommon", tags: ["Holy", "Hex"], text: "Each round, apply 1 random negative status to the enemy (+1 stack)",
+    hooks: { onRoundStart: (b, f, s) => applyStatus(b, f, other(b, f), HEX[Math.floor(b.rng() * HEX.length)], s) } }),
+  relic({ id: "r_halo_retribution", name: "Halo of Retribution", rarity: "rare", tags: ["Holy", "Kill"], text: "Smite deals 30% of the enemy's Max HP instead of 20%, and can land one more time per fight (+1)", hooks: {} }),
+  relic({ id: "r_reliquary_ash", name: "Reliquary of Ash", rarity: "rare", tags: ["Holy", "Burn", "Blood"], text: "Whenever a status is stripped from an enemy by your Purify, it leaves 1 Burn behind (+1)",
+    hooks: { onHit: (b, c, s) => { if (c.spec.cleanse) applyStatus(b, c.attacker, c.defender, "burn", s); } } })
+];
+
+export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3, ...LEGENDARY_RELICS, ...GUARD_RELICS, ...HOLY_RELICS];

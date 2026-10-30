@@ -75,6 +75,8 @@ export function itemLines(item: GearItem): string[] {
   const armor = (eb.armor ?? 0) + Math.floor((item.level - 1) / 2);
   if (armor) lines.push(`Armor ${armor}`);
   if (eb.faces) lines.push(`Faces: ${eb.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind[0].toUpperCase() + f.kind.slice(1)}`).join(" · ")}`);
+  if (eb.kind === "weapon" && eb.tags.includes("Holy")) lines.push("✝️ Holy: +50% to Undead, vampires and Crimson foes. When your Ward stops an enemy's status, your next hit Smites (20% of its Max HP, once per fight).");
+  if (eb.faces?.some(f => f.cleanse)) lines.push("✨ Purify: strips every negative status from the enemy and deals 2× Damage for each one (ignores Armor). Nothing on them, no damage.");
   if (b.legendary && !item.revealed) lines.push("A Legendary, waiting to be revealed. Use a Scroll of Revelation.");
   else if (b.legendary) lines.push(`★ ${b.legendary.reveal}`);
   else if (eb.text) lines.push(eb.text);

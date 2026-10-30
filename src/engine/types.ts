@@ -2,7 +2,7 @@
 
 export const TAGS = [
   "Strike", "Crit", "Bleed", "Burn", "Poison", "Frost", "Storm", "Hex",
-  "Guard", "Thorns", "Blood", "Gold", "Luck", "Kill", "Tempo", "Arcane"
+  "Guard", "Thorns", "Blood", "Gold", "Luck", "Kill", "Tempo", "Arcane", "Holy"
 ] as const;
 export type Tag = (typeof TAGS)[number];
 
@@ -37,6 +37,8 @@ export interface FaceSpec {
   cleave?: boolean;
   /** Spells cast by Arcane weapons ignore Armor. */
   magic?: boolean;
+  /** Purify (Holy cleansing weapons): no normal damage; strips the enemy's negative statuses and deals 2× Damage per status removed. */
+  cleanse?: boolean;
 }
 
 export interface Fighter {
@@ -144,6 +146,8 @@ export interface Hooks {
   reactionMult?: (b: Battle, self: Fighter, stacks: number) => number;
   /** Change the hero's stats when gear is recalculated (Max HP, Armor, damage). */
   stats?: (s: StatBlock, stacks: number) => void;
+  /** Your Ward just blocked a negative status (the enemy's, or a curse's). */
+  onWard?: (b: Battle, self: Fighter, status: StatusId, amount: number, stacks: number) => void;
   /** Change healing received (multiplier). */
   healMult?: (stacks: number) => number;
 }

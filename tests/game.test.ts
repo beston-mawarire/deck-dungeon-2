@@ -408,3 +408,52 @@ describe("guard", () => {
     expect(h.f.persist["rx:foe:combustion"]).toBe(1);
   });
 });
+
+describe("holy", () => {
+  it("Purify strips negative statuses for 2x Damage each, ignoring Armor", () => {
+    const h = newHero("cleric");
+    equipItem(h, { uid: 900, base: "w_aspergillum", rarity: "common", level: 1, bonuses: {}, revealed: true }, "main");
+    const e = makeMonster(makeRng(4), 1, "normal");
+    e.hp = e.maxHp = 500;
+    e.armor = 10;
+    e.family = "Beast";
+    const b = startBattle(h.f, e, 4);
+    applyStatus(b, h.f, e, "weak", 2);
+    applyStatus(b, h.f, e, "exposed", 2);
+    applyStatus(b, h.f, e, "chill", 1);
+    const before = e.hp;
+    resolveFace(b, h.f, e, 3); // a plain Purify (hit)
+    expect(st(e, "weak") + st(e, "exposed") + st(e, "chill")).toBe(0);
+    expect(before - e.hp).toBe(2 * h.f.damage * 3);
+  });
+
+  it("Ward blocking an enemy status readies a Smite for 20% of Max HP, once per fight", () => {
+    const h = newHero("cleric");
+    const e = makeMonster(makeRng(5), 1, "normal");
+    e.hp = e.maxHp = 200;
+    e.armor = 0;
+    e.family = "Beast";
+    const b = startBattle(h.f, e, 5);
+    h.f.statuses.ward = 1;
+    applyStatus(b, e, h.f, "poison", 3);
+    expect(st(h.f, "poison")).toBe(0);
+    expect(h.f.flags["smiteReady"]).toBe(1);
+    resolveFace(b, h.f, e, 3);
+    expect(200 - e.hp).toBe(h.f.damage + 40);
+    // Once per fight.
+    h.f.statuses.ward = 1;
+    applyStatus(b, e, h.f, "poison", 3);
+    const hp = e.hp;
+    resolveFace(b, h.f, e, 3);
+    expect(hp - e.hp).toBe(h.f.damage);
+  });
+
+  it("Holy weapons hit Undead harder", () => {
+    const h = newHero("cleric");
+    const mk = (fam: string) => { const e = makeMonster(makeRng(6), 1, "normal"); e.hp = e.maxHp = 300; e.armor = 0; e.family = fam; e.items = {}; return e; };
+    const z = mk("Undead"), w = mk("Beast");
+    const b1 = startBattle(h.f, z, 7); resolveFace(b1, h.f, z, 3);
+    const b2 = startBattle(h.f, w, 7); resolveFace(b2, h.f, w, 3);
+    expect(300 - z.hp).toBe(Math.round(1.5 * (300 - w.hp)));
+  });
+});

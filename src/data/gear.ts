@@ -1,6 +1,10 @@
 // Gear bases: weapons (your die), off-hands, armour and trinkets. Rarity and bonuses are rolled on top.
 import type { GearBase } from "../engine/types";
-import { applyStatus, cast, CRIT, depth, GRAZE, heal, hex, HIT, MISS, on, other, ping, self, spell, st } from "./helpers";
+import { applyStatus, cast, CRIT, depth, GRAZE, heal, HEXES, hex, HIT, MISS, on, other, ping, purify, self, spell, st } from "./helpers";
+import type { StatusId } from "../engine/types";
+import { wieldsHoly } from "../engine/combat";
+
+const NEG: StatusId[] = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom"];
 
 const weapon = (d: Omit<GearBase, "kind" | "slot">): GearBase => ({ kind: "weapon", slot: "main", ...d });
 const off = (d: Omit<GearBase, "kind" | "slot">): GearBase => ({ kind: "off", slot: "off", ...d });
@@ -53,6 +57,21 @@ export const WEAPONS: GearBase[] = [
     faces: [GRAZE, HIT, HIT, HIT, spell("Parry", "hit", self("evade", 1)), CRIT], hooks: {} }),
   weapon({ id: "w_rapier", name: "Rapier", tags: ["Crit", "Tempo"], text: "Precise. A 6 sets up your next roll.", damage: 3,
     faces: [GRAZE, HIT, HIT, HIT, CRIT, spell("Riposte", "crit", self("focus", 1))], hooks: {} }),
+  // ---------- Holy weapons: +50% to Undead, vampires and Crimson foes; they can Smite ----------
+  weapon({ id: "w_blessed_mace", name: "Blessed Mace", tags: ["Holy", "Guard"], text: "Holy. A 5 blesses you with Ward.", damage: 4,
+    faces: [GRAZE, HIT, HIT, HIT, spell("Bless", "hit", self("ward", 1)), CRIT], hooks: {} }),
+  weapon({ id: "w_sunhammer", name: "Sunhammer", tags: ["Holy", "Burn", "Strike"], text: "Holy. Two-handed. A 6 is a Dawnstrike: 3 Burn.", damage: 6, twoHanded: true,
+    faces: [MISS, HIT, HIT, HIT, HIT, spell("Dawnstrike", "crit", hex("burn", 3))], hooks: {} }),
+  weapon({ id: "w_censer_flail", name: "Censer Flail", tags: ["Holy", "Burn", "Blood"], text: "Holy. A 3 swings incense (2 Burn); a 5 soothes you (2 Regen).", damage: 4,
+    faces: [GRAZE, HIT, spell("Incense", "hit", hex("burn", 2)), HIT, spell("Soothe", "hit", self("regen", 2)), CRIT], hooks: {} }),
+  weapon({ id: "w_templar_blade", name: "Templar Blade", tags: ["Holy", "Strike", "Hex"], text: "Holy. A 5 passes Judgement (2 Exposed).", damage: 4,
+    faces: [GRAZE, HIT, HIT, HIT, spell("Judgement", "hit", hex("exposed", 2)), CRIT], hooks: {} }),
+  weapon({ id: "w_aspergillum", name: "Aspergillum", tags: ["Holy", "Hex"], text: "Holy. It doesn't wound — it cleanses. Every face but the 1 is a Purify: strip the enemy's negative statuses for 2× Damage each (ignores Armor). Works in the off-hand.", damage: 3, offDamage: 2,
+    faces: [MISS, purify("graze"), purify(), purify(), purify(), purify("crit", "Absolve")], hooks: {} }),
+  weapon({ id: "w_scepter", name: "Scepter of Absolution", tags: ["Holy", "Hex", "Strike"], text: "Holy. Half strikes, half Purifies: 2, 4 and 6 strip the enemy's negative statuses for 2× Damage each.", damage: 4,
+    faces: [GRAZE, purify(), HIT, purify(), HIT, purify("crit", "Absolve")], hooks: {} }),
+  weapon({ id: "w_pilgrim_staff", name: "Pilgrim's Staff", tags: ["Holy", "Blood", "Guard"], text: "Holy. Two-handed. A 2 shelters you (Ward); a 4 mends you (3 Regen); a 6 Purifies.", damage: 5, twoHanded: true,
+    faces: [GRAZE, spell("Shelter", "hit", self("ward", 1)), HIT, spell("Mend", "hit", self("regen", 3)), HIT, purify("crit", "Absolve")], hooks: {} }),
   weapon({ id: "w_longsword", name: "Longsword", tags: ["Strike", "Crit"], text: "Two-handed. Crits on 5 and 6.", damage: 6, twoHanded: true,
     faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT], hooks: {} }),
   weapon({ id: "w_warpick", name: "War Pick", tags: ["Strike", "Hex"], text: "A 4 punches through Armor; a 5 leaves the enemy Exposed.", damage: 5,
@@ -117,6 +136,21 @@ export const OFFHANDS: GearBase[] = [
     hooks: { onGuard: (b, f) => applyStatus(b, f, f, "regen", 2) } }),
   off({ id: "o_witchwood", name: "Witchwood Focus", tags: ["Poison", "Hex", "Arcane"], text: "On a 2: apply 2 Poison and 1 Weak.",
     hooks: { face: [on(2, (b, c) => { applyStatus(b, c.attacker, c.defender, "poison", 2); applyStatus(b, c.attacker, c.defender, "weak", 1); })] } }),
+  // ---------- Hybrid cleric off-hands: something for you, something against them ----------
+  off({ id: "o_thurible", name: "Thurible of Judgement", tags: ["Holy", "Burn", "Blood"], text: "Each round: apply 1 Burn to the enemy and gain 1 Regen.",
+    hooks: { onRoundStart: (b, f) => { applyStatus(b, f, other(b, f), "burn", 1); applyStatus(b, f, f, "regen", 1); } } }),
+  off({ id: "o_shield_faith", name: "Shield of Faith", tags: ["Holy", "Guard", "Hex"], text: "+2 Armor. Start each fight with Ward. Guarding gives Ward and applies 2 Exposed.", armor: 2,
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1), onGuard: (b, f) => { applyStatus(b, f, f, "ward", 1); applyStatus(b, f, other(b, f), "exposed", 2); } } }),
+  off({ id: "o_sanct_lantern", name: "Sanctified Lantern", tags: ["Holy", "Burn", "Blood"], text: "Start each fight with Ward. Whenever your Ward blocks a status, heal 3 and apply 3 Burn.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1), onWard: (b, f) => { heal(b, f, 3, "Sanctified Lantern"); applyStatus(b, f, other(b, f), "burn", 3); } } }),
+  off({ id: "o_psalter", name: "Psalter of Wrath", tags: ["Holy", "Burn", "Guard"], text: "On a 6: gain Ward and apply 3 Burn. On a 1: heal 2 and apply 1 Weak.",
+    hooks: { face: [on(6, (b, c) => { applyStatus(b, c.attacker, c.attacker, "ward", 1); applyStatus(b, c.attacker, c.defender, "burn", 3); }), on(1, (b, c) => { heal(b, c.attacker, 2, "Psalter"); applyStatus(b, c.attacker, c.defender, "weak", 1); })] } }),
+  off({ id: "o_martyr_icon", name: "Martyr's Icon", tags: ["Holy", "Blood", "Thorns"], text: "When you're hit: heal 1, and the attacker takes 1 Burn and 1 Exposed.",
+    hooks: { whenHit: (b, c) => { if (c.dealt > 0) { heal(b, c.defender, 1, "Martyr's Icon"); applyStatus(b, c.defender, c.attacker, "burn", 1); applyStatus(b, c.defender, c.attacker, "exposed", 1); } } } }),
+  off({ id: "o_absolution_bell", name: "Bell of Absolution", tags: ["Holy", "Hex"], text: "Every 3rd round, your negative statuses leave you and land on the enemy.",
+    hooks: { onRoundStart: (b, f) => { if (b.round % 3 !== 0) return; const e = other(b, f); for (const s of NEG) { const n = st(f, s); if (n > 0) { f.statuses[s] = 0; applyStatus(b, f, e, s, n); } } } } }),
+  off({ id: "o_penitent_chain", name: "Penitent's Chain", tags: ["Holy", "Hex", "Blood"], text: "Each round: apply 1 random negative status to the enemy (Burn, Poison, Chill, Bleed, Weak or Exposed) and heal 1.",
+    hooks: { onRoundStart: (b, f) => { applyStatus(b, f, other(b, f), HEXES[Math.floor(b.rng() * HEXES.length)], 1); heal(b, f, 1, "Penitent's Chain"); } } }),
   off({ id: "o_hourglass", name: "Sand Hourglass", tags: ["Tempo", "Luck"], text: "Every 4th round, gain Haste.", hooks: { onRoundStart: (b, f) => { if (b.round % 4 === 0) applyStatus(b, f, f, "haste", 1); } } })
 ];
 
@@ -157,6 +191,10 @@ export const ARMOURS: GearBase[] = [
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "evade", 1), modifyRoll: (_b, _f, r) => (r === 1 ? 2 : r) } }),
   armour({ id: "a_bulwark_plate", name: "Bulwark Plate", tags: ["Guard"], text: "Very heavy: +5 Armor, but −1 Damage.", armor: 5,
     hooks: { stats: s => { s.damage -= 1; s.offDamage -= 1; } } }),
+  armour({ id: "a_inquisitor", name: "Inquisitor's Mantle", tags: ["Holy", "Hex", "Guard"], text: "+2 Armor. Start each fight with Ward. When your Ward blocks a status, the enemy gets 3 of it instead.", armor: 2,
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1), onWard: (b, f, s) => applyStatus(b, f, other(b, f), s, 3) } }),
+  armour({ id: "a_penance", name: "Vestments of Penance", tags: ["Holy", "Hex", "Blood"], text: "+1 Armor. At the end of each round, one negative status leaves you and lands on the enemy.", armor: 1,
+    hooks: { onRoundEnd: (b, f) => { const s = NEG.find(x => st(f, x) > 0); if (s) { const n = st(f, s); f.statuses[s] = 0; applyStatus(b, f, other(b, f), s, n); } } } }),
   armour({ id: "a_vestments", name: "Priest's Vestments", tags: ["Blood", "Guard"], text: "+1 Armor. Healing you receive +25%.", armor: 1, hooks: { healMult: () => 1.25 } })
 ];
 
@@ -198,6 +236,12 @@ export const TRINKETS: GearBase[] = [
   trinket({ id: "t_heart_locket", name: "Heart Locket", tags: ["Blood", "Guard"], text: "+4 Max HP. Guarding heals 2.", maxHp: 4, hooks: { onGuard: (b, f) => { heal(b, f, 2, "Heart Locket"); } } }),
   trinket({ id: "t_venom_gland", name: "Venom Gland", tags: ["Poison"], text: "Poison you apply +1.",
     hooks: { onStatusApplied: (_b, self, t, status) => { if (status === "poison" && t !== self) t.statuses.poison = st(t, "poison") + 1; } } }),
+  trinket({ id: "t_holy_water", name: "Holy Water", tags: ["Holy", "Guard"], text: "Start each fight with Ward. The first time your Ward blocks a status each fight, gain Ward again.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1), onWard: (b, f) => { if (!f.flags["holyWater"]) { f.flags["holyWater"] = 1; applyStatus(b, f, f, "ward", 1); } } } }),
+  trinket({ id: "t_sin_eater", name: "Sin-Eater's Tooth", tags: ["Holy", "Blood"], text: "Every status your Purify strips heals you 2.",
+    hooks: {} }), // Purify (combat.ts)
+  trinket({ id: "t_zealot_brand", name: "Zealot's Brand", tags: ["Holy", "Burn"], text: "Each round: apply 2 Burn. Holy hits deal +2.",
+    hooks: { onRoundStart: (b, f) => applyStatus(b, f, other(b, f), "burn", 2), modifyAttack: (_b, c) => { if (wieldsHoly(c.attacker)) c.bonus += 2; } } }),
   trinket({ id: "t_quicksilver", name: "Quicksilver Ring", tags: ["Tempo"], text: "Start each fight at full HP with Haste.", hooks: { onFightStart: (b, f) => { if (f.hp >= f.maxHp) applyStatus(b, f, f, "haste", 1); } } })
 ];
 

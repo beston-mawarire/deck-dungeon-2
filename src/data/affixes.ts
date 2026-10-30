@@ -3,7 +3,7 @@
 import { attack } from "../engine/combat";
 import { log } from "../engine/registry";
 import type { Battle, Fighter, GearBase, HookDef } from "../engine/types";
-import { applyStatus, cast, CRIT, GRAZE, heal, hex, HIT, MISS, on, ping, st } from "./helpers";
+import { applyStatus, cast, CRIT, GRAZE, heal, hex, HIT, MISS, on, ping, purify, self, spell, st } from "./helpers";
 
 const bonus = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "bonus", ...d });
 const epic = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "epic", rarity: "epic", ...d });
@@ -247,6 +247,23 @@ export const LEGENDARIES: GearBase[] = [
     text: "Something inside it is still counting.",
     hooks: { onRoundEnd: (b, f) => { const e = b.player === f ? b.enemy : b.player; if (e.hp > 0) { ping(b, e, 3, "Phylactery"); heal(b, f, 3, "Phylactery"); } },
       onKill: (_b, c) => { c.attacker.persist["maxHpLoss"] = (c.attacker.persist["maxHpLoss"] ?? 0) - 1; c.attacker.maxHp += 1; } } }),
+  legendary({ id: "l_dawnbringer", kind: "weapon", slot: "main", name: "Dawnbringer", tags: ["Holy", "Guard", "Burn"], damage: 6,
+    faces: [GRAZE, HIT, HIT, spell("Bless", "hit", self("ward", 1)), spell("Bless", "hit", self("ward", 1)), spell("Sunrise", "crit", hex("burn", 4))],
+    legendary: { minFloor: 2, asBase: "w_blessed_mace", reveal: "Holy. 4s and 5s bless you with Ward. Smite isn't once per fight any more — every time your Ward stops them, your next hit Smites." },
+    text: "The light at the end of every night.", hooks: {} }),
+  legendary({ id: "l_font_absolution", kind: "weapon", slot: "main", name: "Font of Absolution", tags: ["Holy", "Hex", "Blood"], damage: 5, offDamage: 4,
+    faces: [purify("graze"), purify(), purify(), purify(), purify(), purify("crit", "Absolve")],
+    legendary: { minFloor: 3, asBase: "w_aspergillum", reveal: "Holy. Every face Purifies, for 3× Damage per status stripped instead of 2×, and each status stripped heals you 2. Works in the off-hand." },
+    text: "It washes everything away. Everything.", hooks: {} }),
+  legendary({ id: "l_confessional", kind: "trinket", slot: "trinket", name: "The Confessional", tags: ["Holy", "Hex"],
+    legendary: { minFloor: 3, asBase: "t_holy_water", reveal: "Every negative status an enemy puts on you is put on them too, doubled." },
+    text: "Say it aloud, and it's theirs to carry.",
+    hooks: { incomingStatus: (b, self, s, n) => { if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward"].includes(s) || self.flags["confess"]) return n; const e = b.player === self ? b.enemy : b.player; self.flags["confess"] = 1; applyStatus(b, self, e, s, 2 * n); self.flags["confess"] = 0; return n; } } }),
+  legendary({ id: "l_anointed_plate", kind: "armour", slot: "armour", name: "Anointed Plate", tags: ["Holy", "Guard", "Burn"], armor: 4,
+    legendary: { minFloor: 3, asBase: "a_vestments", reveal: "Start each fight with Ward. Every time you gain Ward, also gain 4 Barrier and burn the enemy for 3." },
+    text: "Oil, steel and a vow, in that order.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1),
+      onStatusApplied: (b, self, t, s) => { if (t === self && s === "ward") { applyStatus(b, self, self, "barrier", 4); applyStatus(b, self, b.player === self ? b.enemy : b.player, "burn", 3); } } } }),
   legendary({ id: "l_hydra_lash", kind: "weapon", slot: "main", name: "Hydra's Lash", tags: ["Hex", "Poison"], damage: 4, offDamage: 4,
     faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT],
     legendary: { minFloor: 2, asBase: "w_whip", reveal: "Every hit applies 2 of a random status: Burn, Poison, Chill, Bleed, Weak or Exposed. Works in the off-hand." },

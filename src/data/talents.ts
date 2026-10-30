@@ -1,4 +1,5 @@
 // Talents. Stacks = rank (I, II, III); taking one again ranks it up.
+import { isUnholy, wieldsHoly } from "../engine/combat";
 import { other, st } from "../engine/statuses";
 import type { HookDef } from "../engine/types";
 import { applyStatus, heal, log, ping } from "./helpers";
@@ -118,4 +119,15 @@ export const GUARD_TALENTS: HookDef[] = [
     hooks: { whenHit: (b, c, s) => { if (c.defender.flags["guarding"]) applyStatus(b, c.defender, c.defender, "might", s); } } })
 ];
 
-export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS, ...MORE_TALENTS, ...GUARD_TALENTS];
+// ---------- Holy talents ----------
+export const HOLY_TALENTS: HookDef[] = [
+  talent({ id: "t_absolution", name: "Absolution", tags: ["Holy", "Hex"], text: "Purify deals +1 / +2 / +3 per status stripped (II+: and lifts one negative status from you)", hooks: {} }), // combat.ts
+  talent({ id: "t_zealotry", name: "Zealotry", tags: ["Holy", "Burn", "Hex"], text: "Each round, apply 1 Burn (II: and 1 Weak; III: and 1 Exposed)",
+    hooks: { onRoundStart: (b, f, s) => { const e = other(b, f); applyStatus(b, f, e, "burn", 1); if (s >= 2) applyStatus(b, f, e, "weak", 1); if (s >= 3) applyStatus(b, f, e, "exposed", 1); } } }),
+  talent({ id: "t_divine_favor", name: "Divine Favor", tags: ["Holy", "Guard"], text: "Start every fight with Ward (II: Ward returns every 4th round; III: every 3rd)",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1), onRoundStart: (b, f, s) => { const every = s >= 3 ? 3 : s >= 2 ? 4 : 0; if (every && b.round % every === 0) applyStatus(b, f, f, "ward", 1); } } }),
+  talent({ id: "t_righteous", name: "Righteous Fury", tags: ["Holy", "Strike"], text: "Holy hits deal +2 / +3 / +5 more to Undead, vampires and Crimson foes",
+    hooks: { modifyAttack: (_b, c, s) => { if (wieldsHoly(c.attacker) && isUnholy(c.defender)) c.bonus += rank(s, 2, 3, 5); } } })
+];
+
+export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS, ...MORE_TALENTS, ...GUARD_TALENTS, ...HOLY_TALENTS];

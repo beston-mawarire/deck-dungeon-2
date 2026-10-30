@@ -97,6 +97,9 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
     target.statuses.ward = st(target, "ward") - 1;
     log(b, `${target.name}'s Ward blocks ${STATUS_INFO[id].name}.`);
     fx(b, { who: target.id, kind: "block", text: "Warded", icon: "✨" });
+    // Smite: the enemy's own spite, turned back. Your next Holy hit will Smite.
+    if (source && source !== target) target.flags["smiteReady"] = 1;
+    eachHook(target, "onWard", (h, s) => h(b, target, id, amount, s));
     return;
   }
   // Nullifying (a rare Elite/boss trait): the first positive status you'd gain each round fizzles.
