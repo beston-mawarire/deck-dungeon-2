@@ -33,6 +33,7 @@ export const MOVE_LIBRARY: Record<string, (p: number) => Move> = {
   charge: () => ({ name: "Gather Power", icon: "🌀", text: "Does nothing now; its next Cataclysm deals triple", act: (b, s) => { s.flags["charged"] = 1; log(b, `${s.name} gathers power…`); } }),
   smash: () => ({ name: "Cataclysm", icon: "☄️", text: "Attacks for 2× damage (3× if charged)", act: (b, s, f) => { const m = s.flags["charged"] ? 3 : 2; s.flags["charged"] = 0; hit(b, s, f, m); } }),
   concuss: () => ({ name: "Skull Crack", icon: "💫", text: "Attacks and Stuns you", act: (b, s, f) => { const before = f.hp; hit(b, s, f); if (f.hp < before) applyStatus(b, s, f, "stun", 1); } }),
+  brand: p => ({ name: "Searing Brand", icon: "🌋", text: `Attacks and leaves you Smouldering (${1 + Math.ceil(p / 2)})`, act: (b, s, f) => { hit(b, s, f); applyStatus(b, s, f, "smoulder", 1 + Math.ceil(p / 2)); } }),
   crimson: p => ({ name: "Crimson Rite", icon: "🩸", text: `Heals 8% of its Max HP, gains ${1 + Math.ceil(p / 3)} Might and applies ${2 + p} Bleed`,
     act: (b, s, f) => { heal(b, s, Math.round(s.maxHp * 0.08), "Crimson Rite"); applyStatus(b, s, s, "might", 1 + Math.ceil(p / 3)); applyStatus(b, s, f, "bleed", 2 + p); } }),
   drain: () => ({ name: "Life Drain", icon: "🦇", text: "Attacks and heals what it deals", act: (b, s, f) => { const before = f.hp; hit(b, s, f); const n = Math.max(0, before - f.hp); if (n) heal(b, s, n, "Life Drain"); } })
@@ -44,7 +45,7 @@ interface BossDef { name: string; title: string; family: string; moves: string[]
 export const NAMED_BOSSES: Record<string, BossDef> = {
   gnasher: { name: "Gnasher", title: "the Pack Lord", family: "Beast", moves: ["strike", "flurry", "rend"], traits: ["m_ambush"] },
   rot: { name: "The Mother of Rot", title: "Queen of the Sewers", family: "Undead", moves: ["venom", "strike", "regrow"] },
-  cinder: { name: "Brother Cinder", title: "the Ashen Zealot", family: "Cultist", moves: ["fire", "strike", "enrage"] },
+  cinder: { name: "Brother Cinder", title: "the Ashen Zealot", family: "Cultist", moves: ["fire", "strike", "brand", "enrage"] },
   varkas: { name: "Varkas", title: "the Iron Warden", family: "Construct", moves: ["bulwark", "concuss", "heavy", "strike"], armor: 2, hpMult: 0.9 },
   widow: { name: "The Pale Widow", title: "Spinner of Graves", family: "Beast", moves: ["hex", "rend", "venom", "strike"] },
   skarn: { name: "Skarn", title: "the Storm Herald", family: "Cultist", moves: ["thunder", "charge", "smash", "concuss"] },

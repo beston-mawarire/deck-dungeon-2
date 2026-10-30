@@ -743,7 +743,8 @@ export function talentOptions(run: Run): string[] {
   const pool = TALENTS.filter(t => (run.hero.talents[t.id] ?? 0) < 3 && !isLocked(t.id));
   const out: string[] = [];
   while (out.length < 3 && out.length < pool.length) {
-    const w = pool.map(t => (out.includes(t.id) ? 0 : 1 + 0.4 * t.tags.reduce((s, x) => s + Math.min(tags.get(x) ?? 0, 3), 0)));
+    // Rare talents turn up about a third as often.
+    const w = pool.map(t => (out.includes(t.id) ? 0 : (1 + 0.4 * t.tags.reduce((s, x) => s + Math.min(tags.get(x) ?? 0, 3), 0)) * (t.rarity === "rare" ? 0.3 : 1)));
     let x = run.rng() * w.reduce((a, b) => a + b, 0);
     for (let i = 0; i < pool.length; i++) {
       x -= w[i];

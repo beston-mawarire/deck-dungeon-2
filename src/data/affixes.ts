@@ -76,6 +76,7 @@ export const EPIC_POWERS: HookDef[] = [
   epic({ id: "e_bastion", name: "Bastion", affix: "Bastion", tags: ["Guard", "Thorns"], text: "Guarding also deals your Armor to the enemy", hooks: { onGuard: (b, f) => ping(b, b.player === f ? b.enemy : b.player, f.armor, "Bastion") } }),
   epic({ id: "e_hexing", name: "Hexing", affix: "Hexing", tags: ["Hex"], text: "Every hit applies 1 Weak and 2 Exposed", hooks: { onHit: (b, c) => { applyStatus(b, c.attacker, c.defender, "weak", 1); applyStatus(b, c.attacker, c.defender, "exposed", 2); } } }),
   epic({ id: "e_crackling", name: "Crackling", affix: "Crackling", tags: ["Storm"], text: "Every hit applies 2 Static; your crits Shock", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "static", 2), onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "shock", 1) } }),
+  epic({ id: "e_smouldering", name: "Smouldering", affix: "Smouldering", tags: ["Burn", "Crit"], text: "Your crits leave the enemy Smouldering (2)", hooks: { onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "smoulder", 2) } }),
   epic({ id: "e_lucky", name: "Lucky", affix: "Lucky", tags: ["Luck"], text: "Your first 1 each fight becomes a 6",
     hooks: { modifyRoll: (b, f, r) => { if (r === 1 && !f.flags["lucky"]) { f.flags["lucky"] = 1; log(b, "Lucky: the 1 becomes a 6!"); return 6; } return r; } } })
 ];
@@ -105,7 +106,7 @@ export const LEGENDARIES: GearBase[] = [
     legendary: { minFloor: 3, asBase: "a_cloth", reveal: "Every negative status you apply lands twice, and reactions can fire off the second." },
     text: "It sees every weakness.",
     hooks: { onStatusApplied: (b, self, t, status, n) => {
-      if (t === self || self.flags["mantle"] || ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded"].includes(status)) return;
+      if (t === self || self.flags["mantle"] || ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded", "smoulder_soul"].includes(status)) return;
       self.flags["mantle"] = 1; applyStatus(b, self, t, status, n); self.flags["mantle"] = 0;
     } } }),
   legendary({ id: "l_chronoglass", kind: "trinket", slot: "trinket", name: "Chronoglass", tags: ["Luck", "Tempo"],
@@ -260,7 +261,7 @@ export const LEGENDARIES: GearBase[] = [
   legendary({ id: "l_confessional", kind: "trinket", slot: "trinket", name: "The Confessional", tags: ["Holy", "Hex"],
     legendary: { minFloor: 3, asBase: "t_holy_water", reveal: "Every negative status an enemy puts on you is put on them too, doubled." },
     text: "Say it aloud, and it's theirs to carry.",
-    hooks: { incomingStatus: (b, self, s, n) => { if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded"].includes(s) || self.flags["confess"]) return n; const e = b.player === self ? b.enemy : b.player; self.flags["confess"] = 1; applyStatus(b, self, e, s, 2 * n); self.flags["confess"] = 0; return n; } } }),
+    hooks: { incomingStatus: (b, self, s, n) => { if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded", "smoulder_soul"].includes(s) || self.flags["confess"]) return n; const e = b.player === self ? b.enemy : b.player; self.flags["confess"] = 1; applyStatus(b, self, e, s, 2 * n); self.flags["confess"] = 0; return n; } } }),
   legendary({ id: "l_anointed_plate", kind: "armour", slot: "armour", name: "Anointed Plate", tags: ["Holy", "Guard", "Burn"], armor: 4,
     legendary: { minFloor: 3, asBase: "a_vestments", reveal: "Start each fight with Ward. Every time you gain Ward, also gain 4 Barrier and burn the enemy for 3." },
     text: "Oil, steel and a vow, in that order.",
@@ -285,6 +286,15 @@ export const LEGENDARIES: GearBase[] = [
     hooks: { onFightStart: (b, f) => applyStatus(b, f, b.player === f ? b.enemy : b.player, "soaked", 3),
       onRoundEnd: (b, f) => { const e = b.player === f ? b.enemy : b.player; if (st(e, "soaked") > 0) e.statuses.soaked = st(e, "soaked") + 1; },
       incomingStatus: (_b, _f, s, n) => (s === "shock" || s === "static" ? 0 : n) } }),
+  legendary({ id: "l_cinderheart", kind: "weapon", slot: "main", name: "Cinderheart Greatsword", tags: ["Burn", "Strike"], damage: 8, twoHanded: true,
+    faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT],
+    legendary: { minFloor: 3, asBase: "w_longsword", reveal: "Every hit leaves the enemy Smouldering (1). Smouldering enemies take +3 from your hits." },
+    text: "There's a coal in the hilt that has never gone out.",
+    hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "smoulder", 1), modifyAttack: (_b, c) => { if (st(c.defender, "smoulder") > 0) c.bonus += 3; } } }),
+  legendary({ id: "l_furnace_heart", kind: "trinket", slot: "trinket", name: "Heart of the Furnace", tags: ["Burn", "Blood"],
+    legendary: { minFloor: 3, asBase: "t_coal_heart", reveal: "Start every fight with Smouldering Soul. It never fades, costs you no Burn, and every action deals 8 Burn instead of 5." },
+    text: "It beats in time with the bellows.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "smoulder_soul", 1) } }),
   legendary({ id: "l_hydra_lash", kind: "weapon", slot: "main", name: "Hydra's Lash", tags: ["Hex", "Poison"], damage: 4, offDamage: 4,
     faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT],
     legendary: { minFloor: 2, asBase: "w_whip", reveal: "Every hit applies 2 of a random status: Burn, Poison, Chill, Bleed, Weak or Exposed. Works in the off-hand." },

@@ -1,7 +1,7 @@
 // Combat: your weapon is your die. Roll it, read the face, fire every effect on that face, then deal damage.
 import { eachHook, fx, getItem, log, stacksOf } from "./registry";
 import { makeRng, rollDie } from "./rng";
-import { applyStatus, conductive, endOfRound, heal, loseHp, other, st, startOfTurn, staticTick } from "./statuses";
+import { applyStatus, conductive, endOfRound, heal, loseHp, other, smoulderSoulAction, st, startOfTurn, staticTick } from "./statuses";
 import type { AttackCtx, Battle, FaceGroup, FaceKind, FaceSpec, Fighter, StatusId, Statuses } from "./types";
 import { NEGATIVE_STATUSES } from "./types";
 
@@ -289,12 +289,14 @@ function act(b: Battle, f: Fighter, doIt: () => void) {
   }
   staticTick(b, f);
   if (f.hp <= 0) return;
+  smoulderSoulAction(b, f);
   doIt();
   if (st(f, "haste") > 0 && other(b, f).hp > 0) {
     f.statuses.haste = 0;
     log(b, `💨 ${f.name} acts again (Haste).`);
     fx(b, { who: f.id, kind: "text", text: "Haste!", icon: "💨" });
     staticTick(b, f);
+    smoulderSoulAction(b, f);
     if (f.hp > 0) doIt();
   }
 }
@@ -384,6 +386,7 @@ export function heroPhase(b: Battle, action: Action) {
     p.flags["guarding"] = 1;
     p.flags["guardArmor"] = 0;
     p.flags["guards"] = (p.flags["guards"] ?? 0) + 1;
+    smoulderSoulAction(b, p);
     eachHook(p, "onGuard", (h, s) => h(b, p, s));
     log(b, `${p.name} Guards (Armor ${armorOf(p)}).`);
     fx(b, { who: "player", kind: "text", text: `Guard · Armor ${armorOf(p)}`, icon: "🛡️" });

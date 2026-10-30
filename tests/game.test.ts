@@ -527,3 +527,51 @@ describe("static and lightning", () => {
     expect(500 - e2.hp).toBeGreaterThan(plain);
   });
 });
+
+describe("smouldering", () => {
+  const foe = () => { const e = makeMonster(makeRng(12), 1, "normal"); e.hp = e.maxHp = 500; e.armor = 0; e.family = "Beast"; e.items = {}; return e; };
+
+  it("on an enemy: it takes 4 Burn a round, you take 1", () => {
+    const h = newHero("warrior");
+    const e = foe();
+    const b = startBattle(h.f, e, 12);
+    h.f.statuses = {};
+    applyStatus(b, h.f, e, "smoulder", 2);
+    endOfRound(b, e);
+    expect(st(e, "burn")).toBe(4);
+    expect(st(h.f, "burn")).toBe(1);
+    expect(st(e, "smoulder")).toBe(1);
+  });
+
+  it("on you: you take 5 Burn a round, the enemy takes 1", () => {
+    const h = newHero("warrior");
+    const e = foe();
+    const b = startBattle(h.f, e, 13);
+    h.f.statuses = {};
+    applyStatus(b, e, h.f, "smoulder", 1);
+    endOfRound(b, h.f);
+    expect(st(h.f, "burn")).toBe(5);
+    expect(st(e, "burn")).toBe(1);
+  });
+
+  it("Smouldering Soul: every action burns the enemy for 5; you take 1 a round", () => {
+    const h = newHero("warrior");
+    const e = foe();
+    const b = startBattle(h.f, e, 14);
+    h.f.statuses = {};
+    applyStatus(b, h.f, h.f, "smoulder_soul", 3);
+    playRound(b, "guard");
+    expect(500 - e.hp).toBeGreaterThanOrEqual(5); // 5 Burn landed and ticked on its turn
+    expect(st(h.f, "smoulder_soul")).toBe(2);
+  });
+
+  it("Boundless Static removes the cap", () => {
+    const h = newHero("mage");
+    h.talents["t_boundless_static"] = 1;
+    recompute(h);
+    const e = foe();
+    const b = startBattle(h.f, e, 15);
+    applyStatus(b, h.f, e, "static", 25);
+    expect(st(e, "static")).toBe(25);
+  });
+});

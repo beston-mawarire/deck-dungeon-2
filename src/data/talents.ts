@@ -43,7 +43,7 @@ export const STATUS_TALENTS: HookDef[] = [
     hooks: { onStatusApplied: (b, self, t, status, _n, s) => { if (status === "haste" && t === self) applyStatus(b, self, self, "might", rank(s, 2, 3, 5), 1); } } }),
   talent({ id: "t_immunologist", name: "Immunologist", tags: ["Guard"], text: "Ignore the first 1 / 2 / 3 negative statuses each fight",
     hooks: { incomingStatus: (b, self, status, amount, s) => {
-      if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded"].includes(status)) return amount;
+      if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded", "smoulder_soul"].includes(status)) return amount;
       const used = self.flags["immune"] ?? 0;
       if (used < s) { self.flags["immune"] = used + 1; log(b, `Immunologist ignores ${status}.`); return 0; }
       return amount;
@@ -97,7 +97,7 @@ export const MORE_TALENTS: HookDef[] = [
 ];
 
 // ---------- Guard & shield talents ----------
-const NEG = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked"] as const;
+const NEG = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder"] as const;
 export const GUARD_TALENTS: HookDef[] = [
   talent({ id: "t_riposte", name: "Riposte", tags: ["Guard", "Strike"], text: "After you Guard, your next attack deals +3 / +5 / +8",
     hooks: {
@@ -135,6 +135,9 @@ export const STORM_TALENTS: HookDef[] = [
   talent({ id: "t_live_wire", name: "Live Wire", tags: ["Storm", "Strike"], text: "Your hits apply 1 / 2 / 3 Static", hooks: { onHit: (b, c, s) => applyStatus(b, c.attacker, c.defender, "static", s) } }),
   talent({ id: "t_static_field", name: "Static Field", tags: ["Storm", "Thorns"], text: "When hit, the attacker gains 1 / 2 / 4 Static", hooks: { whenHit: (b, c, s) => applyStatus(b, c.defender, c.attacker, "static", rank(s, 1, 2, 4)) } }),
   talent({ id: "t_conductor", name: "Conductor", tags: ["Storm"], text: "Conduction deals +50% / +100% / +150%", hooks: {} }), // statuses.ts
+  talent({ id: "t_boundless_static", name: "Boundless Static", rarity: "rare", tags: ["Storm"], text: "Rare. Static you apply has no cap", hooks: {} }), // statuses.ts
+  talent({ id: "t_fire_within", name: "Fire Within", tags: ["Burn"], text: "Start every fight with 1 / 2 / 3 Smouldering Soul (you take 1 Burn a round; every action deals 5 Burn to the enemy)",
+    hooks: { onFightStart: (b, f, s) => applyStatus(b, f, f, "smoulder_soul", s) } }),
   talent({ id: "t_overwhelm", name: "Overwhelm", tags: ["Arcane", "Hex"], text: "Your hits deal +1 / +2 / +3 for every different negative status on the enemy",
     hooks: { modifyAttack: (_b, c, s) => { c.bonus += s * NEG.filter(x => st(c.defender, x) > 0).length; } } })
 ];

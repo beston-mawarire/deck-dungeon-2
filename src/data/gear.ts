@@ -4,7 +4,7 @@ import { applyStatus, cast, CRIT, depth, GRAZE, heal, HEXES, hex, HIT, MISS, on,
 import type { StatusId } from "../engine/types";
 import { wieldsHoly } from "../engine/combat";
 
-const NEG: StatusId[] = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked"];
+const NEG: StatusId[] = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder"];
 
 const weapon = (d: Omit<GearBase, "kind" | "slot">): GearBase => ({ kind: "weapon", slot: "main", ...d });
 const off = (d: Omit<GearBase, "kind" | "slot">): GearBase => ({ kind: "off", slot: "off", ...d });
@@ -85,6 +85,13 @@ export const WEAPONS: GearBase[] = [
     faces: [{ kind: "miss", name: "Fizzle" }, HIT, cast("Whisper", "hit", hex("doom", 2)), HIT, HIT, cast("Death Knell", "crit", hex("doom", 4))], hooks: {} }),
   weapon({ id: "w_tide_wand", name: "Tidecaller's Wand", tags: ["Arcane", "Frost", "Storm"], text: "Drenches the enemy (Soaked) so lightning and frost hit harder.", damage: 2, offDamage: 2,
     faces: [{ kind: "miss", name: "Fizzle" }, cast("Splash", "hit", hex("soaked", 2)), HIT, cast("Splash", "hit", hex("soaked", 2)), HIT, cast("Riptide", "crit", hex("soaked", 3))], hooks: {} }),
+  // ---------- Smouldering weapons ----------
+  weapon({ id: "w_emberbrand", name: "Emberbrand Sword", tags: ["Burn", "Strike"], text: "A 5 Sears: the enemy starts Smouldering (1).", damage: 4,
+    faces: [GRAZE, HIT, HIT, HIT, spell("Sear", "hit", hex("smoulder", 1)), CRIT], hooks: {} }),
+  weapon({ id: "w_magma_maul", name: "Magma Maul", tags: ["Burn", "Strike", "Kill"], text: "Two-handed. A 6 Erupts: 2 Smouldering.", damage: 6, twoHanded: true,
+    faces: [MISS, HIT, HIT, HIT, HIT, spell("Eruption", "crit", hex("smoulder", 2))], hooks: {} }),
+  weapon({ id: "w_firebrand_hatchet", name: "Firebrand Hatchet", tags: ["Burn", "Tempo"], text: "One-handed; works in the off-hand. A 4 Kindles: 1 Smouldering.", damage: 3, offDamage: 3,
+    faces: [MISS, HIT, HIT, spell("Kindle", "hit", hex("smoulder", 1)), HIT, CRIT], hooks: {} }),
   weapon({ id: "w_longsword", name: "Longsword", tags: ["Strike", "Crit"], text: "Two-handed. Crits on 5 and 6.", damage: 6, twoHanded: true,
     faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT], hooks: {} }),
   weapon({ id: "w_warpick", name: "War Pick", tags: ["Strike", "Hex"], text: "A 4 punches through Armor; a 5 leaves the enemy Exposed.", damage: 5,
@@ -199,7 +206,7 @@ export const ARMOURS: GearBase[] = [
 
   armour({ id: "a_scale", name: "Scale Mail", tags: ["Guard", "Blood"], text: "+3 Armor and +4 Max HP.", armor: 3, maxHp: 4, hooks: {} }),
   armour({ id: "a_mirror_mail", name: "Mirror Mail", tags: ["Guard", "Hex"], text: "+2 Armor. The first negative status put on you each fight bounces to the enemy.", armor: 2,
-    hooks: { incomingStatus: (b, self, s, n) => { if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded"].includes(s) || self.flags["mirrored"]) return n; self.flags["mirrored"] = 1; applyStatus(b, self, other(b, self), s, n); return 0; } } }),
+    hooks: { incomingStatus: (b, self, s, n) => { if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded", "smoulder_soul"].includes(s) || self.flags["mirrored"]) return n; self.flags["mirrored"] = 1; applyStatus(b, self, other(b, self), s, n); return 0; } } }),
   armour({ id: "a_berserker", name: "Berserker Hide", tags: ["Strike", "Blood"], text: "No Armor. Each round, gain 1 Might for every 25% of your HP that's missing.",
     hooks: { onRoundStart: (b, f) => { const n = Math.floor((1 - f.hp / f.maxHp) * 4); if (n > 0) applyStatus(b, f, f, "might", n); } } }),
   armour({ id: "a_frost_plate", name: "Frost Plate", tags: ["Guard", "Frost"], text: "+3 Armor. Attackers that hit you are Chilled.", armor: 3,
@@ -228,6 +235,8 @@ export const ARMOURS: GearBase[] = [
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "grounded", 2), whenHit: (b, c) => applyStatus(b, c.defender, c.defender, "charged", 1) } }),
   armour({ id: "a_tempest_cloak", name: "Tempest Cloak", tags: ["Storm", "Tempo"], weight: 0.45, text: "Start each fight with Evade. Every 3rd round, the enemy is Shocked.",
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "evade", 1), onRoundStart: (b, f) => { if (b.round % 3 === 0) applyStatus(b, f, other(b, f), "shock", 1); } } }),
+  armour({ id: "a_ashen_mantle", name: "Ashen Mantle", tags: ["Burn", "Guard"], text: "+2 Armor. Guarding gives 2 Smouldering Soul (you take 1 Burn a round; every action deals 5 Burn to the enemy).", armor: 2,
+    hooks: { onGuard: (b, f) => applyStatus(b, f, f, "smoulder_soul", 2) } }),
   armour({ id: "a_vestments", name: "Priest's Vestments", tags: ["Blood", "Guard"], text: "+1 Armor. Healing you receive +25%.", armor: 1, hooks: { healMult: () => 1.25 } })
 ];
 
@@ -282,6 +291,8 @@ export const TRINKETS: GearBase[] = [
     hooks: { onStatusApplied: (b, self, t, s) => { if (s === "shock" && t !== self) applyStatus(b, self, t, "static", 3); }, incomingStatus: (_b, _f, s, n) => (s === "shock" ? 0 : n) } }),
   trinket({ id: "t_rain_charm", name: "Rain Charm", tags: ["Storm", "Frost"], weight: 0.45, text: "The enemy starts each fight Soaked 3.", hooks: { onFightStart: (b, f) => applyStatus(b, f, other(b, f), "soaked", 3) } }),
   trinket({ id: "t_kindling_heart", name: "Kindling Heart", tags: ["Burn"], text: "Start each fight Kindled 3: your hits apply Burn while it lasts.", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "kindled", 3) } }),
+  trinket({ id: "t_coal_heart", name: "Coal-Heart Amulet", tags: ["Burn", "Blood"], text: "Start each fight with 3 Smouldering Soul: you take 1 Burn a round, but every action deals 5 Burn to the enemy.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "smoulder_soul", 3) } }),
   trinket({ id: "t_quicksilver", name: "Quicksilver Ring", tags: ["Tempo"], text: "Start each fight at full HP with Haste.", hooks: { onFightStart: (b, f) => { if (f.hp >= f.maxHp) applyStatus(b, f, f, "haste", 1); } } })
 ];
 

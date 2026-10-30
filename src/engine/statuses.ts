@@ -33,13 +33,17 @@ export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: s
   soaked: { name: "Soaked", icon: "💧", text: "Lightning (Shock, Static) hits it twice as hard; Burn on it is halved; lasts its stacks in rounds" },
   charged: { name: "Charged", icon: "⚡", text: "Your next hit deals +2 per stack and leaves that much Static" },
   kindled: { name: "Kindled", icon: "🕯️", text: "Your hits apply Burn equal to stacks; falls by 1 each round" },
-  grounded: { name: "Grounded", icon: "🪨", text: "Shock and Static can't land on you; lasts its stacks in rounds" }
+  grounded: { name: "Grounded", icon: "🪨", text: "Shock and Static can't land on you; lasts its stacks in rounds" },
+  smoulder: { name: "Smouldering", icon: "🌋", text: "Each round it burns from within: an enemy takes 4 Burn (you'd take 5), and its foe takes 1 Burn; lasts its stacks in rounds" },
+  smoulder_soul: { name: "Smouldering Soul", icon: "♨️", text: "A fire you carry: you take 1 Burn each round, but every action you take deals 5 Burn to the enemy; lasts its stacks in rounds" }
 };
 
 /** Lightning (Shock, Static, electric reactions) deals double to Constructs (golems, sentries) and to Soaked targets. */
 export const conductive = (f: Fighter) => f.family === "Construct" || st(f, "soaked") > 0;
 /** Static caps at 10 (20 with the Rod of the Storm Choir or Stormheart). */
-export const staticCap = (source: Fighter | null) => (source && ((source.items["l_storm_rod"] ?? 0) > 0 || (source.items["lr_stormheart"] ?? 0) > 0) ? 20 : 10);
+export const staticCap = (source: Fighter | null) =>
+  source && (source.items["t_boundless_static"] ?? 0) > 0 ? Infinity
+  : source && ((source.items["l_storm_rod"] ?? 0) > 0 || (source.items["lr_stormheart"] ?? 0) > 0) ? 20 : 10;
 
 /** Static: each action its holder takes costs a stack and deals 2 (more against conductive targets). */
 export function staticTick(b: Battle, f: Fighter) {
@@ -47,9 +51,16 @@ export function staticTick(b: Battle, f: Fighter) {
   if (n <= 0 || f.hp <= 0) return;
   f.statuses.static = n - 1;
   const foe = other(b, f);
-  const dmg = 2 * (conductive(f) ? 2 : 1) * ((foe.items["lr_stormheart"] ?? 0) > 0 ? 3 : 1);
+  const dmg = (2 + 2 * (foe.items["r_overcharged_cell"] ?? 0)) * (conductive(f) ? 2 : 1) * ((foe.items["lr_stormheart"] ?? 0) > 0 ? 3 : 1);
   const lost = loseHp(b, f, dmg);
   log(b, `🔋 Static crackles through ${f.name} as it acts: ${lost}.`);
+}
+
+/** Smouldering Soul: every action its holder takes sends 5 Burn at the enemy. */
+export function smoulderSoulAction(b: Battle, f: Fighter) {
+  if (st(f, "smoulder_soul") <= 0 || f.hp <= 0) return;
+  const foe = other(b, f);
+  if (foe.hp > 0) applyStatus(b, f, foe, "burn", 5 + ((f.items["l_furnace_heart"] ?? 0) > 0 ? 3 : 0));
 }
 
 export const REACTIONS = [
@@ -294,6 +305,20 @@ export function endOfRound(b: Battle, f: Fighter) {
     heal(b, f, regen, "Regen");
     if (f.flags["bastion"]) f.statuses.barrier = Math.min(st(f, "barrier") + regen, 4 + 4 * (f.persist["floor"] ?? 1));
     f.statuses.regen = regen - 1;
+  }
+  // Smouldering (a curse of fire): the holder burns hard, and splashes a little onto its foe.
+  const sm = st(f, "smoulder");
+  if (sm > 0 && f.hp > 0) {
+    applyStatus(b, opp, f, "burn", f.id === "player" ? 5 : 4 + (opp.items["r_coal_bellows"] ?? 0) * 2);
+    if (opp.hp > 0) applyStatus(b, f, opp, "burn", 1);
+    f.statuses.smoulder = sm - 1;
+  }
+  // Smouldering Soul (a fire you chose): it costs you 1 Burn a round.
+  const soul = st(f, "smoulder_soul");
+  if (soul > 0 && f.hp > 0) {
+    if ((f.items["l_furnace_heart"] ?? 0) === 0) applyStatus(b, null, f, "burn", 1);
+    else f.statuses.smoulder_soul = soul + 1; // the Furnace Heart never lets it go out
+    f.statuses.smoulder_soul = st(f, "smoulder_soul") - 1;
   }
   for (const s of ["spikes", "chill", "weak", "exposed", "blind", "soaked", "kindled", "grounded"] as StatusId[]) {
     if (s === "spikes" && (f.items["lr_crown_thorns"] ?? 0) > 0) continue;
