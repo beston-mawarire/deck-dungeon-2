@@ -13,8 +13,9 @@ export const TRAITS: HookDef[] = [
   trait({ id: "m_incorporeal", name: "Incorporeal", tags: ["Tempo"], text: "Starts each fight with Evade", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "evade", 1) } }),
   trait({ id: "m_curse_touch", name: "Curse Touch", tags: ["Hex"], text: "Its hits apply 1 Weak", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "weak", 1) } }),
   trait({ id: "m_zeal", name: "Zeal", tags: ["Strike"], text: "Gains 1 Might every round", hooks: { onRoundEnd: (b, f) => applyStatus(b, f, f, "might", 1) } }),
-  trait({ id: "m_static", name: "Static", tags: ["Storm"], text: "Its hits apply Shock", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "shock", 1) } }),
+  trait({ id: "m_static", name: "Sparking", tags: ["Storm"], text: "Its hits apply Shock", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "shock", 1) } }),
   trait({ id: "m_lifedrink", name: "Lifedrinker", tags: ["Blood"], text: "Heals half the damage it deals (a vampire: Holy hits it harder)", hooks: { onHit: (b, c) => { heal(b, c.attacker, Math.floor(c.dealt / 2), "Lifedrinker"); } } }),
+  trait({ id: "m_crackle", name: "Crackling", tags: ["Storm"], text: "Its hits give you 2 Static", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "static", 2) } }),
   trait({ id: "m_brittle", name: "Brittle", tags: ["Guard"], text: "Takes +3 from crits", hooks: { whenHit: (b, c) => { if (c.kind === "crit" && c.dealt > 0) ping(b, c.defender, 3, "Brittle"); } } }),
   // Elite affixes
   trait({ id: "x_blazing", name: "Blazing", tags: ["Burn"], text: "Its hits apply 2 Burn", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "burn", 2) } }),
@@ -50,6 +51,7 @@ export const MONSTERS: MonsterDef[] = [
   { name: "Hexer", family: "Cultist", hp: 9, power: 2, traits: ["m_curse_touch"] },
   { name: "Zealot", family: "Cultist", hp: 13, power: 3, traits: ["m_zeal"] },
   { name: "Stone Golem", family: "Construct", hp: 18, power: 3, armor: 3, traits: [], faces: [MISS, MISS, HIT, HIT, HIT, spell("Crush", "crit", hex("stun", 1))] },
+  { name: "Storm Wisp", family: "Construct", hp: 10, power: 3, traits: ["m_crackle", "m_incorporeal"] },
   { name: "Sentry", family: "Construct", hp: 12, power: 3, armor: 1, traits: ["m_static"] }
 ];
 

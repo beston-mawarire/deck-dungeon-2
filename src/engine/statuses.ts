@@ -28,8 +28,29 @@ export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: s
   focus: { name: "Focus", icon: "🎲", text: "Next roll: roll twice, keep the better" },
   evade: { name: "Evade", icon: "🌀", text: "The next hit misses" },
   spikes: { name: "Spikes", icon: "🌵", text: "When hit, deal stacks back; stacks fall by 1 each round" },
-  ward: { name: "Ward", icon: "✨", text: "Blocks the next negative status" }
+  ward: { name: "Ward", icon: "✨", text: "Blocks the next negative status" },
+  static: { name: "Static", icon: "🔋", text: "Each action it takes (attack, spell, buff) costs a stack and 2 damage; caps at 10. Shock sets it all off at once" },
+  soaked: { name: "Soaked", icon: "💧", text: "Lightning (Shock, Static) hits it twice as hard; Burn on it is halved; lasts its stacks in rounds" },
+  charged: { name: "Charged", icon: "⚡", text: "Your next hit deals +2 per stack and leaves that much Static" },
+  kindled: { name: "Kindled", icon: "🕯️", text: "Your hits apply Burn equal to stacks; falls by 1 each round" },
+  grounded: { name: "Grounded", icon: "🪨", text: "Shock and Static can't land on you; lasts its stacks in rounds" }
 };
+
+/** Lightning (Shock, Static, electric reactions) deals double to Constructs (golems, sentries) and to Soaked targets. */
+export const conductive = (f: Fighter) => f.family === "Construct" || st(f, "soaked") > 0;
+/** Static caps at 10 (20 with the Rod of the Storm Choir or Stormheart). */
+export const staticCap = (source: Fighter | null) => (source && ((source.items["l_storm_rod"] ?? 0) > 0 || (source.items["lr_stormheart"] ?? 0) > 0) ? 20 : 10);
+
+/** Static: each action its holder takes costs a stack and deals 2 (more against conductive targets). */
+export function staticTick(b: Battle, f: Fighter) {
+  const n = st(f, "static");
+  if (n <= 0 || f.hp <= 0) return;
+  f.statuses.static = n - 1;
+  const foe = other(b, f);
+  const dmg = 2 * (conductive(f) ? 2 : 1) * ((foe.items["lr_stormheart"] ?? 0) > 0 ? 3 : 1);
+  const lost = loseHp(b, f, dmg);
+  log(b, `🔋 Static crackles through ${f.name} as it acts: ${lost}.`);
+}
 
 export const REACTIONS = [
   { id: "combustion", name: "Combustion", a: "burn", b: "poison", text: "Deals Burn + Poison stacks as damage at once; both clear" },
@@ -41,7 +62,11 @@ export const REACTIONS = [
   { id: "despair", name: "Despair", a: "weak", b: "doom", text: "Doom grows by 1 each round" },
   { id: "bastion", name: "Bastion", a: "barrier", b: "regen", text: "Regen also refills Barrier" },
   { id: "frenzy", name: "Frenzy", a: "might", b: "haste", text: "Your 5s count as crits for the rest of the fight" },
-  { id: "clarity", name: "Clarity", a: "focus", b: "ward", text: "Your next roll lands on your die's highest face" }
+  { id: "clarity", name: "Clarity", a: "focus", b: "ward", text: "Your next roll lands on your die's highest face" },
+  { id: "conduction", name: "Conduction", a: "static", b: "shock", text: "Every Static stack goes off at once: 3 damage each (double on Constructs or Soaked foes)" },
+  { id: "electrocute", name: "Electrocute", a: "soaked", b: "shock", text: "Soaked clears; takes 4 + 2 per floor and is Stunned" },
+  { id: "freeze", name: "Freeze", a: "soaked", b: "chill", text: "Both clear; Frozen solid: Stunned and Exposed 2" },
+  { id: "thunderstrike", name: "Thunderstrike", a: "charged", b: "might", text: "Your next hit deals double and Shocks" }
 ] as const;
 export type ReactionId = (typeof REACTIONS)[number]["id"];
 
@@ -109,12 +134,19 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
     fx(b, { who: target.id, kind: "block", text: `Nullified ${STATUS_INFO[id].name}`, icon: "🚫" });
     return;
   }
+  if ((id === "shock" || id === "static") && st(target, "grounded") > 0) {
+    log(b, `${target.name} is Grounded: the ${STATUS_INFO[id].name} goes to earth.`);
+    fx(b, { who: target.id, kind: "block", text: "Grounded", icon: "🪨" });
+    return;
+  }
   eachHook(target, "incomingStatus", (h, s) => (amount = h(b, target, id, amount, s)));
+  if (id === "burn" && st(target, "soaked") > 0) amount = Math.ceil(amount / 2);
   if (amount <= 0) return;
 
   const had = (x: StatusId) => st(target, x) > 0;
   if (SINGLE.includes(id)) target.statuses[id] = Math.max(st(target, id), 1);
   else if (id === "shock") target.statuses.shock = Math.max(st(target, "shock"), amount);
+  else if (id === "static") target.statuses.static = Math.min(staticCap(source), st(target, "static") + amount);
   else target.statuses[id] = st(target, id) + amount;
   log(b, `${target.name} gains ${STATUS_INFO[id].icon} ${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` ${amount}`}.`);
   fx(b, { who: target.id, kind: "status", icon: STATUS_INFO[id].icon, text: `${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` +${amount}`}`, value: isNegative(id) ? -1 : 1 });
@@ -130,7 +162,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
 }
 
 /** Reactions that hurt whoever has them: the ones a "random extra reaction" may pick. */
-const HARMFUL_REACTIONS: ReactionId[] = ["combustion", "steam", "shatter", "rupture", "sepsis", "overload", "despair"];
+const HARMFUL_REACTIONS: ReactionId[] = ["combustion", "steam", "shatter", "rupture", "sepsis", "overload", "despair", "conduction", "electrocute", "freeze"];
 
 function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, depth: number) {
   const name = REACTIONS.find(r => r.id === id)!.name;
@@ -171,6 +203,37 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
         applyStatus(b, source, t, "stun", 1, depth + 1);
         if ((source.items["t_pyrotechnics"] ?? 0) >= 2) applyStatus(b, source, t, "exposed", 2, depth + 1);
       }
+      break;
+    case "conduction": {
+      const n = st(t, "static");
+      t.statuses.static = 0;
+      let mult = 1 + 0.5 * (source?.items["t_conductor"] ?? 0);
+      if (conductive(t)) mult *= 2;
+      const lost = loseHp(b, t, Math.round(3 * n * m * mult));
+      log(b, `⚡🔋 ${name}! ${n} Static goes off at once: ${t.name} takes ${lost}.`);
+      // Heart of the Thunderhead: a bolt for every 2 Static set off.
+      if (source && source !== t && (source.items["l_thunderhead"] ?? 0) > 0) {
+        for (let i = 0; i < Math.floor(n / 2) && t.hp > 0; i++) {
+          const bolt = loseHp(b, t, 4 * (conductive(t) ? 2 : 1));
+          log(b, `🌩️ A bolt from the Thunderhead: ${bolt}.`);
+        }
+      }
+      break;
+    }
+    case "electrocute": {
+      t.statuses.soaked = 0;
+      const dmg = Math.round((4 + 2 * (b.player.persist["floor"] ?? 1)) * m * (t.family === "Construct" ? 2 : 1));
+      const lost = loseHp(b, t, dmg);
+      log(b, `⚡💧 ${name}! ${t.name} takes ${lost}.`);
+      applyStatus(b, source, t, "stun", 1, depth + 1);
+      break;
+    }
+    case "freeze":
+      t.statuses.soaked = 0;
+      t.statuses.chill = 0;
+      log(b, `🧊 ${name}! ${t.name} is frozen solid.`);
+      applyStatus(b, source, t, "stun", 1, depth + 1);
+      applyStatus(b, source, t, "exposed", Math.round(2 * m), depth + 1);
       break;
     default:
       // Lasting reactions: a flag for the rest of the fight.
@@ -232,7 +295,7 @@ export function endOfRound(b: Battle, f: Fighter) {
     if (f.flags["bastion"]) f.statuses.barrier = Math.min(st(f, "barrier") + regen, 4 + 4 * (f.persist["floor"] ?? 1));
     f.statuses.regen = regen - 1;
   }
-  for (const s of ["spikes", "chill", "weak", "exposed", "blind"] as StatusId[]) {
+  for (const s of ["spikes", "chill", "weak", "exposed", "blind", "soaked", "kindled", "grounded"] as StatusId[]) {
     if (s === "spikes" && (f.items["lr_crown_thorns"] ?? 0) > 0) continue;
     if (st(f, s) > 0) f.statuses[s] = st(f, s) - 1;
   }

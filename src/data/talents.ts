@@ -43,7 +43,7 @@ export const STATUS_TALENTS: HookDef[] = [
     hooks: { onStatusApplied: (b, self, t, status, _n, s) => { if (status === "haste" && t === self) applyStatus(b, self, self, "might", rank(s, 2, 3, 5), 1); } } }),
   talent({ id: "t_immunologist", name: "Immunologist", tags: ["Guard"], text: "Ignore the first 1 / 2 / 3 negative statuses each fight",
     hooks: { incomingStatus: (b, self, status, amount, s) => {
-      if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward"].includes(status)) return amount;
+      if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded"].includes(status)) return amount;
       const used = self.flags["immune"] ?? 0;
       if (used < s) { self.flags["immune"] = used + 1; log(b, `Immunologist ignores ${status}.`); return 0; }
       return amount;
@@ -97,7 +97,7 @@ export const MORE_TALENTS: HookDef[] = [
 ];
 
 // ---------- Guard & shield talents ----------
-const NEG = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom"] as const;
+const NEG = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked"] as const;
 export const GUARD_TALENTS: HookDef[] = [
   talent({ id: "t_riposte", name: "Riposte", tags: ["Guard", "Strike"], text: "After you Guard, your next attack deals +3 / +5 / +8",
     hooks: {
@@ -130,4 +130,13 @@ export const HOLY_TALENTS: HookDef[] = [
     hooks: { modifyAttack: (_b, c, s) => { if (wieldsHoly(c.attacker) && isUnholy(c.defender)) c.bonus += rank(s, 2, 3, 5); } } })
 ];
 
-export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS, ...MORE_TALENTS, ...GUARD_TALENTS, ...HOLY_TALENTS];
+// ---------- Storm & arcane talents ----------
+export const STORM_TALENTS: HookDef[] = [
+  talent({ id: "t_live_wire", name: "Live Wire", tags: ["Storm", "Strike"], text: "Your hits apply 1 / 2 / 3 Static", hooks: { onHit: (b, c, s) => applyStatus(b, c.attacker, c.defender, "static", s) } }),
+  talent({ id: "t_static_field", name: "Static Field", tags: ["Storm", "Thorns"], text: "When hit, the attacker gains 1 / 2 / 4 Static", hooks: { whenHit: (b, c, s) => applyStatus(b, c.defender, c.attacker, "static", rank(s, 1, 2, 4)) } }),
+  talent({ id: "t_conductor", name: "Conductor", tags: ["Storm"], text: "Conduction deals +50% / +100% / +150%", hooks: {} }), // statuses.ts
+  talent({ id: "t_overwhelm", name: "Overwhelm", tags: ["Arcane", "Hex"], text: "Your hits deal +1 / +2 / +3 for every different negative status on the enemy",
+    hooks: { modifyAttack: (_b, c, s) => { c.bonus += s * NEG.filter(x => st(c.defender, x) > 0).length; } } })
+];
+
+export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS, ...MORE_TALENTS, ...GUARD_TALENTS, ...HOLY_TALENTS, ...STORM_TALENTS];

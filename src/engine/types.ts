@@ -6,8 +6,8 @@ export const TAGS = [
 ] as const;
 export type Tag = (typeof TAGS)[number];
 
-export const NEGATIVE_STATUSES = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom"] as const;
-export const POSITIVE_STATUSES = ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward"] as const;
+export const NEGATIVE_STATUSES = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked"] as const;
+export const POSITIVE_STATUSES = ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded"] as const;
 export type NegativeStatus = (typeof NEGATIVE_STATUSES)[number];
 export type PositiveStatus = (typeof POSITIVE_STATUSES)[number];
 export type StatusId = NegativeStatus | PositiveStatus;
@@ -189,6 +189,8 @@ export interface GearBase extends HookDef {
   /** Legendaries only: earliest floor and the effect hidden until revealed. */
   legendary?: { minFloor: number; reveal: string; asBase: string };
 
+  /** Drop weight (default 1). Electric gear is a little rarer. */
+  weight?: number;
   /** Bases never rolled as loot (starting kits). */
   starter?: boolean;
 }

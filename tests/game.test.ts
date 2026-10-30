@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { LEGENDARIES, loadLibrary } from "../src/data";
 import { makeMonster } from "../src/data/monsters";
-import { playRound, resolveFace, startBattle } from "../src/engine/combat";
+import { enemyPhase, playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
 import { applyStatus, endOfRound, st } from "../src/engine/statuses";
@@ -470,5 +470,60 @@ describe("shop selling", () => {
     expect(run.hero.f.gold).toBeGreaterThan(gold);
     expect(sellItem(run, run.hero.equip.off!.uid)).toMatch(/already/);
     expect(run.hero.equip.off).toBeDefined();
+  });
+});
+
+describe("static and lightning", () => {
+  const foe = (family: string) => { const e = makeMonster(makeRng(8), 1, "normal"); e.hp = e.maxHp = 500; e.armor = 0; e.family = family; e.items = {}; return e; };
+
+  it("Static caps at 10 and ticks once per action for 2 (4 on Constructs)", () => {
+    const h = newHero("mage");
+    for (const [fam, per] of [["Beast", 2], ["Construct", 4]] as const) {
+      const e = foe(fam);
+      const b = startBattle(h.f, e, 8);
+      applyStatus(b, h.f, e, "static", 15);
+      expect(st(e, "static")).toBe(10);
+      const hp = e.hp;
+      b.round = 1;
+      enemyPhase(b);
+      expect(st(e, "static")).toBe(9);
+      expect(hp - e.hp).toBeGreaterThanOrEqual(per);
+    }
+  });
+
+  it("Shock sets off all Static at once (Conduction)", () => {
+    const h = newHero("mage");
+    const e = foe("Beast");
+    const b = startBattle(h.f, e, 9);
+    applyStatus(b, h.f, e, "static", 6);
+    const hp = e.hp;
+    applyStatus(b, h.f, e, "shock", 1);
+    expect(st(e, "static")).toBe(0);
+    expect(hp - e.hp).toBe(18);
+    expect(h.f.persist["rx:foe:conduction"]).toBe(1);
+  });
+
+  it("Grounded blocks Shock and Static", () => {
+    const h = newHero("mage");
+    const e = foe("Beast");
+    const b = startBattle(h.f, e, 10);
+    applyStatus(b, h.f, h.f, "grounded", 2);
+    applyStatus(b, e, h.f, "static", 3);
+    applyStatus(b, e, h.f, "shock", 1);
+    expect(st(h.f, "static") + st(h.f, "shock")).toBe(0);
+  });
+
+  it("Arcane Prism: 3+ negative statuses take 25% more", () => {
+    const h = newHero("warrior");
+    const e1 = foe("Beast"), e2 = foe("Beast");
+    const b0 = startBattle(h.f, e1, 11);
+    for (const s of ["weak", "bleed", "poison"] as const) applyStatus(b0, h.f, e1, s, 1);
+    resolveFace(b0, h.f, e1, 3);
+    const plain = 500 - e1.hp;
+    h.relics["r_arcane_prism"] = 1; recompute(h);
+    const b1 = startBattle(h.f, e2, 11);
+    for (const s of ["weak", "bleed", "poison"] as const) applyStatus(b1, h.f, e2, s, 1);
+    resolveFace(b1, h.f, e2, 3);
+    expect(500 - e2.hp).toBeGreaterThan(plain);
   });
 });

@@ -4,7 +4,7 @@ import { applyStatus, cast, CRIT, depth, GRAZE, heal, HEXES, hex, HIT, MISS, on,
 import type { StatusId } from "../engine/types";
 import { wieldsHoly } from "../engine/combat";
 
-const NEG: StatusId[] = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom"];
+const NEG: StatusId[] = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked"];
 
 const weapon = (d: Omit<GearBase, "kind" | "slot">): GearBase => ({ kind: "weapon", slot: "main", ...d });
 const off = (d: Omit<GearBase, "kind" | "slot">): GearBase => ({ kind: "off", slot: "off", ...d });
@@ -72,6 +72,19 @@ export const WEAPONS: GearBase[] = [
     faces: [GRAZE, purify(), HIT, purify(), HIT, purify("crit", "Absolve")], hooks: {} }),
   weapon({ id: "w_pilgrim_staff", name: "Pilgrim's Staff", tags: ["Holy", "Blood", "Guard"], text: "Holy. Two-handed. A 2 shelters you (Ward); a 4 mends you (3 Regen); a 6 Purifies.", damage: 5, twoHanded: true,
     faces: [GRAZE, spell("Shelter", "hit", self("ward", 1)), HIT, spell("Mend", "hit", self("regen", 3)), HIT, purify("crit", "Absolve")], hooks: {} }),
+  // ---------- Wands: one-handed spell-throwers; all work in the off-hand ----------
+  weapon({ id: "w_frost_wand", name: "Frost Wand", tags: ["Arcane", "Frost"], text: "Ice shards on 3 and 5; a 6 is Frostbite.", damage: 2, offDamage: 2,
+    faces: [{ kind: "miss", name: "Fizzle" }, HIT, cast("Ice Shard", "hit", hex("chill", 1)), HIT, cast("Ice Shard", "hit", hex("chill", 2)), cast("Frostbite", "crit", hex("chill", 3))], hooks: {} }),
+  weapon({ id: "w_storm_wand", name: "Storm Wand", tags: ["Arcane", "Storm"], text: "Builds Static; a 6 Shocks (and sets the Static off).", damage: 2, offDamage: 2,
+    faces: [{ kind: "miss", name: "Fizzle" }, cast("Crackle", "hit", hex("static", 2)), HIT, cast("Crackle", "hit", hex("static", 2)), cast("Arc", "hit", hex("static", 3)), cast("Bolt", "crit", hex("shock", 1))], hooks: {} }),
+  weapon({ id: "w_venom_wand", name: "Venom Wand", tags: ["Arcane", "Poison"], text: "Spits venom on 2, 4 and 6.", damage: 2, offDamage: 2,
+    faces: [{ kind: "miss", name: "Fizzle" }, cast("Spit", "hit", hex("poison", 2)), HIT, cast("Spit", "hit", hex("poison", 2)), HIT, cast("Miasma", "crit", hex("poison", 4))], hooks: {} }),
+  weapon({ id: "w_hex_wand", name: "Hex Wand", tags: ["Arcane", "Hex"], text: "Curses: Weak on 2, Exposed on 4, Blind on 6.", damage: 2, offDamage: 2,
+    faces: [{ kind: "miss", name: "Fizzle" }, cast("Wither", "hit", hex("weak", 1)), HIT, cast("Mark", "hit", hex("exposed", 2)), HIT, cast("Gloom", "crit", hex("blind", 1))], hooks: {} }),
+  weapon({ id: "w_bone_wand", name: "Bone Wand", tags: ["Arcane", "Hex", "Kill"], text: "Whispers Doom on 3 and 6.", damage: 2, offDamage: 2,
+    faces: [{ kind: "miss", name: "Fizzle" }, HIT, cast("Whisper", "hit", hex("doom", 2)), HIT, HIT, cast("Death Knell", "crit", hex("doom", 4))], hooks: {} }),
+  weapon({ id: "w_tide_wand", name: "Tidecaller's Wand", tags: ["Arcane", "Frost", "Storm"], text: "Drenches the enemy (Soaked) so lightning and frost hit harder.", damage: 2, offDamage: 2,
+    faces: [{ kind: "miss", name: "Fizzle" }, cast("Splash", "hit", hex("soaked", 2)), HIT, cast("Splash", "hit", hex("soaked", 2)), HIT, cast("Riptide", "crit", hex("soaked", 3))], hooks: {} }),
   weapon({ id: "w_longsword", name: "Longsword", tags: ["Strike", "Crit"], text: "Two-handed. Crits on 5 and 6.", damage: 6, twoHanded: true,
     faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT], hooks: {} }),
   weapon({ id: "w_warpick", name: "War Pick", tags: ["Strike", "Hex"], text: "A 4 punches through Armor; a 5 leaves the enemy Exposed.", damage: 5,
@@ -151,6 +164,19 @@ export const OFFHANDS: GearBase[] = [
     hooks: { onRoundStart: (b, f) => { if (b.round % 3 !== 0) return; const e = other(b, f); for (const s of NEG) { const n = st(f, s); if (n > 0) { f.statuses[s] = 0; applyStatus(b, f, e, s, n); } } } } }),
   off({ id: "o_penitent_chain", name: "Penitent's Chain", tags: ["Holy", "Hex", "Blood"], text: "Each round: apply 1 random negative status to the enemy (Burn, Poison, Chill, Bleed, Weak or Exposed) and heal 1.",
     hooks: { onRoundStart: (b, f) => { applyStatus(b, f, other(b, f), HEXES[Math.floor(b.rng() * HEXES.length)], 1); heal(b, f, 1, "Penitent's Chain"); } } }),
+  // ---------- Grimoires ----------
+  off({ id: "o_grim_rime", name: "Grimoire of Rime", tags: ["Arcane", "Frost"], text: "On a 2 or a 4: apply 1 Chill. Your spells deal +1 to Chilled enemies.",
+    hooks: { face: [on("even", (b, c) => { if (c.face !== 6) applyStatus(b, c.attacker, c.defender, "chill", 1); })], modifyAttack: (_b, c) => { if (c.spec.magic && st(c.defender, "chill") > 0) c.bonus += 1; } } }),
+  off({ id: "o_grim_storms", name: "Grimoire of Storms", tags: ["Arcane", "Storm"], text: "On a 5: apply 3 Static. On a 6: apply Shock.",
+    hooks: { face: [on(5, (b, c) => applyStatus(b, c.attacker, c.defender, "static", 3)), on(6, (b, c) => applyStatus(b, c.attacker, c.defender, "shock", 1))] } }),
+  off({ id: "o_grim_tides", name: "Grimoire of Tides", tags: ["Arcane", "Frost", "Storm"], text: "The enemy starts each fight Soaked 2. On a 3: apply 1 Soaked.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, other(b, f), "soaked", 2), face: [on(3, (b, c) => applyStatus(b, c.attacker, c.defender, "soaked", 1))] } }),
+  off({ id: "o_grim_embers", name: "Grimoire of Embers", tags: ["Arcane", "Burn"], text: "On any odd roll: apply 1 Burn. Start each fight Kindled 2.",
+    hooks: { face: [on("odd", (b, c) => applyStatus(b, c.attacker, c.defender, "burn", 1))], onFightStart: (b, f) => applyStatus(b, f, f, "kindled", 2) } }),
+  off({ id: "o_grim_shadows", name: "Grimoire of Shadows", tags: ["Arcane", "Hex"], text: "On a 1: apply 1 Blind and 2 Weak instead of grazing.",
+    hooks: { face: [on(1, (b, c) => { c.noDamage = true; applyStatus(b, c.attacker, c.defender, "blind", 1); applyStatus(b, c.attacker, c.defender, "weak", 2); })] } }),
+  off({ id: "o_grim_coil", name: "Grimoire of the Coil", tags: ["Arcane", "Storm", "Strike"], text: "Start each fight Charged 2. On a 6: gain 2 Charged.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "charged", 2), face: [on(6, (b, c) => applyStatus(b, c.attacker, c.attacker, "charged", 2))] } }),
   off({ id: "o_hourglass", name: "Sand Hourglass", tags: ["Tempo", "Luck"], text: "Every 4th round, gain Haste.", hooks: { onRoundStart: (b, f) => { if (b.round % 4 === 0) applyStatus(b, f, f, "haste", 1); } } })
 ];
 
@@ -173,7 +199,7 @@ export const ARMOURS: GearBase[] = [
 
   armour({ id: "a_scale", name: "Scale Mail", tags: ["Guard", "Blood"], text: "+3 Armor and +4 Max HP.", armor: 3, maxHp: 4, hooks: {} }),
   armour({ id: "a_mirror_mail", name: "Mirror Mail", tags: ["Guard", "Hex"], text: "+2 Armor. The first negative status put on you each fight bounces to the enemy.", armor: 2,
-    hooks: { incomingStatus: (b, self, s, n) => { if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward"].includes(s) || self.flags["mirrored"]) return n; self.flags["mirrored"] = 1; applyStatus(b, self, other(b, self), s, n); return 0; } } }),
+    hooks: { incomingStatus: (b, self, s, n) => { if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded"].includes(s) || self.flags["mirrored"]) return n; self.flags["mirrored"] = 1; applyStatus(b, self, other(b, self), s, n); return 0; } } }),
   armour({ id: "a_berserker", name: "Berserker Hide", tags: ["Strike", "Blood"], text: "No Armor. Each round, gain 1 Might for every 25% of your HP that's missing.",
     hooks: { onRoundStart: (b, f) => { const n = Math.floor((1 - f.hp / f.maxHp) * 4); if (n > 0) applyStatus(b, f, f, "might", n); } } }),
   armour({ id: "a_frost_plate", name: "Frost Plate", tags: ["Guard", "Frost"], text: "+3 Armor. Attackers that hit you are Chilled.", armor: 3,
@@ -195,6 +221,13 @@ export const ARMOURS: GearBase[] = [
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1), onWard: (b, f, s) => applyStatus(b, f, other(b, f), s, 3) } }),
   armour({ id: "a_penance", name: "Vestments of Penance", tags: ["Holy", "Hex", "Blood"], text: "+1 Armor. At the end of each round, one negative status leaves you and lands on the enemy.", armor: 1,
     hooks: { onRoundEnd: (b, f) => { const s = NEG.find(x => st(f, x) > 0); if (s) { const n = st(f, s); f.statuses[s] = 0; applyStatus(b, f, other(b, f), s, n); } } } }),
+  // ---------- Electric armour (a little rarer) ----------
+  armour({ id: "a_stormweave", name: "Stormweave Robe", tags: ["Arcane", "Storm"], weight: 0.45, text: "+1 Armor. When you're hit, the attacker gains 2 Static.", armor: 1,
+    hooks: { whenHit: (b, c) => applyStatus(b, c.defender, c.attacker, "static", 2) } }),
+  armour({ id: "a_copper_mail", name: "Copper Mail", tags: ["Guard", "Storm"], weight: 0.45, text: "+3 Armor. Start each fight Grounded for 2 rounds. When you're hit, gain 1 Charged.", armor: 3,
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "grounded", 2), whenHit: (b, c) => applyStatus(b, c.defender, c.defender, "charged", 1) } }),
+  armour({ id: "a_tempest_cloak", name: "Tempest Cloak", tags: ["Storm", "Tempo"], weight: 0.45, text: "Start each fight with Evade. Every 3rd round, the enemy is Shocked.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "evade", 1), onRoundStart: (b, f) => { if (b.round % 3 === 0) applyStatus(b, f, other(b, f), "shock", 1); } } }),
   armour({ id: "a_vestments", name: "Priest's Vestments", tags: ["Blood", "Guard"], text: "+1 Armor. Healing you receive +25%.", armor: 1, hooks: { healMult: () => 1.25 } })
 ];
 
@@ -242,6 +275,13 @@ export const TRINKETS: GearBase[] = [
     hooks: {} }), // Purify (combat.ts)
   trinket({ id: "t_zealot_brand", name: "Zealot's Brand", tags: ["Holy", "Burn"], text: "Each round: apply 2 Burn. Holy hits deal +2.",
     hooks: { onRoundStart: (b, f) => applyStatus(b, f, other(b, f), "burn", 2), modifyAttack: (_b, c) => { if (wieldsHoly(c.attacker)) c.bonus += 2; } } }),
+  // ---------- Electric trinkets (a little rarer) ----------
+  trinket({ id: "t_spark_ring", name: "Spark Ring", tags: ["Storm"], weight: 0.45, text: "On a 4: apply 2 Static.", hooks: { face: [on(4, (b, c) => applyStatus(b, c.attacker, c.defender, "static", 2))] } }),
+  trinket({ id: "t_capacitor", name: "Capacitor", tags: ["Storm", "Strike"], weight: 0.45, text: "Every 3rd round, gain 3 Charged.", hooks: { onRoundStart: (b, f) => { if (b.round % 3 === 0) applyStatus(b, f, f, "charged", 3); } } }),
+  trinket({ id: "t_lightning_rod", name: "Lightning Rod Amulet", tags: ["Storm", "Guard"], weight: 0.45, text: "Shock you apply also adds 3 Static. You can't be Shocked.",
+    hooks: { onStatusApplied: (b, self, t, s) => { if (s === "shock" && t !== self) applyStatus(b, self, t, "static", 3); }, incomingStatus: (_b, _f, s, n) => (s === "shock" ? 0 : n) } }),
+  trinket({ id: "t_rain_charm", name: "Rain Charm", tags: ["Storm", "Frost"], weight: 0.45, text: "The enemy starts each fight Soaked 3.", hooks: { onFightStart: (b, f) => applyStatus(b, f, other(b, f), "soaked", 3) } }),
+  trinket({ id: "t_kindling_heart", name: "Kindling Heart", tags: ["Burn"], text: "Start each fight Kindled 3: your hits apply Burn while it lasts.", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "kindled", 3) } }),
   trinket({ id: "t_quicksilver", name: "Quicksilver Ring", tags: ["Tempo"], text: "Start each fight at full HP with Haste.", hooks: { onFightStart: (b, f) => { if (f.hp >= f.maxHp) applyStatus(b, f, f, "haste", 1); } } })
 ];
 

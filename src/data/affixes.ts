@@ -27,6 +27,7 @@ export const BONUSES: HookDef[] = [
   bonus({ id: "b_weak", name: "Withering", affix: "of Withering", tags: ["Hex"], text: "On a 3: apply {n} Weak", hooks: { face: [on(3, (b, c, n) => applyStatus(b, c.attacker, c.defender, "weak", n))] } }),
   bonus({ id: "b_focus", name: "Insight", affix: "of Insight", tags: ["Luck"], text: "Start fights with Focus", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "focus", 1) } }),
   bonus({ id: "b_alchemy", name: "Alchemy", affix: "of Alchemy", tags: ["Arcane", "Hex"], text: "Reactions deal +{25n}%", hooks: { reactionMult: (_b, _f, n) => 1 + 0.25 * n } }),
+  bonus({ id: "b_static", name: "Crackle", affix: "of Crackling", tags: ["Storm", "Thorns"], text: "When hit, the attacker gains {n+1} Static", hooks: { whenHit: (b, c, n) => applyStatus(b, c.defender, c.attacker, "static", n + 1) } }),
   bonus({ id: "b_spikes", name: "Bristling", affix: "of Bristling", tags: ["Thorns"], text: "On a 4: gain {n+1} Spikes", hooks: { face: [on(4, (b, c, n) => applyStatus(b, c.attacker, c.attacker, "spikes", n + 1))] } }),
   // Rare+ only: twists borrowed from the old classes.
   bonus({ id: "b_twin", name: "Twin Fang", affix: "of the Twin Fang", minRarity: "rare", tags: ["Tempo"], text: "Your 6s attack again (once per round)",
@@ -74,6 +75,7 @@ export const EPIC_POWERS: HookDef[] = [
   epic({ id: "e_bloodthirsty", name: "Bloodthirsty", affix: "Bloodthirsty", tags: ["Blood", "Kill"], text: "Kills restore 20% of your Max HP", hooks: { onKill: (b, c) => { heal(b, c.attacker, Math.ceil(c.attacker.maxHp * 0.2), "Bloodthirsty"); } } }),
   epic({ id: "e_bastion", name: "Bastion", affix: "Bastion", tags: ["Guard", "Thorns"], text: "Guarding also deals your Armor to the enemy", hooks: { onGuard: (b, f) => ping(b, b.player === f ? b.enemy : b.player, f.armor, "Bastion") } }),
   epic({ id: "e_hexing", name: "Hexing", affix: "Hexing", tags: ["Hex"], text: "Every hit applies 1 Weak and 2 Exposed", hooks: { onHit: (b, c) => { applyStatus(b, c.attacker, c.defender, "weak", 1); applyStatus(b, c.attacker, c.defender, "exposed", 2); } } }),
+  epic({ id: "e_crackling", name: "Crackling", affix: "Crackling", tags: ["Storm"], text: "Every hit applies 2 Static; your crits Shock", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "static", 2), onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "shock", 1) } }),
   epic({ id: "e_lucky", name: "Lucky", affix: "Lucky", tags: ["Luck"], text: "Your first 1 each fight becomes a 6",
     hooks: { modifyRoll: (b, f, r) => { if (r === 1 && !f.flags["lucky"]) { f.flags["lucky"] = 1; log(b, "Lucky: the 1 becomes a 6!"); return 6; } return r; } } })
 ];
@@ -103,7 +105,7 @@ export const LEGENDARIES: GearBase[] = [
     legendary: { minFloor: 3, asBase: "a_cloth", reveal: "Every negative status you apply lands twice, and reactions can fire off the second." },
     text: "It sees every weakness.",
     hooks: { onStatusApplied: (b, self, t, status, n) => {
-      if (t === self || self.flags["mantle"] || ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward"].includes(status)) return;
+      if (t === self || self.flags["mantle"] || ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded"].includes(status)) return;
       self.flags["mantle"] = 1; applyStatus(b, self, t, status, n); self.flags["mantle"] = 0;
     } } }),
   legendary({ id: "l_chronoglass", kind: "trinket", slot: "trinket", name: "Chronoglass", tags: ["Luck", "Tempo"],
@@ -258,12 +260,31 @@ export const LEGENDARIES: GearBase[] = [
   legendary({ id: "l_confessional", kind: "trinket", slot: "trinket", name: "The Confessional", tags: ["Holy", "Hex"],
     legendary: { minFloor: 3, asBase: "t_holy_water", reveal: "Every negative status an enemy puts on you is put on them too, doubled." },
     text: "Say it aloud, and it's theirs to carry.",
-    hooks: { incomingStatus: (b, self, s, n) => { if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward"].includes(s) || self.flags["confess"]) return n; const e = b.player === self ? b.enemy : b.player; self.flags["confess"] = 1; applyStatus(b, self, e, s, 2 * n); self.flags["confess"] = 0; return n; } } }),
+    hooks: { incomingStatus: (b, self, s, n) => { if (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded"].includes(s) || self.flags["confess"]) return n; const e = b.player === self ? b.enemy : b.player; self.flags["confess"] = 1; applyStatus(b, self, e, s, 2 * n); self.flags["confess"] = 0; return n; } } }),
   legendary({ id: "l_anointed_plate", kind: "armour", slot: "armour", name: "Anointed Plate", tags: ["Holy", "Guard", "Burn"], armor: 4,
     legendary: { minFloor: 3, asBase: "a_vestments", reveal: "Start each fight with Ward. Every time you gain Ward, also gain 4 Barrier and burn the enemy for 3." },
     text: "Oil, steel and a vow, in that order.",
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1),
       onStatusApplied: (b, self, t, s) => { if (t === self && s === "ward") { applyStatus(b, self, self, "barrier", 4); applyStatus(b, self, b.player === self ? b.enemy : b.player, "burn", 3); } } } }),
+  legendary({ id: "l_storm_rod", kind: "weapon", slot: "main", name: "Rod of the Storm Choir", tags: ["Arcane", "Storm"], damage: 4, offDamage: 4,
+    faces: [cast("Crackle", "graze", hex("static", 2)), cast("Crackle", "hit", hex("static", 3)), cast("Crackle", "hit", hex("static", 3)), cast("Arc", "hit", hex("static", 4)), cast("Arc", "hit", hex("static", 4)), cast("Chorus", "crit", hex("shock", 1))],
+    legendary: { minFloor: 2, asBase: "w_storm_wand", reveal: "Every face sings Static, and a 6 Shocks it all off. Static you apply caps at 20 instead of 10. Works in the off-hand." },
+    text: "A hundred voices, all of them thunder.", hooks: {} }),
+  legendary({ id: "l_elemental_codex", kind: "off", slot: "off", name: "The Elemental Codex", tags: ["Arcane", "Burn", "Frost", "Storm"],
+    legendary: { minFloor: 3, asBase: "o_grim_storms", reveal: "Every roll writes an element: 1–2 apply 3 Burn, 3–4 apply 2 Chill, 5 Soaks (2), 6 applies 4 Static and Shocks. Reactions you cause deal +50%." },
+    text: "Four pages. Each one burns differently.",
+    hooks: { reactionMult: () => 1.5, face: [on("any", (b, c) => { const d = c.defender, a = c.attacker;
+      if (c.face <= 2) applyStatus(b, a, d, "burn", 3); else if (c.face <= 4) applyStatus(b, a, d, "chill", 2); else if (c.face === 5) applyStatus(b, a, d, "soaked", 2); else { applyStatus(b, a, d, "static", 4); applyStatus(b, a, d, "shock", 1); } })] } }),
+  legendary({ id: "l_thunderhead", kind: "trinket", slot: "trinket", name: "Heart of the Thunderhead", tags: ["Storm", "Kill"],
+    legendary: { minFloor: 3, asBase: "t_storm_amulet", reveal: "Your crits Shock. When Static goes off (Conduction), a lightning bolt strikes for 4 for every 2 Static set off — double on Constructs and Soaked foes." },
+    text: "The storm keeps its heart somewhere. Now you do.",
+    hooks: { onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "shock", 1) } }),
+  legendary({ id: "l_tidecaller", kind: "armour", slot: "armour", name: "Tidecaller's Raiment", tags: ["Storm", "Frost", "Arcane"], armor: 2,
+    legendary: { minFloor: 3, asBase: "a_stormweave", reveal: "Enemies start every fight Soaked 3, and Soaked never fades from them. You can't be Shocked or given Static." },
+    text: "The sea answers to whoever wears it.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, b.player === f ? b.enemy : b.player, "soaked", 3),
+      onRoundEnd: (b, f) => { const e = b.player === f ? b.enemy : b.player; if (st(e, "soaked") > 0) e.statuses.soaked = st(e, "soaked") + 1; },
+      incomingStatus: (_b, _f, s, n) => (s === "shock" || s === "static" ? 0 : n) } }),
   legendary({ id: "l_hydra_lash", kind: "weapon", slot: "main", name: "Hydra's Lash", tags: ["Hex", "Poison"], damage: 4, offDamage: 4,
     faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT],
     legendary: { minFloor: 2, asBase: "w_whip", reveal: "Every hit applies 2 of a random status: Burn, Poison, Chill, Bleed, Weak or Exposed. Works in the off-hand." },

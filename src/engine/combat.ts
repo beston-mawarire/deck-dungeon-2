@@ -1,7 +1,7 @@
 // Combat: your weapon is your die. Roll it, read the face, fire every effect on that face, then deal damage.
 import { eachHook, fx, getItem, log, stacksOf } from "./registry";
 import { makeRng, rollDie } from "./rng";
-import { applyStatus, endOfRound, heal, loseHp, other, st, startOfTurn } from "./statuses";
+import { applyStatus, conductive, endOfRound, heal, loseHp, other, st, startOfTurn, staticTick } from "./statuses";
 import type { AttackCtx, Battle, FaceGroup, FaceKind, FaceSpec, Fighter, StatusId, Statuses } from "./types";
 import { NEGATIVE_STATUSES } from "./types";
 
@@ -35,6 +35,17 @@ export function wieldsHoly(f: Fighter): boolean {
     try {
       const d = getItem(id);
       if (d.kind === "weapon" && d.tags.includes("Holy")) return true;
+    } catch { /* not a registered def */ }
+  }
+  return false;
+}
+
+/** Holding a weapon with this tag. */
+export function wieldsTag(f: Fighter, tag: string): boolean {
+  for (const id of Object.keys(f.items)) {
+    try {
+      const d = getItem(id);
+      if (d.kind === "weapon" && (d.tags as string[]).includes(tag)) return true;
     } catch { /* not a registered def */ }
   }
   return false;
@@ -176,8 +187,17 @@ function strike(b: Battle, ctx: AttackCtx) {
   if (st(a, "weak") > 0) raw *= 0.75;
   if (wieldsHoly(a) && isUnholy(d)) raw *= 1.5;
   if (st(d, "exposed") > 0) raw += 2;
+  // Lightning: Storm weapons hit Constructs 30% harder.
+  if (d.family === "Construct" && wieldsTag(a, "Storm")) raw *= 1.3;
+  // Charged: +2 per stack on this hit (spent when it lands).
+  const charged = st(a, "charged");
+  if (charged > 0) raw += 2 * charged * ctx.mult;
+  // Thunderstrike: the next hit deals double and Shocks.
+  const thunder = !!a.flags["thunderstrike"];
+  if (thunder) raw *= 2;
   if (st(d, "shock") > 0) {
-    raw *= 1.5;
+    // Shock conducts: double instead of +50% against Constructs and Soaked foes.
+    raw *= conductive(d) ? 2 : 1.5;
     if (!stacksOf(a, "lr_eye_storm")) d.statuses.shock = st(d, "shock") - 1;
   }
   let shatter = false;
@@ -210,6 +230,16 @@ function strike(b: Battle, ctx: AttackCtx) {
   const label = ctx.kind === "crit" ? "Crit! " : ctx.kind === "graze" ? "Graze. " : "";
   log(b, `${label}${a.name} hits ${d.name} for ${ctx.dealt}${armor && raw > 0 ? ` (${raw} − ${armor} Armor)` : ""}.`);
   if (shatter) applyStatus(b, a, d, "stun", 1);
+  if (ctx.dealt > 0 && charged > 0) {
+    a.statuses.charged = 0;
+    applyStatus(b, a, d, "static", charged);
+  }
+  if (thunder) {
+    a.flags["thunderstrike"] = 0;
+    log(b, "⚡ Thunderstrike!");
+    applyStatus(b, a, d, "shock", 1);
+  }
+  if (ctx.dealt > 0 && st(a, "kindled") > 0) applyStatus(b, a, d, "burn", st(a, "kindled"));
   if (armor > 0 && raw > after) d.flags["absorbed"] = (d.flags["absorbed"] ?? 0) + (raw - after);
   if (raw > 0 && after === 0 && armor > 0) {
     d.flags["blocked"] = (d.flags["blocked"] ?? 0) + raw;
@@ -257,12 +287,15 @@ function act(b: Battle, f: Fighter, doIt: () => void) {
     fx(b, { who: f.id, kind: "text", text: "Stunned", icon: "💫" });
     return;
   }
+  staticTick(b, f);
+  if (f.hp <= 0) return;
   doIt();
   if (st(f, "haste") > 0 && other(b, f).hp > 0) {
     f.statuses.haste = 0;
     log(b, `💨 ${f.name} acts again (Haste).`);
     fx(b, { who: f.id, kind: "text", text: "Haste!", icon: "💨" });
-    doIt();
+    staticTick(b, f);
+    if (f.hp > 0) doIt();
   }
 }
 

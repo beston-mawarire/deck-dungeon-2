@@ -50,7 +50,7 @@ const say = (msg: string | null, bad = true) => {
 // ---------- Small pieces ----------
 
 /** Reactions that leave a lasting effect on whoever has them (stored as fight flags). */
-const LASTING = ["rupture", "sepsis", "despair", "bastion", "frenzy", "clarity", "shatter"] as const;
+const LASTING = ["rupture", "sepsis", "despair", "bastion", "frenzy", "clarity", "shatter", "thunderstrike"] as const;
 const reactionInfo = (id: string) => REACTIONS.find(r => r.id === id)!;
 const activeReactions = (f: Fighter) => LASTING.filter(id => (f.flags[id] ?? 0) > 0);
 
@@ -73,7 +73,7 @@ function statusSources(h: Hero, status: StatusId): string[] {
     if (word.test(text)) out.push(d.name);
   }
   // Spell faces on weapons: go by the weapon's tags (a Burn-tagged staff has fire spells, and so on).
-  const TAG_OF: Partial<Record<StatusId, string>> = { burn: "Burn", poison: "Poison", bleed: "Bleed", chill: "Frost", shock: "Storm" };
+  const TAG_OF: Partial<Record<StatusId, string>> = { burn: "Burn", poison: "Poison", bleed: "Bleed", chill: "Frost", shock: "Storm", static: "Storm" };
   for (const it of [h.equip.main, h.equip.off]) {
     if (!it) continue;
     const eb = effectiveBase(it);
@@ -234,7 +234,7 @@ function dieBox(who: "player" | "enemy", label: string) {
 function fighterPanel(f: Fighter, who: "player" | "enemy") {
   const hp = dispHp[who] ?? f.hp;
   const intent = who === "enemy" && f.moves?.length ? f.moves[f.intent ?? 0] : null;
-  const traits = who === "enemy" ? `${isUnholy(f) ? `<span class="chip holy" title="Holy weapons deal +50% to it">☠️ Unholy</span>` : ""}${Object.keys(f.items).map(id => getItem(id)).map(d => `<span class="chip" title="${esc(d.text)}">${esc(d.name)}</span>`).join("")}` : "";
+  const traits = who === "enemy" ? `${isUnholy(f) ? `<span class="chip holy" title="Holy weapons deal +50% to it">☠️ Unholy</span>` : ""}${f.family === "Construct" ? `<span class="chip storm" title="Lightning hits it twice as hard: Shock doubles damage, Static and electric reactions deal double, Storm weapons +30%">⚡ Conductive</span>` : ""}${Object.keys(f.items).map(id => getItem(id)).map(d => `<span class="chip" title="${esc(d.text)}">${esc(d.name)}</span>`).join("")}` : "";
   return `<div class="panel fighter ${f.crimson ? "crimson-foe" : ""}" id="fp-${who}">
     <div class="row"><b>${esc(f.name)}</b>${f.title ? `<span class="sub">${esc(f.title)}</span>` : ""}<span class="grow"></span><span class="sub">${who === "enemy" ? `${f.family ?? ""}${f.crimson ? " · Crimson" : ""}${f.boss ? " · Boss" : f.champion ? " · Champion" : f.elite ? " · Elite" : ""}` : ""}</span></div>
     <div class="bar ${who === "enemy" ? "enemy" : ""}"><i style="width:${Math.max(0, (hp / f.maxHp) * 100)}%"></i></div>
