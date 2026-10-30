@@ -106,7 +106,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   if (st(d, "exposed") > 0) raw += 2;
   if (st(d, "shock") > 0) {
     raw *= 1.5;
-    d.statuses.shock = st(d, "shock") - 1;
+    if (!stacksOf(a, "lr_eye_storm")) d.statuses.shock = st(d, "shock") - 1;
   }
   let shatter = false;
   if (d.flags["shatter"]) {
@@ -123,7 +123,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   }
   const armor = ctx.ignoreArmor ? 0 : armorOf(d);
   // Armor can't soak a whole hit unless you're Guarding: at least a third always gets through.
-  const floorDmg = d.flags["guarding"] ? 0 : Math.floor(raw / 3);
+  const floorDmg = d.flags["guarding"] || stacksOf(d, "lr_anvil_heart") ? 0 : Math.floor(raw / 3);
   const after = Math.max(floorDmg, raw - armor);
   if (ctx.kind === "crit") fx(b, { who: d.id, kind: "crit", text: "Crit!" });
   if (ctx.kind === "graze") fx(b, { who: d.id, kind: "text", text: "Graze" });

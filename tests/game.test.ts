@@ -309,3 +309,33 @@ describe("forge: offering, combine, transmute", () => {
     }
   });
 });
+
+describe("relic rarity by depth and legendary relics", () => {
+  it("rare relics are scarce early, legendary relics only from floor 3", async () => {
+    const { relicRarityWeight } = await import("../src/game/run");
+    expect(relicRarityWeight("rare", 1)).toBeLessThan(relicRarityWeight("rare", 4));
+    expect(relicRarityWeight("legendary", 2)).toBe(0);
+    expect(relicRarityWeight("legendary", 4)).toBeGreaterThan(0);
+    expect(relicRarityWeight("legendary", 4, 2)).toBeGreaterThan(relicRarityWeight("legendary", 4));
+  });
+
+  it("Twin Souls gives a second die with the main weapon's faces", () => {
+    const h = newHero("warrior");
+    h.relics["lr_twin_souls"] = 1;
+    recompute(h);
+    expect(h.f.offFaces).toBe(h.f.faces);
+    expect(h.f.offDamage).toBe(Math.floor(h.f.damage * 0.6));
+  });
+
+  it("Philosopher's Stone brings reaction ingredients back", () => {
+    const h = newHero("mage");
+    h.relics["lr_philosophers_stone"] = 1;
+    recompute(h);
+    const b = startBattle(h.f, dummy(200), 3);
+    applyStatus(b, h.f, b.enemy, "poison", 4);
+    applyStatus(b, h.f, b.enemy, "burn", 3);
+    expect(b.log.some(l => l.includes("Combustion"))).toBe(true);
+    expect(st(b.enemy, "poison")).toBeGreaterThanOrEqual(3);
+    expect(st(b.enemy, "burn")).toBeGreaterThanOrEqual(3);
+  });
+});

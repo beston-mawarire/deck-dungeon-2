@@ -27,7 +27,7 @@ npm run build:single  # one self-contained HTML file in dist-single/
   - `gear.ts` — 22 weapons (each with its own faces), 14 off-hands, 14 armours, 16 trinkets.
   - `affixes.ts` — 22 rolled bonuses (3 of them Rare-only twists on the old classes), 22 Epic powers,
     29 Legendaries (7 of them boss trophies).
-  - `relics.ts` (58), `fusions.ts` (8 recipes), `talents.ts` (18), `origins.ts` (4 origins, 6 curses),
+  - `relics.ts` (67, 8 of them Legendary), `fusions.ts` (8 recipes), `talents.ts` (33), `origins.ts` (4 origins, 6 curses),
     `events.ts` (10), `monsters.ts` (11 monsters in 4 families, 8 Elite affixes),
     `bosses.ts` (a move library, 10 named bosses — 5 per campaign, the rest return in Endless — generated Endless bosses and the floor-30 wall).
 - `src/game/` — the run.

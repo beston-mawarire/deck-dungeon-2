@@ -258,10 +258,10 @@ function afterFight(run: Run) {
       run.message = `The Champion leaves ${metal} Starmetal behind.`;
     }
     if (!h.relics["transmuter"] && run.rng() < 0.12) relic = "transmuter";
-    relic = randomRelic(run);
+    relic = relic ?? randomRelic(run, 2);
   }
   if (rank === "boss") {
-    relic = randomRelic(run);
+    relic = randomRelic(run, 2);
     if (run.rng() < 0.15) scrolls++;
     h.f.gold += gold;
     h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.round(h.f.maxHp * 0.3));
@@ -278,10 +278,22 @@ function afterFight(run: Run) {
   run.scene = { t: "loot", title: then === "mimic" ? "The Mimic's hoard" : "Victory", items, gold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined };
 }
 
-function randomRelic(run: Run): string {
+/** How likely each relic rarity is at this depth. Good relics come later; Legendary relics only from floor 3. */
+export function relicRarityWeight(rarity: string, floor: number, quality = 1): number {
+  switch (rarity) {
+    case "common": return 1;
+    case "uncommon": return Math.min(1, 0.35 + 0.15 * (floor - 1));
+    case "rare": return Math.min(0.6, [0.03, 0.12, 0.25, 0.35, 0.45][floor - 1] ?? 0.6) * (quality > 1 ? 2 : 1);
+    case "legendary": return floor < 3 ? 0 : Math.min(0.15, 0.02 + 0.03 * (floor - 3)) * (quality > 1 ? 3 : 1);
+    default: return 0.5;
+  }
+}
+
+/** Roll a relic. `quality` > 1 for bosses and Champions (better odds of Rare and Legendary). */
+function randomRelic(run: Run, quality = 1): string {
   const tags = heroTags(run.hero);
   const pool = RELICS.filter(r => !isLocked(r.id) && r.id !== "transmuter");
-  const w = pool.map(r => 1 + 0.3 * r.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0) * ({ common: 1, uncommon: 0.7, rare: 0.35 }[r.rarity as "common"] ?? 0.5));
+  const w = pool.map(r => relicRarityWeight(r.rarity ?? "common", run.floor, quality) * (1 + 0.3 * r.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)));
   let x = run.rng() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < pool.length; i++) {
     x -= w[i];
@@ -393,7 +405,8 @@ function shopStock(run: Run): ShopEntry[] {
     const item = rollItem(h, rollRarity(run.rng, TABLES.shop), run.floor, run.rng);
     stock.push({ kind: "item", item, price: PRICE[item.rarity] + 5 * (run.floor - 1) });
   }
-  stock.push({ kind: "relic", relic: randomRelic(run), price: 45 });
+  const shopRelic = randomRelic(run);
+  stock.push({ kind: "relic", relic: shopRelic, price: ({ common: 40, uncommon: 55, rare: 85, legendary: 160 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 50 });
   stock.push({ kind: "potion", price: 15 });
   if (run.rng() < 0.12) stock.push({ kind: "scroll", price: 100 + 25 * (run.floor - 1) });
   return stock;

@@ -131,6 +131,11 @@ export function recompute(h: Hero) {
   f.armor = Math.max(0, s.armor);
   f.damage = Math.max(0, s.damage);
   f.offDamage = f.offFaces ? Math.max(0, s.offDamage) : undefined;
+  // Twin Souls: a second die with your main weapon's faces at 60% damage.
+  if (items["lr_twin_souls"]) {
+    f.offFaces = f.faces;
+    f.offDamage = Math.max(1, Math.floor(f.damage * 0.6));
+  }
   if (!items["l_hollow_crown"]) delete f.persist["keepBarrier"];
 }
 

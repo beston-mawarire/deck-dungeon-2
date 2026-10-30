@@ -66,6 +66,8 @@ export function heal(b: Battle, f: Fighter, amount: number, why = "") {
   const before = f.hp;
   f.hp = Math.min(f.maxHp, f.hp + amount);
   const got = f.hp - before;
+  // Saint's Last Breath: healing past Max HP becomes Barrier.
+  if ((f.items["lr_saints_breath"] ?? 0) > 0 && amount > got) f.statuses.barrier = st(f, "barrier") + (amount - got);
   if (got > 0) {
     log(b, `${f.name} heals ${got}${why ? ` (${why})` : ""}.`);
     fx(b, { who: f.id, kind: "heal", value: got });
@@ -123,6 +125,7 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
   fx(b, { who: t.id, kind: "reaction", text: `${name}!` });
   if (source && source !== t && (source.items["l_ouroboros"] ?? 0) > 0) heal(b, source, 5, "Ouroboros");
   if (source && source !== t && (source.items["l_codex_ruin"] ?? 0) > 0) applyStatus(b, source, t, "doom", 3, depth + 1);
+
   const m = reactionMult(b, source);
   switch (id) {
     case "combustion": {
@@ -157,6 +160,12 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
         t.statuses.ward = 0;
       }
       log(b, `✴️ ${name} on ${t.name}: ${REACTIONS.find(r => r.id === id)!.text}.`);
+  }
+  // Philosopher's Stone: the ingredients come back, ready to react again next time.
+  if (source && source !== t && (source.items["lr_philosophers_stone"] ?? 0) > 0) {
+    const r = REACTIONS.find(x => x.id === id)!;
+    applyStatus(b, source, t, r.a as StatusId, 3, depth + 1);
+    applyStatus(b, source, t, r.b as StatusId, 3, depth + 1);
   }
 }
 
@@ -197,6 +206,7 @@ export function endOfRound(b: Battle, f: Fighter) {
     f.statuses.regen = regen - 1;
   }
   for (const s of ["spikes", "chill", "weak", "exposed", "blind"] as StatusId[]) {
+    if (s === "spikes" && (f.items["lr_crown_thorns"] ?? 0) > 0) continue;
     if (st(f, s) > 0) f.statuses[s] = st(f, s) - 1;
   }
   if (st(f, "doom") > 0) {

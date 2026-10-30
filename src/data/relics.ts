@@ -131,4 +131,21 @@ export const BATCH3: HookDef[] = [
     hooks: { onKill: (_b, c) => { if (c.defender.elite) c.attacker.persist["eliteKills"] = (c.attacker.persist["eliteKills"] ?? 0) + 1; c.attacker.gold += c.attacker.persist["eliteKills"] ?? 0; } } })
 ];
 
-export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3];
+// ---------- Legendary relics: rule-breakers, only from floor 3 and mostly from bosses and Champions ----------
+export const LEGENDARY_RELICS: HookDef[] = [
+  relic({ id: "lr_anvil_heart", name: "Anvil Heart", rarity: "legendary", tags: ["Guard"], text: "+2 Armor, and your Armor can stop a whole hit even when you aren't Guarding",
+    hooks: { stats: s => { s.armor += 2; } } }),
+  relic({ id: "lr_crown_thorns", name: "Crown of Thorns", rarity: "legendary", tags: ["Thorns", "Blood"], text: "Start every fight with 5 Spikes. Your Spikes never fade, and every hit you take adds 1",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "spikes", 5), whenHit: (b, c) => { if (c.dealt > 0) applyStatus(b, c.defender, c.defender, "spikes", 1, 1); } } }),
+  relic({ id: "lr_eye_storm", name: "Eye of the Storm", rarity: "legendary", tags: ["Storm"], text: "Shock you apply is never used up: it stays for the whole fight", hooks: {} }),
+  relic({ id: "lr_sixth_sun", name: "The Sixth Sun", rarity: "legendary", tags: ["Crit", "Luck"], text: "Every 5 you roll becomes a 6",
+    hooks: { modifyRoll: (_b, _f, r) => (r === 5 ? 6 : r) } }),
+  relic({ id: "lr_saints_breath", name: "Saint's Last Breath", rarity: "legendary", tags: ["Blood", "Guard"], text: "Healing you receive +50%, and healing past your Max HP becomes Barrier",
+    hooks: { healMult: () => 1.5 } }),
+  relic({ id: "lr_doomclock", name: "The Doomclock", rarity: "legendary", tags: ["Hex", "Kill"], text: "Every other status you put on an enemy also applies 1 Doom",
+    hooks: { onStatusApplied: (b, self, t, status) => { if (t !== self && status !== "doom") applyStatus(b, self, t, "doom", 1, 1); } } }),
+  relic({ id: "lr_philosophers_stone", name: "Philosopher's Stone", rarity: "legendary", tags: ["Arcane", "Hex"], text: "Every reaction you cause re-applies 3 of each of its ingredients, ready to react again", hooks: {} }),
+  relic({ id: "lr_twin_souls", name: "Twin Souls", rarity: "legendary", tags: ["Tempo", "Strike"], text: "You always roll a second die with your main weapon's faces, at 60% of its damage (replaces an off-hand die)", hooks: {} })
+];
+
+export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3, ...LEGENDARY_RELICS];

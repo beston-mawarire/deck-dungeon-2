@@ -62,4 +62,37 @@ export const GEAR_TALENTS: HookDef[] = [
   talent({ id: "t_vigor", name: "Vigor", tags: ["Blood"], text: "+6 / +12 / +20 Max HP", hooks: { stats: (st_, s) => { st_.maxHp += rank(s, 6, 12, 20); } } })
 ];
 
-export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS];
+export const MORE_TALENTS: HookDef[] = [
+  talent({ id: "t_bloodrage", name: "Bloodrage", tags: ["Strike", "Blood"], text: "+1 Damage for every 20% / 15% / 10% of your HP that's missing",
+    hooks: { modifyAttack: (_b, c, s) => { const step = rank(s, 0.2, 0.15, 0.1); c.bonus += Math.floor((1 - c.attacker.hp / c.attacker.maxHp) / step); } } }),
+  talent({ id: "t_shield_wall", name: "Shield Wall", tags: ["Guard"], text: "Guarding also gives 2 / 3 / 5 Barrier",
+    hooks: { onGuard: (b, f, s) => applyStatus(b, f, f, "barrier", rank(s, 2, 3, 5)) } }),
+  talent({ id: "t_quick_hands", name: "Quick Hands", tags: ["Tempo"], text: "Start every fight with Haste (II: and Focus; III: and 2 Might)",
+    hooks: { onFightStart: (b, f, s) => { applyStatus(b, f, f, "haste", 1); if (s >= 2) applyStatus(b, f, f, "focus", 1); if (s >= 3) applyStatus(b, f, f, "might", 2); } } }),
+  talent({ id: "t_envenomed", name: "Envenomed Blades", tags: ["Poison"], text: "Your hits apply 1 / 2 / 3 Poison",
+    hooks: { onHit: (b, c, s) => applyStatus(b, c.attacker, c.defender, "poison", s) } }),
+  talent({ id: "t_kindler", name: "Kindler", tags: ["Burn", "Crit"], text: "Your crits apply 3 / 5 / 8 Burn",
+    hooks: { onCrit: (b, c, s) => applyStatus(b, c.attacker, c.defender, "burn", rank(s, 3, 5, 8)) } }),
+  talent({ id: "t_frostbite", name: "Frostbite", tags: ["Frost"], text: "On a 1 or 2: apply 1 / 2 / 3 Chill",
+    hooks: { face: [{ group: "low", run: (b, c, s) => applyStatus(b, c.attacker, c.defender, "chill", s) }] } }),
+  talent({ id: "t_static_charge", name: "Static Charge", tags: ["Storm"], text: "On a 5: apply Shock (II: on 4–5; III: on 3–5)",
+    hooks: { face: [{ group: "any", run: (b, c, s) => { if (c.face <= 5 && c.face >= 6 - s) applyStatus(b, c.attacker, c.defender, "shock", 1); } }] } }),
+  talent({ id: "t_malediction", name: "Malediction", tags: ["Hex"], text: "Each fight, the enemy starts with 1 / 2 / 3 Weak and Exposed",
+    hooks: { onFightStart: (b, f, s) => { const e = other(b, f); applyStatus(b, f, e, "weak", s); applyStatus(b, f, e, "exposed", s); } } }),
+  talent({ id: "t_gold_digger", name: "Gold Digger", tags: ["Gold"], text: "+3 / +6 / +10 Gold for every fight you win",
+    hooks: { onFightEnd: (b, f, s) => { if (b.over === "won" && f.id === "player") f.gold += rank(s, 3, 6, 10); } } }),
+  talent({ id: "t_thick_skin", name: "Thick Skin", tags: ["Guard", "Blood"], text: "Start every fight with 3 / 6 / 10 Barrier",
+    hooks: { onFightStart: (b, f, s) => applyStatus(b, f, f, "barrier", rank(s, 3, 6, 10)) } }),
+  talent({ id: "t_lucky_streak", name: "Lucky Streak", tags: ["Luck"], text: "Reroll your first 1 each fight (II: 1s and 2s; III: twice)",
+    hooks: { modifyRoll: (b, f, r, s) => { const used = f.flags["streak"] ?? 0; if (used < (s >= 3 ? 2 : 1) && (r === 1 || (s >= 2 && r === 2))) { f.flags["streak"] = used + 1; const n = 1 + Math.floor(b.rng() * 6); log(b, `Lucky Streak rerolls ${r} → ${n}.`); return n; } return r; } } }),
+  talent({ id: "t_hunters_mark", name: "Hunter's Mark", tags: ["Crit", "Hex"], text: "Your first hit each fight applies 2 / 3 / 4 Exposed",
+    hooks: { onHit: (b, c, s) => { if (!c.attacker.flags["marked"]) { c.attacker.flags["marked"] = 1; applyStatus(b, c.attacker, c.defender, "exposed", rank(s, 2, 3, 4)); } } } }),
+  talent({ id: "t_troll_blood", name: "Troll Blood", tags: ["Blood"], text: "Heal 1 / 2 / 3 at the end of every round",
+    hooks: { onRoundEnd: (b, f, s) => { heal(b, f, s, "Troll Blood"); } } }),
+  talent({ id: "t_overkill", name: "Overkill", tags: ["Kill", "Strike"], text: "Overkill carries into the next fight at 50% / 100% / 150%",
+    hooks: { onKill: (b, c, s) => { if (c.defender.hp < 0 && !c.spec.cleave) b.carry += Math.round(-c.defender.hp * rank(s, 0.5, 1, 1.5)); } } }),
+  talent({ id: "t_catalyst", name: "Catalyst", tags: ["Arcane", "Hex"], text: "Reactions you cause deal +25% / +50% / +100%",
+    hooks: { reactionMult: (_b, _f, s) => 1 + rank(s, 0.25, 0.5, 1) } })
+];
+
+export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS, ...MORE_TALENTS];
