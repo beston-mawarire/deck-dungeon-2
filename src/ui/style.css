@@ -148,3 +148,5 @@ button.crimson-btn { background: var(--crimson); border-color: var(--crimson); c
 .rxguide { border-top: 1px dashed var(--line); padding: 6px 0; font-size: .9rem; }
 .rxguide.yours b:first-child { color: var(--gold); }
 .chip.holy { border-color: #f3e3a0; color: #f6e7b0; }
+.item.is-equipped { position: relative; outline: 2px solid var(--gold); outline-offset: 2px; }
+.eqbadge { display: inline-block; background: var(--gold); color: #1a1408; font-weight: 700; font-size: .75rem; border-radius: 6px; padding: 1px 7px; margin-bottom: 4px; }

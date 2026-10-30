@@ -457,3 +457,18 @@ describe("holy", () => {
     expect(300 - z.hp).toBe(Math.round(1.5 * (300 - w.hp)));
   });
 });
+
+describe("shop selling", () => {
+  it("sells one item per Merchant visit", async () => {
+    const { sellItem } = await import("../src/game/run");
+    const run = newRun("warrior", 3);
+    chooseRoom(run, "shop");
+    const gold = run.hero.f.gold;
+    const armour = run.hero.equip.armour!.uid;
+    expect(sellItem(run, armour)).toBeNull();
+    expect(run.hero.equip.armour).toBeUndefined();
+    expect(run.hero.f.gold).toBeGreaterThan(gold);
+    expect(sellItem(run, run.hero.equip.off!.uid)).toMatch(/already/);
+    expect(run.hero.equip.off).toBeDefined();
+  });
+});

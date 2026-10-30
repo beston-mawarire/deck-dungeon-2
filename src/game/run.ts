@@ -48,7 +48,7 @@ export type Scene =
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[] }
   | { t: "talent"; options: string[] }
-  | { t: "shop"; stock: ShopEntry[] }
+  | { t: "shop"; stock: ShopEntry[]; /** One item may be sold per Merchant visit. */ soldItem?: string }
   | { t: "forge" }
   | { t: "rest"; done: boolean }
   | { t: "confirm"; room: RoomType }
@@ -473,6 +473,25 @@ export function buy(run: Run, i: number): string | null {
   return null;
 }
 
+/** What a Merchant pays for an item: 40% of its shop price, plus a little per level. */
+export const sellPrice = (item: GearItem) => Math.round(PRICE[item.rarity] * 0.4) + 2 * (item.level - 1);
+
+/** Sell one item (equipped or in the bag) — once per Merchant visit. */
+export function sellItem(run: Run, uid: number): string | null {
+  const s = run.scene;
+  if (s.t !== "shop") return null;
+  if (s.soldItem) return "This Merchant has already bought something from you.";
+  const h = run.hero;
+  const found = findItem(h, uid);
+  if (!found) return null;
+  const price = sellPrice(found.item);
+  removeGear(h, uid);
+  recompute(h);
+  h.f.gold += price;
+  s.soldItem = `${baseOf(found.item.base).legendary && !found.item.revealed ? "an unrevealed Legendary" : baseName(found.item)} for ${price} Gold`;
+  return null;
+}
+
 /** Each reroll at the same Merchant costs 10 more than the last. */
 export const shopRerollCost = (run: Run) => 10 + 10 * run.shopRerolls;
 
@@ -482,7 +501,7 @@ export function rerollShop(run: Run): string | null {
   if (run.hero.f.gold < cost) return "Not enough Gold.";
   run.hero.f.gold -= cost;
   run.shopRerolls++;
-  run.scene.stock = shopStock(run);
+  run.scene = { ...run.scene, stock: shopStock(run) };
   return null;
 }
 

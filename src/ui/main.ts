@@ -14,7 +14,7 @@ import { lockedIds, loadMeta, type Meta, recordRun, UNLOCK_TIERS } from "../game
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  combinablePairs, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, TRANSMUTE_COST,
+  combinablePairs, sellItem, sellPrice, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, TRANSMUTE_COST,
   ROOM_INFO, type Run, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR
 } from "../game/run";
 import { isMuted, sfx, toggleMute } from "./sound";
@@ -144,10 +144,11 @@ function compareHtml(h: Hero, it: GearItem): string {
   return `<div class="compare">Replaces <b>${esc(itemName(cur))}</b> (${cur.rarity}, lv ${cur.level})${rows.length ? `<br>${rows.join(" · ")}` : ""}</div>`;
 }
 
-function itemCard(it: GearItem, buttons = "", compare = false) {
+function itemCard(it: GearItem, buttons = "", compare = false, equippedAs = "") {
   const b = baseOf(it.base);
   const hidden = b.legendary && !it.revealed;
-  return `<div class="item r-${it.rarity} ${hidden ? "unrevealed" : ""}">
+  return `<div class="item r-${it.rarity} ${hidden ? "unrevealed" : ""} ${equippedAs ? "is-equipped" : ""}">
+    ${equippedAs ? `<div class="eqbadge">⚔️ Equipped · ${esc(equippedAs)}</div>` : ""}
     <div class="meta">${it.rarity} · ${b.slot === "main" ? "weapon" : b.slot === "off" ? "off-hand" : b.slot} · level ${it.level}</div>
     <div class="nm">${esc(itemName(it))}</div>
     <ul>${itemLines(it).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
@@ -318,7 +319,17 @@ function shopScene(r: Run) {
     return `<div class="item"><div class="nm">${esc(label)}</div><div class="row" style="margin-top:8px">${btn}</div></div>`;
   }).join("")}</div>
   <p class="sub">Bought gear goes to your bag; equip it from 🎒.</p>
+  <h2>Sell</h2>
+  ${r.scene.soldItem ? `<p class="sub">You sold ${esc(r.scene.soldItem)}. The Merchant won't buy anything else this visit.</p>`
+    : `<p class="sub">The Merchant will buy one item per visit, for 40% of its price.</p><div class="cards">${allGear(r).map(it => itemCard(it, `<button class="small" data-sell="${it.uid}">Sell · ${sellPrice(it)} 🪙</button>`, false, equippedSlot(r, it))).join("")}</div>`}
   <div class="row" style="margin-top:12px"><button data-reroll>Reroll stock · ${shopRerollCost(r)} 🪙</button><button class="primary" data-leave>Leave</button></div>`;
+}
+
+const SLOT_LABEL: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket" };
+/** "Main hand" etc. if the item is equipped, "" if it's in the bag. */
+function equippedSlot(r: Run, it: GearItem): string {
+  const s = EQUIP_SLOTS.find(k => r.hero.equip[k]?.uid === it.uid);
+  return s ? SLOT_LABEL[s] : "";
 }
 
 function allGear(r: Run): GearItem[] {
@@ -335,7 +346,7 @@ function forgeScene(r: Run) {
   let body = "";
   if (forgeTab === "upgrade") {
     body = `<p class="sub">Upgrading raises an item's level (more damage, stronger bonuses). Each reroll of the same item costs more.</p>
-    <div class="cards">${allGear(r).map(it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small" data-rr="${it.uid}">Reroll · ${rerollCost(it)} ⚙️</button>` : ""}`)).join("")}</div>`;
+    <div class="cards">${allGear(r).map(it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small" data-rr="${it.uid}">Reroll · ${rerollCost(it)} ⚙️</button>` : ""}`, false, equippedSlot(r, it))).join("")}</div>`;
   } else if (forgeTab === "offer") {
     const chosen = h.backpack.filter(i => offerSel.has(i.uid));
     const odds = offeringOdds(offeringValue(chosen));
@@ -346,11 +357,11 @@ function forgeScene(r: Run) {
   } else if (forgeTab === "combine") {
     const pairs = combinablePairs(r);
     body = `<p class="sub">Combine two of the same item into one: a level higher, the best bonuses of both, and a 30% chance to rise a rarity (up to Epic).</p>
-      ${pairs.length ? pairs.map(([a, b]) => `<div class="panel" style="margin-top:8px"><div class="cards">${itemCard(a)}${itemCard(b)}</div><button class="primary small" data-combine="${a.uid},${b.uid}">Combine</button></div>`).join("") : `<p class="sub">You don't have two of the same item.</p>`}`;
+      ${pairs.length ? pairs.map(([a, b]) => `<div class="panel" style="margin-top:8px"><div class="cards">${itemCard(a, "", false, equippedSlot(r, a))}${itemCard(b, "", false, equippedSlot(r, b))}</div><button class="primary small" data-combine="${a.uid},${b.uid}">Combine</button></div>`).join("") : `<p class="sub">You don't have two of the same item.</p>`}`;
   } else {
     const commons = allGear(r).filter(i => i.rarity === "common");
     body = `<p class="sub">The Transmuter's Crucible turns a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} ✴️ Starmetal (you have ${h.starmetal}). It arrives unrevealed.</p>
-      <div class="cards">${commons.map(it => itemCard(it, `<button class="small primary" data-transmute="${it.uid}" ${h.starmetal >= TRANSMUTE_COST ? "" : "disabled"}>Transmute · ${TRANSMUTE_COST} ✴️</button>`)).join("") || `<p class="sub">No Common items.</p>`}</div>`;
+      <div class="cards">${commons.map(it => itemCard(it, `<button class="small primary" data-transmute="${it.uid}" ${h.starmetal >= TRANSMUTE_COST ? "" : "disabled"}>Transmute · ${TRANSMUTE_COST} ✴️</button>`, false, equippedSlot(r, it))).join("") || `<p class="sub">No Common items.</p>`}</div>`;
   }
   return `<h2>Forge</h2><p class="sub">⚙️ ${h.scrap} Scrap${h.starmetal ? ` · ✴️ ${h.starmetal} Starmetal` : ""}</p>
   ${fusions.length ? `<h2>Fusion!</h2><div class="cards">${fusions.map(x => { const o = getItem(x.out); return `<div class="item r-legendary"><div class="nm">${esc(o.name)}</div><p>${esc(getItem(x.a).name)} + ${esc(getItem(x.b).name)}</p><p>${esc(o.text)}</p><button class="primary small" data-fuse="${x.out}">Fuse</button></div>`; }).join("")}</div>` : ""}
@@ -662,6 +673,7 @@ function bind() {
   on("[data-talent]", el => chooseTalent(r, el.dataset.talent!));
   on("[data-buy]", el => say(buy(r, Number(el.dataset.buy))));
   on("[data-reroll]", () => say(rerollShop(r)));
+  on("[data-sell]", el => { const err = sellItem(r, Number(el.dataset.sell)); say(err); if (!err) sfx("chest"); });
   on("[data-leave]", () => { r.message = ""; forgeTab = "upgrade"; offerSel.clear(); advance(r); });
   on("[data-up]", el => say(forgeUpgrade(r, Number(el.dataset.up))));
   on("[data-rr]", el => say(forgeReroll(r, Number(el.dataset.rr))));
