@@ -274,22 +274,30 @@ describe("forge: offering, combine, transmute", () => {
     }
   });
 
-  it("offering consumes items and gives one", async () => {
+  it("offering consumes items and gives one, or sometimes nothing", async () => {
     const { forgeOffer } = await import("../src/game/run");
-    const run = newRun("mage", 22);
-    for (let i = 0; i < 3; i++) run.hero.backpack.push({ uid: 600 + i, base: "w_dagger", rarity: "rare", level: 2, bonuses: {}, revealed: true });
-    const out = forgeOffer(run, [600, 601, 602]);
-    expect(typeof out).toBe("object");
-    expect(run.hero.backpack.length).toBe(1);
+    let gave = 0;
+    let lost = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      const run = newRun("mage", seed);
+      for (let i = 0; i < 3; i++) run.hero.backpack.push({ uid: 600 + i, base: "w_dagger", rarity: "rare", level: 2, bonuses: {}, revealed: true });
+      const out = forgeOffer(run, [600, 601, 602]);
+      if (typeof out === "object") { gave++; expect(run.hero.backpack.length).toBe(1); }
+      else { lost++; expect(run.hero.backpack.length).toBe(0); }
+    }
+    expect(gave).toBeGreaterThan(30);
+    expect(lost).toBeGreaterThan(3);
   });
 
-  it("the Transmuter turns a Common into an unrevealed Legendary for 3 Starmetal; scrapping a Legendary gives Starmetal", async () => {
+  it("the Transmuter turns a Common into an unrevealed Legendary for 4 Starmetal; scrapping a Legendary gives Starmetal", async () => {
     const { forgeTransmute } = await import("../src/game/run");
     const run = newRun("warrior", 23);
     const sword = run.hero.equip.main!;
     expect(forgeTransmute(run, sword.uid)).toBe("You need the Transmuter's Crucible.");
     run.hero.relics["transmuter"] = 1;
     run.hero.starmetal = 3;
+    expect(forgeTransmute(run, sword.uid)).toBe("Needs 4 Starmetal.");
+    run.hero.starmetal = 4;
     const out = forgeTransmute(run, sword.uid);
     expect(typeof out).toBe("object");
     if (typeof out === "object") {

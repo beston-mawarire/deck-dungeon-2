@@ -14,7 +14,7 @@ import { lockedIds, loadMeta, type Meta, recordRun, UNLOCK_TIERS } from "../game
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  combinablePairs, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, TRANSMUTE_COST,
+  combinablePairs, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, TRANSMUTE_COST,
   ROOM_INFO, type Run, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR
 } from "../game/run";
 import { isMuted, sfx, toggleMute } from "./sound";
@@ -271,8 +271,8 @@ function forgeScene(r: Run) {
   } else if (forgeTab === "offer") {
     const chosen = h.backpack.filter(i => offerSel.has(i.uid));
     const odds = offeringOdds(offeringValue(chosen));
-    body = `<p class="sub">Sacrifice two or more items from your bag for one new item. More items and rarer items mean better odds.</p>
-      ${chosen.length >= 2 ? `<div class="panel">Odds: ${(["common", "uncommon", "rare", "epic", "legendary"] as const).filter(x => odds[x]).map(x => `<span class="chip">${x} ${odds[x]}%</span>`).join(" ")}</div>` : ""}
+    body = `<p class="sub">Sacrifice two or more items from your bag for one new item. More items and rarer items mean better odds — but ${OFFERING_FAIL}% of the time the Forge takes everything and gives nothing.</p>
+      ${chosen.length >= 2 ? `<div class="panel">Odds: <span class="chip">nothing ${OFFERING_FAIL}%</span> ${(["common", "uncommon", "rare", "epic", "legendary"] as const).filter(x => odds[x]).map(x => `<span class="chip">${x} ${Math.round((odds[x] ?? 0) * (100 - OFFERING_FAIL) / 100)}%</span>`).join(" ")}</div>` : ""}
       <div class="cards" style="margin-top:8px">${h.backpack.map(it => itemCard(it, `<button class="small ${offerSel.has(it.uid) ? "primary" : ""}" data-offersel="${it.uid}">${offerSel.has(it.uid) ? "✓ Offered" : "Offer"}</button>`)).join("") || `<p class="sub">Your bag is empty.</p>`}</div>
       <div class="row" style="margin-top:8px"><button class="primary" data-offer ${chosen.length >= 2 ? "" : "disabled"}>Sacrifice ${chosen.length} item${chosen.length === 1 ? "" : "s"}</button></div>`;
   } else if (forgeTab === "combine") {
@@ -559,7 +559,7 @@ function bind() {
   on("[data-rr]", el => say(forgeReroll(r, Number(el.dataset.rr))));
   on("[data-forgetab]", el => { forgeTab = el.dataset.forgetab as typeof forgeTab; offerSel.clear(); });
   on("[data-offersel]", el => { const u = Number(el.dataset.offersel); if (offerSel.has(u)) offerSel.delete(u); else offerSel.add(u); });
-  on("[data-offer]", () => { const out = forgeOffer(r, [...offerSel]); offerSel.clear(); if (typeof out === "string") say(out); else { say(`The Forge gives you: ${itemName(out)} (${out.rarity})`, false); sfx(out.rarity === "epic" || out.rarity === "legendary" ? "legendary" : "chest"); } });
+  on("[data-offer]", () => { const out = forgeOffer(r, [...offerSel]); offerSel.clear(); if (typeof out === "string") { say(out); sfx("lose"); } else { say(`The Forge gives you: ${itemName(out)} (${out.rarity})`, false); sfx(out.rarity === "epic" || out.rarity === "legendary" ? "legendary" : "chest"); } });
   on("[data-combine]", el => { const [a, b] = el.dataset.combine!.split(",").map(Number); const out = forgeCombine(r, a, b); if (typeof out === "string") say(out); else { say(`Combined into ${itemName(out)} (${out.rarity}, lv ${out.level})`, false); sfx("chest"); } });
   on("[data-transmute]", el => { const out = forgeTransmute(r, Number(el.dataset.transmute)); if (typeof out === "string") say(out); else { say("The Crucible roars. A Legendary takes shape…", false); sfx("legendary"); } });
   on("[data-fuse]", el => { const err = fuse(r, el.dataset.fuse!); say(err ?? `Fused: ${getItem(el.dataset.fuse!).name}!`, !!err); if (!err) sfx("legendary"); });

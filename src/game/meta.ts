@@ -14,9 +14,10 @@ const KEY = "dd2-meta-v1";
 
 export const UNLOCK_TIERS: { at: number; name: string; ids: string[] }[] = [
   { at: 20, name: "Wandering Armoury", ids: ["w_crossbow", "w_trident", "w_lute", "o_grimoire", "a_frost_plate"] },
-  { at: 50, name: "Epic Lore", ids: ["e_frostbound", "e_thundering", "e_bloodthirsty", "e_bastion", "e_hexing", "e_lucky"] },
+  { at: 50, name: "Epic Lore", ids: ["e_frostbound", "e_thundering", "e_bloodthirsty", "e_bastion", "e_hexing", "e_lucky", "e_cataclysmic", "e_gorgon"] },
   { at: 90, name: "Legends of the Deep I", ids: ["l_tempest_maul", "l_gravecaller", "l_sanguine_regalia", "t_quicksilver", "war_drum", "blood_moon"] },
-  { at: 150, name: "Legends of the Deep II", ids: ["l_ouroboros", "l_loaded_fate", "l_crown_endless", "t_alchemist_ring", "a_mirror_mail"] }
+  { at: 150, name: "Legends of the Deep II", ids: ["l_ouroboros", "l_loaded_fate", "l_crown_endless", "t_alchemist_ring", "a_mirror_mail"] },
+  { at: 220, name: "Trophies of the Fallen", ids: ["l_skarn_horn", "l_morwen_tear", "l_hollow_decree"] }
 ];
 
 export function loadMeta(): Meta {

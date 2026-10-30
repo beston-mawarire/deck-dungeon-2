@@ -25,13 +25,13 @@ npm run build:single  # one self-contained HTML file in dist-single/
   - `registry.ts` — looks items up and runs their hooks.
 - `src/data/` — the content library. Adding an item means adding an entry here.
   - `gear.ts` — 22 weapons (each with its own faces), 14 off-hands, 14 armours, 16 trinkets.
-  - `affixes.ts` — 22 rolled bonuses (3 of them Rare-only twists on the old classes), 16 Epic powers,
-    13 Legendaries.
+  - `affixes.ts` — 22 rolled bonuses (3 of them Rare-only twists on the old classes), 22 Epic powers,
+    29 Legendaries (7 of them boss trophies).
   - `relics.ts` (58), `fusions.ts` (8 recipes), `talents.ts` (18), `origins.ts` (4 origins, 6 curses),
     `events.ts` (10), `monsters.ts` (11 monsters in 4 families, 8 Elite affixes),
     `bosses.ts` (a move library, 10 named bosses — 5 per campaign, the rest return in Endless — generated Endless bosses and the floor-30 wall).
 - `src/game/` — the run.
-  - `hero.ts` — equipping, two-handers, backpack (4), salvage, reveal, stat rebuild.
+  - `hero.ts` — equipping, two-handers, backpack (5), salvage, reveal, stat rebuild.
   - `loot.ts` — rarity tables, item rolling with tag weighting, Resplendent chests, bad-luck protection.
   - `run.ts` — 5 floors (or Endless), path choices, rooms (fights, chests, Mimics, vaults, altars,
     shrines, shops, forges with fusions, campfires, events, bosses), XP and Talents.
@@ -48,9 +48,9 @@ Item level follows the floor; the Forge raises it.
 ## Forge
 
 Upgrade (level +1), reroll a bonus (each reroll of an item costs more), fuse relic pairs, make an
-Offering (sacrifice 2+ items for one; more and rarer items give better odds), combine two of the same
+Offering (sacrifice 2+ items for one — or, 20% of the time, nothing; more and rarer items give better odds), combine two of the same
 item (stronger, 30% chance to rise a rarity), and — with the rare Transmuter's Crucible — turn a Common
-into a Legendary with 3 Starmetal (dropped by Champions, or from scrapping Legendaries).
+into a Legendary with 4 Starmetal (dropped by Champions, or from scrapping Legendaries).
 
 ## Balance
 

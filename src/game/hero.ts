@@ -7,7 +7,7 @@ import type { Fighter, GearBase, GearItem, OriginId, Rarity, Slot, StatBlock } f
 
 export type EquipSlot = "main" | "off" | "armour" | "trinket1" | "trinket2";
 export const EQUIP_SLOTS: EquipSlot[] = ["main", "off", "armour", "trinket1", "trinket2"];
-export const BACKPACK_SIZE = 4;
+export const BACKPACK_SIZE = 5;
 
 export interface Hero {
   origin: OriginId;

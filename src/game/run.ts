@@ -574,13 +574,21 @@ export function offeringOdds(value: number): Partial<Record<Rarity, number>> {
   return odds;
 }
 
-/** Sacrifice two or more backpack items for one new item. */
+/** % chance an Offering gives nothing at all. */
+export const OFFERING_FAIL = 20;
+
+/** Sacrifice two or more backpack items for one new item (or, sometimes, nothing). */
 export function forgeOffer(run: Run, uids: number[]): GearItem | string {
   const h = run.hero;
   const items = uids.map(u => h.backpack.find(i => i.uid === u)).filter((x): x is GearItem => !!x);
   if (items.length < 2) return "Offer at least two items from your bag.";
-  const rarity = rollRarity(run.rng, offeringOdds(offeringValue(items)));
   for (const it of items) removeGear(h, it.uid);
+  // The Forge doesn't always answer: sometimes the offering is simply lost.
+  if (run.rng() * 100 < OFFERING_FAIL) {
+    recompute(h);
+    return "The Forge swallows your offering… and gives nothing back.";
+  }
+  const rarity = rollRarity(run.rng, offeringOdds(offeringValue(items)));
   const out = rollItem(h, rarity, Math.max(run.floor, ...items.map(i => i.level)), run.rng);
   h.backpack.push(out);
   markFound(run, out);
@@ -632,9 +640,9 @@ export function combinablePairs(run: Run): [GearItem, GearItem][] {
   return pairs;
 }
 
-export const TRANSMUTE_COST = 3;
+export const TRANSMUTE_COST = 4;
 
-/** With the Transmuter's Crucible: a Common item + 3 Starmetal becomes an (unrevealed) Legendary of the same kind. */
+/** With the Transmuter's Crucible: a Common item + 4 Starmetal becomes an (unrevealed) Legendary of the same kind. */
 export function forgeTransmute(run: Run, uid: number): GearItem | string {
   const h = run.hero;
   if (!h.relics["transmuter"]) return "You need the Transmuter's Crucible.";
