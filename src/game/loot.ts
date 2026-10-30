@@ -1,0 +1,96 @@
+// Loot: rarity tables, rolling gear, chests (Wooden, Iron, Resplendent) and bad-luck protection.
+import { BONUSES, EPIC_POWERS, GEAR_BASES, LEGENDARIES } from "../data";
+import type { GearBase, GearItem, Rarity } from "../engine/types";
+import { RARITIES } from "../engine/types";
+import { type Hero, heroTags } from "./hero";
+
+export type Odds = Partial<Record<Rarity, number>>;
+
+export const TABLES = {
+  wooden: { common: 65, uncommon: 35 },
+  iron: { uncommon: 60, rare: 40 },
+  drop: { common: 60, uncommon: 30, rare: 10 },
+  elite: { uncommon: 50, rare: 40, epic: 10 },
+  champion: { rare: 60, epic: 35, legendary: 5 },
+  boss: { rare: 50, epic: 40, legendary: 10 },
+  shop: { uncommon: 50, rare: 40, epic: 10 }
+} satisfies Record<string, Odds>;
+
+/** Resplendent card odds by floor (from the design doc). */
+export const RESPLENDENT: Record<number, Odds> = {
+  1: { uncommon: 45, rare: 40, epic: 13, legendary: 2 },
+  2: { uncommon: 25, rare: 45, epic: 24, legendary: 6 },
+  3: { uncommon: 10, rare: 40, epic: 38, legendary: 12 }
+};
+
+export function rollRarity(rng: () => number, odds: Odds): Rarity {
+  const total = RARITIES.reduce((s, r) => s + (odds[r] ?? 0), 0);
+  let x = rng() * total;
+  for (const r of RARITIES) {
+    x -= odds[r] ?? 0;
+    if (x < 0) return r;
+  }
+  return "common";
+}
+
+const weighted = <T>(rng: () => number, items: T[], weight: (t: T) => number): T => {
+  const total = items.reduce((s, t) => s + weight(t), 0);
+  let x = rng() * total;
+  for (const t of items) {
+    x -= weight(t);
+    if (x < 0) return t;
+  }
+  return items[items.length - 1];
+};
+
+/** Lean toward tags the hero already owns, without ever guaranteeing them. */
+const tagWeight = (tags: Map<string, number>, own: readonly string[]) => 1 + 0.35 * own.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0);
+
+const rank = (r: Rarity) => RARITIES.indexOf(r);
+
+export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => number): GearItem {
+  const tags = heroTags(h);
+  if (rarity === "legendary") {
+    const pool = LEGENDARIES.filter(l => (l.legendary?.minFloor ?? 1) <= floor);
+    if (pool.length === 0) rarity = "epic";
+    else {
+      const base = weighted(rng, pool, b => tagWeight(tags, b.tags));
+      return { uid: h.nextUid++, base: base.id, rarity: "legendary", level: floor, bonuses: {}, revealed: false };
+    }
+  }
+  const base: GearBase = weighted(rng, GEAR_BASES, b => tagWeight(tags, b.tags));
+  const nBonuses = { common: 0, uncommon: 1, rare: 2, epic: 2, legendary: 0 }[rarity];
+  const bonuses: Record<string, number> = {};
+  const pool = BONUSES.filter(x => rank(rarity) >= rank(x.minRarity ?? "uncommon"));
+  for (let i = 0; i < nBonuses && pool.length; i++) {
+    const pick = weighted(rng, pool, x => 1 + 0.6 * x.tags.filter(t => base.tags.includes(t)).length + 0.25 * x.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0));
+    pool.splice(pool.indexOf(pick), 1);
+    bonuses[pick.id] = floor;
+  }
+  const epic = rarity === "epic" ? weighted(rng, EPIC_POWERS, e => tagWeight(tags, e.tags)).id : undefined;
+  return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses, epic, revealed: true };
+}
+
+export type ResplendentCard = { kind: "item"; item: GearItem } | { kind: "scroll" };
+
+export interface LootState {
+  /** Bad-luck protection: bonus % added to Epic and Legendary on Resplendent cards. */
+  pity: number;
+}
+
+/** Deal the face-down cards of a Resplendent chest. */
+export function resplendentCards(h: Hero, floor: number, loot: LootState, rng: () => number): ResplendentCard[] {
+  const base = { ...RESPLENDENT[Math.min(3, Math.max(1, floor))] };
+  const clover = 3 * (h.relics["four_leaf_clover"] ?? 0);
+  base.epic = (base.epic ?? 0) + loot.pity;
+  base.legendary = (base.legendary ?? 0) + loot.pity / 2 + clover;
+  const count = 3 + (Object.values(h.equip).some(i => i?.base === "t_prospector") ? 1 : 0);
+  const cards: ResplendentCard[] = [];
+  for (let i = 0; i < count; i++) {
+    if (rng() < 0.03) cards.push({ kind: "scroll" });
+    else cards.push({ kind: "item", item: rollItem(h, rollRarity(rng, base), floor, rng) });
+  }
+  const great = cards.some(c => c.kind === "item" && rank(c.item.rarity) >= rank("epic"));
+  loot.pity = great ? 0 : loot.pity + 5;
+  return cards;
+}

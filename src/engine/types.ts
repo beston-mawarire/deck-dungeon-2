@@ -1,8 +1,8 @@
-// Core types for Deck Dungeon 2. Everything the library describes is built from these.
+// Core types for Deck Dungeon 2: an item-driven dungeon crawler where your weapon is your die.
 
 export const TAGS = [
   "Strike", "Crit", "Bleed", "Burn", "Poison", "Frost", "Storm", "Hex",
-  "Guard", "Thorns", "Blood", "Gold", "Luck", "Kill", "Tempo"
+  "Guard", "Thorns", "Blood", "Gold", "Luck", "Kill", "Tempo", "Arcane"
 ] as const;
 export type Tag = (typeof TAGS)[number];
 
@@ -11,18 +11,32 @@ export const POSITIVE_STATUSES = ["regen", "barrier", "might", "haste", "focus",
 export type NegativeStatus = (typeof NEGATIVE_STATUSES)[number];
 export type PositiveStatus = (typeof POSITIVE_STATUSES)[number];
 export type StatusId = NegativeStatus | PositiveStatus;
+export type Statuses = Partial<Record<StatusId, number>>;
 
-export type Rarity = "common" | "uncommon" | "rare" | "cursed" | "boss" | "legendary";
-export type ClassId = "king" | "jack" | "queen" | "ace";
-export type Suit = "S" | "C" | "H" | "D";
+export const RARITIES = ["common", "uncommon", "rare", "epic", "legendary"] as const;
+export type Rarity = (typeof RARITIES)[number];
+
+export type OriginId = "warrior" | "rogue" | "mage" | "cleric";
+export type Slot = "main" | "off" | "armour" | "trinket";
 
 /** Which faces an effect listens to. A number means that exact face. */
-export type FaceGroup = number | "low" | "mid" | "high" | "odd" | "even" | "doubles" | "any";
+export type FaceGroup = number | "low" | "mid" | "high" | "odd" | "even" | "any";
 
-/** Base outcome of a face before items change it. */
-export type FaceKind = "graze" | "hit" | "crit" | "jackpot";
+/** How a face resolves before items change it. */
+export type FaceKind = "miss" | "graze" | "hit" | "crit";
 
-export type Statuses = Partial<Record<StatusId, number>>;
+/** One face of a weapon's die. */
+export interface FaceSpec {
+  kind: FaceKind;
+  /** Shown on the die, e.g. "Fire Bolt". Defaults to the kind's name. */
+  name?: string;
+  /** Extra effect when this face comes up (spells, bleeds, stuns...). */
+  run?: (b: Battle, ctx: AttackCtx) => void;
+  /** Overkill from this face carries into the next fight (Cleave). */
+  cleave?: boolean;
+  /** Spells cast by Arcane weapons ignore Armor. */
+  magic?: boolean;
+}
 
 export interface Fighter {
   id: "player" | "enemy";
@@ -30,27 +44,25 @@ export interface Fighter {
   hp: number;
   maxHp: number;
   armor: number;
-  /** Flat damage for heroes; Power for enemies. The Queen ignores this (see damageOf). */
+  /** Flat damage before the face multiplier (weapon damage for the hero, Power for monsters). */
   damage: number;
+  /** The die this fighter attacks with. */
+  faces: FaceSpec[];
+  /** A second, weaker die from an off-hand weapon. */
+  offFaces?: FaceSpec[];
+  offDamage?: number;
   statuses: Statuses;
-  /** Run-long or fight-long flags set by reactions and items. */
+  /** Fight-only flags, cleared at the start of each fight. */
   flags: Record<string, number>;
-  /** Items this fighter holds: item id -> stacks. Enemies hold affixes here. */
+  /** Run-long counters that survive between fights (Kingsbane kills, Hollow Crown barrier...). */
+  persist: Record<string, number>;
+  /** Every active hook source: def id -> stacks (gear, bonuses, relics, talents, traits). */
   items: Record<string, number>;
-  cls?: ClassId;
-  suit?: Suit;
-  gold?: number;
+  gold: number;
   elite?: boolean;
+  champion?: boolean;
   boss?: boolean;
-  /** The Ace's deck (all cards) and draw pile. */
-  deck?: Card[];
-  pile?: Card[];
-}
-
-export type TarotSuit = "wands" | "cups" | "swords" | "pentacles";
-export interface Card {
-  v: number;
-  suit: TarotSuit;
+  family?: string;
 }
 
 /** Everything an item can see and change while an attack resolves. */
@@ -58,19 +70,16 @@ export interface AttackCtx {
   attacker: Fighter;
   defender: Fighter;
   face: number;
+  spec: FaceSpec;
   kind: FaceKind;
-  /** Damage multiplier from the face kind (graze 0.5, hit 1, crit 2, jackpot 3). */
   mult: number;
   ignoreArmor: boolean;
   bonus: number;
-  /** Set to true to make the attack deal no damage (e.g. a utility face). */
   noDamage: boolean;
-  /** Set when the Jack's two dice match. */
-  doubles: boolean;
-  /** Final damage dealt to HP after Armor and Barrier (filled in after the hit). */
+  /** True for the off-hand die's attack. */
+  offhand: boolean;
+  /** Final damage dealt to HP after Armor and Barrier. */
   dealt: number;
-  /** True for the Ace: one card of a hand firing its face. */
-  fromCard?: boolean;
 }
 
 export interface Battle {
@@ -80,45 +89,83 @@ export interface Battle {
   rng: () => number;
   log: string[];
   over: null | "won" | "lost" | "fled";
-  /** Overkill damage the King carries into the next fight. */
-  carnage: number;
+  /** Overkill from Cleave faces, carried into the next fight. */
+  carry: number;
 }
 
 export interface Hooks {
-  /** Fired when this fighter's attack lands on a matching face. */
   face?: { group: FaceGroup; run: (b: Battle, ctx: AttackCtx, stacks: number) => void }[];
-  /** Change the rolled number before the face is read (nudges, rerolls). */
   modifyRoll?: (b: Battle, self: Fighter, roll: number, stacks: number) => number;
-  /** Change the face kind (e.g. "your 1s count as 6s"). */
-  modifyKind?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
+  /** Runs once the face is known, before damage. Use for bonuses and face rewrites. */
+  modifyAttack?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
   onHit?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
   onCrit?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
   onKill?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
-  /** This fighter was attacked (after damage). */
   whenHit?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
   onGuard?: (b: Battle, self: Fighter, stacks: number) => void;
   onFightStart?: (b: Battle, self: Fighter, stacks: number) => void;
   onFightEnd?: (b: Battle, self: Fighter, stacks: number) => void;
   onRoundStart?: (b: Battle, self: Fighter, stacks: number) => void;
   onRoundEnd?: (b: Battle, self: Fighter, stacks: number) => void;
-  /** A status is about to land on this fighter; return the amount that should land (0 blocks it). */
   incomingStatus?: (b: Battle, self: Fighter, status: StatusId, amount: number, stacks: number) => number;
-  /** This fighter applied a status to someone. */
   onStatusApplied?: (b: Battle, self: Fighter, target: Fighter, status: StatusId, amount: number, stacks: number) => void;
-  /** Change how much a reaction deals (multiplier). */
   reactionMult?: (b: Battle, self: Fighter, stacks: number) => number;
-  /** Extra faces on the die (Seventh Face). */
-  dieSides?: (stacks: number) => number;
+  /** Change the hero's stats when gear is recalculated (Max HP, Armor, damage). */
+  stats?: (s: StatBlock, stacks: number) => void;
+  /** Change healing received (multiplier). */
+  healMult?: (stacks: number) => number;
 }
 
-export interface ItemDef {
+export interface StatBlock {
+  maxHp: number;
+  armor: number;
+  damage: number;
+  offDamage: number;
+}
+
+/** Anything with hooks: gear bases, bonuses, Epic powers, relics, talents, monster traits, origin passives, curses. */
+export interface HookDef {
   id: string;
   name: string;
-  kind: "relic" | "talent" | "affix";
-  rarity: Rarity;
+  kind: "weapon" | "off" | "armour" | "trinket" | "bonus" | "epic" | "relic" | "talent" | "trait" | "origin" | "curse" | "consumable";
   tags: Tag[];
   text: string;
-  /** Talents only: class lock. */
-  cls?: ClassId;
   hooks: Hooks;
+  rarity?: Rarity;
+  /** Rolled bonuses only: the lowest rarity that can roll it (twists borrowed from the old classes are Rare+). */
+  minRarity?: Rarity;
+  /** Rolled bonuses: the "of ..." suffix in the item name. Epic powers: the prefix. */
+  affix?: string;
+}
+
+/** A base item type the loot system can roll (Iron Sword, Leather Jerkin...). */
+export interface GearBase extends HookDef {
+  kind: "weapon" | "off" | "armour" | "trinket";
+  slot: Slot;
+  /** Weapons: base damage at item level 1, and the faces. */
+  damage?: number;
+  faces?: FaceSpec[];
+  twoHanded?: boolean;
+  /** Off-hand weapons give a second die at this damage. */
+  offDamage?: number;
+  armor?: number;
+  maxHp?: number;
+  /** Legendaries only: earliest floor and the effect hidden until revealed. */
+  legendary?: { minFloor: number; reveal: string; asBase: string };
+
+  /** Bases never rolled as loot (starting kits). */
+  starter?: boolean;
+}
+
+/** A rolled piece of gear in the hero's inventory. */
+export interface GearItem {
+  uid: number;
+  base: string;
+  rarity: Rarity;
+  level: number;
+  /** Rolled bonus def id -> magnitude. */
+  bonuses: Record<string, number>;
+  epic?: string;
+  /** Legendaries start unrevealed and act as a Common of their base type. */
+  revealed: boolean;
 }

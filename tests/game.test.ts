@@ -1,0 +1,199 @@
+import { beforeAll, describe, expect, it } from "vitest";
+import { loadLibrary } from "../src/data";
+import { makeMonster } from "../src/data/monsters";
+import { playRound, resolveFace, startBattle } from "../src/engine/combat";
+import { allItems } from "../src/engine/registry";
+import { makeRng } from "../src/engine/rng";
+import { applyStatus, endOfRound, st } from "../src/engine/statuses";
+import { TAGS } from "../src/engine/types";
+import { equipItem, itemName, newHero, recompute, reveal, salvage, weaponDamage } from "../src/game/hero";
+import { resplendentCards, rollItem } from "../src/game/loot";
+import { advance, chooseRoom, chooseTalent, combatAction, finishLoot, newRun, takeItem } from "../src/game/run";
+
+beforeAll(() => loadLibrary());
+
+const dummy = (hp = 200) => {
+  const e = makeMonster(makeRng(1), 1, "normal");
+  e.hp = e.maxHp = hp;
+  e.armor = 0;
+  e.items = {};
+  return e;
+};
+
+describe("library", () => {
+  it("every hook def uses known tags and has text", () => {
+    for (const d of allItems()) {
+      expect(d.text.length, d.id).toBeGreaterThan(3);
+      for (const t of d.tags) expect(TAGS as readonly string[], `${d.id} tag ${t}`).toContain(t);
+    }
+  });
+});
+
+describe("origins and gear", () => {
+  it("each origin starts with its kit", () => {
+    const w = newHero("warrior");
+    expect(w.equip.main?.base).toBe("w_sword");
+    expect(w.f.armor).toBe(3); // shield 1 + chain 2
+    const r = newHero("rogue");
+    expect(r.f.offFaces).toBeDefined(); // throwing knife = second die
+    const m = newHero("mage");
+    expect(m.f.faces[1].name).toBe("Fire Bolt");
+  });
+
+  it("the weapon sets the die", () => {
+    const h = newHero("warrior");
+    const b = startBattle(h.f, dummy(), 1);
+    resolveFace(b, h.f, b.enemy, 6, false);
+    expect(b.enemy.hp).toBe(200 - 8); // sword 4 × crit 2
+  });
+
+  it("spell faces apply statuses, and the Mage's passive adds a stack", () => {
+    const h = newHero("mage");
+    const b = startBattle(h.f, dummy(), 1);
+    resolveFace(b, h.f, b.enemy, 2, false);
+    // Fire Bolt 3 (+1 Arcane Spark, +1 Cloth Robes) and Ember Charm 2 (+1 Cloth Robes)
+    expect(st(b.enemy, "burn")).toBe(8);
+  });
+
+  it("a two-handed weapon empties the off-hand into the backpack", () => {
+    const h = newHero("warrior");
+    const axe = { uid: 999, base: "w_axe", rarity: "common" as const, level: 1, bonuses: {}, revealed: true };
+    expect(equipItem(h, axe)).toBeNull();
+    expect(h.equip.off).toBeUndefined();
+    expect(h.backpack.map(i => i.base)).toEqual(["w_sword", "o_wooden_shield"]);
+    expect(h.f.damage).toBe(6);
+  });
+
+  it("rarity raises damage and adds bonuses; Epics get a power", () => {
+    const h = newHero("warrior");
+    const rng = makeRng(3);
+    const epic = rollItem(h, "epic", 2, rng);
+    expect(Object.keys(epic.bonuses).length).toBe(2);
+    expect(epic.epic).toBeDefined();
+    const rare = rollItem(h, "rare", 1, rng);
+    expect(Object.keys(rare.bonuses).length).toBe(2);
+  });
+
+  it("an unrevealed Legendary acts as a Common of its base; a Scroll reveals it", () => {
+    const h = newHero("warrior");
+    const leg = { uid: 50, base: "l_kingsbane", rarity: "legendary" as const, level: 1, bonuses: {}, revealed: false };
+    equipItem(h, leg);
+    expect(itemName(leg)).toContain("???");
+    expect(h.f.damage).toBe(4);
+    expect(h.f.items["l_kingsbane"]).toBeUndefined();
+    expect(reveal(h, 50)).toBe("You need a Scroll of Revelation.");
+    h.scrolls = 1;
+    expect(reveal(h, 50)).toBeNull();
+    expect(itemName(leg)).toBe("Kingsbane");
+    expect(h.f.damage).toBe(6);
+    expect(h.f.items["l_kingsbane"]).toBe(1);
+  });
+
+  it("Worldsplitter rolls a 12-sided die", () => {
+    const h = newHero("warrior");
+    equipItem(h, { uid: 51, base: "l_worldsplitter", rarity: "legendary", level: 3, bonuses: {}, revealed: true });
+    expect(h.f.faces.length).toBe(12);
+    expect(weaponDamage(h.equip.main!)).toBe(9);
+  });
+
+  it("salvage turns gear into Scrap", () => {
+    const h = newHero("rogue");
+    const uid = h.equip.off!.uid;
+    expect(salvage(h, uid)).toBe(1);
+    expect(h.scrap).toBe(1);
+    expect(h.f.offFaces).toBeUndefined();
+  });
+
+  it("Hollow Crown sets Max HP to 1 and keeps Barrier", () => {
+    const h = newHero("cleric");
+    equipItem(h, { uid: 52, base: "l_hollow_crown", rarity: "legendary", level: 3, bonuses: {}, revealed: true });
+    expect(h.f.maxHp).toBe(1);
+    const b = startBattle(h.f, dummy(), 2);
+    expect(st(h.f, "barrier")).toBeGreaterThanOrEqual(10);
+    expect(b.over).toBeNull();
+  });
+});
+
+describe("statuses and reactions still work", () => {
+  it("Combustion", () => {
+    const h = newHero("warrior");
+    const b = startBattle(h.f, dummy(100), 1);
+    applyStatus(b, h.f, b.enemy, "poison", 4);
+    applyStatus(b, h.f, b.enemy, "burn", 3);
+    expect(b.enemy.hp).toBe(93);
+  });
+
+  it("Bleed ticks", () => {
+    const h = newHero("warrior");
+    const b = startBattle(h.f, dummy(100), 1);
+    applyStatus(b, h.f, b.enemy, "bleed", 3);
+    endOfRound(b, b.enemy);
+    expect(b.enemy.hp).toBe(97);
+  });
+});
+
+describe("loot", () => {
+  it("Resplendent chests deal 3 cards, 4 with the Prospector's Ring", () => {
+    const h = newHero("warrior");
+    const loot = { pity: 0 };
+    expect(resplendentCards(h, 1, loot, makeRng(1)).length).toBe(3);
+    h.equip.trinket1 = { uid: 77, base: "t_prospector", rarity: "common", level: 1, bonuses: {}, revealed: true };
+    recompute(h);
+    expect(resplendentCards(h, 1, loot, makeRng(2)).length).toBe(4);
+  });
+
+  it("bad-luck protection grows until an Epic or better shows up", () => {
+    const h = newHero("warrior");
+    const loot = { pity: 0 };
+    let maxPity = 0;
+    for (let i = 0; i < 40; i++) {
+      resplendentCards(h, 1, loot, makeRng(100 + i));
+      maxPity = Math.max(maxPity, loot.pity);
+    }
+    expect(maxPity).toBeGreaterThan(0);
+  });
+
+  it("Legendaries respect their earliest floor", () => {
+    const h = newHero("warrior");
+    const rng = makeRng(9);
+    for (let i = 0; i < 50; i++) {
+      const it = rollItem(h, "legendary", 1, rng);
+      expect(["l_kingsbane"]).toContain(it.base);
+    }
+  });
+});
+
+describe("a whole run", () => {
+  it("bots can play runs to the end without errors", () => {
+    let wins = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const run = newRun((["warrior", "rogue", "mage", "cleric"] as const)[seed % 4], seed);
+      for (let guard = 0; guard < 3000 && run.scene.t !== "over"; guard++) {
+        const s = run.scene;
+        if (s.t === "map") chooseRoom(run, run.choices[0]);
+        else if (s.t === "confirm") advance(run);
+        else if (s.t === "combat") combatAction(run, "attack");
+        else if (s.t === "loot") {
+          for (const it of [...s.items]) if (takeItem(run, it.uid, "pack")) break;
+          finishLoot(run);
+        } else if (s.t === "pick") takeItem(run, s.items[0].uid, "pack") && finishLoot(run);
+        else if (s.t === "talent") chooseTalent(run, s.options[0]);
+        else if (s.t === "resplendent") { s.picked = 0; finishLoot(run); }
+        else advance(run);
+      }
+      expect(run.scene.t).toBe("over");
+      if (run.scene.t === "over" && run.scene.won) wins++;
+    }
+    expect(wins).toBeGreaterThanOrEqual(0);
+  });
+
+  it("fights resolve deterministically for a seed", () => {
+    const go = () => {
+      const h = newHero("rogue");
+      const b = startBattle(h.f, makeMonster(makeRng(4), 2, "elite"), 77);
+      for (let i = 0; i < 40 && !b.over; i++) playRound(b, "attack");
+      return b.log.join("\n");
+    };
+    expect(go()).toBe(go());
+  });
+});

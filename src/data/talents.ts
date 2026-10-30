@@ -1,16 +1,16 @@
 // Talents. Stacks = rank (I, II, III); taking one again ranks it up.
 import { other, st } from "../engine/statuses";
-import type { ItemDef } from "../engine/types";
-import { applyStatus, heal, log, on } from "./helpers";
+import type { HookDef } from "../engine/types";
+import { applyStatus, heal, log } from "./helpers";
 
-const talent = (d: Omit<ItemDef, "kind" | "rarity"> & { rarity?: ItemDef["rarity"] }): ItemDef => ({ kind: "talent", rarity: "common", ...d });
+const talent = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "talent", ...d });
 const rank = (s: number, ...vals: number[]) => vals[Math.min(s, vals.length) - 1];
 
-export const SHARED_TALENTS: ItemDef[] = [
+export const SHARED_TALENTS: HookDef[] = [
   talent({ id: "t_momentum", name: "Momentum", tags: ["Strike", "Tempo"], text: "+1 Damage per hit in a row without being hit, max 3 / 5 / 8",
     hooks: {
       onHit: (_b, ctx, s) => { ctx.attacker.flags["momentum"] = Math.min(rank(s, 3, 5, 8), (ctx.attacker.flags["momentum"] ?? 0) + 1); },
-      modifyKind: (_b, ctx) => { ctx.bonus += ctx.attacker.flags["momentum"] ?? 0; },
+      modifyAttack: (_b, ctx) => { ctx.bonus += ctx.attacker.flags["momentum"] ?? 0; },
       whenHit: (_b, ctx) => { if (ctx.dealt > 0) ctx.defender.flags["momentum"] = 0; }
     } }),
   talent({ id: "t_hemophile", name: "Hemophile", tags: ["Bleed"], text: "Bleed you apply +1 / +2 / +3",
@@ -30,7 +30,7 @@ export const SHARED_TALENTS: ItemDef[] = [
     hooks: { onHit: (b, ctx, s) => { const t = rank(s, 2, 3, 5); if (ctx.defender.hp > 0 && ctx.defender.hp <= t && !ctx.defender.boss) { ctx.defender.hp = 0; log(b, "Reaper cuts it down."); } } } })
 ];
 
-export const STATUS_TALENTS: ItemDef[] = [
+export const STATUS_TALENTS: HookDef[] = [
   talent({ id: "t_pyrotechnics", name: "Pyrotechnics", tags: ["Burn", "Storm"], text: "Overload also Stuns (II: also 2 Exposed)",
     hooks: {} }), // handled inside the Overload reaction (statuses.ts)
   talent({ id: "t_cold_blooded", name: "Cold-Blooded", tags: ["Frost", "Guard"], text: "+2 / +3 / +4 Armor while the enemy is Chilled",
@@ -49,19 +49,4 @@ export const STATUS_TALENTS: ItemDef[] = [
     } } })
 ];
 
-export const CLASS_TALENTS: ItemDef[] = [
-  talent({ id: "t_overrun", name: "Overrun", cls: "king", tags: ["Strike"], text: "Carnage carried into the next fight +50% / +100% / +200%",
-    hooks: { onKill: (b, ctx, s) => { if (ctx.defender.hp < 0) b.carnage += Math.round(-ctx.defender.hp * rank(s, 0.5, 1, 2)); } } }),
-  talent({ id: "t_wrathful", name: "Wrathful", cls: "king", tags: ["Crit"], text: "Each crit gives +1 Damage for the fight, max 3 / 5 / no max",
-    hooks: { onCrit: (b, ctx, s) => { const cap = rank(s, 3, 5, 999); if (st(ctx.attacker, "might") < cap) applyStatus(b, ctx.attacker, ctx.attacker, "might", 1, 1); } } }),
-  talent({ id: "t_counterstroke", name: "Counterstroke", cls: "jack", tags: ["Thorns", "Bleed"], text: "A full block applies 2 / 3 / 5 Bleed",
-    hooks: { whenHit: (b, ctx, s) => { if (ctx.defender.flags["blockedThisRound"]) applyStatus(b, ctx.defender, ctx.attacker, "bleed", rank(s, 2, 3, 5)); } } }),
-  talent({ id: "t_lifeblood", name: "Lifeblood", cls: "queen", tags: ["Blood"], text: "Heal 1 / 2 / 3 on every Hit face (2–5)",
-    hooks: { face: [on("any", (b, ctx, s) => { if (ctx.face >= 2 && ctx.face <= 5) heal(b, ctx.attacker, s, "Lifeblood"); })] } }),
-  talent({ id: "t_regal_vigour", name: "Regal Vigour", cls: "queen", tags: ["Blood"], text: "Start each fight with 2 / 3 / 5 Regen",
-    hooks: { onFightStart: (b, f, s) => applyStatus(b, f, f, "regen", rank(s, 2, 3, 5)) } }),
-  talent({ id: "t_transfusion", name: "Transfusion", cls: "queen", tags: ["Blood", "Kill"], text: "Kills heal half the killing blow / all of it",
-    hooks: { onKill: (b, ctx, s) => { heal(b, ctx.attacker, Math.ceil(ctx.dealt * (s >= 2 ? 1 : 0.5)), "Transfusion"); } } })
-];
-
-export const TALENTS: ItemDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS, ...CLASS_TALENTS];
+export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS];

@@ -1,12 +1,16 @@
-// Combat: the die-face attack, Guard, the four class rules, and the round loop.
+// Combat: your weapon is your die. Roll it, read the face, fire every effect on that face, then deal damage.
 import { eachHook, log, stacksOf } from "./registry";
-import { makeRng, rollDie, shuffle } from "./rng";
-import { applyStatus, endOfRound, heal, loseHp, other, st, startOfTurn } from "./statuses";
-import type { AttackCtx, Battle, Card, FaceGroup, FaceKind, Fighter } from "./types";
+import { makeRng, rollDie } from "./rng";
+import { applyStatus, endOfRound, loseHp, other, st, startOfTurn } from "./statuses";
+import type { AttackCtx, Battle, FaceGroup, FaceKind, FaceSpec, Fighter, Statuses } from "./types";
 
-export const KIND_MULT: Record<FaceKind, number> = { graze: 0.5, hit: 1, crit: 2, jackpot: 3 };
+export const KIND_MULT: Record<FaceKind, number> = { miss: 0, graze: 0.5, hit: 1, crit: 2 };
+export const KIND_NAME: Record<FaceKind, string> = { miss: "Miss", graze: "Graze", hit: "Hit", crit: "Crit" };
 
-export function faceMatches(g: FaceGroup, face: number, doubles = false): boolean {
+/** The plain die: 1 Graze, 2–5 Hit, 6 Crit. */
+export const PLAIN_FACES: FaceSpec[] = [{ kind: "graze" }, { kind: "hit" }, { kind: "hit" }, { kind: "hit" }, { kind: "hit" }, { kind: "crit" }];
+
+export function faceMatches(g: FaceGroup, face: number): boolean {
   if (typeof g === "number") return g === face;
   switch (g) {
     case "any": return true;
@@ -15,219 +19,138 @@ export function faceMatches(g: FaceGroup, face: number, doubles = false): boolea
     case "high": return face >= 5;
     case "odd": return face % 2 === 1;
     case "even": return face % 2 === 0;
-    case "doubles": return doubles;
   }
 }
 
-export const baseKind = (face: number): FaceKind => (face >= 7 ? "jackpot" : face === 6 ? "crit" : face === 1 ? "graze" : "hit");
+export const faceName = (s: FaceSpec) => s.name ?? KIND_NAME[s.kind];
 
-/** Flat damage before the face multiplier. The Queen's comes from her HP. */
-export function damageOf(f: Fighter): number {
-  const might = st(f, "might");
-  if (f.cls === "queen") return Math.floor((Math.max(0, f.hp) + st(f, "barrier")) / 4) + f.damage + might;
-  return f.damage + might;
+export function damageOf(f: Fighter, offhand = false): number {
+  return (offhand ? f.offDamage ?? 0 : f.damage) + st(f, "might");
 }
 
-const dieSides = (f: Fighter) => {
-  let sides = 6;
-  eachHook(f, "dieSides", (h, s) => (sides = Math.max(sides, h(s))));
-  return sides;
-};
+export function armorOf(f: Fighter): number {
+  let a = f.armor;
+  if (f.flags["guarding"]) a *= stacksOf(f, "r_fortress_heart") > 0 ? 3 : 2;
+  return Math.max(0, a);
+}
 
-/** Roll one die for a fighter, with Focus, Clarity, Chill and roll-changing items. */
-export function rollFor(b: Battle, f: Fighter): number {
-  const sides = dieSides(f);
-  let r: number;
+/** Roll a die for a fighter, with Focus, Chill and roll-changing items. */
+export function rollFor(b: Battle, f: Fighter, sides: number): number {
+  let r = rollDie(b.rng, sides);
+  if (st(f, "focus") > 0) {
+    r = Math.max(r, rollDie(b.rng, sides));
+    f.statuses.focus = 0;
+  }
   if (f.flags["clarity"]) {
-    r = sides; // choose the face: the engine picks the best one
+    r = sides;
     f.flags["clarity"] = 0;
-  } else {
-    r = rollDie(b.rng, sides);
-    if (st(f, "focus") > 0) {
-      r = Math.max(r, rollDie(b.rng, sides));
-      f.statuses.focus = 0;
-    }
   }
-  if (st(f, "chill") > 0 && r > 1 && r <= 6) r -= 1;
+  if (st(f, "chill") > 0 && r > 1) r -= 1;
   eachHook(f, "modifyRoll", (h, s) => (r = h(b, f, r, s)));
   return Math.max(1, Math.min(sides, r));
 }
 
-function newCtx(attacker: Fighter, defender: Fighter, face: number, doubles = false): AttackCtx {
-  let kind = baseKind(face);
-  if (face === 5 && attacker.flags["frenzy"]) kind = "crit";
-  return { attacker, defender, face, kind, mult: KIND_MULT[kind], ignoreArmor: kind === "crit" || kind === "jackpot", bonus: 0, noDamage: false, doubles, dealt: 0 };
+/** One attack with the main die (or the off-hand die). */
+export function attack(b: Battle, a: Fighter, d: Fighter, offhand = false) {
+  const faces = (offhand ? a.offFaces : a.faces) ?? PLAIN_FACES;
+  const face = rollFor(b, a, faces.length);
+  resolveFace(b, a, d, face, offhand);
 }
 
-/** Fire face effects on the attacker's items. `all` fires every face effect (Jackpot, Crown of Sixes). */
-export function runFaces(b: Battle, ctx: AttackCtx, all = false) {
-  eachHook(ctx.attacker, "face", (entries, s) => {
-    for (const e of entries) if (all || faceMatches(e.group, ctx.face, ctx.doubles)) e.run(b, ctx, s);
-  });
-}
-
-/** Resolve the damage part of an attack once the face is settled. */
-function strike(b: Battle, ctx: AttackCtx) {
-  const { attacker: a, defender: d } = ctx;
-  if (!ctx.noDamage && d.hp > 0) {
-    let raw = (damageOf(a) + ctx.bonus) * ctx.mult;
-    if (st(a, "weak") > 0) raw *= 0.75;
-    if (st(d, "exposed") > 0) raw += 2;
-    if (st(d, "shock") > 0) {
-      raw *= 1.5;
-      d.statuses.shock = st(d, "shock") - 1;
-    }
-    let shatter = false;
-    if (d.flags["shatter"]) {
-      raw *= 3;
-      d.flags["shatter"] = 0;
-      shatter = true;
-    }
-    raw = Math.round(raw);
-    if (st(d, "evade") > 0) {
-      d.statuses.evade = 0;
-      log(b, `${d.name} evades!`);
-      return;
-    }
-    const armor = ctx.ignoreArmor ? 0 : armorOf(d);
-    const afterArmor = Math.max(0, raw - armor);
-    ctx.dealt = loseHp(b, d, afterArmor);
-    const label = ctx.kind === "jackpot" ? "JACKPOT! " : ctx.kind === "crit" ? "Crit! " : ctx.kind === "graze" ? "Graze. " : "";
-    log(b, `${label}${a.name} hits ${d.name} for ${ctx.dealt}${armor && raw > 0 ? ` (${raw} − ${armor} Armor)` : ""}.`);
-    if (shatter) applyStatus(b, a, d, "stun", 1);
-    if (raw > 0 && afterArmor === 0) {
-      d.flags["blockedThisRound"] = 1;
-      log(b, `${d.name} blocks it all.`);
-    }
-  }
-  if (ctx.dealt > 0) {
-    eachHook(a, "onHit", (h, s) => h(b, ctx, s));
-    if (ctx.kind === "crit" || ctx.kind === "jackpot") eachHook(a, "onCrit", (h, s) => h(b, ctx, s));
-  }
-  eachHook(d, "whenHit", (h, s) => h(b, ctx, s));
-  const spikes = st(d, "spikes");
-  if (spikes > 0 && !ctx.noDamage && a.hp > 0) {
-    const lost = loseHp(b, a, spikes);
-    log(b, `🌵 Spikes deal ${lost} back to ${a.name}.`);
-  }
-  if (d.hp <= 0) {
-    eachHook(a, "onKill", (h, s) => h(b, ctx, s));
-    if (a.cls === "king" && d.hp < 0) b.carnage += -d.hp;
-  }
-}
-
-export function armorOf(f: Fighter): number {
-  let a = f.armor + (f.flags["guardDie"] ?? 0);
-  if (f.flags["guarding"]) a *= stacksOf(f, "fortress_heart") > 0 ? 3 : 2;
-  return Math.max(0, a);
-}
-
-/** One attack with a single die (King, Queen, enemies). */
-export function attackWithDie(b: Battle, a: Fighter, d: Fighter) {
-  const face = rollFor(b, a);
-  resolveFace(b, a, d, face, false);
-}
-
-export function resolveFace(b: Battle, a: Fighter, d: Fighter, face: number, doubles: boolean) {
-  log(b, `${a.name} rolls ${face}.`);
+export function resolveFace(b: Battle, a: Fighter, d: Fighter, face: number, offhand = false) {
+  const faces = (offhand ? a.offFaces : a.faces) ?? PLAIN_FACES;
+  const spec = faces[Math.min(face, faces.length) - 1];
+  log(b, `${a.name} rolls ${face}${offhand ? " (off-hand)" : ""}: ${faceName(spec)}.`);
   if (st(a, "blind") > 0 && face <= 2) {
     log(b, `${a.name} is Blind and misses.`);
     return;
   }
-  const ctx = newCtx(a, d, face, doubles);
-  eachHook(a, "modifyKind", (h, s) => h(b, ctx, s));
-  const all = ctx.kind === "jackpot" || (ctx.face === 6 && stacksOf(a, "crown_of_sixes") > 0);
-  runFaces(b, ctx, all);
+  const ctx: AttackCtx = {
+    attacker: a, defender: d, face, spec, kind: spec.kind, mult: KIND_MULT[spec.kind],
+    ignoreArmor: spec.kind === "crit" || !!spec.magic, bonus: 0, noDamage: spec.kind === "miss", offhand, dealt: 0
+  };
+  if (spec.kind === "hit" && face === 5 && a.flags["frenzy"]) {
+    ctx.kind = "crit";
+    ctx.mult = 2;
+    ctx.ignoreArmor = true;
+  }
+  if (spec.run) {
+    a.flags["casting"] = 1;
+    spec.run(b, ctx);
+    a.flags["casting"] = 0;
+  }
+  eachHook(a, "face", (entries, s) => {
+    for (const e of entries) if (faceMatches(e.group, face)) e.run(b, ctx, s);
+  });
+  eachHook(a, "modifyAttack", (h, s) => h(b, ctx, s));
   strike(b, ctx);
 }
 
-/** The Jack: two dice. The higher attacks; the lower adds to Armor this round. */
-export function attackJack(b: Battle, a: Fighter, d: Fighter) {
-  const r1 = rollFor(b, a);
-  const r2 = rollFor(b, a);
-  const atk = Math.max(r1, r2);
-  const grd = Math.min(r1, r2);
-  a.flags["guardDie"] = grd;
-  log(b, `${a.name} rolls ${r1} and ${r2}: attacks with ${atk}, guards with ${grd} (+${grd} Armor this round).`);
-  resolveFace(b, a, d, atk, r1 === r2);
-}
-
-// ---------- The Ace's tarot hand ----------
-
-export function starterDeck(rng: () => number): Card[] {
-  const suits = shuffle(rng, ["wands", "cups", "swords", "pentacles"] as const as unknown as Card["suit"][]).slice(0, 2);
-  const deck: Card[] = [];
-  for (const suit of suits) for (let v = 1; v <= 6; v++) deck.push({ v, suit });
-  return deck;
-}
-
-function draw(b: Battle, f: Fighter, n: number): Card[] {
-  const hand: Card[] = [];
-  for (let i = 0; i < n; i++) {
-    if (!f.pile || f.pile.length === 0) f.pile = shuffle(b.rng, [...(f.deck ?? [])]);
-    const c = f.pile.pop();
-    if (c) hand.push(c);
+function strike(b: Battle, ctx: AttackCtx) {
+  const { attacker: a, defender: d } = ctx;
+  if (ctx.noDamage || d.hp <= 0) {
+    if (ctx.kind === "miss") log(b, `${a.name} misses.`);
+    return afterStrike(b, ctx);
   }
-  return hand;
-}
-
-export function handMultiplier(hand: Card[]): { mult: number; name: string; flush: boolean } {
-  const vs = hand.map(c => c.v).sort((x, y) => x - y);
-  const counts = new Map<number, number>();
-  for (const v of vs) counts.set(v, (counts.get(v) ?? 0) + 1);
-  const most = Math.max(...counts.values());
-  const run = vs.length === 3 && vs[1] === vs[0] + 1 && vs[2] === vs[1] + 1;
-  const flush = hand.length === 3 && hand.every(c => c.suit === hand[0].suit);
-  if (most === 3) return { mult: 3, name: "Three of a kind", flush };
-  if (run) return { mult: 2, name: "Run", flush };
-  if (most === 2) return { mult: 2, name: "Pair", flush };
-  return { mult: 1, name: "High card", flush };
-}
-
-const SUIT_ICON: Record<Card["suit"], string> = { wands: "🪄", cups: "🏆", swords: "🗡️", pentacles: "🪙" };
-export const cardLabel = (c: Card) => `${c.v}${SUIT_ICON[c.suit]}`;
-
-/** The Ace: play 3 cards. Each card fires its number's face effects; a 6 makes it a crit. */
-export function attackAce(b: Battle, a: Fighter, d: Fighter) {
-  const hand = draw(b, a, 3);
-  const { mult, name, flush } = handMultiplier(hand);
-  log(b, `${a.name} plays ${hand.map(cardLabel).join(" ")}: ${name}${flush ? " + flush" : ""}.`);
-  let crit = false;
-  // Each card fires its own face effects (no damage from these, the hand deals it once).
-  for (const c of hand) {
-    const fctx = newCtx(a, d, c.v);
-    fctx.noDamage = true;
-    fctx.fromCard = true;
-    runFaces(b, fctx, c.v === 6 && stacksOf(a, "crown_of_sixes") > 0);
-    if (c.v === 6) crit = true;
+  let raw = (damageOf(a, ctx.offhand) + ctx.bonus) * ctx.mult;
+  if (st(a, "weak") > 0) raw *= 0.75;
+  if (st(d, "exposed") > 0) raw += 2;
+  if (st(d, "shock") > 0) {
+    raw *= 1.5;
+    d.statuses.shock = st(d, "shock") - 1;
   }
-  const ctx = newCtx(a, d, Math.max(...hand.map(c => c.v)));
-  ctx.kind = crit ? "crit" : "hit";
-  ctx.mult = mult * (crit ? 2 : 1);
-  ctx.ignoreArmor = crit;
-  eachHook(a, "modifyKind", (h, s) => h(b, ctx, s));
-  strike(b, ctx);
-  if (flush && d.hp > 0) {
-    const total = hand.reduce((s, c) => s + c.v, 0) + damageOf(a);
-    const suit = hand[0].suit;
-    if (suit === "wands") applyStatus(b, a, d, "burn", total);
-    if (suit === "cups") heal(b, a, Math.floor(total / 2), "Cups flush");
-    if (suit === "swords") applyStatus(b, a, d, "bleed", Math.floor(total / 2));
-    if (suit === "pentacles") {
-      a.gold = (a.gold ?? 0) + total;
-      log(b, `${a.name} gains ${total} Gold.`);
+  let shatter = false;
+  if (d.flags["shatter"]) {
+    raw *= 3;
+    d.flags["shatter"] = 0;
+    shatter = true;
+  }
+  raw = Math.max(0, Math.round(raw));
+  if (st(d, "evade") > 0) {
+    d.statuses.evade = 0;
+    log(b, `${d.name} evades!`);
+    return afterStrike(b, ctx);
+  }
+  const armor = ctx.ignoreArmor ? 0 : armorOf(d);
+  const after = Math.max(0, raw - armor);
+  ctx.dealt = loseHp(b, d, after);
+  const label = ctx.kind === "crit" ? "Crit! " : ctx.kind === "graze" ? "Graze. " : "";
+  log(b, `${label}${a.name} hits ${d.name} for ${ctx.dealt}${armor && raw > 0 ? ` (${raw} − ${armor} Armor)` : ""}.`);
+  if (shatter) applyStatus(b, a, d, "stun", 1);
+  if (raw > 0 && after === 0) {
+    d.flags["blocked"] = (d.flags["blocked"] ?? 0) + raw;
+    d.flags["blockedNow"] = 1;
+    log(b, `${d.name} blocks it all.`);
+  }
+  if (ctx.dealt > 0) {
+    eachHook(a, "onHit", (h, s) => h(b, ctx, s));
+    if (ctx.kind === "crit") eachHook(a, "onCrit", (h, s) => h(b, ctx, s));
+  }
+  afterStrike(b, ctx);
+}
+
+function afterStrike(b: Battle, ctx: AttackCtx) {
+  const { attacker: a, defender: d } = ctx;
+  if (!ctx.noDamage) {
+    eachHook(d, "whenHit", (h, s) => h(b, ctx, s));
+    const spikes = st(d, "spikes");
+    if (spikes > 0 && a.hp > 0) {
+      const lost = loseHp(b, a, spikes);
+      log(b, `🌵 Spikes deal ${lost} back to ${a.name}.`);
     }
+  }
+  d.flags["blockedNow"] = 0;
+  if (d.hp <= 0 && !d.flags["dead"]) {
+    d.flags["dead"] = 1;
+    if (ctx.spec.cleave && d.hp < 0) {
+      b.carry += -d.hp;
+      log(b, `🪓 Cleave: ${-d.hp} overkill carries into the next fight.`);
+    }
+    eachHook(a, "onKill", (h, s) => h(b, ctx, s));
   }
 }
 
 // ---------- Turn and round flow ----------
-
-export function heroAttack(b: Battle) {
-  const p = b.player;
-  if (p.cls === "jack") attackJack(b, p, b.enemy);
-  else if (p.cls === "ace") attackAce(b, p, b.enemy);
-  else attackWithDie(b, p, b.enemy);
-}
 
 function act(b: Battle, f: Fighter, doIt: () => void) {
   if (f.hp <= 0 || b.over) return;
@@ -244,8 +167,34 @@ function act(b: Battle, f: Fighter, doIt: () => void) {
   }
 }
 
+function heroAttack(b: Battle) {
+  attack(b, b.player, b.enemy);
+  if (b.player.offFaces && b.enemy.hp > 0) attack(b, b.player, b.enemy, true);
+}
+
+interface Snapshot { hp: number; statuses: Statuses }
+const snap = (f: Fighter): Snapshot => ({ hp: f.hp, statuses: { ...f.statuses } });
+const roundStart = new WeakMap<Battle, { p: Snapshot; e: Snapshot }>();
+
+/** Chronoglass: once per fight, a round that cost you HP (or your life) is rewound. */
+function tryRewind(b: Battle): boolean {
+  const p = b.player;
+  const e = b.enemy;
+  const before = roundStart.get(b);
+  if (!before || stacksOf(p, "l_chronoglass") <= 0 || p.flags["rewound"] || p.hp >= before.p.hp) return false;
+  p.flags["rewound"] = 1;
+  p.hp = before.p.hp;
+  p.statuses = before.p.statuses;
+  e.hp = before.e.hp;
+  e.statuses = before.e.statuses;
+  e.flags["dead"] = 0;
+  log(b, "⏳ Chronoglass rewinds the round. Play it again.");
+  return true;
+}
+
 function checkOver(b: Battle) {
   if (b.over) return true;
+  if (b.player.hp <= 0 && tryRewind(b)) return true;
   if (b.enemy.hp <= 0) {
     b.over = "won";
     log(b, `${b.enemy.name} is defeated!`);
@@ -259,14 +208,26 @@ function checkOver(b: Battle) {
 
 export type Action = "attack" | "guard" | "flee";
 
-/** Play one full round: the hero's action, then the enemy's, then end-of-round ticks. */
+/** One full round: the hero's action, the enemy's, then end-of-round ticks. */
 export function playRound(b: Battle, action: Action) {
   if (b.over) return;
   const p = b.player;
   const e = b.enemy;
   b.round++;
   log(b, `— Round ${b.round} —`);
+  roundStart.set(b, { p: snap(p), e: snap(e) });
   for (const f of [p, e]) eachHook(f, "onRoundStart", (h, s) => h(b, f, s));
+
+  const enemyFirst = b.round === 1 && e.flags["ambush"];
+  const enemyTurn = () => {
+    startOfTurn(b, e);
+    if (!checkOver(b)) act(b, e, () => attack(b, e, p));
+  };
+  if (enemyFirst) {
+    log(b, `${e.name} strikes first!`);
+    enemyTurn();
+    if (checkOver(b)) return;
+  }
 
   startOfTurn(b, p);
   if (checkOver(b)) return;
@@ -284,31 +245,31 @@ export function playRound(b: Battle, action: Action) {
   } else act(b, p, () => heroAttack(b));
   if (checkOver(b)) return;
 
-  startOfTurn(b, e);
-  if (checkOver(b)) return;
-  act(b, e, () => attackWithDie(b, e, p));
-  if (checkOver(b)) return;
+  if (!enemyFirst) {
+    enemyTurn();
+    if (checkOver(b)) return;
+  }
 
   for (const f of [p, e]) {
     endOfRound(b, f);
     eachHook(f, "onRoundEnd", (h, s) => h(b, f, s));
     f.flags["guarding"] = 0;
-    f.flags["guardDie"] = 0;
-    f.flags["blockedThisRound"] = 0;
   }
+
+  if (tryRewind(b)) return;
   checkOver(b);
 }
 
-/** Start a fight. Fight-only statuses and flags reset; the King's Carnage lands first. */
-export function startBattle(player: Fighter, enemy: Fighter, seed: number, carnage = 0): Battle {
-  const b: Battle = { player, enemy, round: 0, rng: makeRng(seed), log: [], over: null, carnage: 0 };
-  player.statuses = {};
+/** Start a fight: fight-only statuses and flags reset, carried Cleave damage lands first. */
+export function startBattle(player: Fighter, enemy: Fighter, seed: number, carry = 0): Battle {
+  const b: Battle = { player, enemy, round: 0, rng: makeRng(seed), log: [], over: null, carry: 0 };
+  const keptBarrier = player.persist["keepBarrier"] ? st(player, "barrier") : 0;
+  player.statuses = keptBarrier ? { barrier: keptBarrier } : {};
   player.flags = {};
-  if (player.cls === "ace") player.pile = [];
   log(b, `${enemy.name} appears: ${enemy.hp} HP, Power ${enemy.damage}${enemy.armor ? `, Armor ${enemy.armor}` : ""}.`);
-  if (carnage > 0) {
-    const lost = loseHp(b, enemy, carnage);
-    log(b, `👑 Carnage: ${lost} damage carries into ${enemy.name}.`);
+  if (carry > 0) {
+    const lost = loseHp(b, enemy, carry);
+    log(b, `🪓 ${lost} carried damage lands on ${enemy.name}.`);
   }
   for (const f of [player, enemy]) eachHook(f, "onFightStart", (h, s) => h(b, f, s));
   checkOver(b);

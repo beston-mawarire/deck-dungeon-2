@@ -60,6 +60,7 @@ export function loseHp(b: Battle, f: Fighter, amount: number): number {
 
 export function heal(b: Battle, f: Fighter, amount: number, why = "") {
   if (amount <= 0 || f.hp <= 0) return 0;
+  eachHook(f, "healMult", (h, s) => (amount = Math.floor(amount * h(s))));
   const before = f.hp;
   f.hp = Math.min(f.maxHp, f.hp + amount);
   const got = f.hp - before;
