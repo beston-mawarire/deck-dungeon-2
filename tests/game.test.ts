@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { LEGENDARIES, loadLibrary } from "../src/data";
-import { makeMonster } from "../src/data/monsters";
+import { makeMonster, makeThief } from "../src/data/monsters";
 import { enemyPhase, playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
@@ -588,5 +588,48 @@ describe("greater kits", () => {
         if (it.base === "k_adepts_staff") expect(it.rarity).toBe("uncommon");
       }
     }
+  });
+});
+
+describe("two-handers, thieves, curses", () => {
+  const mk = (h: ReturnType<typeof newHero>, base: string, uid: number) => ({ uid, base, rarity: "common" as const, level: 1, bonuses: {}, revealed: true });
+
+  it("War Harness keeps the off-hand with a two-hander; Titan's Grip dual-wields them", () => {
+    const h = newHero("warrior");
+    expect(equipItem(h, mk(h, "w_axe", 500), "main")).toBeNull();
+    expect(h.equip.off).toBeUndefined();
+    const h2 = newHero("warrior");
+    h2.relics["r_war_harness"] = 1;
+    equipItem(h2, mk(h2, "w_axe", 501), "main");
+    expect(h2.equip.off?.base).toBe("o_wooden_shield");
+    const h3 = newHero("warrior");
+    h3.relics["r_titans_grip"] = 1;
+    equipItem(h3, mk(h3, "w_axe", 502), "main");
+    expect(equipItem(h3, mk(h3, "w_hammer", 503), "off")).toBeNull();
+    expect(h3.equip.main?.base).toBe("w_axe");
+    expect(h3.equip.off?.base).toBe("w_hammer");
+    expect(h3.f.offFaces?.length).toBe(6);
+    expect(h3.f.offDamage).toBe(Math.round(6 * 0.6));
+  });
+
+  it("a thief escapes with 30% of your Gold after round 5", () => {
+    const h = newHero("warrior");
+    h.f.gold = 100;
+    const t = makeThief(makeRng(30), 1);
+    t.hp = t.maxHp = 9999;
+    const b = startBattle(h.f, t, 30);
+    for (let i = 0; i < 5 && !b.over; i++) playRound(b, "guard");
+    expect(b.over).toBe("escaped");
+    expect(h.f.gold).toBe(70);
+  });
+
+  it("Malediction curses you when the fight ends", () => {
+    const run = newRun("warrior", 31);
+    run.hero.f.persist["curseQueue"] = 1;
+    chooseRoom(run, "fight");
+    if (run.scene.t !== "combat") return;
+    run.scene.battle.enemy.hp = 0;
+    combatAction(run, "attack");
+    expect(Object.keys(run.hero.curses).length).toBe(1);
   });
 });

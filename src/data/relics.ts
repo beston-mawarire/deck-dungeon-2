@@ -197,6 +197,8 @@ export const STORM_RELICS: HookDef[] = [
   relic({ id: "r_smouldering_coal", name: "Smouldering Coal", rarity: "uncommon", tags: ["Burn"], text: "Your first hit each fight leaves the enemy Smouldering for 2 rounds (+1)",
     hooks: { onHit: (b, c, s) => { if (!c.attacker.flags["coal"]) { c.attacker.flags["coal"] = 1; applyStatus(b, c.attacker, c.defender, "smoulder", 1 + s); } } } }),
   relic({ id: "r_coal_bellows", name: "Forge Bellows", rarity: "common", tags: ["Burn"], text: "Smouldering enemies take 2 more Burn each round (+2)", hooks: {} }), // statuses.ts
+  relic({ id: "r_titans_grip", name: "Titan's Grip", rarity: "rare", tags: ["Strike", "Tempo"], text: "Two-handed weapons fit in either hand: dual-wield them. A two-hander in your off-hand rolls its own die at 60% of its damage", hooks: {} }), // hero.ts
+  relic({ id: "r_war_harness", name: "War Harness", rarity: "uncommon", tags: ["Guard", "Strike"], text: "A two-handed weapon no longer takes your off-hand: keep your shield, charm or second blade", hooks: {} }), // hero.ts
   relic({ id: "lr_stormheart", name: "Stormheart", rarity: "legendary", tags: ["Storm"], text: "Static you apply caps at 20 instead of 10, and every Static tick deals triple", hooks: {} })
 ];
 

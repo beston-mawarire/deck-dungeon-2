@@ -101,8 +101,12 @@ details summary { cursor: pointer; color: var(--muted); }
 
 /* ---------- Loot fanfare ---------- */
 .fanfare { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
-.fanfare.epic { box-shadow: inset 0 0 40px 6px rgba(176,108,240,.75); animation: fan-epic 1.8s ease-out forwards; }
-@keyframes fan-epic { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
+/* Epic: as long as a Legendary, but softer — one gentle pulse, no flash, no sweep, no sparks. */
+.fanfare.epic { box-shadow: inset 0 0 50px 8px rgba(176,108,240,.7); animation: fan-epic 3.4s ease-out forwards; }
+@keyframes fan-epic { 0% { opacity: 0; } 10% { opacity: .9; } 30% { opacity: .6; } 45% { opacity: .85; } 100% { opacity: 0; } }
+/* Rare: a thin blue edge that fades quickly. */
+.fanfare.rare { box-shadow: inset 0 0 18px 2px rgba(79,156,240,.6); animation: fan-rare 1.2s ease-out forwards; }
+@keyframes fan-rare { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
 .fanfare.legendary { animation: fan-leg 3.4s ease-out forwards;
   box-shadow: inset 0 0 90px 18px rgba(240,138,42,.9), inset 0 0 22px 4px rgba(255,220,140,.95); }
 .fanfare.legendary::before { content: ""; position: absolute; inset: 0;
@@ -115,7 +119,7 @@ details summary { cursor: pointer; color: var(--muted); }
 .fanfare .banner { position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); font-weight: 800; font-style: italic;
   letter-spacing: .25em; font-size: clamp(22px, 7vw, 44px); white-space: nowrap; color: #ffd27a;
   text-shadow: 0 0 18px rgba(240,138,42,.9), 0 2px 0 #6a3a08; animation: fan-banner 2.6s ease-out forwards; }
-.fanfare.epic .banner { color: #d9b4ff; font-size: clamp(18px, 5vw, 30px); text-shadow: 0 0 14px rgba(176,108,240,.9); animation-duration: 1.6s; }
+.fanfare.epic .banner { color: #d9b4ff; font-size: clamp(18px, 5vw, 30px); text-shadow: 0 0 14px rgba(176,108,240,.9); animation-duration: 3s; }
 @keyframes fan-banner { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); } 15% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
   30% { transform: translate(-50%, -50%) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60%) scale(1); } }
 .fanfare .spark { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #ffd27a; box-shadow: 0 0 8px #f08a2a;
@@ -151,3 +155,9 @@ button.crimson-btn { background: var(--crimson); border-color: var(--crimson); c
 .item.is-equipped { position: relative; outline: 2px solid var(--gold); outline-offset: 2px; }
 .eqbadge { display: inline-block; background: var(--gold); color: #1a1408; font-weight: 700; font-size: .75rem; border-radius: 6px; padding: 1px 7px; margin-bottom: 4px; }
 .chip.storm { border-color: #7fc8ff; color: #a9dbff; }
+
+/* Full Legendary set: the bag glows orange. */
+.overlay.legend-set { background: radial-gradient(ellipse at top, rgba(240,138,42,.28), rgba(8,6,12,.96) 60%), rgba(8,6,12,.96); box-shadow: inset 0 0 70px 14px rgba(240,138,42,.55); animation: legendglow 3s ease-in-out infinite; }
+@keyframes legendglow { 50% { box-shadow: inset 0 0 95px 22px rgba(240,138,42,.75); } }
+.legend-banner { text-align: center; font-weight: 800; font-style: italic; letter-spacing: .12em; color: #ffd27a; text-shadow: 0 0 12px rgba(240,138,42,.9); margin-bottom: 6px; }
+.chip.thief { border-color: var(--gold); color: var(--gold); }

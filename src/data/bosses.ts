@@ -22,6 +22,15 @@ export const MOVE_LIBRARY: Record<string, (p: number) => Move> = {
   venom: p => ({ name: "Venom Spit", icon: "☠️", text: `Applies ${1 + p} Poison`, act: (b, s, f) => applyStatus(b, s, f, "poison", 1 + p) }),
   fire: p => ({ name: "Fire Breath", icon: "🔥", text: `Applies ${3 + 2 * p} Burn`, act: (b, s, f) => applyStatus(b, s, f, "burn", 3 + 2 * p) }),
   frost: p => ({ name: "Frost Nova", icon: "❄️", text: `Attacks and applies ${1 + Math.ceil(p / 2)} Chill`, act: (b, s, f) => { hit(b, s, f); applyStatus(b, s, f, "chill", 1 + Math.ceil(p / 2)); } }),
+  malediction: () => ({ name: "Malediction", icon: "🕯️", text: "Curses you for the rest of the run (once per fight; after that it Hexes)",
+    act: (b, s, f) => {
+      if (!s.flags["maledicted"]) {
+        s.flags["maledicted"] = 1;
+        f.persist["curseQueue"] = (f.persist["curseQueue"] ?? 0) + 1;
+        log(b, `🕯️ ${s.name} lays a curse on you. It will follow you out of this fight.`);
+        b.fx.push({ who: f.id, kind: "text", text: "Cursed!", icon: "🕯️" });
+      } else { applyStatus(b, s, f, "weak", 2); applyStatus(b, s, f, "exposed", 2); }
+    } }),
   hex: () => ({ name: "Hex", icon: "🥀", text: "Applies 2 Weak and 2 Exposed", act: (b, s, f) => { applyStatus(b, s, f, "weak", 2); applyStatus(b, s, f, "exposed", 2); } }),
   bulwark: p => ({ name: "Bulwark", icon: "🛡️", text: `Gains ${4 + 3 * p} Barrier`, act: (b, s) => applyStatus(b, s, s, "barrier", 4 + 3 * p) }),
   regrow: () => ({ name: "Regrow", icon: "💚", text: "Heals 12% of its Max HP", act: (b, s) => { heal(b, s, Math.round(s.maxHp * 0.12), "Regrow"); } }),
@@ -47,11 +56,11 @@ export const NAMED_BOSSES: Record<string, BossDef> = {
   rot: { name: "The Mother of Rot", title: "Queen of the Sewers", family: "Undead", moves: ["venom", "strike", "regrow"] },
   cinder: { name: "Brother Cinder", title: "the Ashen Zealot", family: "Cultist", moves: ["fire", "strike", "brand", "enrage"] },
   varkas: { name: "Varkas", title: "the Iron Warden", family: "Construct", moves: ["bulwark", "concuss", "heavy", "strike"], armor: 2, hpMult: 0.9 },
-  widow: { name: "The Pale Widow", title: "Spinner of Graves", family: "Beast", moves: ["hex", "rend", "venom", "strike"] },
+  widow: { name: "The Pale Widow", title: "Spinner of Graves", family: "Beast", moves: ["hex", "rend", "malediction", "venom", "strike"] },
   skarn: { name: "Skarn", title: "the Storm Herald", family: "Cultist", moves: ["thunder", "charge", "smash", "concuss"] },
   morwen: { name: "Morwen", title: "the Frost Queen", family: "Undead", moves: ["frost", "gaze", "strike", "bulwark"] },
   glutton: { name: "The Gilded Glutton", title: "Hoarder of the Deep", family: "Beast", moves: ["drain", "flurry", "regrow", "heavy"], traits: ["x_regenerating"] },
-  oathbreaker: { name: "Oathbreaker", title: "the Fallen Paladin", family: "Undead", moves: ["thorns", "heavy", "hex", "drain"], armor: 3, traits: ["x_nullifying"] },
+  oathbreaker: { name: "Oathbreaker", title: "the Fallen Paladin", family: "Undead", moves: ["thorns", "malediction", "heavy", "hex", "drain"], armor: 3, traits: ["x_nullifying"] },
   hollow: { name: "The Hollow King", title: "Who Waits Below", family: "Construct", moves: ["doom", "concuss", "bulwark", "charge", "smash"], armor: 3, traits: ["x_nullifying"],
     faces: [GRAZE, HIT, HIT, HIT, HIT, { ...CRIT, name: "Hollow Decree", run: hex("doom", 3) }] }
 };

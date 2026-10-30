@@ -122,7 +122,8 @@ export interface Battle {
   rng: () => number;
   log: string[];
   fx: Fx[];
-  over: null | "won" | "lost" | "fled";
+  /** "escaped": a thief got away with your Gold. */
+  over: null | "won" | "lost" | "fled" | "escaped";
   /** Overkill from Cleave faces, carried into the next fight. */
   carry: number;
 }

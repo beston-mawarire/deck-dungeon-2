@@ -2,13 +2,12 @@
 import type { HookDef, OriginId } from "../engine/types";
 import { applyStatus, depth, heal, log, other, ping, st } from "./helpers";
 
-/** Each origin's favourite gear shows up about twice as often in its loot. New gear joins the pool at normal odds
- * (only the Cleric's Holy gear was deliberately leaned toward the Cleric). */
+/** Each origin's favourite gear shows up about twice as often in its loot. New gear joins the pool at normal odds. */
 export const AFFINITY: Record<OriginId, string[]> = {
   warrior: ["w_sword", "w_axe", "w_hand_axe", "w_hammer", "w_morningstar", "w_spear", "o_wooden_shield", "o_tower_shield", "o_kite_shield", "o_spiked_shield", "o_war_banner", "a_chain", "a_plate", "a_scale", "a_spiked", "t_warlord_torc"],
   rogue: ["w_dagger", "w_throwing_knife", "w_rapier", "w_katana", "w_whip", "w_sickle", "w_main_gauche", "w_bow", "o_smoke_pouch", "o_buckler", "a_leather", "a_shadow", "a_assassin", "t_thieves_ring", "t_lucky_coin"],
   mage: ["w_staff", "w_greatstaff", "w_wand", "w_lute", "o_ember_charm", "o_frost_orb", "o_grimoire", "o_tome", "o_storm_lantern", "o_crystal_orb", "o_runestone", "a_cloth", "a_bloodweave", "t_archmage_signet", "t_ember_pendant"],
-  cleric: ["w_mace", "w_morningstar", "w_flail", "w_hammer", "o_holy_symbol", "o_prayer_beads", "o_sun_disc", "o_reliquary", "o_censer", "a_padded", "a_vestments", "a_scale", "t_templar_seal", "t_band_vigor", "w_blessed_mace", "w_sunhammer", "w_censer_flail", "w_templar_blade", "w_aspergillum", "w_scepter", "w_pilgrim_staff", "o_thurible", "o_shield_faith", "o_sanct_lantern", "o_psalter", "o_martyr_icon", "o_absolution_bell", "o_penitent_chain", "a_inquisitor", "a_penance", "t_holy_water", "t_sin_eater", "t_zealot_brand"]
+  cleric: ["w_mace", "w_morningstar", "w_flail", "w_hammer", "o_holy_symbol", "o_prayer_beads", "o_sun_disc", "o_reliquary", "o_censer", "a_padded", "a_vestments", "a_scale", "t_templar_seal", "t_band_vigor"]
 };
 
 export const ORIGINS: Record<OriginId, { name: string; hp: number; kit: string[]; passive: string; blurb: string }> = {
@@ -24,7 +23,7 @@ export const ORIGIN_PASSIVES: HookDef[] = [
   origin({ id: "o_rogue", name: "Opportunist", tags: ["Crit", "Luck"], text: "Your first attack each fight rolls twice and keeps the better", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "focus", 1) } }),
   origin({ id: "o_mage", name: "Arcane Spark", tags: ["Arcane"], text: "Statuses your weapon's spell faces apply get +1 stack",
     hooks: { onStatusApplied: (_b, self, t, status) => { if (self.flags["casting"] && t !== self && !["stun", "shock"].includes(status)) t.statuses[status] = st(t, status) + 1; } } }),
-  origin({ id: "o_cleric", name: "Devotion", tags: ["Blood", "Holy"], text: "At the end of each round, heal 1 for each positive status you have",
+  origin({ id: "o_cleric", name: "Devotion", tags: ["Blood"], text: "At the end of each round, heal 1 for each positive status you have",
     hooks: { onRoundEnd: (b, f) => { const n = (["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded", "smoulder_soul"] as const).filter(s => st(f, s) > 0).length; if (n) heal(b, f, n, "Devotion"); } } })
 ];
 

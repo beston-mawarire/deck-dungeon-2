@@ -3,7 +3,7 @@ import { CURSES, EPIC_POWERS, LEGENDARIES, RELICS, TALENTS } from "../data";
 import { CAMPAIGN_FLOORS, makeBoss, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
 import { EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
-import { makeMonster, type MonsterRank } from "../data/monsters";
+import { makeMonster, makeThief, type MonsterRank } from "../data/monsters";
 import { type Action, playRound, startBattle } from "../engine/combat";
 import { getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
@@ -203,7 +203,9 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   run.hero.f.persist["floor"] = run.floor;
   // A Crimson Vault always holds a Crimson boss; in Endless, a floor boss is rarely Crimson too.
   const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && run.floor !== WALL_FLOOR && run.rng() < 0.06));
-  const enemy = crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : makeMonster(run.rng, run.floor, rank);
+  // A rare gold thief sometimes turns up in place of a normal monster.
+  const thief = rank === "normal" && !then && run.rng() < 0.04;
+  const enemy = crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
@@ -242,20 +244,31 @@ function afterFight(run: Run) {
   if (run.scene.t !== "combat") return;
   const { battle: b, rank, then } = run.scene;
   const h = run.hero;
+  const curseNote = applyQueuedCurses(run);
   if (b.over === "lost") {
     // A Crimson Vault doesn't kill you: you crawl out and carry on.
     if (then === "crimson") {
       h.f.hp = Math.max(1, Math.ceil(h.f.maxHp * 0.25));
       h.f.persist["crimsonEscapes"] = (h.f.persist["crimsonEscapes"] ?? 0) + 1;
-      run.message = `${b.enemy.name} casts you out of the vault. You crawl away at ${h.f.hp} HP; the key is spent.`;
+      run.message = `${b.enemy.name} casts you out of the vault. You crawl away at ${h.f.hp} HP; the key is spent.${curseNote ? ` ${curseNote}` : ""}`;
       return advance(run);
     }
     run.scene = { t: "over", won: false };
     return;
   }
-  if (b.over === "fled") return advance(run);
+  if (b.over === "fled") { run.message = curseNote; return advance(run); }
+  if (b.over === "escaped") {
+    run.message = `${b.enemy.name} got away with your Gold.${curseNote ? ` ${curseNote}` : ""}`;
+    return advance(run);
+  }
   run.carry = b.carry;
   run.stats.kills++;
+  // Caught a thief: it coughs up 60% of what you're carrying, on top.
+  let thiefPay = 0;
+  if ((b.enemy.items["m_thief"] ?? 0) > 0) {
+    thiefPay = Math.floor(h.f.gold * 0.6);
+    h.f.gold += thiefPay;
+  }
   if (rank === "boss") {
     run.stats.bosses++;
     h.f.persist["bossKills"] = (h.f.persist["bossKills"] ?? 0) + 1;
@@ -310,10 +323,28 @@ function afterFight(run: Run) {
     // Crimson bosses offer a Crimson item alongside two boss finds.
     const offer = b.enemy.crimson ? [rollItem(h, "crimson", run.floor, run.rng), roll(TABLES.boss), roll(TABLES.boss)] : [roll(TABLES.boss), roll(TABLES.boss), roll(TABLES.boss)];
     run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: offer };
-    run.message = `+${gold} Gold${relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""} · healed 30%`;
+    run.message = `+${gold} Gold${relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""} · healed 30%${curseNote ? ` ${curseNote}` : ""}`;
     return;
   }
-  run.scene = { t: "loot", title: then === "mimic" ? "The Mimic's hoard" : "Victory", items, gold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined };
+  run.scene = { t: "loot", title: then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined };
+  const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", curseNote].filter(Boolean);
+  run.message = notes.join(" ");
+}
+
+/** Curses laid on you mid-fight (Accursed Elites, Malediction) land when the fight ends. */
+function applyQueuedCurses(run: Run): string {
+  const h = run.hero;
+  const n = h.f.persist["curseQueue"] ?? 0;
+  if (!n) return "";
+  h.f.persist["curseQueue"] = 0;
+  const names: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const c = CURSES[Math.floor(run.rng() * CURSES.length)];
+    h.curses[c.id] = (h.curses[c.id] ?? 0) + 1;
+    names.push(`${c.name} (${c.text})`);
+  }
+  recompute(h);
+  return `🕯️ You are cursed: ${names.join(", ")}. A Campfire can cleanse it.`;
 }
 
 /** How likely each relic rarity is at this depth. Good relics come later; Legendary relics only from floor 3. */

@@ -90,6 +90,9 @@ export const slotOfBase = (b: GearBase): Slot => b.slot;
 /** Rebuild the Fighter's stats and hook sources from everything the hero has. */
 export function recompute(h: Hero) {
   const f = h.f;
+  // Lost Titan's Grip or the War Harness (an event can take relics): put back what no longer fits.
+  if (!hasGrip(h) && h.equip.off && effectiveBase(h.equip.off).twoHanded) { h.backpack.push(h.equip.off); delete h.equip.off; }
+  if (!keepsOffHand(h) && h.equip.main && effectiveBase(h.equip.main).twoHanded && h.equip.off) { h.backpack.push(h.equip.off); delete h.equip.off; }
   const o = ORIGINS[h.origin];
   const items: Record<string, number> = { [o.passive]: 1 };
   const add = (id: string, n = 1) => (items[id] = (items[id] ?? 0) + n);
@@ -117,6 +120,10 @@ export function recompute(h: Hero) {
     }
     if (slot === "off" && eb.kind === "weapon" && eb.offDamage !== undefined) {
       s.offDamage = weaponDamage(it, true);
+      f.offFaces = eb.faces;
+    } else if (slot === "off" && eb.kind === "weapon" && eb.twoHanded) {
+      // Titan's Grip: a two-hander in the off-hand rolls its own die at 60% of its damage.
+      s.offDamage = Math.max(1, Math.round(weaponDamage(it) * 0.6));
       f.offFaces = eb.faces;
     }
   }
@@ -157,9 +164,15 @@ export function newHero(origin: OriginId): Hero {
 }
 
 /** Which equip slots an item can go into. */
-export function slotsFor(item: GearItem): EquipSlot[] {
+/** Titan's Grip: two-handed weapons can go in either hand. */
+export const hasGrip = (h?: Hero) => !!h && (h.relics["r_titans_grip"] ?? 0) > 0;
+/** Titan's Grip or the War Harness: a two-handed weapon doesn't take your off-hand. */
+export const keepsOffHand = (h?: Hero) => !!h && (hasGrip(h) || (h.relics["r_war_harness"] ?? 0) > 0);
+
+export function slotsFor(item: GearItem, h?: Hero): EquipSlot[] {
   const eb = effectiveBase(item);
-  if (eb.slot === "main") return eb.offDamage !== undefined && !eb.twoHanded ? ["main", "off"] : ["main"];
+  if (eb.slot === "main" && eb.twoHanded) return hasGrip(h) ? ["main", "off"] : ["main"];
+  if (eb.slot === "main") return eb.offDamage !== undefined ? ["main", "off"] : ["main"];
   if (eb.slot === "off") return ["off"];
   if (eb.slot === "armour") return ["armour"];
   return ["trinket1", "trinket2"];
@@ -179,20 +192,21 @@ function removeItem(h: Hero, uid: number) {
 
 /** Equip an item from the backpack (or a new find). Displaced items go to the backpack. Returns an error message or null. */
 export function equipItem(h: Hero, item: GearItem, slot?: EquipSlot): string | null {
-  const allowed = slotsFor(item);
+  const allowed = slotsFor(item, h);
+  const keep = keepsOffHand(h);
   const target = slot && allowed.includes(slot) ? slot : allowed.find(s => !h.equip[s]) ?? allowed[0];
   const displaced: GearItem[] = [];
   if (h.equip[target]) displaced.push(h.equip[target]!);
   const twoHanded = effectiveBase(item).twoHanded;
-  if (target === "main" && twoHanded && h.equip.off) displaced.push(h.equip.off);
-  if (target === "off" && h.equip.main && effectiveBase(h.equip.main).twoHanded) displaced.push(h.equip.main);
+  if (!keep && target === "main" && twoHanded && h.equip.off) displaced.push(h.equip.off);
+  if (!keep && target === "off" && h.equip.main && effectiveBase(h.equip.main).twoHanded) displaced.push(h.equip.main);
   const inPack = h.backpack.some(i => i.uid === item.uid);
   const free = BACKPACK_SIZE - h.backpack.length + (inPack ? 1 : 0);
   if (displaced.length > free) return "Your backpack is full. Salvage something first.";
   removeItem(h, item.uid);
   for (const d of displaced) removeItem(h, d.uid);
   h.equip[target] = item;
-  if (target === "main" && twoHanded) delete h.equip.off;
+  if (!keep && target === "main" && twoHanded) delete h.equip.off;
   h.backpack.push(...displaced);
   recompute(h);
   return null;

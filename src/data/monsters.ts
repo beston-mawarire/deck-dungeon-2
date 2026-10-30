@@ -31,12 +31,27 @@ export const TRAITS: HookDef[] = [
   trait({ id: "x_crimson", name: "Crimson", tags: ["Blood", "Strike"], text: "Gains 1 Might and heals 2% of its Max HP every round",
     hooks: { onRoundEnd: (b, f) => { applyStatus(b, f, f, "might", 1); heal(b, f, Math.max(1, Math.round(f.maxHp * 0.02)), "Crimson"); } } }),
   trait({ id: "x_smouldering", name: "Smouldering", tags: ["Burn"], text: "Its hits leave you Smouldering (you take 5 Burn a round, it takes 1)", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "smoulder", 1) } }),
+  trait({ id: "x_accursed", name: "Accursed", tags: ["Hex"], text: "If it lands 3 hits on you in one fight, you're cursed for the rest of the run",
+    hooks: { onHit: (b, c) => { const n = (c.attacker.flags["accursed"] ?? 0) + 1; c.attacker.flags["accursed"] = n; if (n === 3) { c.defender.persist["curseQueue"] = (c.defender.persist["curseQueue"] ?? 0) + 1; log(b, "🕯️ The Accursed marks you: a curse will follow you out of this fight."); b.fx.push({ who: c.defender.id, kind: "text", text: "Cursed!", icon: "🕯️" }); } } } }),
+  trait({ id: "m_thief", name: "Thief", tags: ["Gold", "Tempo"], text: "If it's still alive at the end of round 5, it escapes with 30% of your Gold. Kill it first and you get 60% of your Gold on top",
+    hooks: {
+      onFightStart: (b, f) => { log(b, `💰 ${f.name} eyes your coin purse. Kill it within 5 rounds!`); },
+      onRoundEnd: (b, f) => {
+        if (b.round < 5 || f.hp <= 0 || b.over) return;
+        const p = other(b, f);
+        const n = Math.floor(p.gold * 0.3);
+        p.gold -= n;
+        b.over = "escaped";
+        log(b, `💰 ${f.name} escapes with ${n} of your Gold!`);
+        b.fx.push({ who: "player", kind: "text", text: `−${n} Gold`, icon: "💰" });
+      }
+    } }),
   trait({ id: "x_regenerating", name: "Regenerating", tags: ["Blood"], text: "Heals 2 at the end of every round", hooks: { onRoundEnd: (b, f) => { heal(b, f, 2, "Regenerating"); } } }),
 ];
 
-export const ELITE_AFFIX_IDS = ["x_smouldering", "x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying"];
+export const ELITE_AFFIX_IDS = ["x_accursed", "x_smouldering", "x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying"];
 /** How often each affix rolls (Nullifying is rare). */
-export const AFFIX_WEIGHT: Record<string, number> = { x_nullifying: 0.35, x_concussive: 0.8, x_smouldering: 0.6 };
+export const AFFIX_WEIGHT: Record<string, number> = { x_nullifying: 0.35, x_concussive: 0.8, x_smouldering: 0.6, x_accursed: 0.4 };
 
 interface MonsterDef { name: string; family: string; hp: number; power: number; armor?: number; traits: string[]; faces?: FaceSpec[] }
 
@@ -66,6 +81,22 @@ export function monsterHpMult(floor: number) {
   return m;
 }
 export const monsterPowerAdd = (floor: number) => Math.round(1.5 * (floor - 1) * (floor > 30 ? Math.pow(1.1, floor - 30) : 1));
+
+/** Rare gold thieves: tougher than a normal monster and slippery; beat them inside 5 rounds. */
+const THIEVES = [
+  { name: "Gold Goblin", family: "Beast" },
+  { name: "Cutpurse Imp", family: "Cultist" },
+  { name: "Coin Wraith", family: "Undead" },
+  { name: "Clockwork Pickpocket", family: "Construct" }
+];
+export function makeThief(rng: () => number, floor: number): Fighter {
+  const t = THIEVES[Math.floor(rng() * THIEVES.length)];
+  const hp = Math.round(16 * monsterHpMult(floor));
+  return {
+    id: "enemy", name: t.name, title: "Thief", hp, maxHp: hp, armor: 1, damage: 2 + monsterPowerAdd(floor), faces: PLAIN_FACES,
+    statuses: {}, flags: {}, persist: {}, items: { m_thief: 1, m_incorporeal: 1 }, gold: 0, family: t.family
+  };
+}
 
 export function makeMonster(rng: () => number, floor: number, rank: MonsterRank): Fighter {
   const def = MONSTERS[Math.floor(rng() * MONSTERS.length)];

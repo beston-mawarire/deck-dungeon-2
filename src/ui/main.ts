@@ -8,7 +8,7 @@ import { REACTIONS, STATUS_INFO } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
 import {
   BACKPACK_SIZE, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, equipItem, fillText, type Hero, itemLines, itemName, rerollCost,
-  reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
+  keepsOffHand, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
 } from "../game/hero";
 import { lockedIds, loadMeta, type Meta, recordRun, UNLOCK_TIERS } from "../game/meta";
 import {
@@ -124,7 +124,7 @@ function reactionsPanel(r: Run) {
 
 /** "Replaces X: Damage 4 → 6" for a found item against what's equipped in its slot. */
 function compareHtml(h: Hero, it: GearItem): string {
-  const slots = slotsFor(it);
+  const slots = slotsFor(it, h);
   const target = slots.find(s => !h.equip[s]) ?? slots[0];
   const cur = h.equip[target];
   if (!cur) return `<div class="compare">Empty slot — equipping adds it.</div>`;
@@ -140,7 +140,7 @@ function compareHtml(h: Hero, it: GearItem): string {
   diff("Max HP", c.maxHp ?? 0, a.maxHp ?? 0);
   diff("Bonuses", Object.keys(cur.bonuses).length + (cur.epic ? 1 : 0), Object.keys(it.bonuses).length + (it.epic ? 1 : 0));
   if (a.faces && c.faces && a.faces.length !== c.faces.length) diff("Die faces", c.faces.length, a.faces.length);
-  if (a.twoHanded && h.equip.off) rows.push(`<span class="down">Two-handed: your off-hand goes to the bag</span>`);
+  if (a.twoHanded && h.equip.off && !keepsOffHand(h)) rows.push(`<span class="down">Two-handed: your off-hand goes to the bag</span>`);
   return `<div class="compare">Replaces <b>${esc(itemName(cur))}</b> (${cur.rarity}, lv ${cur.level})${rows.length ? `<br>${rows.join(" · ")}` : ""}</div>`;
 }
 
@@ -234,7 +234,7 @@ function dieBox(who: "player" | "enemy", label: string) {
 function fighterPanel(f: Fighter, who: "player" | "enemy") {
   const hp = dispHp[who] ?? f.hp;
   const intent = who === "enemy" && f.moves?.length ? f.moves[f.intent ?? 0] : null;
-  const traits = who === "enemy" ? `${isUnholy(f) ? `<span class="chip holy" title="Holy weapons deal +50% to it">☠️ Unholy</span>` : ""}${f.family === "Construct" ? `<span class="chip storm" title="Lightning hits it twice as hard: Shock doubles damage, Static and electric reactions deal double, Storm weapons +30%">⚡ Conductive</span>` : ""}${Object.keys(f.items).map(id => getItem(id)).map(d => `<span class="chip" title="${esc(d.text)}">${esc(d.name)}</span>`).join("")}` : "";
+  const traits = who === "enemy" ? `${isUnholy(f) ? `<span class="chip holy" title="Holy weapons deal +50% to it">☠️ Unholy</span>` : ""}${f.items["m_thief"] ? `<span class="chip thief" title="Kill it before it escapes: it takes 30% of your Gold, or drops 60% on top if you win">💰 Escapes after round 5 (${Math.max(0, 5 - (currentBattle?.round ?? 0))} left)</span>` : ""}${f.family === "Construct" ? `<span class="chip storm" title="Lightning hits it twice as hard: Shock doubles damage, Static and electric reactions deal double, Storm weapons +30%">⚡ Conductive</span>` : ""}${Object.keys(f.items).map(id => getItem(id)).map(d => `<span class="chip" title="${esc(d.text)}">${esc(d.name)}</span>`).join("")}` : "";
   return `<div class="panel fighter ${f.crimson ? "crimson-foe" : ""}" id="fp-${who}">
     <div class="row"><b>${esc(f.name)}</b>${f.title ? `<span class="sub">${esc(f.title)}</span>` : ""}<span class="grow"></span><span class="sub">${who === "enemy" ? `${f.family ?? ""}${f.crimson ? " · Crimson" : ""}${f.boss ? " · Boss" : f.champion ? " · Champion" : f.elite ? " · Elite" : ""}` : ""}</span></div>
     <div class="bar ${who === "enemy" ? "enemy" : ""}"><i style="width:${Math.max(0, (hp / f.maxHp) * 100)}%"></i></div>
@@ -415,7 +415,7 @@ function bag(r: Run) {
     const it = h.equip[s];
     return `<div><div class="sub">${slotName[s]}</div>${it ? itemCard(it, inCombat ? "" : `<button class="small" data-unequip="${s}">Unequip</button>${revealBtn(r, it)}`) : `<div class="item"><span class="sub">Empty</span></div>`}</div>`;
   }).join("");
-  const pack = h.backpack.map(it => itemCard(it, inCombat ? "" : `${slotsFor(it).map(s => `<button class="small primary" data-equip="${it.uid}" data-slot="${s}">Equip${slotsFor(it).length > 1 ? ` (${slotName[s].toLowerCase()}${s === "trinket2" ? " 2" : ""})` : ""}</button>`).join("")}<button class="small" data-salvage="${it.uid}">Scrap</button>${revealBtn(r, it)}`, !inCombat)).join("");
+  const pack = h.backpack.map(it => itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(s => `<button class="small primary" data-equip="${it.uid}" data-slot="${s}">Equip${slotsFor(it, h).length > 1 ? ` (${slotName[s].toLowerCase()}${s === "trinket2" ? " 2" : ""})` : ""}</button>`).join("")}<button class="small" data-salvage="${it.uid}">Scrap</button>${revealBtn(r, it)}`, !inCombat)).join("");
   const list = (o: Record<string, number>) => Object.entries(o).map(([id, n]) => { const d = getItem(id); return `<p><b>${esc(d.name)}</b>${n > 1 ? ` ×${n}` : ""} — ${esc(fillText(d.text, n))}</p>`; }).join("") || `<p class="sub">None yet.</p>`;
   const passive = getItem(ORIGINS[h.origin].passive);
   const f = h.f;
@@ -428,7 +428,13 @@ function bag(r: Run) {
       <div class="row stat"><span>🪙 ${f.gold}</span><span>⚙️ ${h.scrap}</span><span>✴️ ${h.starmetal}</span><span>📜 ${h.scrolls}</span><span>🧪 ${h.potions}</span></div>
       <p class="sub" style="margin:4px 0 0">${f.faces.map((x, i) => `${i + 1} ${x.name ?? x.kind}`).join(" · ")}</p>
       <p class="sub" style="margin:4px 0 0">Armor can't stop more than two-thirds of a hit unless you Guard.</p></div>`;
-  return `<div class="overlay"><div class="inner">
+  // Every slot you're using holds a Legendary (or Crimson): the whole bag glows.
+  const worn = EQUIP_SLOTS.map(s => h.equip[s]);
+  const twoHander = h.equip.main && effectiveBase(h.equip.main).twoHanded && !keepsOffHand(h);
+  const needed = worn.filter((it, i) => !(EQUIP_SLOTS[i] === "off" && twoHander && !it));
+  const legendSet = needed.every(it => it && (it.rarity === "legendary" || it.rarity === "crimson"));
+  return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
+    ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
     <div class="row"><h1 class="grow">Gear & build</h1><button data-closebag>Close</button></div>
     ${stats}
     ${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>${reactionsPanel(r)}` : ""}
@@ -454,7 +460,7 @@ function revealBtn(r: Run, it: GearItem) {
 const celebrated = new Set<number>();
 let fanfareEl: HTMLElement | null = null;
 function celebrate(rarity: string, label?: string) {
-  if (rarity !== "epic" && rarity !== "legendary" && rarity !== "crimson") return;
+  if (rarity !== "rare" && rarity !== "epic" && rarity !== "legendary" && rarity !== "crimson") return;
   fanfareEl?.remove();
   const el = document.createElement("div");
   el.className = `fanfare ${rarity}`;
@@ -464,14 +470,14 @@ function celebrate(rarity: string, label?: string) {
         return `<i class="spark" style="left:50%;top:38%;--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d}px;animation-delay:${Math.random() * 0.25}s"></i>`;
       }).join("")
     : "";
-  el.innerHTML = `<div class="banner">${esc(label ?? rarity.toUpperCase())}</div>${sparks}`;
+  el.innerHTML = rarity === "rare" ? "" : `<div class="banner">${esc(label ?? rarity.toUpperCase())}</div>${sparks}`;
   document.body.appendChild(el);
   fanfareEl = el;
   if (rarity !== "epic") navigator.vibrate?.(rarity === "crimson" ? [80, 50, 80, 50, 200] : [60, 40, 120]);
-  sfx(rarity === "crimson" ? "crimson" : rarity === "legendary" ? "legendary" : "epic");
-  setTimeout(() => { el.remove(); if (fanfareEl === el) fanfareEl = null; }, rarity === "crimson" ? 4300 : rarity === "legendary" ? 3500 : 1900);
+  sfx(rarity === "crimson" ? "crimson" : rarity === "legendary" ? "legendary" : rarity === "epic" ? "epic" : "chest");
+  setTimeout(() => { el.remove(); if (fanfareEl === el) fanfareEl = null; }, rarity === "crimson" ? 4300 : rarity === "rare" ? 1300 : 3500);
 }
-const RANK: Record<string, number> = { epic: 1, legendary: 2, crimson: 3 };
+const RANK: Record<string, number> = { rare: 0.5, epic: 1, legendary: 2, crimson: 3 };
 /** Celebrate the best newly-seen Epic/Legendary in the current scene, once per item. */
 function celebrateScene(r: Run) {
   const s = r.scene;
