@@ -340,3 +340,5 @@ details.gloss summary { font-weight: 700; color: var(--ink); padding: 4px 0; }
 @keyframes pulse-hint { 50% { opacity: .5; } }
 .scroll-pop .relic-gem { filter: drop-shadow(0 0 12px rgba(240,138,42,.7)); }
 .scroll-pop .scroll-kicker { color: var(--legendary); }
+.beat-list { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.beat-list li { line-height: 1.4; }

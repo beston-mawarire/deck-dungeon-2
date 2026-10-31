@@ -461,7 +461,7 @@ function confirmScene(r: Run) {
   if (r.scene.t !== "confirm") return "";
   const info = ROOM_INFO[r.scene.room];
   if (r.scene.room === "crimson_vault") {
-    return `<h2>${info.icon} ${info.name}</h2><div class="panel crimson-foe"><p>${esc(info.text)}</p><p class="sub">Crimson bosses are far harder than a floor boss. Win and you choose between a Crimson item and two boss finds. Lose and you're thrown out at a quarter of your HP — the run goes on, but the key is gone. You have ${r.hero.crimsonKeys} key${r.hero.crimsonKeys === 1 ? "" : "s"}.</p></div>
+    return `<h2>${info.icon} ${info.name}</h2><div class="panel crimson-foe"><p>${esc(info.text)}</p><p class="sub">Crimson bosses are far harder than a floor boss. Win and you choose between a Crimson item and two boss finds. Lose and <b>your run is over</b>. You have ${r.hero.crimsonKeys} key${r.hero.crimsonKeys === 1 ? "" : "s"}.</p></div>
     <div class="row" style="margin-top:12px"><button class="primary crimson-btn" data-risk="yes">Turn the key</button><button data-risk="no">Not yet</button></div>`;
   }
   return `<h2>${info.icon} ${info.name}</h2><div class="panel"><p>${esc(info.text)}</p><p class="sub">A Resplendent chest holds three face-down cards. Pick one; the rest are lost. Any of them could be Legendary.</p></div>
@@ -736,11 +736,12 @@ function runMenu(r: Run) {
     </div></div></div>`;
 }
 
-function storyBeat(p: { icon: string; title: string; text: string }, close = "data-closepopup") {
+function storyBeat(p: { icon: string; title: string; text: string; list?: string[] }, close = "data-closepopup") {
   return `<div class="overlay popup-wrap"><div class="popup story-pop beat">
     <div class="center bigicon">${p.icon}</div>
     <h1 class="center bigname">${esc(p.title)}</h1>
     <p class="story-text">${esc(p.text)}</p>
+    ${p.list ? `<ul class="beat-list">${p.list.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" ${close}>Continue</button></div>
   </div></div>`;
 }

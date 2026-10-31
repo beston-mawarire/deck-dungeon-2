@@ -50,7 +50,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
   unique: { name: "A Strange Presence", icon: "✴️", text: "Someone — something — with a name. Dangerous, once per run, and carrying something rare." },
   crimson_elite: { name: "Crimson Elite", icon: "🩸", text: "Rarer and deadlier than a Champion. Great loot, and often a Crimson Key." },
-  crimson_vault: { name: "Crimson Vault", icon: "🗝️", text: "Spend a Crimson Key: fight a Crimson boss for a Crimson item. Dying here doesn't end your run." }
+  crimson_vault: { name: "Crimson Vault", icon: "🗝️", text: "Spend a Crimson Key: fight a Crimson boss for a Crimson item. Die here and your run is over." }
 };
 
 export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "relic"; item?: GearItem; relic?: string; price: number; sold?: boolean }
@@ -102,7 +102,7 @@ export interface Run {
   /** The last boss beaten (for the Floor cleared screen). */
   lastBoss?: string;
   /** A story popup waiting to be shown (e.g. arriving on the last floor). */
-  popup?: { title: string; text: string; icon: string };
+  popup?: { title: string; text: string; icon: string; list?: string[] };
 }
 
 export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: Mode = "campaign", locked: Set<string> = new Set()): Run {
@@ -120,7 +120,19 @@ export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: M
 /** After beating the campaign, keep delving: floors 11+ with generated bosses. */
 export function continueEndless(run: Run) {
   run.mode = "endless";
-  run.popup = { icon: "♾️", title: "Deeper Still", text: "The gate is shut, but the rift below still bleeds. Past floor 5 lie better rewards — richer hoards, Crimson Elites and their keys, Keepsakes from fallen bosses — and worse things guarding them. Go as deep as you dare." };
+  run.popup = {
+    icon: "♾️", title: "Deeper Still",
+    text: "The gate is shut, but the rift below still bleeds. Nothing down there has heard that you won. Here is what waits:",
+    list: [
+      "💰 Richer loot the deeper you go: rarer drops, fuller hoards, and treasures rarely seen above floor 5.",
+      "👑 The bosses you didn't meet return, and new ones are forged from the depths, each with its own tricks.",
+      "🩸 Crimson Elites: harder than any Champion. Some carry a Crimson Key.",
+      "🗝️ Crimson Vaults: spend a key to face a Crimson boss for a Crimson item. Die in there and your run ends.",
+      "💎 Fallen bosses sometimes leave a Keepsake, a rare charm that sits beside your trinkets.",
+      "⚠️ Every floor hits harder than the last, and somewhere far below there's a wall.",
+      "🎲 There's no last floor to win. Go as deep as you dare."
+    ]
+  };
   run.choices = genChoices(run);
   run.scene = { t: "map" };
 }
@@ -327,13 +339,7 @@ function afterFight(run: Run) {
   const h = run.hero;
   const curseNote = applyQueuedCurses(run);
   if (b.over === "lost") {
-    // A Crimson Vault doesn't kill you: you crawl out and carry on.
-    if (then === "crimson") {
-      h.f.hp = Math.max(1, Math.ceil(h.f.maxHp * 0.25));
-      h.f.persist["crimsonEscapes"] = (h.f.persist["crimsonEscapes"] ?? 0) + 1;
-      run.message = `${b.enemy.name} casts you out of the vault. You crawl away at ${h.f.hp} HP; the key is spent.${curseNote ? ` ${curseNote}` : ""}`;
-      return advance(run);
-    }
+    // Dying anywhere ends the run, Crimson Vaults included.
     run.scene = { t: "over", won: false };
     return;
   }

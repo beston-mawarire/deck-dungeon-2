@@ -358,7 +358,7 @@ describe("crimson", () => {
     expect(run.choices).toContain("crimson_vault");
   });
 
-  it("dying in a Crimson Vault doesn't end the run", () => {
+  it("dying in a Crimson Vault ends the run", () => {
     const run = newRun("warrior", 11);
     run.floor = 6;
     run.mode = "endless";
@@ -372,9 +372,9 @@ describe("crimson", () => {
     run.hero.f.hp = 1;
     run.hero.f.armor = 0;
     for (let i = 0; i < 50 && run.scene.t === "combat"; i++) combatAction(run, "attack");
-    expect(run.scene.t).not.toBe("over");
-    expect(run.hero.f.hp).toBeGreaterThan(0);
-    expect(run.hero.f.persist["crimsonEscapes"]).toBe(1);
+    expect((run.scene as { t: string }).t).toBe("over");
+    const sc = run.scene as { t: string; won?: boolean };
+    expect(sc.won).toBe(false);
   });
 
   it("Crimson bosses offer a Crimson item", () => {
