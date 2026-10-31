@@ -52,7 +52,8 @@ export function staticTick(b: Battle, f: Fighter) {
   if (n <= 0 || f.hp <= 0) return;
   f.statuses.static = n - 1;
   const foe = other(b, f);
-  const dmg = (2 + 2 * (foe.items["r_overcharged_cell"] ?? 0)) * (conductive(f) ? 2 : 1) * ((foe.items["lr_stormheart"] ?? 0) > 0 ? 3 : 1);
+  const extra = 2 * (foe.items["r_overcharged_cell"] ?? 0) + ((foe.items["ee_stormheart_pendant"] ?? 0) > 0 ? 2 : 0) + ((foe.items["cx_storm_skin"] ?? 0) > 0 ? 4 : 0);
+  const dmg = (2 + extra) * (conductive(f) ? 2 : 1) * ((foe.items["lr_stormheart"] ?? 0) > 0 ? 3 : 1);
   const lost = loseHp(b, f, dmg);
   log(b, `🔋 Static crackles through ${f.name} as it acts: ${lost}.`);
 }

@@ -3,6 +3,7 @@
 import { attack } from "../engine/combat";
 import { log } from "../engine/registry";
 import type { Battle, Fighter, GearBase, HookDef } from "../engine/types";
+import { LEGENDARY_ITEMS } from "./treasury";
 import { applyStatus, cast, CRIT, GRAZE, heal, hex, HIT, MISS, on, ping, purify, self, spell, st } from "./helpers";
 
 const bonus = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "bonus", ...d });
@@ -301,3 +302,6 @@ export const LEGENDARIES: GearBase[] = [
     text: "Cut one head off. You know the rest.",
     hooks: { onHit: (b, c) => { const pool = ["burn", "poison", "chill", "bleed", "weak", "exposed"] as const; applyStatus(b, c.attacker, c.defender, pool[Math.floor(b.rng() * pool.length)], 2); } } })
 ];
+
+// The Treasury's Legendaries join the pool.
+LEGENDARIES.push(...LEGENDARY_ITEMS);

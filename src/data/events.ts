@@ -22,6 +22,7 @@ export interface EventCtx {
   addScrap: (n: number) => void;
   addPity: (n: number) => void;
   upgradeWeapon: () => string | null;
+  potions: () => number;
 }
 
 export interface EventOption {
@@ -33,6 +34,8 @@ export interface EventOption {
 
 export interface GameEvent {
   id: string;
+  /** Unique encounters happen at most once per run. */
+  unique?: boolean;
   title: string;
   icon: string;
   text: string;
@@ -68,6 +71,32 @@ export const EVENTS: GameEvent[] = [
   { id: "trainer", title: "The Old Duelist", icon: "🤺", text: "A scarred veteran offers a lesson, or a wager.",
     options: [{ label: "Take the lesson", hint: "+3 XP", run: c => { c.addXp(3); return "You learn a thing or two. +3 XP."; } },
       { label: "Spar for coin", hint: "Lose 6 HP, gain 30 Gold", can: c => c.hp() > 6, run: c => { c.hurt(6); c.addGold(30); return "Bruised but richer. +30 Gold."; } }] },
+  { id: "cart", title: "The Wandering Merchant's Cart", icon: "🛒", text: "A cart piled with sealed crates. \"Mystery boxes! Every one a bargain!\"",
+    options: [{ label: "Buy a mystery box (60 Gold)", hint: "A Rare item — maybe Epic", can: c => c.gold() >= 60, run: c => { c.addGold(-60); const it = c.gainItem(c.rng() < 0.15 ? "epic" : "rare"); return `Inside: ${it.rarity === "epic" ? "something special!" : "a solid find."}`; } }, leave] },
+  { id: "twin_gods", title: "Shrine of the Twin Gods", icon: "⛩️", text: "Two statues, one carved in stone, one in gold. Each holds out an open hand.",
+    options: [{ label: "Pray to the stone god", hint: "+6 Max HP", run: c => { c.addMaxHp(6); return "You feel sturdier. +6 Max HP."; } },
+      { label: "Pray to the golden god", hint: "+45 Gold", run: c => { c.addGold(45); return "Coins spill from the statue's hand. +45 Gold."; } }] },
+  { id: "pilgrim", title: "The Starving Pilgrim", icon: "🧎", text: "A thin pilgrim begs for coin to buy bread from the next merchant.",
+    options: [{ label: "Give 20 Gold", hint: "Kindness, sometimes repaid", can: c => c.gold() >= 20, run: c => { c.addGold(-20); if (c.rng() < 0.5) return `\"Take this — it was my master's.\" You receive a relic: ${c.gainRelic()}.`; c.addXp(3); return "They bless you. You feel wiser. +3 XP."; } }, leave] },
+  { id: "embers", title: "Altar of Embers", icon: "🕯️", text: "A brazier of white fire. A carved plaque reads: PAY IN FLESH.",
+    options: [{ label: "Hold your hand in the flame (lose 12 HP)", hint: "An Epic item", can: c => c.hp() > 12, run: c => { c.hurt(12); c.gainItem("epic"); return "The fire takes its due and gives back something remarkable."; } }, leave] },
+  { id: "card_sharp", title: "The Card Sharp", icon: "🃏", text: "A grinning rogue shuffles a deck. \"Your potion against my scrolls.\"",
+    options: [{ label: "Wager a potion", hint: "35%: win 2 Scrolls of Revelation", can: c => c.potions() > 0, run: c => { c.addPotions(-1); if (c.rng() < 0.35) { c.addScrolls(2); return "You win! Two Scrolls of Revelation."; } return "The house wins. Your potion is gone."; } }, leave] },
+  { id: "armory", title: "The Forgotten Armory", icon: "🗄️", text: "Racks of dusty gear, most of it rusted through. Some of it isn't.",
+    options: [{ label: "Search the racks", hint: "Two Uncommon items", run: c => { c.gainItem("uncommon"); c.gainItem("uncommon"); return "You pull two usable pieces from the dust."; } },
+      { label: "Strip it for metal", hint: "+15 Scrap", run: c => { c.addScrap(15); return "+15 Scrap."; } }] },
+  { id: "hermit", title: "The Hermit of the Deep", icon: "🧙", text: "An old man tends a mushroom garden by candlelight. He has been expecting you.",
+    options: [{ label: "Ask for wisdom", hint: "+5 XP", run: c => { c.addXp(5); return "He speaks for an hour. Some of it sticks. +5 XP."; } },
+      { label: "Ask for healing", hint: "Heal 40%", run: c => { c.healPct(0.4); return "Bitter tea, warm hands. You feel better."; } }] },
+  { id: "cursed_chest", title: "The Chained Chest", icon: "⛓️", text: "A chest bound in black chains. Something inside is humming.",
+    options: [{ label: "Break the chains", hint: "A Rare item, and a curse", run: c => { c.gainItem("rare"); return `The chains fall. So does a curse: ${c.addCurse()}.`; } }, leave] },
+  // Unique encounters: once per run.
+  { id: "dragon", unique: true, title: "A Sleeping Dragon", icon: "🐉", text: "A dragon sleeps on a mountain of gold, one eye not quite closed.",
+    options: [{ label: "Steal from the hoard", hint: "40%: a Legendary. Otherwise it wakes (lose half your HP)", run: c => { if (c.rng() < 0.4) { c.gainItem("legendary"); return "You slip away with a Legendary!"; } c.hurt(Math.ceil(c.hp() / 2)); return "It wakes. You barely escape, badly burned."; } },
+      { label: "Take a single coin", hint: "+30 Gold, safely", run: c => { c.addGold(30); return "One coin… well, thirty. It doesn't stir."; } }] },
+  { id: "mirror", unique: true, title: "The Mirror Pool", icon: "🪞", text: "Still black water shows you — but stronger, and smiling wrongly.",
+    options: [{ label: "Reach for your reflection", hint: "An Epic item and +5 Max HP, but a curse", run: c => { c.gainItem("epic"); c.addMaxHp(5); return `Your reflection hands you something… and keeps something of yours: ${c.addCurse()}.`; } },
+      { label: "Shatter the surface", hint: "Remove all curses", run: c => { const n = c.clearCurses(); return n ? `The curses break with the glass (${n}).` : "Glass and silence. Nothing else."; } }] },
   { id: "teller", title: "The Fortune Teller", icon: "🔮", text: "\"I see gold in your future… for a price.\"",
     options: [{ label: "Pay 20 Gold", hint: "Your next Resplendent chest is luckier", can: c => c.gold() >= 20, run: c => { c.addGold(-20); c.addPity(15); return "\"Your next great chest will smile on you.\""; } }, leave] }
 ];

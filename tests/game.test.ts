@@ -875,3 +875,52 @@ describe("dual wielding and faith weapons", () => {
     expect(300 - e.hp).toBe(h.f.damage + 4);
   });
 });
+
+describe("save and resume", () => {
+  it("a saved run resumes with the same hero, floor and dice", async () => {
+    const store: Record<string, string> = {};
+    (globalThis as { localStorage?: unknown }).localStorage = { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; }, removeItem: (k: string) => { delete store[k]; } };
+    const { saveRun, loadRun, savedSummary } = await import("../src/game/save");
+    const run = newRun("rogue", 1234);
+    run.hero.f.gold = 77;
+    run.hero.relics["r_hunters_eye"] = 1;
+    recompute(run.hero);
+    saveRun(run);
+    expect(savedSummary()?.origin).toBe("rogue");
+    const loaded = loadRun()!;
+    expect(loaded.run.hero.f.gold).toBe(77);
+    expect(loaded.run.hero.f.critChance).toBe(4);
+    expect(loaded.run.hero.f.faces.length).toBe(6);
+    expect(loaded.run.rng()).toBe(run.rng());
+  });
+});
+
+describe("treasury and encounters", () => {
+  it("Treasury items roll only at their own rarity, and every rarity has new items", () => {
+    const h = newHero("warrior");
+    const rng = makeRng(99);
+    const seen = new Set<string>();
+    for (let i = 0; i < 4000; i++) for (const r of ["common", "uncommon", "rare", "epic"] as const) {
+      const it = rollItem(h, r, 3, rng);
+      if (it.base.startsWith("rr_")) expect(it.rarity).toBe("rare");
+      if (it.base.startsWith("ee_")) expect(it.rarity).toBe("epic");
+      seen.add(it.base.slice(0, 3));
+    }
+    expect(seen.has("rr_")).toBe(true);
+    expect(seen.has("ee_")).toBe(true);
+  });
+  it("Unique foes appear once per run", async () => {
+    const { makeUnique, UNIQUES } = await import("../src/data/monsters");
+    const seen = new Set<string>();
+    const names = new Set<string>();
+    for (let i = 0; i < UNIQUES.length; i++) names.add(makeUnique(makeRng(i), 2, seen).name);
+    expect(names.size).toBe(UNIQUES.length);
+  });
+  it("each new floor announces itself", () => {
+    const run = newRun("cleric", 5);
+    run.step = 7;
+    advance(run);
+    expect(run.floor).toBe(2);
+    expect(run.popup?.title).toMatch(/^Floor 2/);
+  });
+});

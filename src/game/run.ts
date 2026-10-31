@@ -3,7 +3,7 @@ import { CURSES, EPIC_POWERS, KEEPSAKES, LEGENDARIES, RELICS, TALENTS } from "..
 import { CAMPAIGN_FLOORS, makeBoss, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
 import { EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
-import { makeMonster, makeThief, type MonsterRank } from "../data/monsters";
+import { makeMonster, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
 import { type Action, actionToll, playRound, startBattle } from "../engine/combat";
 import { getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
@@ -13,13 +13,26 @@ import { RARITIES } from "../engine/types";
 import { addToBackpack, canGuard, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, upgradeCost, xpToLevel } from "./hero";
 import { isLocked, type LootState, resetDropped, type ResplendentCard, resplendentCards, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
+/** Every floor has a name, so going deeper feels like going somewhere. */
+const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
+const DEEP_NAMES = ["The Ashen Deep", "The Weeping Dark", "The Rift's Edge", "The Hollow Below", "The Endless Stair", "The Drowned Cathedral", "The Red Warrens", "The Starless Vault", "The Nether Shelf", "The Last Light"];
+export const floorName = (floor: number) => (floor <= FLOOR_NAMES.length ? FLOOR_NAMES[floor - 1] : DEEP_NAMES[(floor - FLOOR_NAMES.length - 1) % DEEP_NAMES.length]);
+const FLOOR_LINES = [
+  "The stairs give way to wet stone and the smell of old water.",
+  "The torches burn lower here. Something has been gnawing at the walls.",
+  "Bones line the passages, stacked with a care that is worse than chaos.",
+  "The air tastes of ash and iron. You are far from the sun now.",
+  "Even the echoes sound tired down here.",
+  "The walls pulse faintly, as if the dungeon were breathing."
+];
+
 /** The campaign is five floors (five bosses). Endless keeps going; floor 30 is the wall. */
 export const FLOORS = CAMPAIGN_FLOORS;
 export const STEPS_PER_FLOOR = 7;
 export { WALL_FLOOR };
 export type Mode = "campaign" | "endless";
 
-export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault";
+export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -35,6 +48,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   rest: { name: "Campfire", icon: "🔥", text: "Heal, or cleanse a curse." },
   event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
+  unique: { name: "A Strange Presence", icon: "✴️", text: "Someone — something — with a name. Dangerous, once per run, and carrying something rare." },
   crimson_elite: { name: "Crimson Elite", icon: "🩸", text: "Rarer and deadlier than a Champion. Great loot, and often a Crimson Key." },
   crimson_vault: { name: "Crimson Vault", icon: "🗝️", text: "Spend a Crimson Key: fight a Crimson boss for a Crimson item. Dying here doesn't end your run." }
 };
@@ -43,7 +57,7 @@ export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "reli
 
 export type Scene =
   | { t: "map" }
-  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" }
+  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent" }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
@@ -118,7 +132,9 @@ export function genChoices(run: Run): RoomType[] {
   const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 9, vault: 3, altar: 3, shrine: 3, champion: 3 };
   // After the fifth boss (Endless), Crimson Elites start to appear; they drop the keys to Crimson Vaults.
   if (crimsonActive(run)) w.crimson_elite = 4;
-  if (run.step === 0) { w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; }
+  // Named unique foes: from floor 2, rare, each one once per run.
+  if (run.floor >= 2 && UNIQUES.some(u => !run.seenBosses.has(`u:${u.id}`))) w.unique = 2;
+  if (run.step === 0) { w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; w.unique = 0; }
   const out = new Set<RoomType>();
   out.add("fight");
   while (out.size < 3) out.add(pickW(run.rng, w));
@@ -186,7 +202,15 @@ function enterRoom(run: Run, room: RoomType) {
     case "shop": run.shopRerolls = 0; run.scene = { t: "shop", stock: shopStock(run) }; return;
     case "forge": run.scene = { t: "forge" }; return;
     case "rest": run.scene = { t: "rest", done: false }; return;
-    case "event": run.scene = { t: "event", ev: EVENTS[Math.floor(run.rng() * EVENTS.length)], result: null, found: [] }; return;
+    case "event": {
+      // Unique encounters (the dragon, the mirror pool) happen at most once per run.
+      const pool = EVENTS.filter(e => !e.unique || !run.seenBosses.has(`e:${e.id}`));
+      const ev = pool[Math.floor(run.rng() * pool.length)];
+      if (ev.unique) run.seenBosses.add(`e:${ev.id}`);
+      run.scene = { t: "event", ev, result: null, found: [] };
+      return;
+    }
+    case "unique": return fight(run, "elite", "unique");
   }
 }
 
@@ -202,13 +226,13 @@ function openResplendent(run: Run) {
 
 // ---------- Combat ----------
 
-function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson") {
+function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique") {
   run.hero.f.persist["floor"] = run.floor;
   // A Crimson Vault always holds a Crimson boss; in Endless, a floor boss is rarely Crimson too.
   const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && run.floor !== WALL_FLOOR && run.rng() < 0.06));
   // A rare gold thief sometimes turns up in place of a normal monster.
   const thief = rank === "normal" && !then && run.rng() < 0.04;
-  const enemy = crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank);
+  const enemy = then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
@@ -337,7 +361,12 @@ function afterFight(run: Run) {
     h.manaPotions++;
     run.message = "You find a Mana Potion. 🔷";
   }
-  if (rank === "elite") {
+  if (then === "unique") {
+    // Unique foes: always an Epic (sometimes a Legendary), a good relic and a fat purse.
+    items.push(rollItem(h, run.rng() < 0.15 ? "legendary" : "epic", run.floor, run.rng));
+    relic = randomRelic(run, 2);
+    if (run.rng() < 0.3) scrolls++;
+  } else if (rank === "elite") {
     items.push(roll(TABLES.elite));
     if (then === "mimic") items.push(roll(TABLES.elite));
     if (run.rng() < 0.35) relic = randomRelic(run);
@@ -665,6 +694,7 @@ export function chooseEvent(run: Run, i: number) {
     addPotions: (n: number) => { h.potions += n; },
     addScrap: (n: number) => { h.scrap += n; },
     addPity: (n: number) => { run.loot.pity += n; },
+    potions: () => h.potions,
     upgradeWeapon: () => { const w = h.equip.main; if (!w) return "You have no weapon."; w.level++; for (const k of Object.keys(w.bonuses)) w.bonuses[k]++; recompute(h); return null; }
   };
   const opt = s.ev.options[i];
@@ -683,7 +713,7 @@ export function eventOptionAvailable(run: Run, i: number): boolean {
   const opt = s.ev.options[i];
   if (!opt.can) return true;
   // Only read-only helpers are used by `can`.
-  return opt.can({ gold: () => h.f.gold, hp: () => h.f.hp, relicCount: () => Object.keys(h.relics).length } as never);
+  return opt.can({ gold: () => h.f.gold, hp: () => h.f.hp, relicCount: () => Object.keys(h.relics).length, potions: () => h.potions } as never);
 }
 
 // ---------- Fusions ----------
@@ -862,7 +892,8 @@ export function advance(run: Run, fromTalent = false) {
       run.floor++;
       run.step = 0;
       run.message = `Floor ${run.floor}. The air is colder, and the hoards are richer: your Fortune grows.`;
-      if (run.floor === FLOORS) run.popup = { icon: "🕳️", title: "The Source of the Darkness", text: "You are close now. The darkness here is thick enough to taste, and every step pulls at you. A cold despair settles in your chest, whispering that the gate cannot be closed, that no one walks back out. Somewhere below, the gate breathes." };
+      if (run.floor !== FLOORS) run.popup = { icon: "⬇️", title: `Floor ${run.floor} — ${floorName(run.floor)}`, text: `${FLOOR_LINES[(run.floor - 2) % FLOOR_LINES.length]} The deeper you go, the deadlier it gets — and the richer the loot.` };
+      if (run.floor === FLOORS) run.popup = { icon: "🕳️", title: `Floor ${FLOORS} — The Source of the Darkness`, text: "You are close now. The darkness here is thick enough to taste, and every step pulls at you. A cold despair settles in your chest, whispering that the gate cannot be closed, that no one walks back out. Somewhere below, the gate breathes." };
       if (run.floor > FLOORS && run.mode === "campaign") {
         run.scene = { t: "over", won: true };
         return;

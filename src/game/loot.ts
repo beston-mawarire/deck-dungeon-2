@@ -84,6 +84,8 @@ function rollBash(rarity: Rarity, base: GearBase, rng: () => number): number | u
 /** Legendaries (and Crimson items) already rolled this run: each drops at most once per run. */
 let DROPPED = new Set<string>();
 export const resetDropped = () => { DROPPED = new Set(); };
+export const getDropped = () => [...DROPPED];
+export const setDropped = (ids: string[]) => { DROPPED = new Set(ids); };
 
 export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => number): GearItem {
   const tags = heroTags(h);

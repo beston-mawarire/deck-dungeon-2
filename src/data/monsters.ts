@@ -92,6 +92,32 @@ export function monsterHpMult(floor: number) {
 }
 export const monsterPowerAdd = (floor: number) => Math.round((1.5 * (floor - 1) + 0.8 * Math.max(0, floor - 2)) * (floor > 30 ? Math.pow(1.1, floor - 30) : 1));
 
+/** Unique foes: named, once per run, far tougher than an Elite, and each with a signature set of traits. */
+export const UNIQUES: { id: string; name: string; title: string; family: string; traits: string[]; armor?: number; faces?: FaceSpec[] }[] = [
+  { id: "garrick", name: "Sir Garrick", title: "the Hollow Knight", family: "Undead", traits: ["x_armored", "x_regenerating"], armor: 2 },
+  { id: "shades", name: "The Twin Shades", title: "Two Breaths of Cold", family: "Undead", traits: ["m_incorporeal", "x_swift", "m_grave_chill"] },
+  { id: "ember", name: "Mother Ember", title: "Keeper of the Last Fire", family: "Cultist", traits: ["x_blazing", "x_smouldering"] },
+  { id: "grimtooth", name: "Grimtooth", title: "the Glutton Below", family: "Beast", traits: ["x_vampiric", "x_regenerating"] },
+  { id: "sentinel", name: "The Stormbound Sentinel", title: "Last Guard of the Old Kings", family: "Construct", traits: ["m_static", "m_crackle", "x_concussive"], armor: 3 },
+  { id: "nightshade", name: "Lady Nightshade", title: "Poisoner of Princes", family: "Cultist", traits: ["x_venomous", "x_accursed"] },
+  { id: "collector", name: "The Bone Collector", title: "Who Keeps What Falls", family: "Undead", traits: ["m_rot_claws", "x_nullifying"],
+    faces: [GRAZE, HIT, HIT, HIT, spell("Collect", "hit", hex("doom", 2)), CRIT] },
+  { id: "warlord", name: "Warlord Kragg", title: "Breaker of Shields", family: "Beast", traits: ["m_zeal", "x_tormenting"], armor: 1 }
+];
+
+export function makeUnique(rng: () => number, floor: number, seen: Set<string>): Fighter {
+  const pool = UNIQUES.filter(u => !seen.has(`u:${u.id}`));
+  const u = (pool.length ? pool : UNIQUES)[Math.floor(rng() * (pool.length || UNIQUES.length))];
+  seen.add(`u:${u.id}`);
+  const hp = Math.round(22 * monsterHpMult(floor) * (2.4 + 0.15 * floor));
+  const items: Record<string, number> = {};
+  for (const t of u.traits) items[t] = 1;
+  return {
+    id: "enemy", name: u.name, title: `${u.title} · Unique`, hp, maxHp: hp, armor: u.armor ?? 0, damage: 4 + monsterPowerAdd(floor) + Math.floor(floor / 2),
+    faces: u.faces ?? PLAIN_FACES, statuses: {}, flags: {}, persist: {}, items, gold: 0, elite: true, family: u.family
+  };
+}
+
 /** Rare gold thieves: tougher than a normal monster and slippery; beat them inside 5 rounds. */
 const THIEVES = [
   { name: "Gold Goblin", family: "Beast" },
