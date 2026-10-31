@@ -97,6 +97,7 @@ export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: M
 /** After beating the campaign, keep delving: floors 11+ with generated bosses. */
 export function continueEndless(run: Run) {
   run.mode = "endless";
+  run.popup = { icon: "♾️", title: "Deeper Still", text: "The gate is shut, but the rift below still bleeds. Past floor 5 lie better rewards — richer hoards, Crimson Elites and their keys, Keepsakes from fallen bosses — and worse things guarding them. Go as deep as you dare." };
   run.choices = genChoices(run);
   run.scene = { t: "map" };
 }

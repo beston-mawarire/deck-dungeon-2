@@ -84,12 +84,13 @@ export type MonsterRank = "normal" | "elite" | "champion" | "crimson" | "boss";
 
 /** Regular monsters grow with the floor; past floor 5 (Endless) they grow faster, and past 30 much faster. */
 export function monsterHpMult(floor: number) {
-  let m = 1 + 0.55 * (floor - 1);
+  // From floor 3 the dungeon turns hard: only a lucky, well-built run gets through floors 3 and 4.
+  let m = 1 + 0.55 * (floor - 1) + 0.2 * Math.max(0, floor - 2);
   if (floor > 5) m *= 1 + 0.06 * (floor - 5);
   if (floor > 30) m *= Math.pow(1.2, floor - 30);
   return m;
 }
-export const monsterPowerAdd = (floor: number) => Math.round(1.5 * (floor - 1) * (floor > 30 ? Math.pow(1.1, floor - 30) : 1));
+export const monsterPowerAdd = (floor: number) => Math.round((1.5 * (floor - 1) + 0.8 * Math.max(0, floor - 2)) * (floor > 30 ? Math.pow(1.1, floor - 30) : 1));
 
 /** Rare gold thieves: tougher than a normal monster and slippery; beat them inside 5 rounds. */
 const THIEVES = [

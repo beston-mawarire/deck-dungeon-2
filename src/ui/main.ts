@@ -203,7 +203,7 @@ function titleScreen() {
     <div class="modebtn ${mode === "campaign" ? "active" : ""}" data-mode="campaign" role="button" tabindex="0"><span>🏰 Campaign · ${FLOORS} floors</span><span class="story-chip" data-story="campaign" role="button">📖 Story</span></div>
     <div class="modebtn ${mode === "endless" ? "active" : ""}" data-mode="endless" role="button" tabindex="0"><span>♾️ Endless · how deep?</span><span class="story-chip" data-story="endless" role="button">📖 Story</span></div>
   </div>
-  <p class="sub">${mode === "campaign" ? `${FLOORS} floors, ${FLOORS} bosses — the Hollow King waits at the bottom.` : `Past floor ${FLOORS}, the bosses you didn't meet return, and new ones are forged from a library of names, titles and powers. Floor ${WALL_FLOOR} is a wall only a broken build gets through.`}</p>
+  <p class="sub">${mode === "campaign" ? `${FLOORS} floors, ${FLOORS} bosses — the Hollow King waits at the bottom.` : `Past floor ${FLOORS}, better rewards. The bosses you didn't meet return, and new ones are forged from the depths.`}</p>
   <h2>Choose an origin</h2>
   <div class="cards">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
     const og = ORIGINS[o];
@@ -431,7 +431,7 @@ function overScene(r: Run) {
   <div class="panel"><p>${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses · biggest hit ${r.stats.bestHit}</p>
   ${recorded ? `<p>🏅 +${recorded.earned} Renown (total ${meta.renown})${recorded.unlocked.length ? ` · Unlocked: <b>${recorded.unlocked.map(esc).join(", ")}</b>` : ""}</p>` : ""}
   <p class="sub">Final build:</p><div class="cards">${EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x).map(it => itemCard(it)).join("")}</div></div>
-  <div class="row" style="margin-top:12px">${won ? `<button class="primary" data-endless>Keep delving (Endless)</button>` : ""}<button class="${won ? "" : "primary"}" data-newrun>New run</button></div>`;
+  <div class="row" style="margin-top:12px">${won ? `<button class="primary" data-endless>Keep delving · better rewards below</button>` : ""}<button class="${won ? "" : "primary"}" data-newrun>New run</button></div>`;
 }
 
 function bag(r: Run) {

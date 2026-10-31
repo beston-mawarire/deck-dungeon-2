@@ -63,7 +63,7 @@ export const NAMED_BOSSES: Record<string, BossDef> = {
   oathbreaker: { name: "Oathbreaker", title: "the Fallen Paladin", family: "Undead", moves: ["thorns", "malediction", "heavy", "hex", "drain"], armor: 3, traits: ["x_nullifying"] },
   thorn_queen: { name: "The Thorn Queen", title: "Mistress of Agony", family: "Cultist", moves: ["thorns", "rend", "strike", "hex"], traits: ["m_toll"] },
   colossus: { name: "The Penitent Colossus", title: "Who Weighs Every Step", family: "Construct", moves: ["bulwark", "heavy", "charge", "smash", "strike"], armor: 3, traits: ["m_toll"], hpMult: 1.1 },
-  hollow: { name: "The Hollow King", title: "Who Waits Below", family: "Construct", moves: ["doom", "concuss", "bulwark", "charge", "smash"], armor: 3, traits: ["x_nullifying"],
+  hollow: { name: "The Hollow King", title: "Who Waits Below", family: "Construct", moves: ["doom", "concuss", "bulwark", "charge", "smash"], armor: 3, traits: ["x_nullifying", "x_regenerating"], hpMult: 1.3,
     faces: [GRAZE, HIT, HIT, HIT, HIT, { ...CRIT, name: "Hollow Decree", run: hex("doom", 3) }] }
 };
 
@@ -92,8 +92,9 @@ const WALL: BossDef = { name: "Ur-Thane", title: "the Unbroken Gate", family: "C
 
 /** HP and Power for a boss on a floor. Past the wall, everything grows much faster. */
 export function bossStats(floor: number) {
-  let hp = 32 + 22 * (floor - 1);
-  let power = 4 + 1.7 * (floor - 1);
+  // Floors 3+ (and the Hollow King) are meant to need a lucky build.
+  let hp = 32 + 22 * (floor - 1) + 12 * Math.max(0, floor - 2);
+  let power = 4 + 1.7 * (floor - 1) + 0.9 * Math.max(0, floor - 2);
   if (floor > 5) {
     hp *= 1 + 0.08 * (floor - 5);
     power *= 1 + 0.04 * (floor - 5);
