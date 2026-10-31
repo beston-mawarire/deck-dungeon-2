@@ -21,6 +21,10 @@ export const TRAITS: HookDef[] = [
   // Elite affixes
   trait({ id: "x_blazing", name: "Blazing", tags: ["Burn"], text: "Its hits apply 2 Burn", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "burn", 2) } }),
   trait({ id: "x_venomous", name: "Venomous", tags: ["Poison"], text: "Its hits apply 3 Poison", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "poison", 3) } }),
+  trait({ id: "m_shieldwall", name: "Shieldwall", tags: ["Guard"], text: "Every 3rd round it Guards instead of attacking: Armor doubled +2. Crits, spells and statuses still get through",
+    hooks: { onFightStart: (_b, f) => { f.flags["guardHolds"] = 1; }, onRoundEnd: (b, f) => { if ((b.round + 1) % 3 === 0) f.flags["guardNext"] = 2; } } }),
+  trait({ id: "x_bulwark", name: "Bulwark", tags: ["Guard"], text: "Every other round it Guards and still attacks: Armor doubled +3. Crits, spells and statuses still get through",
+    hooks: { onRoundEnd: (b, f) => { if ((b.round + 1) % 2 === 0) f.flags["guardNext"] = 3; } } }),
   trait({ id: "x_armored", name: "Armored", tags: ["Guard"], text: "+3 Armor; can't be Exposed", hooks: { onFightStart: (_b, f) => { f.armor += 3; }, incomingStatus: (_b, _f, s, n) => (s === "exposed" ? 0 : n) } }),
   trait({ id: "x_vampiric", name: "Vampiric", tags: ["Blood"], text: "Heals half the damage it deals", hooks: { onHit: (b, c) => { heal(b, c.attacker, Math.floor(c.dealt / 2), "Vampiric"); } } }),
   trait({ id: "x_swift", name: "Swift", tags: ["Tempo"], text: "Starts with Haste and strikes first", hooks: { onFightStart: (b, f) => { f.flags["ambush"] = 1; applyStatus(b, f, f, "haste", 1); } } }),
@@ -52,7 +56,7 @@ export const TRAITS: HookDef[] = [
   trait({ id: "x_regenerating", name: "Regenerating", tags: ["Blood"], text: "Heals 2 at the end of every round", hooks: { onRoundEnd: (b, f) => { heal(b, f, 2, "Regenerating"); } } }),
 ];
 
-export const ELITE_AFFIX_IDS = ["x_tormenting", "x_accursed", "x_smouldering", "x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying"];
+export const ELITE_AFFIX_IDS = ["x_bulwark", "x_tormenting", "x_accursed", "x_smouldering", "x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying"];
 /** How often each affix rolls (Nullifying is rare). */
 export const AFFIX_WEIGHT: Record<string, number> = { x_nullifying: 0.35, x_concussive: 0.8, x_smouldering: 0.6, x_accursed: 0.4, x_tormenting: 0.5 };
 
@@ -60,6 +64,8 @@ interface MonsterDef { name: string; family: string; hp: number; power: number; 
 
 export const MONSTERS: MonsterDef[] = [
   { name: "Wolf", family: "Beast", hp: 10, power: 3, traits: ["m_ambush"] },
+  { name: "Shieldbearer", family: "Cultist", hp: 13, power: 3, armor: 2, traits: ["m_shieldwall"] },
+  { name: "Iron Tortoise", family: "Beast", hp: 16, power: 3, armor: 3, traits: ["m_shieldwall"] },
   { name: "Boar", family: "Beast", hp: 14, power: 3, armor: 1, traits: [], faces: [GRAZE, HIT, HIT, HIT, HIT, spell("Gore", "crit", hex("bleed", 2))] },
   { name: "Giant Spider", family: "Beast", hp: 9, power: 2, traits: ["m_venom_bite"] },
   { name: "Skeleton", family: "Undead", hp: 11, power: 3, armor: 2, traits: ["m_brittle"] },

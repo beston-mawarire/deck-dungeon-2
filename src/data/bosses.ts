@@ -45,6 +45,9 @@ export const MOVE_LIBRARY: Record<string, (p: number) => Move> = {
   brand: p => ({ name: "Searing Brand", icon: "🌋", text: `Attacks and leaves you Smouldering (${1 + Math.ceil(p / 2)})`, act: (b, s, f) => { hit(b, s, f); applyStatus(b, s, f, "smoulder", 1 + Math.ceil(p / 2)); } }),
   crimson: p => ({ name: "Crimson Rite", icon: "🩸", text: `Heals 8% of its Max HP, gains ${1 + Math.ceil(p / 3)} Might and applies ${2 + p} Bleed`,
     act: (b, s, f) => { heal(b, s, Math.round(s.maxHp * 0.08), "Crimson Rite"); applyStatus(b, s, s, "might", 1 + Math.ceil(p / 3)); applyStatus(b, s, f, "bleed", 2 + p); } }),
+  shieldwall: p => ({ name: "Shield Wall", icon: "🧱", text: `Guards this round (Armor doubled +${2 + p}) and gains 1 Might. Crits, spells and statuses still get through`, guard: 2 + p,
+    act: (b, s) => { log(b, `${s.name} holds the wall.`); applyStatus(b, s, s, "might", 1); } }),
+  guardstrike: p => ({ name: "Guarded Strike", icon: "🛡️", text: `Guards this round (Armor doubled +${1 + p}) and attacks`, guard: 1 + p, act: (b, s, f) => hit(b, s, f) }),
   drain: () => ({ name: "Life Drain", icon: "🦇", text: "Attacks and heals what it deals", act: (b, s, f) => { const before = f.hp; hit(b, s, f); const n = Math.max(0, before - f.hp); if (n) heal(b, s, n, "Life Drain"); } })
 };
 
@@ -55,6 +58,7 @@ export const NAMED_BOSSES: Record<string, BossDef> = {
   gnasher: { name: "Gnasher", title: "the Pack Lord", family: "Beast", moves: ["strike", "flurry", "rend"], traits: ["m_ambush"] },
   rot: { name: "The Mother of Rot", title: "Queen of the Sewers", family: "Undead", moves: ["venom", "strike", "regrow"] },
   cinder: { name: "Brother Cinder", title: "the Ashen Zealot", family: "Cultist", moves: ["fire", "strike", "brand", "enrage"] },
+  galen: { name: "Ser Galen", title: "the Unbroken", family: "Cultist", moves: ["shieldwall", "heavy", "guardstrike", "strike"], armor: 3 },
   varkas: { name: "Varkas", title: "the Iron Warden", family: "Construct", moves: ["bulwark", "concuss", "heavy", "strike"], armor: 2, hpMult: 0.9 },
   widow: { name: "The Pale Widow", title: "Spinner of Graves", family: "Beast", moves: ["hex", "rend", "malediction", "venom", "strike"] },
   skarn: { name: "Skarn", title: "the Storm Herald", family: "Cultist", moves: ["thunder", "charge", "smash", "concuss"] },
@@ -68,7 +72,7 @@ export const NAMED_BOSSES: Record<string, BossDef> = {
 };
 
 /** Campaign line-up by floor: a choice of bosses per floor, the Hollow King always last. */
-const CAMPAIGN_POOLS = [["gnasher", "rot"], ["cinder", "widow", "rot", "thorn_queen"], ["varkas", "morwen", "skarn"], ["oathbreaker", "glutton", "skarn", "colossus"], ["hollow"]];
+const CAMPAIGN_POOLS = [["gnasher", "rot"], ["cinder", "widow", "rot", "thorn_queen"], ["varkas", "morwen", "skarn", "galen"], ["oathbreaker", "glutton", "skarn", "colossus"], ["hollow"]];
 export const CAMPAIGN_FLOORS = CAMPAIGN_POOLS.length;
 
 export const BOSS_NAMES = [

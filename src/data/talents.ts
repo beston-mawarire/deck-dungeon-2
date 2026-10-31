@@ -4,6 +4,8 @@ import { other, st } from "../engine/statuses";
 import type { HookDef } from "../engine/types";
 import { applyStatus, heal, log, ping } from "./helpers";
 
+import { STREAK_TALENTS } from "./streak";
+
 const talent = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "talent", ...d });
 const rank = (s: number, ...vals: number[]) => vals[Math.min(s, vals.length) - 1];
 
@@ -150,4 +152,4 @@ export const STORM_TALENTS: HookDef[] = [
     hooks: { modifyAttack: (_b, c, s) => { c.bonus += s * NEG.filter(x => st(c.defender, x) > 0).length; } } })
 ];
 
-export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS, ...MORE_TALENTS, ...GUARD_TALENTS, ...HOLY_TALENTS, ...STORM_TALENTS];
+export const TALENTS: HookDef[] = [...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS, ...MORE_TALENTS, ...GUARD_TALENTS, ...HOLY_TALENTS, ...STORM_TALENTS, ...STREAK_TALENTS];

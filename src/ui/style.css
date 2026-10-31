@@ -322,3 +322,12 @@ details.gloss summary { font-weight: 700; color: var(--ink); padding: 4px 0; }
 .gi { display: inline-block; min-width: 1.8em; }
 .room.talent .tdesc { display: block; color: var(--gold); font-size: .85rem; font-weight: 600; letter-spacing: .03em; }
 .room.talent .teffect { color: #8cc4ff; font-weight: 600; }
+
+/* New relic popup */
+.relic-pop { border-width: 2px; }
+.relic-pop .relic-gem { font-size: 54px; animation: relic-pop .8s cubic-bezier(.2,1.6,.4,1); filter: drop-shadow(0 0 12px rgba(79,156,240,.7)); }
+.relic-pop .relic-kicker { letter-spacing: .25em; font-weight: 800; color: var(--rare); font-size: 13px; margin-top: 4px; }
+.relic-pop.r-common .nm { color: #e6e6ea; }
+@keyframes relic-pop { from { transform: scale(.2) rotate(-30deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.chip.streak { border-color: var(--rare); color: var(--rare); font-weight: 700; }
+.chip.guardchip { border-color: #c9a227; color: #e9c46a; font-weight: 700; }

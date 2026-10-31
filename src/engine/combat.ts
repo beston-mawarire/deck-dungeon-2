@@ -122,6 +122,33 @@ export function armorReduction(armor: number, _guarding = false): number {
   return ARMOR_EFFICIENCY * armor / (armor + 10);
 }
 
+/**
+ * Hit streak (lasts the whole run): every Hit or Crit that gets through adds 1; a Miss, Graze,
+ * or an attack that's evaded, dodged or fully blocked resets it. Streak gear reads it.
+ */
+export function streakOf(f: Fighter): number {
+  return f.persist["streak"] ?? 0;
+}
+function breakStreak(b: Battle, a: Fighter) {
+  if (a.id !== "player") return;
+  const n = streakOf(a);
+  if (n >= 3) log(b, `🔗 Streak broken at ${n}.`);
+  a.persist["streak"] = 0;
+}
+function addStreak(a: Fighter) {
+  if (a.id !== "player") return;
+  a.persist["streak"] = streakOf(a) + 1;
+  a.persist["bestStreak"] = Math.max(a.persist["bestStreak"] ?? 0, a.persist["streak"]);
+}
+
+/** An enemy raises its guard for this round: Armor doubled plus `extra`. Crits, spells and statuses still get through. */
+export function enemyGuard(b: Battle, e: Fighter, extra: number) {
+  e.flags["guarding"] = 1;
+  e.flags["guardArmor"] = extra;
+  log(b, `🧱 ${e.name} raises its guard (Armor ${armorOf(e)}).`);
+  fx(b, { who: e.id, kind: "text", text: "Guarding", icon: "🧱" });
+}
+
 export function armorOf(f: Fighter): number {
   let a = f.armor;
   // Guarding doubles Armor (Fortress Heart: triples); "+Armor while Guarding" effects add on top.
@@ -160,11 +187,13 @@ export function resolveFace(b: Battle, a: Fighter, d: Fighter, face: number, off
   if (st(a, "dazzled") > 0 && !a.flags["counterHit"]) {
     log(b, `${a.name} is Dazzled and misses.`);
     fx(b, { who: d.id, kind: "miss", text: "Dazzled — miss" });
+    breakStreak(b, a);
     return;
   }
   if (st(a, "blind") > 0 && face <= 2) {
     log(b, `${a.name} is Blind and misses.`);
     fx(b, { who: d.id, kind: "miss", text: "Blind — miss" });
+    breakStreak(b, a);
     return;
   }
   const ctx: AttackCtx = {
@@ -215,6 +244,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     if (ctx.kind === "miss") {
       log(b, `${a.name} misses.`);
       fx(b, { who: d.id, kind: "miss", text: "Miss" });
+      breakStreak(b, a);
     }
     return afterStrike(b, ctx);
   }
@@ -275,6 +305,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     d.statuses.evade = 0;
     log(b, `${d.name} evades!`);
     fx(b, { who: d.id, kind: "miss", text: "Evaded" });
+    breakStreak(b, a);
     return afterStrike(b, ctx);
   }
   // Dodge (a % chance; Countering adds 20%). It's not Evade: Evade bonuses don't fire, Dodge ones do.
@@ -283,6 +314,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   if (dodgeChance > 0 && b.rng() * 100 < dodgeChance) {
     log(b, `${d.name} dodges!`);
     fx(b, { who: d.id, kind: "miss", text: "Dodged" });
+    breakStreak(b, a);
     eachHook(d, "onDodge", (h, s) => h(b, ctx, s));
     if (countering && a.hp > 0 && d.hp > 0) {
       log(b, `${d.name} counters!`);
@@ -314,6 +346,9 @@ function strike(b: Battle, ctx: AttackCtx) {
   const after = d.flags["guarding"] ? Math.max(0, Math.floor(raw * (1 - cut))) : raw > 0 ? Math.max(1, Math.round(raw * (1 - cut))) : 0;
   if (ctx.kind === "crit") fx(b, { who: d.id, kind: "crit", text: "Crit!" });
   if (ctx.kind === "graze") fx(b, { who: d.id, kind: "text", text: "Graze" });
+  // The hit streak: only a real Hit or Crit that gets through keeps it going.
+  if ((ctx.kind === "hit" || ctx.kind === "crit") && after > 0) addStreak(a);
+  else breakStreak(b, a);
   ctx.dealt = loseHp(b, d, after);
   const label = ctx.kind === "crit" ? "Crit! " : ctx.kind === "graze" ? "Graze. " : "";
   log(b, `${label}${a.name} hits ${d.name} for ${ctx.dealt}${armor && raw > 0 ? ` (${raw}, ${Math.round(cut * 100)}% stopped by Armor)` : ""}.`);
@@ -478,6 +513,14 @@ export function beginRound(b: Battle): boolean {
   log(b, `— Round ${b.round} —`);
   roundStart.set(b, { p: snap(p), e: snap(e) });
   for (const f of [p, e]) eachHook(f, "onRoundStart", (h, s) => h(b, f, s));
+  // Guarding foes: a boss whose shown move guards, or a foe that said last round it would.
+  const mv = e.moves?.[e.intent ?? 0];
+  if (mv?.guard) enemyGuard(b, e, mv.guard);
+  if (e.flags["guardNext"]) {
+    enemyGuard(b, e, e.flags["guardNext"]);
+    e.flags["guardNext"] = 0;
+    if (e.flags["guardHolds"]) e.flags["guardSkip"] = 1;
+  }
   const first = b.round === 1 && !!e.flags["ambush"];
   if (first) {
     log(b, `${e.name} strikes first!`);
@@ -550,6 +593,14 @@ export function enemyPhase(b: Battle) {
   const e = b.enemy;
   startOfTurn(b, e);
   if (checkOver(b)) return;
+  // Shieldbearers spend their turn holding the guard.
+  if (e.flags["guardSkip"]) {
+    e.flags["guardSkip"] = 0;
+    log(b, `${e.name} holds its guard.`);
+    fx(b, { who: "enemy", kind: "text", text: "Holds guard", icon: "🧱" });
+    checkOver(b);
+    return;
+  }
   act(b, e, () => {
     const move = e.moves?.[e.intent ?? 0];
     if (move) {

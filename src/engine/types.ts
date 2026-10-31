@@ -135,6 +135,8 @@ export interface Move {
   icon: string;
   text: string;
   act: (b: Battle, self: Fighter, foe: Fighter) => void;
+  /** Boss guards for the round this move is shown (Armor doubled + this). */
+  guard?: number;
 }
 
 export interface Battle {

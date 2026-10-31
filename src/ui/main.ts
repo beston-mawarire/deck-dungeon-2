@@ -2,7 +2,7 @@
 import { BONUSES, CRIMSON, CURSES, KEEPSAKES, TRAITS, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
 import { FUSION_RECIPES } from "../data/fusions";
 import { ORIGINS } from "../data/origins";
-import { armorOf, armorReduction, beginRound, tollOf, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly } from "../engine/combat";
+import { armorOf, armorReduction, beginRound, tollOf, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly, streakOf } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
@@ -267,6 +267,17 @@ function dieBox(who: "player" | "enemy", label: string) {
   return `<div class="diebox"><div class="who">${label}</div><div class="die ${who} ${d.kind} ${d.rolling ? "rolling" : ""}">${d.face}</div><div class="facename">${d.rolling ? "&nbsp;" : esc(d.name)}</div></div>`;
 }
 
+/** Guard warnings on foes, and the hero's hit streak. */
+function guardChips(f: Fighter, who: "player" | "enemy") {
+  if (who === "player") {
+    const n = streakOf(f);
+    return n >= 2 ? `<span class="chip streak" title="Hits in a row this run. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it">🔗 Streak ${n}</span>` : "";
+  }
+  if (f.flags["guarding"]) return `<span class="chip guardchip" title="Armor doubled this round. Crits, spells and statuses still get through">🧱 Guarding</span>`;
+  if (f.flags["guardNext"]) return `<span class="chip guardchip" title="Next round its Armor doubles. Crits, spells and statuses still get through">🧱 Guards next round</span>`;
+  return "";
+}
+
 function fighterPanel(f: Fighter, who: "player" | "enemy") {
   const hp = dispHp[who] ?? f.hp;
   const intent = who === "enemy" && f.moves?.length ? f.moves[f.intent ?? 0] : null;
@@ -275,7 +286,7 @@ function fighterPanel(f: Fighter, who: "player" | "enemy") {
     <div class="row"><b>${esc(f.name)}</b>${f.title ? `<span class="sub">${esc(f.title)}</span>` : ""}<span class="grow"></span><span class="sub">${who === "enemy" ? `${f.family ?? ""}${f.crimson ? " · Crimson" : ""}${f.boss ? " · Boss" : f.champion ? " · Champion" : f.elite ? " · Elite" : ""}` : ""}</span></div>
     <div class="bar ${who === "enemy" ? "enemy" : ""}"><i style="width:${Math.max(0, (hp / f.maxHp) * 100)}%"></i></div>
     <div class="sub">${Math.max(0, hp)}/${f.maxHp} HP · ${who === "enemy" ? `Power ${f.damage}` : `Damage ${f.damage}${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}`} · Armor ${armorOf(f)}</div>
-    <div class="chips">${traits}${statusChips(f)}</div>
+    <div class="chips">${guardChips(f, who)}${traits}${statusChips(f)}</div>
     ${intent ? `<div class="intent">Next: ${intent.icon} <b>${esc(intent.name)}</b> — ${esc(intent.text)}</div>` : ""}
   </div>`;
 }
@@ -307,7 +318,7 @@ const takeButtons = (it: GearItem) =>
 function lootScene(r: Run) {
   if (r.scene.t !== "loot") return "";
   const s = r.scene;
-  const extras = [s.gold ? `🪙 ${s.gold} Gold` : "", s.potions ? `🧪 Potion` : "", s.scrolls ? `📜 Scroll of Revelation` : "", s.relic ? `💎 Relic: ${getItem(s.relic).name} — ${getItem(s.relic).text}` : ""].filter(Boolean);
+  const extras = [s.gold ? `🪙 ${s.gold} Gold` : "", s.potions ? `🧪 Potion` : "", s.scrolls ? `📜 Scroll of Revelation` : "", s.relic ? `💎 New relic: ${getItem(s.relic).name} — ${getItem(s.relic).text}` : ""].filter(Boolean);
   // After a won fight, the rewards sit in a framed Victory panel.
   const victory = s.title === "Victory" || s.title.startsWith("You caught") || s.title === "The Mimic's hoard";
   const body = `${extras.length ? `<div class="panel">${extras.map(x => `<p>${esc(x)}</p>`).join("")}</div>` : ""}
@@ -632,6 +643,8 @@ function helpGlossary() {
     row("💣", "Grenades", "Off-hand only. No damage — they apply a status, and are thrown on round 1 and every 3rd round after"),
     row("✝️", "Holy", "Holy weapons deal +50% to Undead, vampires and Crimson foes, and can Smite"),
     row("✨", "Purify", "A face that strips every negative status off the enemy and deals 2× your Damage for each one (ignores Armor)"),
+    row("🔗", "Hit streak", "Every Hit or Crit that gets through adds 1, and it carries across fights. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it. Some relics, talents and trinkets grow with it"),
+    row("🧱", "Guarding foes", "Some enemies and bosses raise their guard: Armor doubled plus a bit more for that round (you'll see it coming). Crits, spells and statuses ignore Armor, so they still get through"),
     row("🔮", "Elemental Barrier", "Mage off-hands with an element let the Mage raise a barrier: roll 5–6 to block (attackers get 4 stacks of the element), 3–4 to halve (2 stacks)"),
     row("🕯️", "Keepsake", "One at a time, from bosses after floor 5. Each grants a powerful passive"),
     row("📜", "Legendaries", "Arrive hidden. Use a Scroll of Revelation to reveal them; until then they act like a plain item"),
@@ -735,6 +748,22 @@ function originPopup(o: OriginId) {
   </div></div>`;
 }
 
+/** "New relic!" popup: a relic is easy to miss in a line of text, so each one gets its own moment. */
+function relicPopup(id: string, more: number) {
+  const it = getItem(id);
+  const rar = it.rarity ?? "common";
+  const n = run?.hero.relics[id] ?? 1;
+  return `<div class="overlay popup-wrap"><div class="popup relic-pop r-${rar}">
+    <div class="center relic-gem">💎</div>
+    <div class="center relic-kicker">NEW RELIC</div>
+    <h1 class="center bigname nm">${esc(it.name)}${n > 1 ? ` ×${n}` : ""}</h1>
+    <p class="center sub" style="text-transform:capitalize">${esc(rar)} relic · always active</p>
+    <p class="center">${esc(fillText(it.text, n))}</p>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-relicok>${more ? `Next relic (${more} more)` : "Got it"}</button></div>
+  </div></div>`;
+}
+const celebratedRelic = new Set<string>();
+
 const celebratedLevel = new WeakSet<object>();
 function levelUpPopup(r: Run) {
   return `<div class="overlay popup-wrap"><div class="popup levelup">
@@ -825,7 +854,13 @@ function render() {
   const levelPopup = s.t === "talent" && ackedTalentScene !== s;
   if (levelPopup && !celebratedLevel.has(s)) { celebratedLevel.add(s); celebrate("legendary", "LEVEL UP!"); }
   const winPopup = s.t === "over" && s.won && r.mode === "campaign" && !winSeen;
-  app.innerHTML = `${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${menuOpen ? runMenu(r) : ""}`;
+  // A new relic gets its own popup and a little fanfare (after any level-up popup).
+  const relicNow = !levelPopup && !winPopup && s.t !== "combat" && r.relicNews?.length ? r.relicNews[0] : undefined;
+  if (relicNow) {
+    const key = `${relicNow}:${r.hero.relics[relicNow]}:${r.relicNews!.length}:${r.floor}:${r.step}`;
+    if (!celebratedRelic.has(key)) { celebratedRelic.add(key); celebrate(["rare", "epic", "legendary"].includes(getItem(relicNow).rarity ?? "") ? (getItem(relicNow).rarity as string) : "rare", "NEW RELIC"); }
+  }
+  app.innerHTML = `${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${menuOpen ? runMenu(r) : ""}`;
   bind();
 }
 
@@ -1011,6 +1046,7 @@ function bind() {
   on("[data-keepsake]", () => { say(takeKeepsake(r), false); sfx("legendary"); });
   on("[data-choosetalent]", () => { ackedTalentScene = r.scene; });
   on("[data-closepopup]", () => { r.popup = undefined; });
+  on("[data-relicok]", () => { r.relicNews?.shift(); });
   on("[data-menu]", () => { if (!busy) { menuOpen = true; endArmed = false; } });
   on("[data-closemenu]", () => { menuOpen = false; endArmed = false; });
   on("[data-mainmenu]", () => { menuOpen = false; endArmed = false; bagOpen = false; helpOpen = false; run = null; view = "title"; meta = loadMeta(); });

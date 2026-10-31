@@ -95,6 +95,8 @@ export interface Run {
   shopRerolls: number;
   /** The floor whose "Floor cleared" screen has been shown (you continue from it to go deeper). */
   clearedFloor?: number;
+  /** Relics just gained, waiting for their "New relic!" popup. */
+  relicNews?: string[];
   /** The player ended this run themselves. */
   abandoned?: boolean;
   /** The last boss beaten (for the Floor cleared screen). */
@@ -410,8 +412,7 @@ function afterFight(run: Run) {
     h.f.gold += gold;
     h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.round(h.f.maxHp * 0.3));
     if (relic) {
-      h.relics[relic] = (h.relics[relic] ?? 0) + 1;
-      run.found.add(relic);
+      grantRelic(run, relic);
     }
     h.scrolls += scrolls;
     recompute(h);
@@ -423,6 +424,8 @@ function afterFight(run: Run) {
     run.message = `+${gold} Gold${relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""} · healed 30%${curseNote ? ` ${curseNote}` : ""}`;
     return;
   }
+  // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
+  if (relic) grantRelic(run, relic);
   run.scene = { t: "loot", title: then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined };
   const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean);
   run.message = notes.join(" ");
@@ -488,10 +491,6 @@ export function collectLoot(run: Run) {
   h.f.gold += s.gold;
   h.scrolls += s.scrolls;
   h.potions += s.potions;
-  if (s.relic) {
-    h.relics[s.relic] = (h.relics[s.relic] ?? 0) + 1;
-    run.found.add(s.relic);
-  }
   recompute(h);
   s.gold = 0;
   s.scrolls = 0;
@@ -593,11 +592,7 @@ export function buy(run: Run, i: number): string | null {
   if (e.kind === "mana") h.manaPotions++;
   if (e.kind === "scroll") h.scrolls++;
   if (e.kind === "item" && e.item) markFound(run, e.item);
-  if (e.kind === "relic" && e.relic) {
-    h.relics[e.relic] = (h.relics[e.relic] ?? 0) + 1;
-    run.found.add(e.relic);
-    recompute(h);
-  }
+  if (e.kind === "relic" && e.relic) grantRelic(run, e.relic);
   h.f.gold -= e.price;
   e.sold = true;
   return null;
@@ -698,7 +693,7 @@ export function chooseEvent(run: Run, i: number) {
     healPct: (p: number) => { h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.round(h.f.maxHp * p)); },
     addMaxHp: (n: number) => { h.f.persist["maxHpLoss"] = (h.f.persist["maxHpLoss"] ?? 0) - n; recompute(h); h.f.hp += n; },
     gainItem: (r: Rarity) => { const it = rollItem(h, r, run.floor, run.rng); found.push(it); return it; },
-    gainRelic: () => { const id = randomRelic(run); h.relics[id] = (h.relics[id] ?? 0) + 1; run.found.add(id); recompute(h); return getItem(id).name; },
+    gainRelic: () => { const id = randomRelic(run); grantRelic(run, id); return getItem(id).name; },
     loseRelic: () => { const ids = Object.keys(h.relics); if (!ids.length) return null; const id = ids[Math.floor(run.rng() * ids.length)]; h.relics[id]--; if (!h.relics[id]) delete h.relics[id]; recompute(h); return getItem(id).name; },
     relicCount: () => Object.keys(h.relics).length,
     addCurse: () => { const c = CURSES[Math.floor(run.rng() * CURSES.length)]; h.curses[c.id] = (h.curses[c.id] ?? 0) + 1; recompute(h); return c.name; },
@@ -939,4 +934,13 @@ export function abandonRun(run: Run) {
   run.popup = undefined;
   run.message = "";
   run.scene = { t: "over", won: false };
+}
+
+/** Give the hero a relic and queue its "New relic!" popup. */
+export function grantRelic(run: Run, id: string) {
+  const h = run.hero;
+  h.relics[id] = (h.relics[id] ?? 0) + 1;
+  run.found.add(id);
+  (run.relicNews ??= []).push(id);
+  recompute(h);
 }

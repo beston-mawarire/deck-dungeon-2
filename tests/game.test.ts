@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { LEGENDARIES, loadLibrary } from "../src/data";
 import { makeMonster, makeThief } from "../src/data/monsters";
-import { enemyPhase, heroPhase, playRound, resolveFace, startBattle } from "../src/engine/combat";
+import { beginRound, endRound, enemyPhase, heroPhase, playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
 import { applyStatus, endOfRound, st } from "../src/engine/statuses";
@@ -715,6 +715,38 @@ describe("class actions and new stats", () => {
     // Burn 4 lands, then Chill 4 reacts with it (Steam), then Static 4.
     expect(b.log.some(l => /Steam/.test(l))).toBe(true);
     expect(st(e, "static")).toBe(4);
+  });
+
+  it("hit streak grows on hits and breaks on a graze, across fights", () => {
+    const h = newHero("warrior");
+    const b = startBattle(h.f, dummy(), 1);
+    resolveFace(b, b.player, b.enemy, 2, false);
+    resolveFace(b, b.player, b.enemy, 3, false);
+    expect(h.f.persist["streak"]).toBe(2);
+    const b2 = startBattle(h.f, dummy(), 2);
+    resolveFace(b2, b2.player, b2.enemy, 4, false);
+    expect(h.f.persist["streak"]).toBe(3);
+    resolveFace(b2, b2.player, b2.enemy, 1, false); // graze
+    expect(h.f.persist["streak"]).toBe(0);
+  });
+
+  it("Shieldwall foes warn, then guard: Armor doubles but crits still land in full", () => {
+    const h = newHero("warrior");
+    const e = dummy();
+    e.armor = 3;
+    e.items = { m_shieldwall: 1 };
+    const b = startBattle(h.f, e, 3);
+    b.round = 2;
+    endRound(b);
+    expect(e.flags["guardNext"]).toBe(2);
+    beginRound(b);
+    expect(e.flags["guarding"]).toBe(1);
+    const hp = e.hp;
+    resolveFace(b, b.player, e, 6, false); // crit ignores Armor
+    expect(hp - e.hp).toBe(2 * (4 + Math.floor(b.player.armor / 3)));
+    const before = h.f.hp;
+    enemyPhase(b);
+    expect(h.f.hp).toBe(before); // it holds its guard instead of attacking
   });
 
   it("Penance stores damage taken and adds it to the next attack", () => {
