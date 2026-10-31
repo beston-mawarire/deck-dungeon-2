@@ -176,6 +176,8 @@ export function rollFor(b: Battle, f: Fighter, sides: number): number {
   }
   if (st(f, "chill") > 0 && r > 1) r -= 1;
   eachHook(f, "modifyRoll", (h, s) => (r = h(b, f, r, s)));
+  // Roll caps (heavy weapons, shackles): this die can't roll above the cap.
+  if (f.flags["rollCap"]) r = Math.min(r, f.flags["rollCap"]);
   return Math.max(1, Math.min(sides, r));
 }
 
@@ -300,6 +302,9 @@ function strike(b: Battle, ctx: AttackCtx) {
     d.flags["shatter"] = 0;
     shatter = true;
   }
+  // Reckless effects: more damage dealt by the attacker, more taken by the defender.
+  if (a.dmgDealt) raw *= 1 + a.dmgDealt / 100;
+  if (d.dmgTaken) raw *= 1 + d.dmgTaken / 100;
   raw = Math.max(0, Math.round(raw));
   // Unbreakable Vow: a Guard (not two rounds running) takes no damage from hits at all.
   if (d.flags["vow"] === b.round && d.flags["guarding"]) {

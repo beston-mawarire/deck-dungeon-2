@@ -142,7 +142,7 @@ export function recompute(h: Hero) {
   if (h.keepsake) add(h.keepsake);
   if (!hasThirdTrinket(h) && h.equip.trinket3) { h.backpack.push(h.equip.trinket3); delete h.equip.trinket3; }
 
-  const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0, spellAmp: 0, critChance: 0, dotAmp: 0 };
+  const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0, spellAmp: 0, critChance: 0, dotAmp: 0, dmgDealt: 0, dmgTaken: 0 };
   f.barrierElement = undefined;
   f.barrierElements = undefined;
   f.twoHanded = false;
@@ -207,6 +207,8 @@ export function recompute(h: Hero) {
   f.bash = Math.min(30, Math.max(0, s.bash));
   f.spellAmp = Math.max(0, s.spellAmp);
   f.dotAmp = Math.max(0, s.dotAmp ?? 0);
+  f.dmgDealt = s.dmgDealt ?? 0;
+  f.dmgTaken = s.dmgTaken ?? 0;
   // Thrower's Bandolier: +5% Crit chance with a throwing weapon in the off-hand. Mirage Sabre: + half your Dodge.
   if (items["t_bandolier"] && f.offType && ["throwing", "kunai", "shuriken"].includes(f.offType)) s.critChance += 5;
   if (items["w_mirage_sabre"]) s.critChance += Math.floor((f.dodge ?? 0) / 2);

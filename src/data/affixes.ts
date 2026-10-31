@@ -8,6 +8,7 @@ import { CHARM_LEGENDARIES, SINGLE_CHARM_LEGENDARIES } from "./charms";
 import { SHIELD_LEGENDARIES } from "./shields";
 import { ROBE_LEGENDARIES } from "./robes";
 import { STREAK_GEAR_2 } from "./streak";
+import { BRUTE_LEGENDARIES } from "./brutes";
 import { applyStatus, cast, CRIT, GRAZE, heal, hex, HIT, MISS, on, ping, purify, self, spell, st } from "./helpers";
 
 const bonus = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "bonus", ...d });
@@ -308,4 +309,4 @@ export const LEGENDARIES: GearBase[] = [
 ];
 
 // The Treasury's Legendaries join the pool.
-LEGENDARIES.push(...LEGENDARY_ITEMS, ...CHARM_LEGENDARIES, ...SINGLE_CHARM_LEGENDARIES, ...SHIELD_LEGENDARIES, ...ROBE_LEGENDARIES, ...STREAK_GEAR_2.filter(g => g.rarity === "legendary"));
+LEGENDARIES.push(...LEGENDARY_ITEMS, ...CHARM_LEGENDARIES, ...SINGLE_CHARM_LEGENDARIES, ...SHIELD_LEGENDARIES, ...ROBE_LEGENDARIES, ...STREAK_GEAR_2.filter(g => g.rarity === "legendary"), ...BRUTE_LEGENDARIES);

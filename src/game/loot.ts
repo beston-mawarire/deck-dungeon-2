@@ -94,11 +94,16 @@ export const resetDropped = () => { DROPPED = new Set(); };
 export const getDropped = () => [...DROPPED];
 export const setDropped = (ids: string[]) => { DROPPED = new Set(ids); };
 
+/** Elemental gear (Burn, Frost, Storm, Poison) had flooded the pool: it rolls at this weight. */
+const ELEMENTAL_TAGS = ["Burn", "Frost", "Storm", "Poison"];
+const ELEMENTAL_WEIGHT = 0.5;
+const elementalW = (tags: readonly string[]) => (tags.some(t => ELEMENTAL_TAGS.includes(t)) ? ELEMENTAL_WEIGHT : 1);
+
 export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => number): GearItem {
   const tags = heroTags(h);
   if (rarity === "crimson") {
     const pool = CRIMSON.filter(c => !DROPPED.has(c.id));
-    const base = weighted(rng, pool.length ? pool : CRIMSON, b => 1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0));
+    const base = weighted(rng, pool.length ? pool : CRIMSON, b => (1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * elementalW(b.tags));
     DROPPED.add(base.id);
     return { uid: h.nextUid++, base: base.id, rarity: "crimson", level: floor, bonuses: rollBonuses(h, "rare", base, floor, rng, 2), revealed: true, bash: rollBash("crimson", base, rng) };
   }
@@ -107,13 +112,13 @@ export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => numb
     if (pool.length === 0) rarity = "epic";
     else {
       // A gentle lean toward your build; Legendaries should feel like a surprise, not a fixed path.
-      const base = weighted(rng, pool, b => 1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0));
+      const base = weighted(rng, pool, b => (1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * elementalW(b.tags));
       DROPPED.add(base.id);
       return { uid: h.nextUid++, base: base.id, rarity: "legendary", level: floor, bonuses: {}, revealed: false, bash: rollBash("legendary", base, rng) };
     }
   }
   const fav = new Set(AFFINITY[h.origin]);
-  const base: GearBase = weighted(rng, GEAR_BASES.filter(g => (!LOCKED.has(g.id) || (g.deep && floor > 5)) && (!g.onlyRarity || g.onlyRarity === rarity) && rank(rarity) >= rank(g.minItemRarity ?? "common")), b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1));
+  const base: GearBase = weighted(rng, GEAR_BASES.filter(g => (!LOCKED.has(g.id) || (g.deep && floor > 5)) && (!g.onlyRarity || g.onlyRarity === rarity) && rank(rarity) >= rank(g.minItemRarity ?? "common")), b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1) * elementalW(b.tags));
   const nBonuses = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0, crimson: 2 }[rarity];
   const bonuses = rollBonuses(h, rarity, base, floor, rng, nBonuses);
   const epic = rarity === "epic" ? weighted(rng, EPIC_POWERS.filter(e => !LOCKED.has(e.id)), e => tagWeight(tags, e.tags)).id : undefined;
@@ -125,7 +130,7 @@ function rollBonuses(h: Hero, rarity: Rarity, base: GearBase, floor: number, rng
   const bonuses: Record<string, number> = {};
   const pool = BONUSES.filter(x => rank(rarity) >= rank(x.minRarity ?? "uncommon") && !LOCKED.has(x.id));
   for (let i = 0; i < n && pool.length; i++) {
-    const pick = weighted(rng, pool, x => 1 + 0.6 * x.tags.filter(t => base.tags.includes(t)).length + 0.25 * x.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0));
+    const pick = weighted(rng, pool, x => (1 + 0.6 * x.tags.filter(t => base.tags.includes(t)).length + 0.25 * x.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * elementalW(x.tags));
     pool.splice(pool.indexOf(pick), 1);
     bonuses[pick.id] = floor;
   }

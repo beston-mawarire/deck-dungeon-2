@@ -6,7 +6,7 @@ export const TAGS = [
 ] as const;
 export type Tag = (typeof TAGS)[number];
 
-export const NEGATIVE_STATUSES = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder", "dazzled"] as const;
+export const NEGATIVE_STATUSES = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder", "dazzled", "fracture"] as const;
 export const POSITIVE_STATUSES = ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded", "smoulder_soul"] as const;
 export type NegativeStatus = (typeof NEGATIVE_STATUSES)[number];
 export type PositiveStatus = (typeof POSITIVE_STATUSES)[number];
@@ -87,6 +87,9 @@ export interface Fighter {
   spellAmp?: number;
   /** Status damage (%): Burn, Bleed, Poison and Static you put on the enemy hurt this much more. */
   dotAmp?: number;
+  /** Reckless effects: % more damage dealt by your hits, and % more damage taken from hits. */
+  dmgDealt?: number;
+  dmgTaken?: number;
   /** Bash chance in % for the main weapon (capped at 30): a bash Stuns and deals +50%. */
   bash?: number;
   /** Crimson Elites and bosses: rare, much harder, and the only source of Crimson keys and items. */
@@ -191,6 +194,8 @@ export interface StatBlock {
   bash: number;
   spellAmp: number;
   dotAmp?: number;
+  dmgDealt?: number;
+  dmgTaken?: number;
   critChance: number;
 }
 

@@ -35,6 +35,7 @@ export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: s
   kindled: { name: "Kindled", icon: "🕯️", text: "Your hits apply Burn equal to stacks; falls by 1 each round" },
   grounded: { name: "Grounded", icon: "🪨", text: "Shock and Static can't land on you; lasts its stacks in rounds" },
   smoulder: { name: "Smouldering", icon: "🌋", text: "Each round it burns from within: an enemy takes 4 Burn (you'd take 5), and its foe takes 1 Burn; lasts its stacks in rounds" },
+  fracture: { name: "Fracture", icon: "🪨", text: "Does nothing at first. At 3 stacks it shatters: 4 damage per stack (ignores Armor), then clears" },
   dazzled: { name: "Dazzled", icon: "😵", text: "Its attacks miss completely; lasts its stacks in rounds (at most 4)" },
   smoulder_soul: { name: "Smouldering Soul", icon: "♨️", text: "A fire you carry: you take 1 Burn each round, but every action you take deals 5 Burn to the enemy; lasts its stacks in rounds" }
 };
@@ -90,6 +91,7 @@ export const ELEMENTAL: StatusId[] = ["burn", "chill", "shock", "static", "soake
 export const THRESHOLDS = [
   { id: "frostbitten", name: "Frostbitten", icon: "🧊", status: "chill" as StatusId, at: 6, per: 3, text: "6+ Chill bursts: 3 damage per stack, and the Chill clears" },
   { id: "bledout", name: "Bled Out", icon: "🩸", status: "bleed" as StatusId, at: 10, per: 2, text: "10+ Bleed bursts: 2 damage per stack, and the Bleed clears" },
+  { id: "shatter_fx", name: "Shattered", icon: "🪨", status: "fracture" as StatusId, at: 3, per: 4, text: "3+ Fracture shatters: 4 damage per stack, and the Fracture clears" },
   { id: "overdose", name: "Overdose", icon: "☠️", status: "poison" as StatusId, at: 12, per: 2, text: "12+ Poison bursts: 2 damage per stack, and the Poison clears" }
 ];
 

@@ -645,6 +645,8 @@ function helpGlossary() {
     row("💣", "Grenades", "Off-hand only. No damage — they apply a status, and are thrown on round 1 and every 3rd round after"),
     row("✝️", "Holy", "Holy weapons deal +50% to Undead, vampires and Crimson foes, and can Smite"),
     row("✨", "Purify", "A face that strips every negative status off the enemy and deals 2× your Damage for each one (ignores Armor)"),
+    row("😤", "Reckless", "Some gear makes you deal more damage but also take more from every hit. It stacks, for better and worse"),
+    row("⛓️", "Roll cap", "Some heavy gear stops your die rolling above 4 or 5; the Manacles do the same to the enemy's die"),
     row("🔗", "Hit streak", "Only counts while you have a streak relic, talent or trinket. Every Hit or Crit that gets through adds 1, and it carries across fights. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it. Some relics, talents and trinkets grow with it"),
     row("🧱", "Guarding foes", "Some enemies and bosses raise their guard: Armor doubled plus a bit more for that round (you'll see it coming). Crits, spells and statuses ignore Armor, so they still get through"),
     row("🔮", "Elemental Barrier", "Mage off-hands with an element let the Mage raise a barrier: roll 5–6 to block (attackers get 4 stacks of the element), 3–4 to halve (2 stacks)"),

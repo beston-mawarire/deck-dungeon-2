@@ -788,6 +788,31 @@ describe("class actions and new stats", () => {
     expect(hurt(plain)).toBe(20);
   });
 
+  it("Fracture does nothing until 3 stacks, then shatters for 4 per stack", () => {
+    const h = newHero("warrior");
+    const b = startBattle(h.f, dummy(), 11);
+    const hp = b.enemy.hp;
+    applyStatus(b, h.f, b.enemy, "fracture", 2);
+    expect(b.enemy.hp).toBe(hp);
+    applyStatus(b, h.f, b.enemy, "fracture", 1);
+    expect(hp - b.enemy.hp).toBe(12);
+    expect(st(b.enemy, "fracture")).toBe(0);
+  });
+
+  it("Reckless gear: deal more and take more; Manacles cap the enemy's die at 4", () => {
+    const h = newHero("warrior");
+    equipItem(h, { uid: 903, base: "bt_berserker_torc", rarity: "rare", level: 1, bonuses: {}, revealed: true });
+    expect(h.f.dmgDealt).toBe(25);
+    expect(h.f.dmgTaken).toBe(25);
+    const b = startBattle(h.f, dummy(), 12);
+    resolveFace(b, b.player, b.enemy, 6, false); // crit, ignores armor
+    expect(200 - b.enemy.hp).toBe(Math.round(2 * (4 + Math.floor(b.player.armor / 3)) * 1.25));
+    const h2 = newHero("warrior");
+    equipItem(h2, { uid: 904, base: "bt_manacles", rarity: "epic", level: 1, bonuses: {}, revealed: true });
+    const b2 = startBattle(h2.f, dummy(), 13);
+    expect(b2.enemy.flags["rollCap"]).toBe(4);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);

@@ -1,5 +1,6 @@
 // Origins (starting kit + one small passive) and curses.
 import type { HookDef, OriginId } from "../engine/types";
+import { BRUTE_CURSES } from "./brutes";
 import { applyStatus, heal, log, other, ping, st } from "./helpers";
 
 /** Each origin's favourite gear shows up about twice as often in its loot. New gear joins the pool at normal odds. */
@@ -45,3 +46,4 @@ export const CURSES: HookDef[] = [
   curse({ id: "c_famine", name: "Famine", tags: ["Blood"], text: "Potions heal half as much", hooks: {} }),
   curse({ id: "c_feeble", name: "Feeble", tags: ["Strike"], text: "−1 Damage", hooks: { stats: s => { s.damage -= 1; s.offDamage -= 1; } } })
 ];
+CURSES.push(...BRUTE_CURSES);
