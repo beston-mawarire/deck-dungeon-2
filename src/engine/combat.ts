@@ -298,14 +298,14 @@ function strike(b: Battle, ctx: AttackCtx) {
     log(b, `${d.name}'s Counter fails: off-balance for the next attack.`);
     fx(b, { who: d.id, kind: "text", text: "Off-balance", icon: "🥀" });
   }
-  // Elemental Barrier (Mage): 5–6 blocks it all, 3–4 halves it; either way the attacker gets a taste of the element.
+  // Elemental Barrier (Mage): 5–6 blocks it all, 3–4 halves it; either way the attacker takes 2 stacks of the element.
   const tier = d.flags["eBarrier"] === b.round ? d.flags["eBarrierTier"] ?? 0 : 0;
   if (tier > 0 && raw > 0) {
     raw = tier >= 2 ? 0 : Math.ceil(raw / 2);
     ctx.raw = raw;
     fx(b, { who: d.id, kind: "block", text: tier >= 2 ? "Barrier holds" : "Barrier bends", icon: "🔮" });
     log(b, `${d.name}'s Elemental Barrier ${tier >= 2 ? "blocks the whole hit" : "takes half of it"}.`);
-    if (d.barrierElement && a.hp > 0) applyStatus(b, d, a, d.barrierElement, tier >= 2 ? 2 : 1);
+    if (d.barrierElement && a.hp > 0) applyStatus(b, d, a, d.barrierElement, 2);
   }
   const armor = ctx.ignoreArmor ? 0 : armorOf(d);
   // Armor stops a percentage of each hit (see armorReduction); Guarding doubles Armor and lifts the cap.

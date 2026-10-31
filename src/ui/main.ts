@@ -632,7 +632,7 @@ function helpGlossary() {
     row("💣", "Grenades", "Off-hand only. No damage — they apply a status, and are thrown on round 1 and every 3rd round after"),
     row("✝️", "Holy", "Holy weapons deal +50% to Undead, vampires and Crimson foes, and can Smite"),
     row("✨", "Purify", "A face that strips every negative status off the enemy and deals 2× your Damage for each one (ignores Armor)"),
-    row("🔮", "Elemental Barrier", "Mage off-hands with an element let the Mage raise a barrier: roll 5–6 to block, 3–4 to halve, and attackers get the element"),
+    row("🔮", "Elemental Barrier", "Mage off-hands with an element let the Mage raise a barrier: roll 5–6 to block, 3–4 to halve; either way attackers get 2 stacks of the element"),
     row("🕯️", "Keepsake", "One at a time, from bosses after floor 5. Each grants a powerful passive"),
     row("📜", "Legendaries", "Arrive hidden. Use a Scroll of Revelation to reveal them; until then they act like a plain item"),
     row("🩸", "Crimson", "Above Legendary. Only from Crimson bosses in Endless (Crimson Vaults need a Crimson Key from Crimson Elites)")
@@ -748,7 +748,7 @@ const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }
   attack: { label: () => "Attack", tip: "Roll your die and strike." },
   guard: { label: () => "Guard", tip: "Double your Armor this round; Armor can stop a whole hit. Needs a shield (a Warrior can Guard with a two-hander)." },
   counter: { label: () => "Counter", tip: "Uses your turn. +20% Dodge this round; if you Dodge an attack, strike back with a hit that can't miss. If you're hit, you're off-balance for your next attack." },
-  barrier: { label: () => "Elemental Barrier", tip: "Uses your turn. Roll: 5–6 blocks every hit this round and gives attackers 2 of your off-hand's element; 3–4 halves them and gives 1; 1–2 fizzles." },
+  barrier: { label: () => "Elemental Barrier", tip: "Uses your turn. Roll: 5–6 blocks every hit this round, 3–4 halves them; either way attackers get 2 stacks of your off-hand's element. 1–2 fizzles." },
   penance: { label: p => `Penance${p.flags["penanceStore"] ? ` (${p.flags["penanceStore"]})` : ""}`, tip: "Uses your turn. Damage and negative statuses you take this round are stored; your next attack adds it all. A kill with it heals you." },
   warcry: { label: () => "War Cry", tip: "Once per fight. Uses your turn: gain Might and Weaken the enemy." },
   flee: { label: () => "Flee", tip: "Leave the fight (not Elites or bosses)." }
