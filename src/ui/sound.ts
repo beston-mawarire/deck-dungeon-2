@@ -9,6 +9,49 @@ export const isMuted = () => muted;
 export function toggleMute() {
   muted = !muted;
   try { localStorage.setItem("dd2-muted", muted ? "1" : "0"); } catch { /* ignore */ }
+  applyVolume();
+}
+
+// ---------- Music: the title track on the menus, the gameplay track during a run ----------
+export type Track = "title" | "game";
+const TRACK_URL: Record<Track, string> = { title: "music/title.mp3", game: "music/gameplay.mp3" };
+/** Default volumes: the gameplay track sits low under the action. */
+const DEFAULT_VOL: Record<Track, number> = { title: 0.5, game: 0.15 };
+const vol: Record<Track, number> = { ...DEFAULT_VOL };
+for (const k of ["title", "game"] as Track[]) {
+  try { const v = localStorage.getItem(`dd2-music-${k}`); if (v !== null && !Number.isNaN(Number(v))) vol[k] = Math.min(1, Math.max(0, Number(v))); } catch { /* ignore */ }
+}
+let music: HTMLAudioElement | null = null;
+let musicKey: Track | null = null;
+let unlockHooked = false;
+
+export const musicVolume = (k: Track) => vol[k];
+export function setMusicVolume(k: Track, v: number) {
+  vol[k] = Math.min(1, Math.max(0, v));
+  try { localStorage.setItem(`dd2-music-${k}`, String(vol[k])); } catch { /* ignore */ }
+  applyVolume();
+}
+function applyVolume() {
+  if (music && musicKey) music.volume = muted ? 0 : vol[musicKey];
+}
+
+/** Switch to a track (no-op if it's already playing). Browsers only allow sound after a tap, so we retry then. */
+export function playMusic(k: Track) {
+  if (typeof Audio === "undefined") return;
+  if (musicKey === k && music) { applyVolume(); if (music.paused) void music.play().catch(() => {}); return; }
+  if (music) { music.pause(); music.src = ""; }
+  musicKey = k;
+  music = new Audio(TRACK_URL[k]);
+  music.loop = true;
+  music.preload = "auto";
+  applyVolume();
+  void music.play().catch(() => {});
+  if (!unlockHooked && typeof document !== "undefined") {
+    unlockHooked = true;
+    const unlock = () => { if (music && music.paused) void music.play().catch(() => {}); };
+    document.addEventListener("pointerdown", unlock, true);
+    document.addEventListener("keydown", unlock, true);
+  }
 }
 
 function ac(): AudioContext | null {

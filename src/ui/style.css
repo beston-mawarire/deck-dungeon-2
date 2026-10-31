@@ -331,3 +331,8 @@ details.gloss summary { font-weight: 700; color: var(--ink); padding: 4px 0; }
 @keyframes relic-pop { from { transform: scale(.2) rotate(-30deg); opacity: 0; } to { transform: none; opacity: 1; } }
 .chip.streak { border-color: var(--rare); color: var(--rare); font-weight: 700; }
 .chip.guardchip { border-color: #c9a227; color: #e9c46a; font-weight: 700; }
+.music-sliders { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.music-row { display: flex; align-items: center; gap: 10px; }
+.music-row span { min-width: 140px; }
+.music-row input { flex: 1; accent-color: #e9b949; }
+.music-row b { min-width: 42px; text-align: right; }

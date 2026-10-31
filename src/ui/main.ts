@@ -21,7 +21,7 @@ import {
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
-import { isMuted, sfx, toggleMute } from "./sound";
+import { isMuted, musicVolume, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
 
 loadLibrary();
 
@@ -683,6 +683,11 @@ function splashScreen() {
   </div>`;
 }
 
+function musicSliders(only?: Track) {
+  const sl = (k: Track, label: string) => `<label class="music-row"><span>${label}</span><input type="range" min="0" max="100" step="5" value="${Math.round(musicVolume(k) * 100)}" data-music="${k}"><b data-musicval="${k}">${Math.round(musicVolume(k) * 100)}%</b></label>`;
+  return `<div class="music-sliders">${!only || only === "title" ? sl("title", "🎵 Menu music") : ""}${!only || only === "game" ? sl("game", "🎵 Gameplay music") : ""}</div>`;
+}
+
 function optionsPopup() {
   const sp = (v: number, label: string) => `<button class="${speed === v ? "primary" : ""}" data-speed="${v}">${label}</button>`;
   return `<div class="overlay popup-wrap"><div class="popup">
@@ -690,6 +695,7 @@ function optionsPopup() {
     <h1 class="center bigname">⚙️ Options</h1>
     <h2>Sound</h2>
     <div class="row"><button data-mute class="${isMuted() ? "" : "primary"}">${isMuted() ? "🔇 Sound off" : "🔊 Sound on"}</button></div>
+    ${musicSliders()}
     <h2>Combat speed</h2>
     <div class="row">${sp(1, "Normal")}${sp(0.5, "Fast")}${sp(0.2, "Very fast")}</div>
     <h2>Progress</h2>
@@ -720,6 +726,7 @@ function runMenu(r: Run) {
     <div class="col" style="gap:8px;display:flex;flex-direction:column">
       <button class="primary big" data-closemenu>▶ Resume</button>
       <button class="big" data-mainmenu>🏠 Main menu</button>
+      ${musicSliders("game")}
       <p class="sub center">${over ? "This run is over." : atMap ? "Your run is saved here; pick it up with Continue." : "Your run is saved at the last path choice; Continue picks it up from there."}</p>
       ${over ? "" : `<button class="big ${endArmed ? "danger" : ""}" data-endrun>${endArmed ? "Tap again to end this run" : "🏳️ End run"}</button>
       <p class="sub center">Ending the run counts as a death: you keep the Renown you've earned, but the run is gone.</p>`}
@@ -825,6 +832,7 @@ function celebrateScene(r: Run) {
 
 function render() {
   app.classList.toggle("with-side", !!run);
+  playMusic(run ? "game" : "title");
   if (!run) {
     app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}`;
     bind();
@@ -994,6 +1002,15 @@ function on(sel: string, fn: (el: HTMLElement) => void) {
 
 function bind() {
   on("[data-mute]", () => toggleMute());
+  app.querySelectorAll<HTMLInputElement>("[data-music]").forEach(el => {
+    el.oninput = () => {
+      const k = el.dataset.music as Track;
+      setMusicVolume(k, Number(el.value) / 100);
+      const lab = app.querySelector(`[data-musicval="${k}"]`);
+      if (lab) lab.textContent = `${el.value}%`;
+    };
+    el.onclick = ev => ev.stopPropagation();
+  });
   if (!run) {
     on("[data-mode]", el => { mode = el.dataset.mode as Mode; });
     on("[data-story]", el => { storyOpen = el.dataset.story as Mode; });
