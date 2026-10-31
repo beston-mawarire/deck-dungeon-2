@@ -574,7 +574,7 @@ function helpPopup() {
       "Pick a class, then go down through <b>5 floors</b>. Each floor is a few rooms you choose from, then a boss. Beat the fifth boss to win.",
       "After winning you can keep going in <b>Endless</b> for better loot and harder bosses. Your run saves automatically at every path choice."])}
     ${sec("Your weapon is your die", [
-      "Every weapon has its own die. Each face is a <b>Miss</b>, <b>Graze</b> (half damage), <b>Hit</b> or <b>Crit</b> (double damage, ignores Armor), and some faces cast spells or add effects.",
+      "Every weapon has its own die. Each face is a <b>Miss</b>, <b>Graze</b> (half damage), <b>Hit</b> or <b>Crit</b> (double damage, ignores Armor), and some faces cast spells or add effects. Bonus damage from passives, relics and trinkets only lands on a Hit or Crit.",
       "An off-hand weapon gives you a <b>second die</b>. Daggers, throwing knives, kunai and shuriken are built for it; ordinary weapons are clumsy there (60%). Grenades are thrown from the off-hand every 3rd round."])}
     ${sec("In a fight", [
       "<b>Attack</b>: roll and strike. <b>Guard</b> (needs a shield; Warriors can also Guard with a two-hander): double your Armor this round.",
@@ -612,7 +612,7 @@ function helpGlossary() {
   ${group("💥 Bursts — pile one status high enough", THRESHOLDS.map(t => row(t.icon, t.name, t.text)).join(""))}
   ${group("📊 Your stats", [
     row("⚔️", "Damage", "Added to every hit, then multiplied by the face: Graze ×½, Hit ×1, Crit ×2"),
-    row("🛡️", "Armor", "Stops Armor ÷ (Armor + 10) of each hit: 3 Armor stops about a quarter, 10 stops half, 20 stops two-thirds, 30 stops three-quarters. No cap, but each extra point counts for a little less. Crits and spells ignore it"),
+    row("🛡️", "Armor", "Stops part of each hit: 3 Armor stops 21%, 10 stops 45%, 20 stops 60%, 30 stops 68%, 60 stops 77%. No cap, but each extra point counts for a little less. Crits and spells ignore it"),
     row("🧱", "Guard", "Needs a shield (Warriors can also Guard with a two-hander). Doubles your Armor this round"),
     row("💨", "Dodge", "A % chance to avoid a hit entirely (max 60%). Not the same as Evade: Dodge bonuses and Evade bonuses don't trigger each other"),
     row("🎯", "Crit chance", "A % chance that a Hit becomes a Crit (max 50%), on top of your die's Crit faces"),
@@ -622,7 +622,7 @@ function helpGlossary() {
     row("🔋", "Static cap", "The most Static you can stack on an enemy (10, or more with certain items)")
   ].join(""))}
   ${group("🗡️ Weapons and gear", [
-    row("🎲", "Faces", "Miss (nothing), Graze (half), Hit, Crit (double, ignores Armor). Named faces add effects — spells, Bleed, Stun and so on"),
+    row("🎲", "Faces", "Miss (nothing), Graze (half, and no passive or relic bonus damage), Hit, Crit (double, ignores Armor). Named faces add effects — spells, Bleed, Stun and so on"),
     row("✋", "Off-hand", "A weapon in your off-hand rolls a second die. Daggers, throwing knives, kunai, shuriken and wands are built for it; ordinary weapons deal only 60% there"),
     row("🙌", "Two-handed", "Takes both hands (unless you have Titan's Grip or the War Harness)"),
     row("💣", "Grenades", "Off-hand only. No damage — they apply a status, and are thrown on round 1 and every 3rd round after"),

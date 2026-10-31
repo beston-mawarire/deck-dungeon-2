@@ -113,12 +113,13 @@ function purify(b: Battle, ctx: AttackCtx) {
 }
 
 /**
- * How much of a hit Armor stops: Armor / (Armor + 10). No cap, but each extra point is worth a little less:
- * 3 Armor stops 23%, 10 stops 50%, 20 stops 67%, 30 stops 75%, 60 stops 86%. Guarding doubles your Armor.
+ * How much of a hit Armor stops: 0.9 × Armor / (Armor + 10). No hard cap, but each extra point is worth a little less:
+ * 3 Armor stops 21%, 10 stops 45%, 20 stops 60%, 30 stops 68%, 60 stops 77%. Guarding doubles your Armor.
  */
+export const ARMOR_EFFICIENCY = 0.9;
 export function armorReduction(armor: number, _guarding = false): number {
   if (armor <= 0) return 0;
-  return armor / (armor + 10);
+  return ARMOR_EFFICIENCY * armor / (armor + 10);
 }
 
 export function armorOf(f: Fighter): number {
@@ -199,7 +200,12 @@ export function resolveFace(b: Battle, a: Fighter, d: Fighter, face: number, off
       for (const e of entries) if (faceMatches(e.group, face)) e.run(b, ctx, s);
     });
   }
+  // Passive damage bonuses (class passives, relics, trinkets...) only count on a real Hit or Crit.
+  // Anything that turns a Graze into a Hit or Crit (Counter, gear, relics) still lets them through,
+  // because we check the final result after every hook has run.
+  const bonusBefore = ctx.bonus;
   eachHook(a, "modifyAttack", (h, s) => h(b, ctx, s));
+  if (ctx.kind === "graze" || ctx.kind === "miss") ctx.bonus = bonusBefore;
   strike(b, ctx);
 }
 

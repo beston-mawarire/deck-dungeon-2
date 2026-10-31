@@ -761,11 +761,25 @@ describe("armor and story beats", () => {
   it("armor stops a percentage, more while Guarding", async () => {
     const { armorReduction } = await import("../src/engine/combat");
     expect(armorReduction(0, false)).toBe(0);
-    expect(armorReduction(10, false)).toBeCloseTo(0.5);
-    expect(armorReduction(3, false)).toBeCloseTo(3 / 13);
+    expect(armorReduction(10, false)).toBeCloseTo(0.45);
+    expect(armorReduction(3, false)).toBeCloseTo(0.9 * 3 / 13);
     // No cap, but diminishing returns: each point is worth less than the last.
-    expect(armorReduction(100, false)).toBeCloseTo(100 / 110);
+    expect(armorReduction(100, false)).toBeCloseTo(0.9 * 100 / 110);
     expect(armorReduction(20, false) - armorReduction(10, false)).toBeLessThan(armorReduction(10, false) - armorReduction(0, false));
+  });
+  it("passive bonus damage only lands on Hits, not Grazes", () => {
+    const h = newHero("warrior");
+    expect(h.f.faces[0].kind).toBe("graze");
+    h.f.armor = 9; // Battle-Hardened: +3 on Hits
+    const g = startBattle(h.f, dummy(), 1);
+    resolveFace(g, g.player, g.enemy, 1, false);
+    const graze = 200 - g.enemy.hp;
+    const h2 = newHero("warrior"); h2.f.armor = 9;
+    const t = startBattle(h2.f, dummy(), 1);
+    resolveFace(t, t.player, t.enemy, 2, false);
+    const hit = 200 - t.enemy.hp;
+    expect(graze).toBe(Math.round(4 * 0.5)); // sword only, halved, no armor bonus
+    expect(hit).toBe(4 + 3);
   });
   it("arriving on floor 5 shows the despair popup", () => {
     const run = newRun("mage", 77);
