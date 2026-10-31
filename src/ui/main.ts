@@ -593,7 +593,7 @@ function helpGlossary() {
   ${group("💥 Bursts — pile one status high enough", THRESHOLDS.map(t => row(t.icon, t.name, t.text)).join(""))}
   ${group("📊 Your stats", [
     row("⚔️", "Damage", "Added to every hit, then multiplied by the face: Graze ×½, Hit ×1, Crit ×2"),
-    row("🛡️", "Armor", "Stops Armor ÷ (Armor + 4) of each hit: 4 Armor stops half. Tops out at 70%, or 90% while Guarding. Crits and spells ignore it"),
+    row("🛡️", "Armor", "Stops Armor ÷ (Armor + 10) of each hit: 3 Armor stops about a quarter, 10 stops half, 20 stops two-thirds. Tops out at 75%, or 90% while Guarding. Crits and spells ignore it"),
     row("🧱", "Guard", "Needs a shield (Warriors can also Guard with a two-hander). Doubles your Armor this round, and lets it stop up to 90%"),
     row("💨", "Dodge", "A % chance to avoid a hit entirely (max 60%). Not the same as Evade: Dodge bonuses and Evade bonuses don't trigger each other"),
     row("🎯", "Crit chance", "A % chance that a Hit becomes a Crit (max 50%), on top of your die's Crit faces"),

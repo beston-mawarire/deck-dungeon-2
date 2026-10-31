@@ -113,12 +113,12 @@ function purify(b: Battle, ctx: AttackCtx) {
 }
 
 /**
- * How much of a hit Armor stops: Armor / (Armor + 4). 2 Armor stops 33%, 3 stops 43%, 4 stops 50%, 8 stops 67%.
- * Without Guarding it tops out at 70%; Guarding (which also doubles Armor) lets it reach 90%.
+ * How much of a hit Armor stops: Armor / (Armor + 10). Light armour barely dents a blow, heavy armour really counts:
+ * 3 Armor stops 23%, 5 stops 33%, 10 stops 50%, 20 stops 67%. Tops out at 75%; while Guarding (which doubles Armor) 90%.
  */
 export function armorReduction(armor: number, guarding: boolean): number {
   if (armor <= 0) return 0;
-  return Math.min(guarding ? 0.9 : 0.7, armor / (armor + 4));
+  return Math.min(guarding ? 0.9 : 0.75, armor / (armor + 10));
 }
 
 export function armorOf(f: Fighter): number {
@@ -304,7 +304,8 @@ function strike(b: Battle, ctx: AttackCtx) {
   const armor = ctx.ignoreArmor ? 0 : armorOf(d);
   // Armor stops a percentage of each hit (see armorReduction); Guarding doubles Armor and lifts the cap.
   const cut = armorReduction(armor, !!d.flags["guarding"] || stacksOf(d, "lr_anvil_heart") > 0);
-  const after = Math.max(0, d.flags["guarding"] ? Math.floor(raw * (1 - cut)) : Math.round(raw * (1 - cut)));
+  // Without Guarding, a hit that lands always does at least 1.
+  const after = d.flags["guarding"] ? Math.max(0, Math.floor(raw * (1 - cut))) : raw > 0 ? Math.max(1, Math.round(raw * (1 - cut))) : 0;
   if (ctx.kind === "crit") fx(b, { who: d.id, kind: "crit", text: "Crit!" });
   if (ctx.kind === "graze") fx(b, { who: d.id, kind: "text", text: "Graze" });
   ctx.dealt = loseHp(b, d, after);
