@@ -8,7 +8,7 @@ import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
 import { NEGATIVE_STATUSES } from "../engine/types";
 import {
-  BACKPACK_SIZE, SCRAP_VALUE, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost,
+  BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost,
   keepsOffHand, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
 } from "../game/hero";
 import { lockedIds, loadMeta, type Meta, recordRun, UNLOCK_TIERS } from "../game/meta";
@@ -310,7 +310,7 @@ function combatScene(r: Run) {
 
 /** Pick-one scenes (boss rewards, Iron chests with the Skeleton Key): every button is a choice that ends the pick. */
 const pickButtons = (it: GearItem) =>
-  `<button class="small primary" data-take="${it.uid}" data-how="equip">Choose · equip</button><button class="small" data-take="${it.uid}" data-how="pack">Choose · to bag</button><button class="small" data-scrapfound="${it.uid}">Choose · scrap (+${SCRAP_VALUE[it.rarity] + it.level - 1} ⚙️)</button>`;
+  `<button class="small primary" data-take="${it.uid}" data-how="equip">Choose · equip</button><button class="small" data-take="${it.uid}" data-how="pack">Choose · to bag</button><button class="small" data-scrapfound="${it.uid}">Choose · scrap (+${run ? scrapValue(run.hero, it) : 0} ⚙️)</button>`;
 
 const takeButtons = (it: GearItem) =>
   `<button class="small primary" data-take="${it.uid}" data-how="equip">Equip</button><button class="small" data-take="${it.uid}" data-how="pack">To bag</button><button class="small" data-scrapfound="${it.uid}">Scrap</button>`;

@@ -1,4 +1,5 @@
 // A run: three floors of path choices, fights, chests, shops, forges and bosses.
+import { relicBonus } from "../data/basic_relics";
 import { CURSES, EPIC_POWERS, KEEPSAKES, LEGENDARIES, RELICS, TALENTS } from "../data";
 import { CAMPAIGN_FLOORS, makeBoss, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
 import { EVENTS, type GameEvent } from "../data/events";
@@ -10,7 +11,7 @@ import { makeRng } from "../engine/rng";
 import { heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
-import { addToBackpack, canGuard, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, upgradeCost, xpToLevel } from "./hero";
+import { addToBackpack, canGuard, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { isLocked, type LootState, resetDropped, type ResplendentCard, resplendentCards, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -371,7 +372,7 @@ function afterFight(run: Run) {
   h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.ceil(h.f.maxHp * 0.15));
   const xp = { normal: 1, elite: 3, champion: 5, crimson: 7, boss: b.enemy.crimson ? 9 : 6 }[rank];
   gainXp(run, xp);
-  const gold = { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank];
+  const gold = { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank] + relicBonus(h.relics, "gold");
   const items: GearItem[] = [];
   let scrolls = 0;
   let potions = 0;
@@ -459,14 +460,15 @@ export function relicRarityWeight(rarity: string, floor: number, quality = 1): n
   switch (rarity) {
     case "common": return 1;
     case "uncommon": return Math.min(1, 0.35 + 0.15 * (floor - 1));
-    case "rare": return Math.min(0.6, [0.03, 0.12, 0.25, 0.35, 0.45][floor - 1] ?? 0.6) * (quality > 1 ? 2 : 1);
-    case "legendary": return floor < 3 ? 0 : Math.min(0.15, 0.02 + 0.03 * (floor - 3)) * (quality > 1 ? 3 : 1);
+    // Good relics were a little too easy to come by: Rare and Legendary relics are 20% rarer than before.
+    case "rare": return 0.8 * Math.min(0.6, [0.03, 0.12, 0.25, 0.35, 0.45][floor - 1] ?? 0.6) * (quality > 1 ? 2 : 1);
+    case "legendary": return floor < 3 ? 0 : 0.8 * Math.min(0.15, 0.02 + 0.03 * (floor - 3)) * (quality > 1 ? 3 : 1);
     default: return 0.5;
   }
 }
 
 /** Roll a relic. `quality` > 1 for bosses and Champions (better odds of Rare and Legendary). */
-function randomRelic(run: Run, quality = 1): string {
+export function randomRelic(run: Run, quality = 1): string {
   const tags = heroTags(run.hero);
   const pool = RELICS.filter(r => !isLocked(r.id) && r.id !== "transmuter");
   const w = pool.map(r => relicRarityWeight(r.rarity ?? "common", run.floor, quality) * (1 + 0.3 * r.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)));
@@ -531,7 +533,7 @@ export function scrapFound(run: Run, uid: number) {
   if (sc.t !== "loot" && sc.t !== "pick") return;
   const item = sc.items.find(i => i.uid === uid);
   if (!item) return;
-  run.hero.scrap += { common: 1, uncommon: 2, rare: 4, epic: 7, legendary: 12, crimson: 20 }[item.rarity] + item.level - 1;
+  run.hero.scrap += scrapValue(run.hero, item);
   sc.items = sc.items.filter(i => i.uid !== uid);
   if (sc.t === "pick") finishLoot(run);
 }

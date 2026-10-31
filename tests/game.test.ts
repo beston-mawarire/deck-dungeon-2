@@ -813,6 +813,20 @@ describe("class actions and new stats", () => {
     expect(b2.enemy.flags["rollCap"]).toBe(4);
   });
 
+  it("basic relics add Max HP, Armor, and Scrap per scrapped item", () => {
+    const h = newHero("warrior");
+    const hp = h.f.maxHp, ar = h.f.armor;
+    h.relics["rb_hp_3"] = 1; h.relics["rb_armor_2"] = 1; h.relics["rb_scrap_4"] = 1;
+    recompute(h);
+    expect(h.f.maxHp).toBe(hp + 3);
+    expect(h.f.armor).toBe(ar + 2);
+    const before = h.scrap;
+    const uid = h.equip.armour!.uid;
+    const got = salvage(h, uid);
+    expect(h.scrap - before).toBe(got);
+    expect(got).toBeGreaterThanOrEqual(1 + 4);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);

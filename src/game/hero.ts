@@ -1,4 +1,5 @@
 // The hero: origin, equipped gear, backpack, relics, talents, curses — and turning all of that into a Fighter.
+import { relicBonus } from "../data/basic_relics";
 import { CRIMSON, GEAR_BASES, LEGENDARIES } from "../data";
 import { ORIGINS } from "../data/origins";
 import { PLAIN_FACES } from "../engine/combat";
@@ -303,11 +304,16 @@ export function addToBackpack(h: Hero, item: GearItem): string | null {
 
 export const SCRAP_VALUE: Record<Rarity, number> = { common: 1, uncommon: 2, rare: 4, epic: 7, legendary: 12, crimson: 20 };
 
+/** What an item scraps for (rarity + level, plus Scrap relics). */
+export function scrapValue(h: Hero, item: GearItem): number {
+  return SCRAP_VALUE[item.rarity] + (item.level - 1) + relicBonus(h.relics, "scrap");
+}
+
 /** Salvage into Scrap. Legendaries also give 2 Starmetal. */
 export function salvage(h: Hero, uid: number): number {
   const found = findItem(h, uid);
   if (!found) return 0;
-  const n = SCRAP_VALUE[found.item.rarity] + (found.item.level - 1);
+  const n = scrapValue(h, found.item);
   removeItem(h, uid);
   h.scrap += n;
   if (found.item.rarity === "legendary") h.starmetal += 2;
