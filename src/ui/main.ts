@@ -8,7 +8,7 @@ import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
 import { NEGATIVE_STATUSES } from "../engine/types";
 import {
-  BACKPACK_SIZE, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost,
+  BACKPACK_SIZE, SCRAP_VALUE, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost,
   keepsOffHand, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
 } from "../game/hero";
 import { lockedIds, loadMeta, type Meta, recordRun, UNLOCK_TIERS } from "../game/meta";
@@ -293,6 +293,10 @@ function combatScene(r: Run) {
     <details><summary>Battle log</summary><div class="log">${b.log.slice().reverse().map(l => `<div class="${l.startsWith("—") ? "round" : ""}">${esc(l)}</div>`).join("")}</div></details>`;
 }
 
+/** Pick-one scenes (boss rewards, Iron chests with the Skeleton Key): every button is a choice that ends the pick. */
+const pickButtons = (it: GearItem) =>
+  `<button class="small primary" data-take="${it.uid}" data-how="equip">Choose · equip</button><button class="small" data-take="${it.uid}" data-how="pack">Choose · to bag</button><button class="small" data-scrapfound="${it.uid}">Choose · scrap (+${SCRAP_VALUE[it.rarity] + it.level - 1} ⚙️)</button>`;
+
 const takeButtons = (it: GearItem) =>
   `<button class="small primary" data-take="${it.uid}" data-how="equip">Equip</button><button class="small" data-take="${it.uid}" data-how="pack">To bag</button><button class="small" data-scrapfound="${it.uid}">Scrap</button>`;
 
@@ -314,7 +318,8 @@ function pickScene(r: Run) {
   const ks = s.keepsake ? getItem(s.keepsake) : null;
   return `<h2>${esc(s.title)}</h2>
     ${ks ? `<div class="item keepsake"><div class="meta">Keepsake · one at a time${r.hero.keepsake ? ` · replaces ${esc(getItem(r.hero.keepsake).name)}` : ""}</div><div class="nm">🕯️ ${esc(ks.name)}</div><p>${esc(ks.text)}.</p><div class="row"><button class="small primary" data-keepsake>Take the Keepsake</button></div><p class="sub">Free: it doesn't count as your pick.</p></div>` : ""}
-    <div class="cards">${s.items.map(it => itemCard(it, takeButtons(it), true)).join("")}</div>
+    ${s.items.length > 1 ? `<div class="toast">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
+    <div class="cards">${s.items.map(it => itemCard(it, s.items.length > 1 ? pickButtons(it) : takeButtons(it), true)).join("")}</div>
     ${s.passed?.length ? `<h2>You passed up</h2><div class="cards">${s.passed.map(it => itemCard(it)).join("")}</div>` : ""}
     <div class="row" style="margin-top:12px"><button data-finish>Take nothing</button></div>`;
 }
