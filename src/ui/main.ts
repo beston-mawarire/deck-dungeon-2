@@ -21,7 +21,7 @@ import {
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
-import { isMuted, musicVolume, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
+import { isMuted, musicBlocked, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
 
 loadLibrary();
 
@@ -679,6 +679,7 @@ function splashScreen() {
       <button class="big" data-help>❓ How to play</button>
       <button class="big" data-options>⚙️ Options</button>
     </div>
+    ${musicBlocked() ? `<button class="small music-hint" data-startmusic>🎵 Tap for music</button>` : ""}
     <p class="sub splash-foot">🏅 ${meta.renown} Renown · ${meta.runs} runs · ${meta.wins} wins</p>
   </div>`;
 }
@@ -1002,6 +1003,7 @@ function on(sel: string, fn: (el: HTMLElement) => void) {
 
 function bind() {
   on("[data-mute]", () => toggleMute());
+  on("[data-startmusic]", () => playMusic(run ? "game" : "title"));
   app.querySelectorAll<HTMLInputElement>("[data-music]").forEach(el => {
     el.oninput = () => {
       const k = el.dataset.music as Track;
@@ -1103,3 +1105,6 @@ function bind() {
 }
 
 render();
+
+// Show or hide the "Tap for music" hint as the browser blocks or allows the music.
+onMusicBlockChange(() => render());

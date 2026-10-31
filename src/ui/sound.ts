@@ -24,6 +24,20 @@ for (const k of ["title", "game"] as Track[]) {
 let music: HTMLAudioElement | null = null;
 let musicKey: Track | null = null;
 let unlockHooked = false;
+/** True while the browser is refusing to play until the player taps (autoplay rules). */
+let blocked = false;
+let onUnblock: (() => void) | null = null;
+export const musicBlocked = () => blocked && !muted;
+/** Called when the music becomes blocked or starts after being blocked (to show/hide a "tap for music" hint). */
+export function onMusicBlockChange(fn: () => void) { onUnblock = fn; }
+
+function tryPlay() {
+  if (!music) return;
+  const m = music;
+  void m.play().then(() => {
+    if (blocked) { blocked = false; onUnblock?.(); }
+  }).catch(() => { if (m === music && !blocked) { blocked = true; onUnblock?.(); } });
+}
 
 export const musicVolume = (k: Track) => vol[k];
 export function setMusicVolume(k: Track, v: number) {
@@ -38,19 +52,20 @@ function applyVolume() {
 /** Switch to a track (no-op if it's already playing). Browsers only allow sound after a tap, so we retry then. */
 export function playMusic(k: Track) {
   if (typeof Audio === "undefined") return;
-  if (musicKey === k && music) { applyVolume(); if (music.paused) void music.play().catch(() => {}); return; }
+  if (musicKey === k && music) { applyVolume(); if (music.paused) tryPlay(); return; }
   if (music) { music.pause(); music.src = ""; }
   musicKey = k;
   music = new Audio(TRACK_URL[k]);
   music.loop = true;
   music.preload = "auto";
   applyVolume();
-  void music.play().catch(() => {});
+  tryPlay();
+  // Browsers (iPhones especially) only allow sound from a real tap or key press, and only some events
+  // count: click and touchend do, pointerdown doesn't on iOS. Try again on the first one of them.
   if (!unlockHooked && typeof document !== "undefined") {
     unlockHooked = true;
-    const unlock = () => { if (music && music.paused) void music.play().catch(() => {}); };
-    document.addEventListener("pointerdown", unlock, true);
-    document.addEventListener("keydown", unlock, true);
+    const unlock = () => { if (music && music.paused) tryPlay(); };
+    for (const ev of ["click", "touchend", "keydown", "pointerup"]) document.addEventListener(ev, unlock, true);
   }
 }
 

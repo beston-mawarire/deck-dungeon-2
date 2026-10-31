@@ -336,3 +336,5 @@ details.gloss summary { font-weight: 700; color: var(--ink); padding: 4px 0; }
 .music-row span { min-width: 140px; }
 .music-row input { flex: 1; accent-color: #e9b949; }
 .music-row b { min-width: 42px; text-align: right; }
+.music-hint { margin: 10px auto 0; display: block; opacity: .85; animation: pulse-hint 2s ease-in-out infinite; }
+@keyframes pulse-hint { 50% { opacity: .5; } }
