@@ -145,8 +145,9 @@ export function makeMonster(rng: () => number, floor: number, rank: MonsterRank)
   const items: Record<string, number> = {};
   for (const t of def.traits) items[t] = 1;
   let prefix = "";
+  let armorBonus = 0;
   if (rank === "elite" || rank === "champion" || rank === "crimson") {
-    const n = rank === "crimson" ? 3 : rank === "champion" ? (floor >= 4 ? 3 : 2) : floor >= 4 ? 2 : 1;
+    const n = rank === "crimson" ? 3 : rank === "champion" ? (floor >= 4 ? 3 : 2) : floor >= 3 ? 2 : 1;
     const pool = [...ELITE_AFFIX_IDS];
     const names: string[] = [];
     for (let i = 0; i < n; i++) {
@@ -160,14 +161,16 @@ export function makeMonster(rng: () => number, floor: number, rank: MonsterRank)
     }
     // Tougher than before, and tougher the deeper you go.
     // Crimson Elites: rarer and harder than Champions, with the Crimson trait on top.
-    hp = Math.round(hp * (rank === "crimson" ? 2.8 + 0.18 * floor : rank === "champion" ? 2.2 + 0.15 * floor : 1.5 + 0.08 * floor));
-    power += rank === "crimson" ? 3 + Math.floor(floor / 2) : rank === "champion" ? 2 + Math.floor(floor / 2) : 1 + (floor >= 3 ? 1 : 0);
+    // Elites should be a real fight even on floor 1: a starting kit shouldn't simply walk through one.
+    hp = Math.round(hp * (rank === "crimson" ? 2.8 + 0.18 * floor : rank === "champion" ? 2.6 + 0.15 * floor : 1.9 + 0.1 * floor));
+    power += rank === "crimson" ? 3 + Math.floor(floor / 2) : rank === "champion" ? 3 + Math.floor(floor / 2) : 2 + (floor >= 3 ? 1 : 0);
+    armorBonus = rank === "elite" || rank === "champion" ? 1 : 0;
     if (rank === "crimson") items["x_crimson"] = 1;
     prefix = `${names.join(" ")} `;
   }
   const name = rank === "crimson" ? `Crimson ${prefix}${def.name}` : rank === "champion" ? `Champion ${prefix}${def.name}` : `${prefix}${def.name}`;
   return {
-    id: "enemy", name, hp, maxHp: hp, armor: (def.armor ?? 0) + (rank === "crimson" ? 2 : 0), damage: power, faces: def.faces ?? PLAIN_FACES,
+    id: "enemy", name, hp, maxHp: hp, armor: (def.armor ?? 0) + (rank === "crimson" ? 2 : 0) + armorBonus, damage: power, faces: def.faces ?? PLAIN_FACES,
     statuses: {}, flags: {}, persist: {}, items, gold: 0,
     elite: rank === "elite" || rank === "champion" || rank === "crimson", champion: rank === "champion", crimson: rank === "crimson", boss: rank === "boss", family: def.family
   };

@@ -320,3 +320,5 @@ details.gloss { border: 1px solid var(--line); border-radius: 10px; padding: 6px
 details.gloss summary { font-weight: 700; color: var(--ink); padding: 4px 0; }
 .gl { margin: 6px 0; line-height: 1.4; }
 .gi { display: inline-block; min-width: 1.8em; }
+.room.talent .tdesc { display: block; color: var(--gold); font-size: .85rem; font-weight: 600; letter-spacing: .03em; }
+.room.talent .teffect { color: #8cc4ff; font-weight: 600; }

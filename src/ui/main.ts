@@ -344,7 +344,7 @@ function talentScene(r: Run) {
   return `<h2>Choose a talent</h2><div class="cards">${r.scene.options.map(id => {
     const t = getItem(id);
     const rank = (r.hero.talents[id] ?? 0) + 1;
-    return `<button class="room" data-talent="${id}"><b>${esc(t.name)} ${"I".repeat(rank)}</b><span class="sub">${t.tags.join(" · ")}</span><p>${esc(t.text)}</p></button>`;
+    return `<button class="room talent" data-talent="${id}"><b>${esc(t.name)} ${"I".repeat(rank)}</b><span class="tdesc">${t.tags.join(" · ")}${t.rarity === "rare" ? " · Rare" : ""}</span><p class="teffect">${esc(t.text)}</p></button>`;
   }).join("")}</div>`;
 }
 
