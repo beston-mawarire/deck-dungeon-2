@@ -142,6 +142,10 @@ export const STORM_TALENTS: HookDef[] = [
   talent({ id: "t_slippery", name: "Slippery", tags: ["Tempo", "Strike"], text: "When you Dodge, gain 1 / 2 / 3 Might", hooks: { onDodge: (b, c, s) => applyStatus(b, c.defender, c.defender, "might", s) } }),
   talent({ id: "t_heavy_hitter", name: "Heavy Hitter", tags: ["Strike"], text: "Two-handed weapons deal +2 / +3 / +5",
     hooks: { modifyAttack: (_b, c, s) => { if (c.offhand ? c.attacker.offTwoHanded : c.attacker.twoHanded) c.bonus += rank(s, 2, 3, 5); } } }),
+  talent({ id: "t_twin_strikes", name: "Twin Strikes", tags: ["Tempo", "Strike"], text: "While dual wielding, both dice deal +1 / +2 / +3",
+    hooks: { modifyAttack: (_b, c, s) => { if (c.attacker.dualWield) c.bonus += s; } } }),
+  talent({ id: "t_rhythm", name: "Blade Rhythm", tags: ["Tempo", "Strike"], text: "While dual wielding, when both dice hit in the same turn, gain 1 / 2 / 3 Might",
+    hooks: { onHit: (b, c, s) => { const a = c.attacker; if (!a.dualWield) return; if (!c.offhand) a.flags["rhythm"] = b.round; else if (a.flags["rhythm"] === b.round) { a.flags["rhythm"] = 0; applyStatus(b, a, a, "might", s); } } } }),
   talent({ id: "t_overwhelm", name: "Overwhelm", tags: ["Arcane", "Hex"], text: "Your hits deal +1 / +2 / +3 for every different negative status on the enemy",
     hooks: { modifyAttack: (_b, c, s) => { c.bonus += s * NEG.filter(x => st(c.defender, x) > 0).length; } } })
 ];

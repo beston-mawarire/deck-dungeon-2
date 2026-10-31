@@ -1,6 +1,6 @@
 // Relics. Text matches the Library doc; "(+x)" is what each extra stack adds.
 import { attack } from "../engine/combat";
-import { CRIT_RELICS } from "./blades";
+import { CRIT_RELICS, DUAL_RELICS } from "./blades";
 import { loseHp, other, st } from "../engine/statuses";
 import type { HookDef } from "../engine/types";
 import { applyStatus, gain, gold, heal, inflict, log, on, ping, scale } from "./helpers";
@@ -210,4 +210,4 @@ export const STORM_RELICS: HookDef[] = [
   relic({ id: "lr_stormheart", name: "Stormheart", rarity: "legendary", tags: ["Storm"], text: "Static you apply caps at 20 instead of 10, and every Static tick deals triple", hooks: {} })
 ];
 
-export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3, ...LEGENDARY_RELICS, ...GUARD_RELICS, ...HOLY_RELICS, ...STORM_RELICS, ...CRIT_RELICS];
+export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3, ...LEGENDARY_RELICS, ...GUARD_RELICS, ...HOLY_RELICS, ...STORM_RELICS, ...CRIT_RELICS, ...DUAL_RELICS];

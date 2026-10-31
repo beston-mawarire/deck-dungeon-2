@@ -849,3 +849,29 @@ describe("off-hand weapons", () => {
     expect(weaponDamage(mk("ku_kunai"), true)).toBe(3);
   });
 });
+
+describe("dual wielding and faith weapons", () => {
+  const mk = (base: string, uid: number) => ({ uid, base, rarity: "common" as const, level: 1, bonuses: {}, revealed: true });
+  it("thrown weapons go in either hand, a little softer in the main hand", () => {
+    expect(slotsFor(mk("ku_kunai", 1))).toEqual(["main", "off"]);
+    expect(weaponDamage(mk("ku_kunai", 1))).toBe(weaponDamage(mk("ku_kunai", 1), true) - 1);
+  });
+  it("dual wielding is recognised, and grenades don't count", () => {
+    const h = newHero("rogue");
+    expect(h.f.dualWield).toBe(true);
+    equipItem(h, mk("gr_toxic", 2), "off");
+    expect(h.f.dualWield).toBe(false);
+    h.relics["r_cross_guard"] = 1;
+    equipItem(h, mk("ku_kunai", 3), "off");
+    expect(h.f.dodge).toBe(5);
+  });
+  it("the Wardblade hits harder while Warded", () => {
+    const h = newHero("cleric");
+    equipItem(h, mk("f_wardblade", 4), "main");
+    const e = makeMonster(makeRng(80), 1, "normal"); e.hp = e.maxHp = 300; e.armor = 0; e.items = {};
+    const b = startBattle(h.f, e, 80);
+    h.f.statuses = { ward: 1 };
+    resolveFace(b, h.f, e, 3);
+    expect(300 - e.hp).toBe(h.f.damage + 4);
+  });
+});

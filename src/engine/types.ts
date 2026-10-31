@@ -74,6 +74,10 @@ export interface Fighter {
   /** Hero: the weapon type in each hand (dagger, throwing, kunai, shuriken, grenade). */
   mainType?: string;
   offType?: string;
+  /** Hero: the off-hand item is Holy. */
+  offHoly?: boolean;
+  /** Hero: a weapon in each hand. */
+  dualWield?: boolean;
   /** Hero: the main (and off-hand) weapon is two-handed. */
   twoHanded?: boolean;
   offTwoHanded?: boolean;

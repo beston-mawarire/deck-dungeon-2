@@ -127,3 +127,40 @@ export const CRIT_RELICS: HookDef[] = [
   relic({ id: "r_critical_mass", name: "Critical Mass", rarity: "rare", tags: ["Crit", "Kill"], text: "Every 3rd crit in a fight deals triple damage",
     hooks: { modifyAttack: (b, c) => { if (c.kind !== "crit") return; const n = (c.attacker.flags["critCount"] ?? 0) + 1; c.attacker.flags["critCount"] = n; if (n % 3 === 0) { c.mult *= 1.5; b.log.push("💥 Critical Mass!"); } } } })
 ];
+
+// ---------- Dual wielding: a weapon in each hand ----------
+export const DUAL_GEAR: GearBase[] = [
+  { id: "t_twin_fang_pendant", kind: "trinket", slot: "trinket", name: "Twin Fang Pendant", tags: ["Strike", "Tempo"],
+    text: "While dual wielding, both dice deal +1.", hooks: { modifyAttack: (_b, c) => { if (c.attacker.dualWield) c.bonus += 1; } } },
+  { id: "t_duellist_ring", kind: "trinket", slot: "trinket", name: "Duellist's Ring", tags: ["Crit", "Tempo"], minItemRarity: "uncommon",
+    text: "While dual wielding, +6% Crit chance.", hooks: {} }, // hero.ts
+  { id: "t_mirror_band", kind: "trinket", slot: "trinket", name: "Mirror Band", tags: ["Crit", "Blood"], minItemRarity: "uncommon",
+    text: "While dual wielding, if both dice crit in the same turn, heal 4 and gain 2 Might.",
+    hooks: { onCrit: (b, c) => { const a = c.attacker; if (!a.dualWield) return; if (!c.offhand) a.flags["mirrorMain"] = b.round; else if (a.flags["mirrorMain"] === b.round) { a.flags["mirrorMain"] = 0; heal(b, a, 4, "Mirror Band"); applyStatus(b, a, a, "might", 2); } } } }
+];
+export const DUAL_RELICS: HookDef[] = [
+  relic({ id: "r_twin_sigil", name: "Twin Blades Sigil", rarity: "common", tags: ["Tempo"], text: "While dual wielding, your off-hand die deals +2 (+1)",
+    hooks: { modifyAttack: (_b, c, n) => { if (c.offhand && c.attacker.dualWield) c.bonus += 1 + n; } } }),
+  relic({ id: "r_flurry_charm", name: "Flurry Charm", rarity: "rare", tags: ["Tempo", "Strike"], text: "While dual wielding, a 6 on your main die makes your off-hand strike twice",
+    hooks: { modifyAttack: (b, c) => { if (!c.offhand && c.face === 6 && c.attacker.dualWield) c.attacker.flags["flurry"] = b.round; } } }),
+  relic({ id: "r_cross_guard", name: "Crossguard Charm", rarity: "uncommon", tags: ["Tempo", "Guard"], text: "While dual wielding, +5% Dodge (+3%)", hooks: {} }) // hero.ts
+];
+
+// ---------- Faith weapons: hit harder with a Holy off-hand, while Warded, or with Regen ----------
+export const FAITH_WEAPONS: GearBase[] = [
+  { id: "f_lightbringer", kind: "weapon", slot: "main", name: "Lightbringer Mace", tags: ["Holy", "Guard"], damage: 4,
+    faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT], text: "Holy. +3 Damage while your off-hand is Holy.",
+    hooks: { modifyAttack: (_b, c) => { if (!c.offhand && c.attacker.offHoly) c.bonus += 3; } } },
+  { id: "f_wardblade", kind: "weapon", slot: "main", name: "Wardblade", tags: ["Guard", "Strike"], damage: 4,
+    faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT], text: "+4 Damage while you have Ward.",
+    hooks: { modifyAttack: (_b, c) => { if (!c.offhand && st(c.attacker, "ward") > 0) c.bonus += 4; } } },
+  { id: "f_verdant_flail", kind: "weapon", slot: "main", name: "Verdant Flail", tags: ["Blood", "Strike"], damage: 4,
+    faces: [MISS, HIT, HIT, HIT, spell("Bloom", "hit", (b, c) => applyStatus(b, c.attacker, c.attacker, "regen", 2)), CRIT], text: "+1 Damage per Regen stack you have. A 5 Blooms: 2 Regen.",
+    hooks: { modifyAttack: (_b, c) => { if (!c.offhand) c.bonus += st(c.attacker, "regen"); } } },
+  { id: "f_psalm_blade", kind: "weapon", slot: "main", name: "Psalm Blade", minItemRarity: "uncommon", tags: ["Holy", "Guard"], damage: 5,
+    faces: [GRAZE, HIT, HIT, HIT, spell("Hymn", "hit", (b, c) => applyStatus(b, c.attacker, c.attacker, "ward", 1)), CRIT], text: "Holy. +2 Damage with a Holy off-hand, +2 more while Warded. A 5 sings a Hymn (Ward).",
+    hooks: { modifyAttack: (_b, c) => { if (c.offhand) return; if (c.attacker.offHoly) c.bonus += 2; if (st(c.attacker, "ward") > 0) c.bonus += 2; } } },
+  { id: "f_wellspring", kind: "weapon", slot: "main", name: "Wellspring Maul", minItemRarity: "rare", tags: ["Holy", "Blood"], damage: 8, twoHanded: true,
+    faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT], text: "Holy. Two-handed. Every hit gives 1 Regen; +1 Damage per Regen stack you have.",
+    hooks: { onHit: (b, c) => { if (!c.offhand) applyStatus(b, c.attacker, c.attacker, "regen", 1); }, modifyAttack: (_b, c) => { if (!c.offhand) c.bonus += st(c.attacker, "regen"); } } }
+];

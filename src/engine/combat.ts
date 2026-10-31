@@ -409,6 +409,12 @@ function heroAttack(b: Battle) {
   // Grenades in the off-hand are thrown on round 1 and every 3rd round after; other off-hands attack every turn.
   const grenade = b.player.offType === "grenade";
   if (b.player.offFaces && b.enemy.hp > 0 && (!grenade || b.round % 3 === 1)) attack(b, b.player, b.enemy, true);
+  // Flurry Charm: a 6 on your main die sends the off-hand in again.
+  if (b.player.dualWield && b.player.flags["flurry"] === b.round && b.enemy.hp > 0) {
+    b.player.flags["flurry"] = 0;
+    log(b, "Flurry! The off-hand strikes again.");
+    attack(b, b.player, b.enemy, true);
+  }
 }
 
 interface Snapshot { hp: number; statuses: Statuses }

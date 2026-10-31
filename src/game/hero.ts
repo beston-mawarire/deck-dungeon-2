@@ -63,9 +63,13 @@ export function offhandPenalty(item: GearItem): boolean {
   return eb.kind === "weapon" && !eb.twoHanded && !eb.weaponType && !eb.tags.includes("Arcane") && (eb.offDamage ?? 0) < (eb.damage ?? 0);
 }
 
+/** Throwing knives, kunai and shuriken work in either hand, but hit a little softer from the main hand. */
+export const THROWN_TYPES = ["throwing", "kunai", "shuriken"];
+
 export function weaponDamage(item: GearItem, offhand = false): number {
   const base = effectiveBase(item);
-  const d = offhand ? base.offDamage ?? 0 : base.damage ?? 0;
+  const thrown = !!base.weaponType && THROWN_TYPES.includes(base.weaponType);
+  const d = offhand ? base.offDamage ?? 0 : thrown ? Math.max(1, (base.offDamage ?? base.damage ?? 0) - 1) : base.damage ?? 0;
   const hidden = !!baseOf(item.base).legendary && !item.revealed;
   const full = d + (item.level - 1) + (hidden ? 0 : RARITY_DAMAGE[item.rarity]);
   return offhand && offhandPenalty(item) ? Math.max(1, Math.floor(full * 0.6)) : full;
@@ -144,6 +148,8 @@ export function recompute(h: Hero) {
   f.offTwoHanded = false;
   f.mainType = undefined;
   f.offType = undefined;
+  f.dualWield = false;
+  f.offHoly = false;
   f.faces = PLAIN_FACES;
   f.offFaces = undefined;
   for (const slot of EQUIP_SLOTS) {
@@ -162,6 +168,9 @@ export function recompute(h: Hero) {
     if (slot === "main" && eb.twoHanded) f.twoHanded = true;
     if (slot === "main") f.mainType = eb.weaponType;
     if (slot === "off") f.offType = eb.weaponType;
+    if (slot === "off" && eb.tags.includes("Holy")) f.offHoly = true;
+    // Dual wielding: a weapon (not a grenade) in each hand.
+    if (slot === "off" && eb.kind === "weapon" && eb.weaponType !== "grenade" && h.equip.main && effectiveBase(h.equip.main).kind === "weapon") f.dualWield = true;
     if (slot === "off" && eb.twoHanded) f.offTwoHanded = true;
     if (slot === "off" && eb.barrierElement) f.barrierElement = eb.barrierElement;
     if (slot === "main" && eb.kind === "weapon") {
@@ -192,12 +201,14 @@ export function recompute(h: Hero) {
   f.armor = Math.max(0, s.armor);
   f.damage = Math.max(0, s.damage);
   f.offDamage = f.offFaces ? Math.max(0, s.offDamage) : undefined;
+  if (f.dualWield && items["r_cross_guard"]) s.dodge += 5 + 3 * (items["r_cross_guard"] - 1);
   f.dodge = Math.min(60, Math.max(0, s.dodge));
   f.bash = Math.min(30, Math.max(0, s.bash));
   f.spellAmp = Math.max(0, s.spellAmp);
   // Thrower's Bandolier: +5% Crit chance with a throwing weapon in the off-hand. Mirage Sabre: + half your Dodge.
   if (items["t_bandolier"] && f.offType && ["throwing", "kunai", "shuriken"].includes(f.offType)) s.critChance += 5;
   if (items["w_mirage_sabre"]) s.critChance += Math.floor((f.dodge ?? 0) / 2);
+  if (f.dualWield && items["t_duellist_ring"]) s.critChance += 6;
   f.critChance = Math.min(50, Math.max(0, s.critChance));
   // Twin Souls: a second die with your main weapon's faces at 60% damage.
   if (items["lr_twin_souls"]) {
