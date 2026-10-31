@@ -39,6 +39,13 @@ export function withFortune(odds: Odds, floor: number): Odds {
   const f = fortune(floor);
   const out: Odds = { ...odds };
   for (const r of ["rare", "epic", "legendary"] as const) if (out[r]) out[r] = out[r]! * f;
+  // Floors 1 and 2 are the green floors: most of what would have been Rare is Uncommon instead.
+  const shift = floor <= 1 ? 0.65 : floor === 2 ? 0.45 : 0;
+  for (const r of ["rare", "epic"] as const) {
+    if (!shift || !out[r]) continue;
+    out.uncommon = (out.uncommon ?? 0) + out[r]! * shift;
+    out[r] = out[r]! * (1 - shift);
+  }
   return out;
 }
 

@@ -22,7 +22,7 @@ export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: s
   stun: { name: "Stun", icon: "💫", text: "Skips its next action" },
   doom: { name: "Doom", icon: "💀", text: "Dies when Doom stacks reach its current HP" },
   regen: { name: "Regen", icon: "💚", text: "Heal 1 per stack at end of round; stacks fall by 1" },
-  barrier: { name: "Barrier", icon: "🛡️", text: "Absorbs damage before HP; gone at end of fight" },
+  barrier: { name: "Barrier", icon: "🛡️", text: "Absorbs damage before HP; half of it fades at the end of each round" },
   might: { name: "Might", icon: "💪", text: "+1 Damage per stack this fight" },
   haste: { name: "Haste", icon: "💨", text: "An extra action next round, then it's used up" },
   focus: { name: "Focus", icon: "🎲", text: "Next roll: roll twice, keep the better" },
@@ -353,6 +353,10 @@ export function endOfRound(b: Battle, f: Fighter) {
     else f.statuses.smoulder_soul = soul + 1; // the Furnace Heart never lets it go out
     f.statuses.smoulder_soul = st(f, "smoulder_soul") - 1;
   }
+  // Barrier is a shield of the moment, not a wall: half of it fades at the end of every round
+  // (Hollow Crown and Bastion of Ages keep theirs). Guarding is how you hold the line.
+  const bar = st(f, "barrier");
+  if (bar > 0 && !f.persist["keepBarrier"]) f.statuses.barrier = Math.floor(bar / 2);
   for (const s of ["spikes", "chill", "weak", "exposed", "blind", "soaked", "kindled", "grounded", "dazzled"] as StatusId[]) {
     if (s === "spikes" && (f.items["lr_crown_thorns"] ?? 0) > 0) continue;
     if (st(f, s) > 0) f.statuses[s] = st(f, s) - 1;
