@@ -241,7 +241,7 @@ function codexScreen() {
 
 function mapScene(r: Run) {
   const pips = fortunePips(r.floor);
-  return `<div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = richer</span></div>
+  return `<div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>
   <h2>${r.step >= STEPS_PER_FLOOR ? (r.floor === WALL_FLOOR ? "The Wall" : "The boss awaits") : "Choose your path"}</h2>
   <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") ? "crimson-room" : ""}" data-room="${c}"><span class="ic">${c === "boss" && r.floor >= FLOORS ? "💀" : ROOM_INFO[c].icon}</span><b>${ROOM_INFO[c].name}</b><span class="sub">${esc(ROOM_INFO[c].text)}</span></button>`).join("")}</div>`;
 }

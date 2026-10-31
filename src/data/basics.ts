@@ -2,6 +2,7 @@
 // They fill out the early pools so Rare and better feel like an event.
 import type { GearBase, Rarity } from "../engine/types";
 import { applyStatus, CRIT, GRAZE, heal, hex, HIT, MISS, on, other, self, spell } from "./helpers";
+import type { FaceSpec } from "../engine/types";
 
 const g = (onlyRarity: Rarity, d: Omit<GearBase, "onlyRarity">): GearBase => ({ ...d, onlyRarity });
 const C = "common";
@@ -43,4 +44,42 @@ export const BASICS: GearBase[] = [
   g(U, { id: "g_lucky_pebble", kind: "trinket", slot: "trinket", name: "Lucky Pebble", tags: ["Luck"], text: "Your first 1 each fight becomes a 2.",
     hooks: { modifyRoll: (_b, f, r) => { if (r === 1 && !f.flags["pebble"]) { f.flags["pebble"] = 1; return 2; } return r; } } }),
   g(U, { id: "g_whetted_ring", kind: "trinket", slot: "trinket", name: "Fighter's Band", tags: ["Strike"], text: "+1 Damage on your main die.", hooks: { stats: s => { s.damage += 1; } } })
+];
+
+// ---------- Plain but strong: Uncommon and Rare gear with no special effects, just good numbers ----------
+const PLAIN: FaceSpec[] = [GRAZE, HIT, HIT, HIT, HIT, CRIT];
+const SOLID: FaceSpec[] = [HIT, HIT, HIT, HIT, HIT, CRIT];
+const KEEN: FaceSpec[] = [GRAZE, HIT, HIT, HIT, CRIT, CRIT];
+const R = "rare";
+const dmg = (n: number) => ({ stats: (s: { damage: number; offDamage: number }) => { s.damage += n; s.offDamage += n; } });
+
+export const STAT_GEAR: GearBase[] = [
+  // Weapons
+  g(U, { id: "s_arming_sword", kind: "weapon", slot: "main", name: "Arming Sword", tags: ["Strike"], text: "Well balanced. Nothing fancy.", damage: 5, faces: PLAIN, hooks: {} }),
+  g(U, { id: "s_war_axe", kind: "weapon", slot: "main", name: "Bearded Axe", tags: ["Strike"], text: "Heavy head, honest swing.", damage: 6, faces: [MISS, HIT, HIT, HIT, HIT, CRIT], hooks: {} }),
+  g(U, { id: "s_stiletto", kind: "weapon", slot: "main", name: "Stiletto", tags: ["Crit"], text: "Crits on 5 and 6. Works in the off-hand.", damage: 3, offDamage: 3, faces: KEEN, hooks: {} }),
+  g(R, { id: "s_masterwork_blade", kind: "weapon", slot: "main", name: "Masterwork Blade", tags: ["Strike"], text: "No Grazes. Superb steel.", damage: 6, faces: SOLID, hooks: {} }),
+  g(R, { id: "s_greataxe", kind: "weapon", slot: "main", name: "Greataxe", tags: ["Strike"], text: "Two-handed. Enormous.", damage: 9, twoHanded: true, faces: [MISS, HIT, HIT, HIT, HIT, CRIT], hooks: {} }),
+  g(R, { id: "s_duelling_blade", kind: "weapon", slot: "main", name: "Duelling Blade", tags: ["Crit"], text: "No Grazes; crits on 5 and 6. Works in the off-hand.", damage: 5, offDamage: 4, faces: [HIT, HIT, HIT, HIT, CRIT, CRIT], hooks: {} }),
+  // Off-hands
+  g(U, { id: "s_iron_buckler", kind: "off", slot: "off", name: "Iron Buckler", shield: true, tags: ["Guard"], text: "+2 Armor.", armor: 2, hooks: {} }),
+  g(U, { id: "s_parrying_knife", kind: "weapon", slot: "main", name: "Parrying Knife", tags: ["Tempo"], text: "A plain second blade. Best in the off-hand.", damage: 2, offDamage: 3, faces: PLAIN, hooks: {} }),
+  g(U, { id: "s_steel_kite", kind: "off", slot: "off", name: "Steel Kite Shield", shield: true, tags: ["Guard"], text: "+3 Armor.", armor: 3, hooks: {} }),
+  g(R, { id: "s_great_shield", kind: "off", slot: "off", name: "Great Shield", shield: true, tags: ["Guard"], text: "+5 Armor.", armor: 5, hooks: {} }),
+  g(R, { id: "s_offhand_saber", kind: "weapon", slot: "main", name: "Offhand Sabre", tags: ["Strike"], text: "No Grazes. Best in the off-hand.", damage: 3, offDamage: 5, faces: SOLID, hooks: {} }),
+  g(R, { id: "s_bulwark_shield", kind: "off", slot: "off", name: "Bulwark Shield", shield: true, tags: ["Guard", "Blood"], text: "+4 Armor and +5 Max HP.", armor: 4, maxHp: 5, hooks: {} }),
+  // Armours
+  g(U, { id: "s_brigandine_coat", kind: "armour", slot: "armour", name: "Brigandine Coat", tags: ["Guard"], text: "+3 Armor and +3 Max HP.", armor: 3, maxHp: 3, hooks: {} }),
+  g(U, { id: "s_laminar", kind: "armour", slot: "armour", name: "Laminar Armour", tags: ["Guard"], text: "+4 Armor.", armor: 4, hooks: {} }),
+  g(U, { id: "s_quilted_coat", kind: "armour", slot: "armour", name: "Quilted Coat", tags: ["Blood"], text: "+1 Armor and +8 Max HP.", armor: 1, maxHp: 8, hooks: {} }),
+  g(R, { id: "s_full_plate", kind: "armour", slot: "armour", name: "Full Plate", tags: ["Guard"], text: "+6 Armor and +4 Max HP.", armor: 6, maxHp: 4, hooks: {} }),
+  g(R, { id: "s_mithril_shirt", kind: "armour", slot: "armour", name: "Mithril Shirt", tags: ["Guard"], text: "+4 Armor and +6 Max HP. Light as cloth.", armor: 4, maxHp: 6, hooks: {} }),
+  g(R, { id: "s_champions_mail", kind: "armour", slot: "armour", name: "Champion's Mail", tags: ["Guard", "Blood"], text: "+5 Armor and +10 Max HP.", armor: 5, maxHp: 10, hooks: {} }),
+  // Trinkets
+  g(U, { id: "s_silver_ring", kind: "trinket", slot: "trinket", name: "Silver Ring", tags: ["Strike"], text: "+1 Damage.", hooks: dmg(1) }),
+  g(U, { id: "s_garnet_amulet", kind: "trinket", slot: "trinket", name: "Garnet Amulet", tags: ["Blood"], text: "+7 Max HP.", maxHp: 7, hooks: {} }),
+  g(U, { id: "s_steel_bracelet", kind: "trinket", slot: "trinket", name: "Steel Bracelet", tags: ["Guard"], text: "+2 Armor.", armor: 2, hooks: {} }),
+  g(R, { id: "s_gold_signet", kind: "trinket", slot: "trinket", name: "Gold Signet", tags: ["Strike"], text: "+2 Damage.", hooks: dmg(2) }),
+  g(R, { id: "s_heartstone", kind: "trinket", slot: "trinket", name: "Heartstone", tags: ["Blood"], text: "+12 Max HP.", maxHp: 12, hooks: {} }),
+  g(R, { id: "s_warriors_torc", kind: "trinket", slot: "trinket", name: "Veteran's Torc", tags: ["Strike", "Guard"], text: "+1 Damage, +2 Armor and +4 Max HP.", armor: 2, maxHp: 4, hooks: dmg(1) })
 ];
