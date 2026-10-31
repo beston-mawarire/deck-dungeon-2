@@ -1,6 +1,6 @@
 // Dodge gear (Uncommon and up), elemental weapons (Rare and up), Doom weapons (Epic and up), and Keepsakes.
 import type { GearBase, HookDef } from "../engine/types";
-import { applyStatus, CRIT, GRAZE, hex, HIT, MISS, ping, spell } from "./helpers";
+import { applyStatus, CRIT, GRAZE, heal, hex, HIT, MISS, ping, spell } from "./helpers";
 
 // ---------- Dodge gear: a % chance to dodge a hit. Set by rarity: single digits at Uncommon, more above. ----------
 export const DODGE_GEAR: GearBase[] = [
@@ -53,6 +53,35 @@ export const DOOM_WEAPONS: GearBase[] = [
   { id: "w_reaper_glaive", kind: "weapon", slot: "main", name: "Reaper's Glaive", minItemRarity: "epic", tags: ["Hex", "Kill"], damage: 8, twoHanded: true,
     faces: [MISS, HIT, HIT, spell("Mark", "hit", hex("doom", 2)), HIT, spell("Harvest", "crit", hex("doom", 6))],
     text: "Two-handed. Marks on 4 (2 Doom); a 6 is the Harvest (6 Doom).", hooks: {} }
+];
+
+// ---------- More armour: heavy, medium and light, each with a twist ----------
+export const ARMOUR_ADDS: GearBase[] = [
+  // Heavy: lots of Armor, a cost to match.
+  { id: "a_juggernaut", kind: "armour", slot: "armour", name: "Juggernaut Plate", tags: ["Guard", "Strike"], armor: 6,
+    text: "Heavy: +6 Armor, −1 Damage. Guarding also gives 2 Might.", hooks: { stats: s => { s.damage -= 1; s.offDamage -= 1; }, onGuard: (b, f) => applyStatus(b, f, f, "might", 2) } },
+  { id: "a_dragonbone", kind: "armour", slot: "armour", name: "Dragonbone Plate", tags: ["Guard", "Burn"], armor: 5, maxHp: 4,
+    text: "Heavy: +5 Armor and +4 Max HP. You can't be Burned. Start each fight Weak for 1 round.",
+    hooks: { incomingStatus: (_b, _f, s, n) => (s === "burn" ? 0 : n), onFightStart: (b, f) => applyStatus(b, null, f, "weak", 1) } },
+  { id: "a_bastion_harness", kind: "armour", slot: "armour", name: "Bastion Harness", tags: ["Guard", "Thorns"], armor: 5,
+    text: "Heavy: +5 Armor. While Guarding, a quarter of every hit you take is thrown back at the attacker.",
+    hooks: { whenHit: (b, c) => { if (c.defender.flags["guarding"] && (c.raw ?? 0) > 0) ping(b, c.attacker, Math.ceil((c.raw ?? 0) / 4), "Bastion Harness"); } } },
+  // Medium: solid Armor and a useful edge.
+  { id: "a_wardens_hauberk", kind: "armour", slot: "armour", name: "Warden's Hauberk", tags: ["Guard", "Hex"], armor: 3,
+    text: "Medium: +3 Armor. Start each fight with Ward.", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1) } },
+  { id: "a_studded_leather", kind: "armour", slot: "armour", name: "Studded Leather", tags: ["Thorns", "Bleed"], armor: 2,
+    text: "Medium: +2 Armor. Attackers that hit you take 1 Bleed.", hooks: { whenHit: (b, c) => { if (c.dealt > 0) applyStatus(b, c.defender, c.attacker, "bleed", 1); } } },
+  { id: "a_brigand_vest", kind: "armour", slot: "armour", name: "Brigand's Vest", tags: ["Crit", "Blood"], armor: 2,
+    text: "Medium: +2 Armor. Your crits heal 2.", hooks: { onCrit: (b, c) => { heal(b, c.attacker, 2, "Brigand's Vest"); } } },
+  // Light: little or no Armor, a strong trick.
+  { id: "a_silk_robe", kind: "armour", slot: "armour", name: "Silk Robe", tags: ["Arcane"],
+    text: "Light: no Armor. Spell Amp +15%: your spells deal 15% more.", hooks: { stats: s => { s.spellAmp += 15; } } },
+  { id: "a_ranger_cloak", kind: "armour", slot: "armour", name: "Ranger's Cloak", tags: ["Crit", "Tempo"], armor: 1,
+    text: "Light: +1 Armor. Your first attack each fight crits on a 5 or 6.",
+    hooks: { modifyAttack: (_b, c) => { if (!c.attacker.flags["rangerShot"]) { c.attacker.flags["rangerShot"] = 1; if (c.face === 5 && c.kind === "hit") { c.kind = "crit"; c.mult = 2; c.ignoreArmor = true; } } } } },
+  { id: "a_pilgrim_habit", kind: "armour", slot: "armour", name: "Pilgrim's Habit", tags: ["Blood", "Holy"], armor: 1,
+    text: "Light: +1 Armor. While you're below half HP, heal 2 at the end of every round.",
+    hooks: { onRoundEnd: (b, f) => { if (f.hp > 0 && f.hp < f.maxHp / 2) heal(b, f, 2, "Pilgrim's Habit"); } } }
 ];
 
 // ---------- Keepsakes: one at a time, from bosses after floor 5 ----------

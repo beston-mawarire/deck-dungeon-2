@@ -48,8 +48,8 @@ export const KIT_UPGRADES: GearBase[] = [
       onStatusApplied: (_b, self_, t, s) => { if (s === "burn" && t !== self_) t.statuses.burn = st(t, "burn") + 1; } } }),
   g(U, { id: "k_woven_robes", kind: "armour", slot: "armour", name: "Woven Robes", tags: ["Arcane", "Guard"], text: "Greater Cloth Robes. +1 Armor. Start each fight with 2 Barrier per floor (+2). Burn and Chill you apply get +1.", armor: 1,
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "barrier", 2 + 2 * depth(f)), onStatusApplied: (_b, _s, t, s) => { if (s === "burn" || s === "chill") t.statuses[s] = st(t, s) + 1; } } }),
-  g(R, { id: "k_archmages_robes", kind: "armour", slot: "armour", name: "Archmage's Robes", tags: ["Arcane", "Guard"], text: "+1 Armor. Start each fight with Ward and 3 Barrier per floor (+2). Burn, Chill, Poison and Static you apply get +1.", armor: 1,
-    hooks: { onFightStart: (b, f) => { applyStatus(b, f, f, "ward", 1); applyStatus(b, f, f, "barrier", 2 + 3 * depth(f)); },
+  g(R, { id: "k_archmages_robes", kind: "armour", slot: "armour", name: "Archmage's Robes", tags: ["Arcane", "Guard"], text: "+1 Armor. Spell Amp +10%. Start each fight with Ward and 3 Barrier per floor (+2). Burn, Chill, Poison and Static you apply get +1.", armor: 1,
+    hooks: { stats: s => { s.spellAmp += 10; }, onFightStart: (b, f) => { applyStatus(b, f, f, "ward", 1); applyStatus(b, f, f, "barrier", 2 + 3 * depth(f)); },
       onStatusApplied: (_b, self_, t, s) => { if (t !== self_ && (s === "burn" || s === "chill" || s === "poison" || s === "static")) t.statuses[s] = st(t, s) + 1; } } }),
 
   // ---------- Cleric: Blessed Mace, Holy Symbol, Padded Robes ----------

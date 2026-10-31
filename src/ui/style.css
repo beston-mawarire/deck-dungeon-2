@@ -272,3 +272,23 @@ button.story { min-height: 44px; white-space: nowrap; }
 @media (min-width: 600px) { .modes { grid-template-columns: 1fr 1fr; } }
 .story-pop { border-color: var(--rare); }
 .story-text { font-size: 1.05rem; line-height: 1.55; font-style: italic; color: #e9e0f3; }
+
+/* ---------- Bag stat tiles ---------- */
+.stiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-top: 8px; }
+.stile { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; display: grid; grid-template-columns: auto 1fr; column-gap: 6px; align-items: center; }
+.stile .si { grid-row: span 2; font-size: 1.2rem; }
+.stile .sl { font-size: .74rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.stile b { font-size: .98rem; }
+@media (max-width: 480px) { .stiles { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- Mode buttons with Story inside ---------- */
+.modebtn { display: flex; align-items: center; gap: 8px; justify-content: space-between; min-height: 52px; padding: 8px 8px 8px 14px; border-radius: 12px; border: 1px solid var(--line); background: #2a2233; cursor: pointer; font-weight: 600; }
+.modebtn.active { background: var(--gold); color: #1a1408; border-color: var(--gold); }
+.story-chip { font-size: .85rem; font-weight: 600; padding: 6px 10px; border-radius: 9px; background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.12); white-space: nowrap; }
+.modebtn:not(.active) .story-chip { background: #1d1926; }
+.story-chip:hover { filter: brightness(1.2); }
+.beat { border-color: #8a5cc8; }
+
+/* ---------- Class action buttons: a distinct fill ---------- */
+button.classact { background: linear-gradient(180deg, #2f5f9e, #234a7c); border-color: #4f9cf0; color: #eaf4ff; font-weight: 700; }
+button.classact:disabled { background: #2a2233; border-color: var(--line); color: var(--muted); }

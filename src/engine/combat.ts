@@ -112,6 +112,15 @@ function purify(b: Battle, ctx: AttackCtx) {
   afterStrike(b, ctx);
 }
 
+/**
+ * How much of a hit Armor stops: Armor / (Armor + 4). 2 Armor stops 33%, 3 stops 43%, 4 stops 50%, 8 stops 67%.
+ * Without Guarding it tops out at 70%; Guarding (which also doubles Armor) lets it reach 90%.
+ */
+export function armorReduction(armor: number, guarding: boolean): number {
+  if (armor <= 0) return 0;
+  return Math.min(guarding ? 0.9 : 0.7, armor / (armor + 4));
+}
+
 export function armorOf(f: Fighter): number {
   let a = f.armor;
   // Guarding doubles Armor (Fortress Heart: triples); "+Armor while Guarding" effects add on top.
@@ -212,6 +221,8 @@ function strike(b: Battle, ctx: AttackCtx) {
   }
   // Mana Potion: spells hit 50% harder for the rest of the fight.
   if (a.flags["mana"] && ctx.spec.magic) raw *= 1.5;
+  // Spell Amp (gear): spells deal more.
+  if (ctx.spec.magic && (a.spellAmp ?? 0) > 0) raw *= 1 + (a.spellAmp ?? 0) / 100;
   // Keepsake of the Deadeye: crits deal 50% more.
   if (ctx.kind === "crit" && stacksOf(a, "ks_deadeye") > 0) raw *= 1.5;
   // A failed Counter leaves you off-balance for one attack.
@@ -280,14 +291,14 @@ function strike(b: Battle, ctx: AttackCtx) {
     if (d.barrierElement && a.hp > 0) applyStatus(b, d, a, d.barrierElement, tier >= 2 ? 2 : 1);
   }
   const armor = ctx.ignoreArmor ? 0 : armorOf(d);
-  // Armor can't soak a whole hit unless you're Guarding: at least a third always gets through.
-  const floorDmg = d.flags["guarding"] || stacksOf(d, "lr_anvil_heart") ? 0 : Math.floor(raw / 3);
-  const after = Math.max(floorDmg, raw - armor);
+  // Armor stops a percentage of each hit (see armorReduction); Guarding doubles Armor and lifts the cap.
+  const cut = armorReduction(armor, !!d.flags["guarding"] || stacksOf(d, "lr_anvil_heart") > 0);
+  const after = Math.max(0, d.flags["guarding"] ? Math.floor(raw * (1 - cut)) : Math.round(raw * (1 - cut)));
   if (ctx.kind === "crit") fx(b, { who: d.id, kind: "crit", text: "Crit!" });
   if (ctx.kind === "graze") fx(b, { who: d.id, kind: "text", text: "Graze" });
   ctx.dealt = loseHp(b, d, after);
   const label = ctx.kind === "crit" ? "Crit! " : ctx.kind === "graze" ? "Graze. " : "";
-  log(b, `${label}${a.name} hits ${d.name} for ${ctx.dealt}${armor && raw > 0 ? ` (${raw} − ${armor} Armor)` : ""}.`);
+  log(b, `${label}${a.name} hits ${d.name} for ${ctx.dealt}${armor && raw > 0 ? ` (${raw}, ${Math.round(cut * 100)}% stopped by Armor)` : ""}.`);
   if (shatter) applyStatus(b, a, d, "stun", 1);
   if (bashed && ctx.dealt > 0) {
     log(b, "💥 Bash!");

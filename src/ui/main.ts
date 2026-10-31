@@ -2,12 +2,12 @@
 import { BONUSES, CRIMSON, CURSES, KEEPSAKES, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
 import { FUSION_RECIPES } from "../data/fusions";
 import { ORIGINS } from "../data/origins";
-import { armorOf, beginRound, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly } from "../engine/combat";
-import { getItem } from "../engine/registry";
+import { armorOf, armorReduction, beginRound, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly } from "../engine/combat";
+import { eachHook, getItem } from "../engine/registry";
 import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
 import {
-  BACKPACK_SIZE, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, equipItem, fillText, type Hero, itemLines, itemName, rerollCost,
+  BACKPACK_SIZE, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost,
   keepsOffHand, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
 } from "../game/hero";
 import { lockedIds, loadMeta, type Meta, recordRun, UNLOCK_TIERS } from "../game/meta";
@@ -200,8 +200,8 @@ function titleScreen() {
     ${next ? `<p class="sub">Next unlock at ${next.at} Renown: <b>${esc(next.name)}</b> (${locked.size} items still locked)</p>` : `<p class="sub">Everything is unlocked.</p>`}</div>
   <h2>Mode</h2>
   <div class="modes">
-    <div class="moderow"><button data-mode="campaign" class="grow ${mode === "campaign" ? "primary" : ""}">🏰 Campaign · ${FLOORS} floors</button><button class="small story" data-story="campaign">📖 Story</button></div>
-    <div class="moderow"><button data-mode="endless" class="grow ${mode === "endless" ? "primary" : ""}">♾️ Endless · how deep?</button><button class="small story" data-story="endless">📖 Story</button></div>
+    <div class="modebtn ${mode === "campaign" ? "active" : ""}" data-mode="campaign" role="button" tabindex="0"><span>🏰 Campaign · ${FLOORS} floors</span><span class="story-chip" data-story="campaign" role="button">📖 Story</span></div>
+    <div class="modebtn ${mode === "endless" ? "active" : ""}" data-mode="endless" role="button" tabindex="0"><span>♾️ Endless · how deep?</span><span class="story-chip" data-story="endless" role="button">📖 Story</span></div>
   </div>
   <p class="sub">${mode === "campaign" ? `${FLOORS} floors, ${FLOORS} bosses — the Hollow King waits at the bottom.` : `Past floor ${FLOORS}, the bosses you didn't meet return, and new ones are forged from a library of names, titles and powers. Floor ${WALL_FLOOR} is a wall only a broken build gets through.`}</p>
   <h2>Choose an origin</h2>
@@ -243,7 +243,7 @@ function mapScene(r: Run) {
   const pips = fortunePips(r.floor);
   return `<div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = richer</span></div>
   <h2>${r.step >= STEPS_PER_FLOOR ? (r.floor === WALL_FLOOR ? "The Wall" : "The boss awaits") : "Choose your path"}</h2>
-  <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") ? "crimson-room" : ""}" data-room="${c}"><span class="ic">${ROOM_INFO[c].icon}</span><b>${ROOM_INFO[c].name}</b><span class="sub">${esc(ROOM_INFO[c].text)}</span></button>`).join("")}</div>`;
+  <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") ? "crimson-room" : ""}" data-room="${c}"><span class="ic">${c === "boss" && r.floor >= FLOORS ? "💀" : ROOM_INFO[c].icon}</span><b>${ROOM_INFO[c].name}</b><span class="sub">${esc(ROOM_INFO[c].text)}</span></button>`).join("")}</div>`;
 }
 
 function dieBox(who: "player" | "enemy", label: string) {
@@ -275,7 +275,7 @@ function combatScene(r: Run) {
     <div class="c-player">${fighterPanel(b.player, "player")}
     ${(b.player.statuses.stun ?? 0) > 0 ? `<div class="toast err">💫 You're Stunned: your next turn will be skipped.</div>` : ""}</div>
     <div class="c-actions"><div class="row actions ${busy ? "busy" : ""}">
-      ${availableActions(r).map(a => `<button class="${a === "attack" ? "primary" : a === "flee" ? "" : a === "guard" ? "" : "classact"}" data-act="${a}" title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(b.player)}</button>`).join("")}
+      ${r.hero.origin === "rogue" && (b.player.statuses.evade ?? 0) > 0 ? `<button class="classact" disabled title="You'll already Evade the next attack">Counter</button>` : ""}${availableActions(r).map(a => `<button class="${a === "attack" ? "primary" : a === "flee" ? "" : a === "guard" ? "" : "classact"}" data-act="${a}" title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(b.player)}</button>`).join("")}
     </div>
     <p class="center sub diefaces">Your die: ${b.player.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind}`).join(" · ")}</p></div>
     </div>
@@ -448,14 +448,35 @@ function bag(r: Run) {
   const f = h.f;
   const crits = f.faces.filter(x => x.kind === "crit").length;
   const misses = f.faces.filter(x => x.kind === "miss").length;
-  const stats = `<div class="panel"><div class="row stat">
-      <span>❤️ <b>${Math.max(0, f.hp)}</b>/${f.maxHp}</span><span>⚔️ Damage <b>${f.damage}</b>${f.offDamage !== undefined ? ` + off-hand <b>${f.offDamage}</b>` : ""}</span><span>🛡️ Armor <b>${f.armor}</b></span>
-      <span>Lv <b>${h.level}</b> (${h.xp}/${xpToLevel(h.level)} XP)</span></div>
-      ${f.dodge || f.bash ? `<div class="row stat">${f.dodge ? `<span>💨 Dodge <b>${f.dodge}%</b></span>` : ""}${f.bash ? `<span>💥 Bash <b>${f.bash}%</b></span>` : ""}</div>` : ""}
-      <div class="row stat"><span>🎲 d${f.faces.length}: ${crits} crit face${crits === 1 ? "" : "s"}, ${misses} miss face${misses === 1 ? "" : "s"}</span></div>
-      <div class="row stat"><span>🪙 ${f.gold}</span><span>⚙️ ${h.scrap}</span><span>✴️ ${h.starmetal}</span><span>📜 ${h.scrolls}</span><span>🧪 ${h.potions}</span></div>
-      <p class="sub" style="margin:4px 0 0">${f.faces.map((x, i) => `${i + 1} ${x.name ?? x.kind}`).join(" · ")}</p>
-      <p class="sub" style="margin:4px 0 0">Armor can't stop more than two-thirds of a hit unless you Guard.</p></div>`;
+  // Derived stats, so you can see what your build adds up to.
+  const pct = (n: number) => `${Math.round(n * 100)}%`;
+  const sides = f.faces.length;
+  const critChance = crits / sides;
+  const missChance = (misses + f.faces.filter(x => x.kind === "graze").length * 0.5) / sides;
+  const guardArmor = f.armor * ((f.items["r_fortress_heart"] ?? 0) > 0 ? 3 : 2);
+  let healMul = 1;
+  eachHook(f, "healMult", (fn, n) => (healMul *= fn(n)));
+  let rxMul = 1;
+  eachHook(f, "reactionMult", (fn, n) => (rxMul *= fn({} as never, f, n)));
+  const staticCapNow = (f.items["t_boundless_static"] ?? 0) > 0 ? "∞" : (f.items["l_storm_rod"] ?? 0) > 0 || (f.items["lr_stormheart"] ?? 0) > 0 ? "20" : "10";
+  const tile = (icon: string, label: string, value: string, tip = "") => `<div class="stile" title="${esc(tip)}"><span class="si">${icon}</span><span class="sl">${label}</span><b>${value}</b></div>`;
+  const stats = `<div class="panel">
+      <div class="row stat"><span>❤️ <b>${Math.max(0, f.hp)}</b>/${f.maxHp}</span><span>Lv <b>${h.level}</b> (${h.xp}/${xpToLevel(h.level)} XP)</span>
+        <span>🪙 ${f.gold}</span><span>⚙️ ${h.scrap}</span><span>✴️ ${h.starmetal}</span><span>📜 ${h.scrolls}</span><span>🧪 ${h.potions}</span>${h.manaPotions ? `<span>🔷 ${h.manaPotions}</span>` : ""}</div>
+      <div class="stiles">
+        ${tile("⚔️", "Damage", `${f.damage}${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}`, "Main die damage (+ off-hand die)")}
+        ${tile("🎯", "Crit chance", pct(critChance), `${crits} of ${sides} faces crit (double damage, ignores Armor)`)}
+        ${tile("🌫️", "Miss chance", pct(missChance), "Miss faces count fully, Grazes as half")}
+        ${tile("🛡️", "Armor", `${f.armor}`, "Armor stops a percentage of each hit")}
+        ${tile("🧱", "Damage stopped", `${pct(armorReduction(f.armor, false))}${canGuard(h) ? ` · ${pct(armorReduction(guardArmor, true))} guarding` : ""}`, canGuard(h) ? "How much of a hit your Armor stops, and while Guarding" : "How much of a hit your Armor stops (you need a shield to Guard)")}
+        ${tile("💨", "Dodge", `${f.dodge ?? 0}%`, "Chance to dodge a hit entirely (max 60%)")}
+        ${tile("💥", "Bash", `${f.bash ?? 0}%`, "Chance your weapon Bashes: Stun and +50% (max 30%)")}
+        ${tile("🔮", "Spell Amp", `+${f.spellAmp ?? 0}%`, "Extra damage on spell faces")}
+        ${tile("💚", "Healing", `${healMul >= 1 ? "+" : ""}${Math.round((healMul - 1) * 100)}%`, "Bonus to all healing you receive")}
+        ${tile("✴️", "Reactions", `${rxMul >= 1 ? "+" : ""}${Math.round((rxMul - 1) * 100)}%`, "Bonus to reaction damage")}
+        ${tile("🔋", "Static cap", staticCapNow, "Most Static you can stack on an enemy")}
+      </div>
+      <p class="sub" style="margin:6px 0 0">🎲 d${sides}: ${f.faces.map((x, i) => `${i + 1} ${x.name ?? x.kind}`).join(" · ")}</p></div>`;
   // Every slot you're using holds a Legendary (or Crimson): the whole bag glows.
   const slotsOpen = openSlots(h);
   const worn = slotsOpen.map(s => h.equip[s]);
@@ -522,6 +543,17 @@ function storyPopup(m: Mode) {
     <h1 class="center bigname">${st.title}</h1>
     <p class="story-text">${esc(st.text)}</p>
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-closestory>Close</button></div>
+  </div></div>`;
+}
+
+let winSeen = false;
+/** A story moment: a centered popup with an icon, a title and a little text. */
+function storyBeat(p: { icon: string; title: string; text: string }, close = "data-closepopup") {
+  return `<div class="overlay popup-wrap"><div class="popup story-pop beat">
+    <div class="center bigicon">${p.icon}</div>
+    <h1 class="center bigname">${esc(p.title)}</h1>
+    <p class="story-text">${esc(p.text)}</p>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" ${close}>Continue</button></div>
   </div></div>`;
 }
 
@@ -624,7 +656,8 @@ function render() {
   // Level up: once the rewards are picked, a fanfare and a popup before the talent choice.
   const levelPopup = s.t === "talent" && ackedTalentScene !== s;
   if (levelPopup && !celebratedLevel.has(s)) { celebratedLevel.add(s); celebrate("legendary", "LEVEL UP!"); }
-  app.innerHTML = `${levelPopup ? levelUpPopup(r) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}`;
+  const winPopup = s.t === "over" && s.won && r.mode === "campaign" && !winSeen;
+  app.innerHTML = `${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}`;
   bind();
 }
 
@@ -764,7 +797,7 @@ function bind() {
     on("[data-back]", () => { view = "title"; });
     on("[data-origin]", el => { pendingOrigin = el.dataset.origin as OriginId; });
     on("[data-closeorigin]", () => { pendingOrigin = null; });
-    on("[data-start]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; run = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
+    on("[data-start]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; run = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
     return;
   }
   const r = run;
@@ -792,6 +825,8 @@ function bind() {
   on("[data-mana]", () => { say(drinkMana(r)); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-keepsake]", () => { say(takeKeepsake(r), false); sfx("legendary"); });
   on("[data-choosetalent]", () => { ackedTalentScene = r.scene; });
+  on("[data-closepopup]", () => { r.popup = undefined; });
+  on("[data-closewin]", () => { winSeen = true; });
   on("[data-talent]", el => chooseTalent(r, el.dataset.talent!));
   on("[data-buy]", el => say(buy(r, Number(el.dataset.buy))));
   on("[data-reroll]", () => say(rerollShop(r)));

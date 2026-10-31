@@ -78,6 +78,8 @@ export interface Run {
   seenBosses: Set<string>;
   /** Shop rerolls used at the current Merchant (each costs more). */
   shopRerolls: number;
+  /** A story popup waiting to be shown (e.g. arriving on the last floor). */
+  popup?: { title: string; text: string; icon: string };
 }
 
 export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: Mode = "campaign", locked: Set<string> = new Set()): Run {
@@ -223,7 +225,8 @@ export function availableActions(run: Run): Action[] {
   const b = run.scene.battle;
   const out: Action[] = ["attack"];
   if (canGuard(h)) out.push("guard");
-  if (h.origin === "rogue") out.push("counter");
+  // Counter can't be used while Evade already has the next hit covered.
+  if (h.origin === "rogue" && !((h.f.statuses.evade ?? 0) > 0)) out.push("counter");
   if (h.origin === "mage" && h.f.barrierElement) out.push("barrier");
   if (h.origin === "cleric") out.push("penance");
   if (h.origin === "warrior" && !h.f.flags["warcry"]) out.push("warcry");
@@ -856,6 +859,7 @@ export function advance(run: Run, fromTalent = false) {
       run.floor++;
       run.step = 0;
       run.message = `Floor ${run.floor}. The air is colder, and the hoards are richer: your Fortune grows.`;
+      if (run.floor === FLOORS) run.popup = { icon: "🕳️", title: "The Source of the Darkness", text: "You are close now. The darkness here is thick enough to taste, and every step pulls at you. A cold despair settles in your chest, whispering that the gate cannot be closed, that no one walks back out. Somewhere below, the gate breathes." };
       if (run.floor > FLOORS && run.mode === "campaign") {
         run.scene = { t: "over", won: true };
         return;

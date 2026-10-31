@@ -127,7 +127,7 @@ export function recompute(h: Hero) {
   if (h.keepsake) add(h.keepsake);
   if (!hasThirdTrinket(h) && h.equip.trinket3) { h.backpack.push(h.equip.trinket3); delete h.equip.trinket3; }
 
-  const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0 };
+  const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0, spellAmp: 0 };
   f.barrierElement = undefined;
   f.faces = PLAIN_FACES;
   f.offFaces = undefined;
@@ -175,6 +175,7 @@ export function recompute(h: Hero) {
   f.offDamage = f.offFaces ? Math.max(0, s.offDamage) : undefined;
   f.dodge = Math.min(60, Math.max(0, s.dodge));
   f.bash = Math.min(30, Math.max(0, s.bash));
+  f.spellAmp = Math.max(0, s.spellAmp);
   // Twin Souls: a second die with your main weapon's faces at 60% damage.
   if (items["lr_twin_souls"]) {
     f.offFaces = f.faces;

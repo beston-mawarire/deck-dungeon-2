@@ -69,6 +69,8 @@ export interface Fighter {
   barrierElement?: StatusId;
   /** Dodge chance in % (capped at 60). Separate from Evade: neither triggers the other's bonuses. */
   dodge?: number;
+  /** Spell Amp in %: spells (magic faces) deal this much more. */
+  spellAmp?: number;
   /** Bash chance in % for the main weapon (capped at 30): a bash Stuns and deals +50%. */
   bash?: number;
   /** Crimson Elites and bosses: rare, much harder, and the only source of Crimson keys and items. */
@@ -169,6 +171,7 @@ export interface StatBlock {
   /** Dodge %, and Bash % (Bash only from the weapon and rare relics). */
   dodge: number;
   bash: number;
+  spellAmp: number;
 }
 
 /** Anything with hooks: gear bases, bonuses, Epic powers, relics, talents, monster traits, origin passives, curses. */

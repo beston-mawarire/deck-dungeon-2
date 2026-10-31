@@ -658,6 +658,9 @@ describe("class actions and new stats", () => {
     const run = newRun("rogue", 51);
     chooseRoom(run, "fight");
     expect(availableActions(run)).not.toContain("guard");
+    // Leather Jerkin starts the fight with Evade, so Counter is locked until it's used up.
+    expect(availableActions(run)).not.toContain("counter");
+    run.hero.f.statuses.evade = 0;
     expect(availableActions(run)).toContain("counter");
     const w = newRun("warrior", 52);
     chooseRoom(w, "fight");
@@ -752,5 +755,22 @@ describe("class actions and new stats", () => {
     h.keepsake = undefined; recompute(h);
     expect(h.equip.trinket3).toBeUndefined();
     expect(h.backpack.some(i => i.uid === 802)).toBe(true);
+  });
+});
+
+describe("armor and story beats", () => {
+  it("armor stops a percentage, more while Guarding", async () => {
+    const { armorReduction } = await import("../src/engine/combat");
+    expect(armorReduction(0, false)).toBe(0);
+    expect(armorReduction(4, false)).toBeCloseTo(0.5);
+    expect(armorReduction(100, false)).toBe(0.7);
+    expect(armorReduction(100, true)).toBe(0.9);
+  });
+  it("arriving on floor 5 shows the despair popup", () => {
+    const run = newRun("mage", 77);
+    run.floor = 4; run.step = 7;
+    advance(run);
+    expect(run.floor).toBe(5);
+    expect(run.popup?.title).toMatch(/Darkness/);
   });
 });
