@@ -54,7 +54,7 @@ export function staticTick(b: Battle, f: Fighter) {
   const foe = other(b, f);
   const extra = 2 * (foe.items["r_overcharged_cell"] ?? 0) + ((foe.items["ee_stormheart_pendant"] ?? 0) > 0 ? 2 : 0) + ((foe.items["cx_storm_skin"] ?? 0) > 0 ? 4 : 0);
   const dmg = (2 + extra) * (conductive(f) ? 2 : 1) * ((foe.items["lr_stormheart"] ?? 0) > 0 ? 3 : 1);
-  const lost = loseHp(b, f, dmg);
+  const lost = loseHp(b, f, Math.round(dmg * dotMult(b, f)));
   log(b, `🔋 Static crackles through ${f.name} as it acts: ${lost}.`);
 }
 
@@ -303,11 +303,16 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
   }
 }
 
+/** Status damage on `f` is boosted by its foe's Status damage (robes and the like). */
+export function dotMult(b: Battle, f: Fighter) {
+  return 1 + (other(b, f).dotAmp ?? 0) / 100;
+}
+
 /** Burn ticks at the start of the holder's turn. */
 export function startOfTurn(b: Battle, f: Fighter) {
   const burn = st(f, "burn");
   if (burn > 0) {
-    const lost = loseHp(b, f, burn);
+    const lost = loseHp(b, f, Math.round(burn * dotMult(b, f)));
     log(b, `🔥 ${f.name} burns for ${lost}.`);
     const skip = f.flags["burnNoHalve"] ?? 0;
     f.statuses.burn = skip ? burn : Math.floor(burn / 2);
@@ -322,7 +327,7 @@ export function endOfRound(b: Battle, f: Fighter) {
     let ticks = f.flags["rupture"] ? 2 : 1;
     if (st(f, "chill") > 0 && (opp.items["frostbite_needle"] ?? 0) > 0) ticks *= 2;
     for (let i = 0; i < ticks; i++) {
-      const lost = loseHp(b, f, bleed);
+      const lost = loseHp(b, f, Math.round(bleed * dotMult(b, f)));
       log(b, `🩸 ${f.name} bleeds for ${lost}.`);
       if (f.flags["sepsis"]) f.statuses.poison = st(f, "poison") + 1;
     }
@@ -330,7 +335,7 @@ export function endOfRound(b: Battle, f: Fighter) {
   }
   const poison = st(f, "poison");
   if (poison > 0) {
-    const lost = loseHp(b, f, poison);
+    const lost = loseHp(b, f, Math.round(poison * dotMult(b, f)));
     log(b, `☠️ ${f.name} takes ${lost} from Poison.`);
   }
   const regen = st(f, "regen");

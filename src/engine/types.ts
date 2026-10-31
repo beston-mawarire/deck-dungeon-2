@@ -85,6 +85,8 @@ export interface Fighter {
   offTwoHanded?: boolean;
   /** Spell Amp in %: spells (magic faces) deal this much more. */
   spellAmp?: number;
+  /** Status damage (%): Burn, Bleed, Poison and Static you put on the enemy hurt this much more. */
+  dotAmp?: number;
   /** Bash chance in % for the main weapon (capped at 30): a bash Stuns and deals +50%. */
   bash?: number;
   /** Crimson Elites and bosses: rare, much harder, and the only source of Crimson keys and items. */
@@ -188,6 +190,7 @@ export interface StatBlock {
   dodge: number;
   bash: number;
   spellAmp: number;
+  dotAmp?: number;
   critChance: number;
 }
 

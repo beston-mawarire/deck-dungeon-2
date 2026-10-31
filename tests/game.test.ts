@@ -762,6 +762,16 @@ describe("class actions and new stats", () => {
     expect(h.f.hp).toBe(before); // it holds its guard instead of attacking
   });
 
+  it("status robes make Burn on the enemy hurt more", () => {
+    const plain = newHero("mage");
+    const robed = newHero("mage");
+    equipItem(robed, { uid: 901, base: "rb_hexweave", rarity: "uncommon", level: 1, bonuses: {}, revealed: true });
+    expect(robed.f.dotAmp).toBe(15);
+    const hurt = (h: ReturnType<typeof newHero>) => { const b = startBattle(h.f, dummy(), 9); b.enemy.statuses.burn = 20; const hp = b.enemy.hp; enemyPhase(b); return hp - b.enemy.hp; };
+    expect(hurt(robed)).toBe(23);
+    expect(hurt(plain)).toBe(20);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);

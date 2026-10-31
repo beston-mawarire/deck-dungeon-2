@@ -518,6 +518,7 @@ function bag(r: Run) {
         ${tile("💨", "Dodge", `${f.dodge ?? 0}%`, "Chance to dodge a hit entirely (max 60%)")}
         ${tile("💥", "Bash", `${f.bash ?? 0}%`, "Chance your weapon Bashes: Stun and +50% (max 30%)")}
         ${tile("🔮", "Spell Amp", `+${f.spellAmp ?? 0}%`, "Extra damage on spell faces")}
+        ${f.dotAmp ? tile("🧪", "Status damage", `+${f.dotAmp}%`, "Burn, Bleed, Poison and Static on the enemy hurt more") : ""}
         ${tile("💚", "Healing", `${healMul >= 1 ? "+" : ""}${Math.round((healMul - 1) * 100)}%`, "Bonus to all healing you receive")}
         ${tile("✴️", "Reactions", `${rxMul >= 1 ? "+" : ""}${Math.round((rxMul - 1) * 100)}%`, "Bonus to reaction damage")}
         ${tile("🔋", "Static cap", staticCapNow, "Most Static you can stack on an enemy")}
@@ -632,6 +633,7 @@ function helpGlossary() {
     row("💨", "Dodge", "A % chance to avoid a hit entirely (max 60%). Not the same as Evade: Dodge bonuses and Evade bonuses don't trigger each other"),
     row("🎯", "Crit chance", "A % chance that a Hit becomes a Crit (max 50%), on top of your die's Crit faces"),
     row("💥", "Bash", "A % chance (from your weapon and rare relics only, max 30%) to Stun and deal +50%"),
+    row("🧪", "Status damage", "Burn, Bleed, Poison and Static on the enemy deal this much more each time they tick. Mostly on robes for status builds"),
     row("🔮", "Spell Amp", "Spell faces (from wands, staffs and other magic weapons) deal this much more"),
     row("❤️", "Max HP", "Each level-up adds +3. Winning a fight heals 15%; beating a boss heals 30%"),
     row("🔋", "Static cap", "The most Static you can stack on an enemy (10, or more with certain items)")
