@@ -21,7 +21,7 @@ import {
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
-import { isMuted, musicBlocked, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
+import { isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
 
 loadLibrary();
 
@@ -686,7 +686,7 @@ function splashScreen() {
 
 function musicSliders(only?: Track) {
   const sl = (k: Track, label: string) => `<label class="music-row"><span>${label}</span><input type="range" min="0" max="100" step="5" value="${Math.round(musicVolume(k) * 100)}" data-music="${k}"><b data-musicval="${k}">${Math.round(musicVolume(k) * 100)}%</b></label>`;
-  return `<div class="music-sliders">${!only || only === "title" ? sl("title", "🎵 Menu music") : ""}${!only || only === "game" ? sl("game", "🎵 Gameplay music") : ""}</div>`;
+  return `<div class="music-sliders"><div class="row"><button class="small ${isMusicOff() ? "" : "primary"}" data-togglemusic>${isMusicOff() ? "🎵 Music off" : "🎵 Music on"}</button></div>${!only || only === "title" ? sl("title", "🎵 Menu music") : ""}${!only || only === "game" ? sl("game", "🎵 Gameplay music") : ""}</div>`;
 }
 
 function optionsPopup() {
@@ -1003,6 +1003,7 @@ function on(sel: string, fn: (el: HTMLElement) => void) {
 
 function bind() {
   on("[data-mute]", () => toggleMute());
+  on("[data-togglemusic]", () => toggleMusic());
   on("[data-startmusic]", () => playMusic(run ? "game" : "title"));
   app.querySelectorAll<HTMLInputElement>("[data-music]").forEach(el => {
     el.oninput = () => {

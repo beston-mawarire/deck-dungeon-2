@@ -22,18 +22,31 @@ for (const k of ["title", "game"] as Track[]) {
   try { const v = localStorage.getItem(`dd2-music-${k}`); if (v !== null && !Number.isNaN(Number(v))) vol[k] = Math.min(1, Math.max(0, Number(v))); } catch { /* ignore */ }
 }
 let music: HTMLAudioElement | null = null;
+/** Music goes through a Web Audio gain node: iPhones ignore an audio element's own volume. */
+let mctx: AudioContext | null = null;
+let gain: GainNode | null = null;
+let musicOff = false;
+try { musicOff = localStorage.getItem("dd2-music-off") === "1"; } catch { /* ignore */ }
+export const isMusicOff = () => musicOff;
+export function toggleMusic() {
+  musicOff = !musicOff;
+  try { localStorage.setItem("dd2-music-off", musicOff ? "1" : "0"); } catch { /* ignore */ }
+  applyVolume();
+  if (!musicOff && music?.paused) tryPlay();
+}
 let musicKey: Track | null = null;
 let unlockHooked = false;
 /** True while the browser is refusing to play until the player taps (autoplay rules). */
 let blocked = false;
 let onUnblock: (() => void) | null = null;
-export const musicBlocked = () => blocked && !muted;
+export const musicBlocked = () => blocked && !muted && !musicOff;
 /** Called when the music becomes blocked or starts after being blocked (to show/hide a "tap for music" hint). */
 export function onMusicBlockChange(fn: () => void) { onUnblock = fn; }
 
 function tryPlay() {
   if (!music) return;
   const m = music;
+  if (mctx && mctx.state === "suspended") void mctx.resume().catch(() => {});
   void m.play().then(() => {
     if (blocked) { blocked = false; onUnblock?.(); }
   }).catch(() => { if (m === music && !blocked) { blocked = true; onUnblock?.(); } });
@@ -46,7 +59,27 @@ export function setMusicVolume(k: Track, v: number) {
   applyVolume();
 }
 function applyVolume() {
-  if (music && musicKey) music.volume = muted ? 0 : vol[musicKey];
+  if (!music || !musicKey) return;
+  const v = muted || musicOff ? 0 : vol[musicKey];
+  if (gain) {
+    music.volume = 1;
+    gain.gain.value = v;
+  } else music.volume = v;
+}
+
+/** Hook a new track into the gain node (not for local files: browsers silence those through Web Audio). */
+function routeThroughGain(m: HTMLAudioElement) {
+  gain = null;
+  if (typeof location === "undefined" || location.protocol === "file:") return;
+  try {
+    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    mctx ??= new AC();
+    const g = mctx.createGain();
+    mctx.createMediaElementSource(m).connect(g).connect(mctx.destination);
+    gain = g;
+  } catch {
+    gain = null;
+  }
 }
 
 /** Switch to a track (no-op if it's already playing). Browsers only allow sound after a tap, so we retry then. */
@@ -58,6 +91,7 @@ export function playMusic(k: Track) {
   music = new Audio(TRACK_URL[k]);
   music.loop = true;
   music.preload = "auto";
+  routeThroughGain(music);
   applyVolume();
   tryPlay();
   // Browsers (iPhones especially) only allow sound from a real tap or key press, and only some events
