@@ -4,7 +4,7 @@ import { CAMPAIGN_FLOORS, makeBoss, makeCrimsonBoss, WALL_FLOOR } from "../data/
 import { EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
 import { makeMonster, makeThief, type MonsterRank } from "../data/monsters";
-import { type Action, playRound, startBattle } from "../engine/combat";
+import { type Action, actionToll, playRound, startBattle } from "../engine/combat";
 import { getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
 import { heal as healF } from "../engine/statuses";
@@ -225,8 +225,9 @@ export function availableActions(run: Run): Action[] {
   const b = run.scene.battle;
   const out: Action[] = ["attack"];
   if (canGuard(h)) out.push("guard");
-  // Counter can't be used while Evade already has the next hit covered.
-  if (h.origin === "rogue" && !((h.f.statuses.evade ?? 0) > 0)) out.push("counter");
+  // Class actions are always offered, even when they'd be wasted (e.g. Counter while Evade already covers the next hit):
+  // reading the fight is part of the skill.
+  if (h.origin === "rogue") out.push("counter");
   if (h.origin === "mage" && h.f.barrierElement) out.push("barrier");
   if (h.origin === "cleric") out.push("penance");
   if (h.origin === "warrior" && !h.f.flags["warcry"]) out.push("warcry");
@@ -257,6 +258,7 @@ export function drinkMana(run: Run): string | null {
   if (h.f.flags["mana"]) return "You're already brimming with mana this fight.";
   h.manaPotions--;
   h.f.flags["mana"] = 1;
+  actionToll(run.scene.battle, h.f);
   run.scene.battle.fx.push({ who: "player", kind: "text", text: "Mana surges!", icon: "🔷" });
   run.scene.battle.log.push("🔷 You drink a Mana Potion: your spells surge for the rest of the fight.");
   return null;
@@ -281,7 +283,7 @@ export function drinkPotion(run: Run) {
   h.potions--;
   let amount = h.f.items["l_bottomless"] ? Math.ceil(h.f.maxHp / 2) : 12;
   if (h.f.items["c_famine"]) amount = Math.ceil(amount / 2);
-  if (run.scene.t === "combat") healF(run.scene.battle, h.f, amount, "Potion");
+  if (run.scene.t === "combat") { actionToll(run.scene.battle, h.f); healF(run.scene.battle, h.f, amount, "Potion"); }
   else h.f.hp = Math.min(h.f.maxHp, h.f.hp + amount);
 }
 

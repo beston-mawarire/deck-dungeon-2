@@ -61,12 +61,14 @@ export const NAMED_BOSSES: Record<string, BossDef> = {
   morwen: { name: "Morwen", title: "the Frost Queen", family: "Undead", moves: ["frost", "gaze", "strike", "bulwark"] },
   glutton: { name: "The Gilded Glutton", title: "Hoarder of the Deep", family: "Beast", moves: ["drain", "flurry", "regrow", "heavy"], traits: ["x_regenerating"] },
   oathbreaker: { name: "Oathbreaker", title: "the Fallen Paladin", family: "Undead", moves: ["thorns", "malediction", "heavy", "hex", "drain"], armor: 3, traits: ["x_nullifying"] },
+  thorn_queen: { name: "The Thorn Queen", title: "Mistress of Agony", family: "Cultist", moves: ["thorns", "rend", "strike", "hex"], traits: ["m_toll"] },
+  colossus: { name: "The Penitent Colossus", title: "Who Weighs Every Step", family: "Construct", moves: ["bulwark", "heavy", "charge", "smash", "strike"], armor: 3, traits: ["m_toll"], hpMult: 1.1 },
   hollow: { name: "The Hollow King", title: "Who Waits Below", family: "Construct", moves: ["doom", "concuss", "bulwark", "charge", "smash"], armor: 3, traits: ["x_nullifying"],
     faces: [GRAZE, HIT, HIT, HIT, HIT, { ...CRIT, name: "Hollow Decree", run: hex("doom", 3) }] }
 };
 
 /** Campaign line-up by floor: a choice of bosses per floor, the Hollow King always last. */
-const CAMPAIGN_POOLS = [["gnasher", "rot"], ["cinder", "widow", "rot"], ["varkas", "morwen", "skarn"], ["oathbreaker", "glutton", "skarn"], ["hollow"]];
+const CAMPAIGN_POOLS = [["gnasher", "rot"], ["cinder", "widow", "rot", "thorn_queen"], ["varkas", "morwen", "skarn"], ["oathbreaker", "glutton", "skarn", "colossus"], ["hollow"]];
 export const CAMPAIGN_FLOORS = CAMPAIGN_POOLS.length;
 
 export const BOSS_NAMES = [

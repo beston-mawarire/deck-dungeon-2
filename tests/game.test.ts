@@ -658,9 +658,7 @@ describe("class actions and new stats", () => {
     const run = newRun("rogue", 51);
     chooseRoom(run, "fight");
     expect(availableActions(run)).not.toContain("guard");
-    // Leather Jerkin starts the fight with Evade, so Counter is locked until it's used up.
-    expect(availableActions(run)).not.toContain("counter");
-    run.hero.f.statuses.evade = 0;
+    // Counter is offered even while Evade already covers the next hit (a wasted turn is the player's call).
     expect(availableActions(run)).toContain("counter");
     const w = newRun("warrior", 52);
     chooseRoom(w, "fight");
@@ -772,5 +770,25 @@ describe("armor and story beats", () => {
     advance(run);
     expect(run.floor).toBe(5);
     expect(run.popup?.title).toMatch(/Darkness/);
+  });
+});
+
+describe("toll foes", () => {
+  it("every action against a Tormentor costs HP, Guard and potions included", async () => {
+    const { drinkPotion } = await import("../src/game/run");
+    const run = newRun("warrior", 90);
+    chooseRoom(run, "fight");
+    if (run.scene.t !== "combat") return;
+    const e = run.scene.battle.enemy;
+    e.items = { m_toll: 1 }; e.damage = 0; e.hp = e.maxHp = 999;
+    run.hero.f.statuses = {};
+    let hp = run.hero.f.hp;
+    combatAction(run, "guard");
+    expect(run.hero.f.hp).toBeLessThan(hp);
+    hp = run.hero.f.hp;
+    run.hero.potions = 1;
+    run.hero.f.hp = 5; hp = 5;
+    drinkPotion(run);
+    expect(run.hero.f.hp).toBe(Math.min(run.hero.f.maxHp, hp - 1 + 12));
   });
 });

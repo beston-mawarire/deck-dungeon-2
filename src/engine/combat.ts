@@ -355,6 +355,19 @@ function afterStrike(b: Battle, ctx: AttackCtx) {
 
 // ---------- Turn and round flow ----------
 
+/** Toll (Tormentor foes): every action you take costs HP — attacks, Guards, potions, class actions. */
+export function tollOf(enemy: Fighter, player: Fighter): number {
+  const n = (enemy.items["m_toll"] ?? 0) + (enemy.items["x_tormenting"] ?? 0);
+  return n > 0 ? n * (1 + Math.floor((player.persist["floor"] ?? 1) / 2)) : 0;
+}
+export function actionToll(b: Battle, f: Fighter) {
+  if (f !== b.player || f.hp <= 0) return;
+  const n = tollOf(b.enemy, f);
+  if (n <= 0) return;
+  const lost = loseHp(b, f, n);
+  log(b, `⛓️ The Toll: acting costs you ${lost}.`);
+}
+
 function act(b: Battle, f: Fighter, doIt: () => void) {
   if (f.hp <= 0 || b.over) return;
   if (st(f, "stun") > 0) {
@@ -364,6 +377,7 @@ function act(b: Battle, f: Fighter, doIt: () => void) {
     return;
   }
   staticTick(b, f);
+  actionToll(b, f);
   if (f.hp <= 0) return;
   smoulderSoulAction(b, f);
   doIt();
@@ -372,6 +386,7 @@ function act(b: Battle, f: Fighter, doIt: () => void) {
     log(b, `💨 ${f.name} acts again (Haste).`);
     fx(b, { who: f.id, kind: "text", text: "Haste!", icon: "💨" });
     staticTick(b, f);
+    actionToll(b, f);
     smoulderSoulAction(b, f);
     if (f.hp > 0) doIt();
   }
@@ -463,6 +478,7 @@ export function heroPhase(b: Battle, action: Action) {
     p.flags["guarding"] = 1;
     p.flags["guardArmor"] = 0;
     p.flags["guards"] = (p.flags["guards"] ?? 0) + 1;
+    actionToll(b, p);
     smoulderSoulAction(b, p);
     eachHook(p, "onGuard", (h, s) => h(b, p, s));
     log(b, `${p.name} Guards (Armor ${armorOf(p)}).`);

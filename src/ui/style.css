@@ -292,3 +292,4 @@ button.story { min-height: 44px; white-space: nowrap; }
 /* ---------- Class action buttons: a distinct fill ---------- */
 button.classact { background: linear-gradient(180deg, #2f5f9e, #234a7c); border-color: #4f9cf0; color: #eaf4ff; font-weight: 700; }
 button.classact:disabled { background: #2a2233; border-color: var(--line); color: var(--muted); }
+.chip.toll { border-color: var(--bad); color: #ff9aa8; }

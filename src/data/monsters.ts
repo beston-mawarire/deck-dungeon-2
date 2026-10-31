@@ -46,12 +46,14 @@ export const TRAITS: HookDef[] = [
         b.fx.push({ who: "player", kind: "text", text: `−${n} Gold`, icon: "💰" });
       }
     } }),
+  trait({ id: "m_toll", name: "The Toll", tags: ["Hex", "Blood"], text: "Every action you take — attack, Guard, potion or class action — costs you HP (more the deeper you are)", hooks: {} }), // combat.ts
+  trait({ id: "x_tormenting", name: "Tormenting", tags: ["Hex", "Blood"], text: "Every action you take — attack, Guard, potion or class action — costs you HP (more the deeper you are)", hooks: {} }), // combat.ts
   trait({ id: "x_regenerating", name: "Regenerating", tags: ["Blood"], text: "Heals 2 at the end of every round", hooks: { onRoundEnd: (b, f) => { heal(b, f, 2, "Regenerating"); } } }),
 ];
 
-export const ELITE_AFFIX_IDS = ["x_accursed", "x_smouldering", "x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying"];
+export const ELITE_AFFIX_IDS = ["x_tormenting", "x_accursed", "x_smouldering", "x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying"];
 /** How often each affix rolls (Nullifying is rare). */
-export const AFFIX_WEIGHT: Record<string, number> = { x_nullifying: 0.35, x_concussive: 0.8, x_smouldering: 0.6, x_accursed: 0.4 };
+export const AFFIX_WEIGHT: Record<string, number> = { x_nullifying: 0.35, x_concussive: 0.8, x_smouldering: 0.6, x_accursed: 0.4, x_tormenting: 0.5 };
 
 interface MonsterDef { name: string; family: string; hp: number; power: number; armor?: number; traits: string[]; faces?: FaceSpec[] }
 
@@ -69,6 +71,13 @@ export const MONSTERS: MonsterDef[] = [
   { name: "Stone Golem", family: "Construct", hp: 18, power: 3, armor: 3, traits: [], faces: [MISS, MISS, HIT, HIT, HIT, spell("Crush", "crit", hex("stun", 1))] },
   { name: "Storm Wisp", family: "Construct", hp: 10, power: 3, traits: ["m_crackle", "m_incorporeal"] },
   { name: "Sentry", family: "Construct", hp: 12, power: 3, armor: 1, traits: ["m_static"] }
+];
+
+/** Elite- and Champion-only foes: they never turn up as ordinary monsters. Each one taxes every action you take. */
+export const ELITE_ONLY: MonsterDef[] = [
+  { name: "Painweaver", family: "Cultist", hp: 12, power: 3, traits: ["m_toll", "m_curse_touch"] },
+  { name: "Brambleback Troll", family: "Beast", hp: 16, power: 3, armor: 2, traits: ["m_toll"], faces: [GRAZE, HIT, HIT, HIT, HIT, spell("Bramble", "crit", hex("bleed", 2))] },
+  { name: "Iron Maiden", family: "Construct", hp: 15, power: 3, armor: 3, traits: ["m_toll", "m_brittle"] }
 ];
 
 export type MonsterRank = "normal" | "elite" | "champion" | "crimson" | "boss";
@@ -99,7 +108,9 @@ export function makeThief(rng: () => number, floor: number): Fighter {
 }
 
 export function makeMonster(rng: () => number, floor: number, rank: MonsterRank): Fighter {
-  const def = MONSTERS[Math.floor(rng() * MONSTERS.length)];
+  // A quarter of Elites and Champions are one of the elite-only Tormentors.
+  const pool = (rank === "elite" || rank === "champion") && rng() < 0.25 ? ELITE_ONLY : MONSTERS;
+  const def = pool[Math.floor(rng() * pool.length)];
   let hp = Math.round(def.hp * monsterHpMult(floor));
   let power = def.power + monsterPowerAdd(floor);
   const items: Record<string, number> = {};

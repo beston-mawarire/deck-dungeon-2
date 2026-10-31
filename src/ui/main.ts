@@ -2,7 +2,7 @@
 import { BONUSES, CRIMSON, CURSES, KEEPSAKES, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
 import { FUSION_RECIPES } from "../data/fusions";
 import { ORIGINS } from "../data/origins";
-import { armorOf, armorReduction, beginRound, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly } from "../engine/combat";
+import { armorOf, armorReduction, beginRound, tollOf, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
@@ -255,7 +255,7 @@ function dieBox(who: "player" | "enemy", label: string) {
 function fighterPanel(f: Fighter, who: "player" | "enemy") {
   const hp = dispHp[who] ?? f.hp;
   const intent = who === "enemy" && f.moves?.length ? f.moves[f.intent ?? 0] : null;
-  const traits = who === "enemy" ? `${isUnholy(f) ? `<span class="chip holy" title="Holy weapons deal +50% to it">☠️ Unholy</span>` : ""}${f.items["m_thief"] ? `<span class="chip thief" title="Kill it before it escapes: it takes 30% of your Gold, or drops 60% on top if you win">💰 Escapes after round 5 (${Math.max(0, 5 - (currentBattle?.round ?? 0))} left)</span>` : ""}${f.family === "Construct" ? `<span class="chip storm" title="Lightning hits it twice as hard: Shock doubles damage, Static and electric reactions deal double, Storm weapons +30%">⚡ Conductive</span>` : ""}${Object.keys(f.items).map(id => getItem(id)).map(d => `<span class="chip" title="${esc(d.text)}">${esc(d.name)}</span>`).join("")}` : "";
+  const traits = who === "enemy" ? `${isUnholy(f) ? `<span class="chip holy" title="Holy weapons deal +50% to it">☠️ Unholy</span>` : ""}${currentBattle && tollOf(f, currentBattle.player) > 0 ? `<span class="chip toll" title="Attacking, Guarding, drinking a potion or using your class action each cost this much HP">⛓️ Each action costs ${tollOf(f, currentBattle.player)} HP</span>` : ""}${f.items["m_thief"] ? `<span class="chip thief" title="Kill it before it escapes: it takes 30% of your Gold, or drops 60% on top if you win">💰 Escapes after round 5 (${Math.max(0, 5 - (currentBattle?.round ?? 0))} left)</span>` : ""}${f.family === "Construct" ? `<span class="chip storm" title="Lightning hits it twice as hard: Shock doubles damage, Static and electric reactions deal double, Storm weapons +30%">⚡ Conductive</span>` : ""}${Object.keys(f.items).map(id => getItem(id)).map(d => `<span class="chip" title="${esc(d.text)}">${esc(d.name)}</span>`).join("")}` : "";
   return `<div class="panel fighter ${f.crimson ? "crimson-foe" : ""}" id="fp-${who}">
     <div class="row"><b>${esc(f.name)}</b>${f.title ? `<span class="sub">${esc(f.title)}</span>` : ""}<span class="grow"></span><span class="sub">${who === "enemy" ? `${f.family ?? ""}${f.crimson ? " · Crimson" : ""}${f.boss ? " · Boss" : f.champion ? " · Champion" : f.elite ? " · Elite" : ""}` : ""}</span></div>
     <div class="bar ${who === "enemy" ? "enemy" : ""}"><i style="width:${Math.max(0, (hp / f.maxHp) * 100)}%"></i></div>
@@ -275,7 +275,7 @@ function combatScene(r: Run) {
     <div class="c-player">${fighterPanel(b.player, "player")}
     ${(b.player.statuses.stun ?? 0) > 0 ? `<div class="toast err">💫 You're Stunned: your next turn will be skipped.</div>` : ""}</div>
     <div class="c-actions"><div class="row actions ${busy ? "busy" : ""}">
-      ${r.hero.origin === "rogue" && (b.player.statuses.evade ?? 0) > 0 ? `<button class="classact" disabled title="You'll already Evade the next attack">Counter</button>` : ""}${availableActions(r).map(a => `<button class="${a === "attack" ? "primary" : a === "flee" ? "" : a === "guard" ? "" : "classact"}" data-act="${a}" title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(b.player)}</button>`).join("")}
+      ${availableActions(r).map(a => `<button class="${a === "attack" ? "primary" : a === "flee" ? "" : a === "guard" ? "" : "classact"}" data-act="${a}" title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(b.player)}</button>`).join("")}
     </div>
     <p class="center sub diefaces">Your die: ${b.player.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind}`).join(" · ")}</p></div>
     </div>
