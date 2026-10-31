@@ -59,7 +59,7 @@ export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "reli
 export type Scene =
   | { t: "map" }
   | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" }
-  | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent" }
+  | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent"; crimsonKey?: boolean }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
   | { t: "talent"; options: string[] }
@@ -381,6 +381,7 @@ function afterFight(run: Run) {
   let scrolls = 0;
   let potions = 0;
   let relic: string | undefined;
+  let keyFound = false;
   const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, odds, run.floor), run.floor, run.rng);
   if (rank === "normal" && run.rng() < 0.2) items.push(roll(TABLES.drop));
   if (rank === "normal" && run.rng() < 0.1) potions++;
@@ -414,7 +415,7 @@ function afterFight(run: Run) {
     relic = randomRelic(run, 2);
     if (run.rng() < 0.5) {
       h.crimsonKeys++;
-      run.message = "A Crimson Key falls from the body. 🗝️ A Crimson Vault will now be offered on your path.";
+      keyFound = true;
     } else run.message = "No key this time. Crimson Elites carry one about half the time.";
   }
   if (rank === "boss") {
@@ -457,7 +458,7 @@ function afterFight(run: Run) {
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (relic) grantRelic(run, relic);
   if (scrolls) grantScrolls(run, scrolls);
-  run.scene = { t: "loot", title: then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined };
+  run.scene = { t: "loot", title: then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined };
   const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean);
   run.message = notes.join(" ");
 }
@@ -599,13 +600,13 @@ function shopStock(run: Run): ShopEntry[] {
   const stock: ShopEntry[] = [];
   for (let i = 0; i < 3; i++) {
     const item = rollItem(h, rollRarity(run.rng, TABLES.shop, run.floor), run.floor, run.rng);
-    stock.push({ kind: "item", item, price: PRICE[item.rarity] + 5 * (run.floor - 1) });
+    stock.push({ kind: "item", item, price: Math.round(PRICE[item.rarity] * priceMult(run)) });
   }
   const shopRelic = randomRelic(run);
-  stock.push({ kind: "relic", relic: shopRelic, price: ({ common: 40, uncommon: 55, rare: 85, legendary: 160 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 50 });
-  stock.push({ kind: "potion", price: 15 });
-  if (run.rng() < 0.5) stock.push({ kind: "mana", price: 25 });
-  if (run.rng() < 0.12) stock.push({ kind: "scroll", price: 100 + 25 * (run.floor - 1) });
+  stock.push({ kind: "relic", relic: shopRelic, price: Math.round((({ common: 40, uncommon: 55, rare: 85, legendary: 160 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 50) * priceMult(run)) });
+  stock.push({ kind: "potion", price: Math.round(15 * priceMult(run)) });
+  if (run.rng() < 0.5) stock.push({ kind: "mana", price: Math.round(25 * priceMult(run)) });
+  if (run.rng() < 0.12) stock.push({ kind: "scroll", price: Math.round(100 * priceMult(run)) });
   return stock;
 }
 
@@ -648,9 +649,11 @@ export function sellItem(run: Run, uid: number): string | null {
   return null;
 }
 
-/** Each reroll at the same Merchant costs more (×1, ×2, ×3… of 10 Gold), up to 5 rerolls per visit. */
+/** Shop prices grow with the floor: +12% per floor below the first. */
+export const priceMult = (run: Run) => 1 + 0.12 * (run.floor - 1);
+/** Each reroll at the same Merchant costs double the last (from 10 Gold, scaled by the floor), up to 5 rerolls per visit. */
 export const MAX_SHOP_REROLLS = 5;
-export const shopRerollCost = (run: Run) => 10 * (run.shopRerolls + 1);
+export const shopRerollCost = (run: Run) => Math.round(10 * priceMult(run)) * 2 ** run.shopRerolls;
 
 export function rerollShop(run: Run): string | null {
   if (run.scene.t !== "shop") return null;

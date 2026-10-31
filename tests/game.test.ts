@@ -882,13 +882,13 @@ describe("class actions and new stats", () => {
     expect(run.hero.backpack.some(i => i.base === "lc_cookie")).toBe(true);
   });
 
-  it("rerolls cost ×1, ×2, ×3… and stop after 5", () => {
+  it("shop rerolls double each time and stop after 5", () => {
     const run = newRun("warrior", 41);
     run.hero.f.gold = 10000;
     chooseRoom(run, "shop");
     const paid: number[] = [];
     for (let i = 0; i < 6; i++) { const g = run.hero.f.gold; const err = rerollShop(run); paid.push(err ? -1 : g - run.hero.f.gold); }
-    expect(paid).toEqual([10, 20, 30, 40, 50, -1]);
+    expect(paid).toEqual([10, 20, 40, 80, 160, -1]);
   });
 
   it("there are twelve Epic Crimsons, and every one is a real item", () => {
