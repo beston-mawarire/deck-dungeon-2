@@ -6,7 +6,8 @@ import { wieldsHoly } from "../engine/combat";
 import { ARMOUR_ADDS, DODGE_GEAR, DOOM_WEAPONS, ELEMENTAL_WEAPONS, GREAT_WEAPONS } from "./arsenal";
 import { BASICS, STAT_GEAR } from "./basics";
 import { DEEP_RARES, EPIC_ITEMS, RARE_ITEMS } from "./treasury";
-import { CHARMS } from "./charms";
+import { CHARMS, SINGLE_CHARMS } from "./charms";
+import { SHIELDS } from "./shields";
 import { STREAK_GEAR } from "./streak";
 import { DAGGERS, DODGE_WEAPONS, DUAL_GEAR, FAITH_WEAPONS, GRENADES, HEAVY_ARMOURS, THROWER_GEAR, THROWN_WEAPONS } from "./blades";
 import { KIT_UPGRADES } from "./kits";
@@ -303,4 +304,4 @@ export const TRINKETS: GearBase[] = [
   trinket({ id: "t_quicksilver", name: "Quicksilver Ring", tags: ["Tempo"], text: "Start each fight at full HP with Haste.", hooks: { onFightStart: (b, f) => { if (f.hp >= f.maxHp) applyStatus(b, f, f, "haste", 1); } } })
 ];
 
-export const GEAR_BASES: GearBase[] = [...CHARMS, ...STREAK_GEAR, ...WEAPONS, ...OFFHANDS, ...ARMOURS, ...TRINKETS, ...KIT_UPGRADES, ...BASICS, ...DODGE_GEAR, ...ELEMENTAL_WEAPONS, ...DOOM_WEAPONS, ...ARMOUR_ADDS, ...STAT_GEAR, ...GREAT_WEAPONS, ...DAGGERS, ...THROWN_WEAPONS, ...GRENADES, ...THROWER_GEAR, ...DODGE_WEAPONS, ...HEAVY_ARMOURS, ...DUAL_GEAR, ...FAITH_WEAPONS, ...RARE_ITEMS, ...EPIC_ITEMS, ...DEEP_RARES];
+export const GEAR_BASES: GearBase[] = [...CHARMS, ...SINGLE_CHARMS, ...SHIELDS, ...STREAK_GEAR, ...WEAPONS, ...OFFHANDS, ...ARMOURS, ...TRINKETS, ...KIT_UPGRADES, ...BASICS, ...DODGE_GEAR, ...ELEMENTAL_WEAPONS, ...DOOM_WEAPONS, ...ARMOUR_ADDS, ...STAT_GEAR, ...GREAT_WEAPONS, ...DAGGERS, ...THROWN_WEAPONS, ...GRENADES, ...THROWER_GEAR, ...DODGE_WEAPONS, ...HEAVY_ARMOURS, ...DUAL_GEAR, ...FAITH_WEAPONS, ...RARE_ITEMS, ...EPIC_ITEMS, ...DEEP_RARES];

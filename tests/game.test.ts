@@ -730,6 +730,19 @@ describe("class actions and new stats", () => {
     expect(h.f.persist["streak"]).toBe(0);
   });
 
+  it("against a guarding foe, a hit that still gets through keeps the streak; a full block breaks it", () => {
+    const h = newHero("warrior");
+    const e = dummy();
+    e.armor = 1;
+    const b = startBattle(h.f, e, 4);
+    e.flags["guarding"] = 1; e.flags["guardArmor"] = 2; // Armor 4 while guarding
+    resolveFace(b, b.player, e, 2, false); // a Hit for ~5: some of it gets through
+    expect(h.f.persist["streak"]).toBe(1);
+    e.flags["guardArmor"] = 500; // a wall nothing gets through
+    resolveFace(b, b.player, e, 3, false);
+    expect(h.f.persist["streak"]).toBe(0);
+  });
+
   it("Shieldwall foes warn, then guard: Armor doubles but crits still land in full", () => {
     const h = newHero("warrior");
     const e = dummy();

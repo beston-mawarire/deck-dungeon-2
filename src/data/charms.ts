@@ -59,3 +59,36 @@ export const CHARM_CRIMSON: GearBase[] = [
       face: [on(1, hexIt("poison", 3)), on(2, hexIt("burn", 3)), on(3, hexIt("chill", 3)), on(4, hexIt("static", 4)),
         on(5, many(["burn", 3], ["chill", 3])), on(6, many(["burn", 2], ["chill", 2], ["static", 2], ["poison", 2]))] } }
 ];
+
+// ---------- Single-element charms: one element each, at every rarity ----------
+export const SINGLE_CHARMS: GearBase[] = [
+  only("common", { id: "ch_spark", kind: "off", slot: "off", name: "Spark Charm", tags: ["Arcane", "Storm"], barrierElement: "static",
+    text: "On a 5: apply 2 Static.", hooks: { face: [on(5, hexIt("static", 2))] } }),
+  only("common", { id: "ch_venom", kind: "off", slot: "off", name: "Venom Charm", tags: ["Arcane", "Poison"], barrierElement: "poison",
+    text: "On a 3: apply 2 Poison.", hooks: { face: [on(3, hexIt("poison", 2))] } }),
+  only("uncommon", { id: "ch_frost", kind: "off", slot: "off", name: "Frost Charm", tags: ["Arcane", "Frost"], barrierElement: "chill",
+    text: "On a 3 or a 4: apply 1 Chill.", hooks: { face: [on(3, hexIt("chill", 1)), on(4, hexIt("chill", 1))] } }),
+  only("uncommon", { id: "ch_tide", kind: "off", slot: "off", name: "Tide Charm", tags: ["Arcane", "Frost", "Storm"], barrierElement: "soaked",
+    text: "On a 1 or a 2: apply 2 Soaked.", hooks: { face: [on(1, hexIt("soaked", 2)), on(2, hexIt("soaked", 2))] } }),
+  only("rare", { id: "ch_blaze", kind: "off", slot: "off", name: "Blaze Charm", tags: ["Arcane", "Burn"], barrierElement: "burn",
+    text: "On a 2 or a 5: apply 3 Burn.", hooks: { face: [on(2, hexIt("burn", 3)), on(5, hexIt("burn", 3))] } }),
+  only("rare", { id: "ch_thunder", kind: "off", slot: "off", name: "Thunder Charm", tags: ["Arcane", "Storm"], barrierElement: "static",
+    text: "On a 4 or a 5: apply 3 Static.", hooks: { face: [on(4, hexIt("static", 3)), on(5, hexIt("static", 3))] } }),
+  only("epic", { id: "ch_glacier", kind: "off", slot: "off", name: "Glacier Charm", tags: ["Arcane", "Frost"], barrierElement: "chill",
+    text: "Spell Amp +10%. On any even roll: apply 2 Chill.", hooks: { stats: s => { s.spellAmp += 10; }, face: [on("even", hexIt("chill", 2))] } }),
+  only("epic", { id: "ch_plague", kind: "off", slot: "off", name: "Plague Charm", tags: ["Arcane", "Poison"], barrierElement: "poison",
+    text: "Every hit you land applies 1 Poison. On a 3: apply 3 more.", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "poison", 1), face: [on(3, hexIt("poison", 3))] } })
+];
+
+export const SINGLE_CHARM_LEGENDARIES: GearBase[] = [
+  { id: "lx_sunfire_charm", rarity: "legendary", kind: "off", slot: "off", name: "Sunfire Charm", tags: ["Arcane", "Burn"], barrierElement: "burn",
+    legendary: { minFloor: 3, asBase: "o_ember_charm", reveal: "Every roll applies 2 Burn. Burn you apply gets +1." },
+    text: "A shard of noon that never set.",
+    hooks: { face: [on("any", hexIt("burn", 2))], onStatusApplied: (_b, self, t, s) => { if (s === "burn" && t !== self) t.statuses.burn = (t.statuses.burn ?? 0) + 1; } } }
+];
+
+export const SINGLE_CHARM_CRIMSON: GearBase[] = [
+  { id: "cx_stormheart_charm", rarity: "crimson", kind: "off", slot: "off", name: "Stormheart Charm", tags: ["Arcane", "Storm"], barrierElement: "static",
+    text: "Each round, apply 3 Static. On a 6: apply 2 Shock. Reactions you cause deal +50%.",
+    hooks: { reactionMult: () => 1.5, onRoundStart: (b, f) => applyStatus(b, f, b.player === f ? b.enemy : b.player, "static", 3), face: [on(6, hexIt("shock", 2))] } }
+];

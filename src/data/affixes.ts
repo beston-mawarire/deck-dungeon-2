@@ -4,7 +4,8 @@ import { attack } from "../engine/combat";
 import { log } from "../engine/registry";
 import type { Battle, Fighter, GearBase, HookDef } from "../engine/types";
 import { LEGENDARY_ITEMS } from "./treasury";
-import { CHARM_LEGENDARIES } from "./charms";
+import { CHARM_LEGENDARIES, SINGLE_CHARM_LEGENDARIES } from "./charms";
+import { SHIELD_LEGENDARIES } from "./shields";
 import { applyStatus, cast, CRIT, GRAZE, heal, hex, HIT, MISS, on, ping, purify, self, spell, st } from "./helpers";
 
 const bonus = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "bonus", ...d });
@@ -305,4 +306,4 @@ export const LEGENDARIES: GearBase[] = [
 ];
 
 // The Treasury's Legendaries join the pool.
-LEGENDARIES.push(...LEGENDARY_ITEMS, ...CHARM_LEGENDARIES);
+LEGENDARIES.push(...LEGENDARY_ITEMS, ...CHARM_LEGENDARIES, ...SINGLE_CHARM_LEGENDARIES, ...SHIELD_LEGENDARIES);

@@ -95,3 +95,34 @@ it("balance probe", () => {
   console.log("DEATHS", JSON.stringify(deaths));
   console.log("BALANCE", JSON.stringify(Object.fromEntries(Object.entries(res).map(([k, v]) => [k, { win: Math.round((100 * v.w) / v.n) + "%", avgFloor: (v.floors / v.n).toFixed(2) }]))));
 });
+
+// "Lucky runs": no odds are changed. We play many real runs and look at the luckiest 10% of them
+// (the ones that got furthest), to see whether a lucky run can win and how often.
+declare const process: { env: Record<string, string | undefined> };
+it("lucky run probe", () => {
+  loadLibrary();
+  if (!process.env.LUCKY) return;
+  const per = Number(process.env.LUCKY) || 1500;
+  const out: Record<string, unknown> = {};
+  for (const o of ["warrior", "rogue", "mage", "cleric"] as const) {
+    const runs: { floor: number; won: boolean; level: number; bosses: number; seed: number }[] = [];
+    for (let i = 0; i < per; i++) {
+      const seed = 100000 + i * 7 + o.length;
+      const run = newRun(o, seed);
+      for (let g = 0; g < 20000 && run.scene.t !== "over"; g++) botStep(run);
+      const won = run.scene.t === "over" && run.scene.won;
+      runs.push({ floor: won ? 6 : run.floor + (run.step >= STEPS_PER_FLOOR ? 0.5 : run.step / (STEPS_PER_FLOOR * 2)), won, level: run.hero.level, bosses: run.stats.bosses, seed });
+    }
+    runs.sort((a, b) => b.floor - a.floor);
+    const top = runs.slice(0, Math.ceil(per / 10));
+    const wins = runs.filter(r => r.won).length;
+    out[o] = {
+      runs: per,
+      wins,
+      winRate: `${((100 * wins) / per).toFixed(1)}%`,
+      luckiest10pct: { winRate: `${((100 * top.filter(r => r.won).length) / top.length).toFixed(0)}%`, avgBosses: (top.reduce((s, r) => s + r.bosses, 0) / top.length).toFixed(1), avgLevel: (top.reduce((s, r) => s + r.level, 0) / top.length).toFixed(1) },
+      reachedFloor5: `${((100 * runs.filter(r => r.floor >= 5).length) / per).toFixed(1)}%`
+    };
+  }
+  console.log("LUCKY", JSON.stringify(out, null, 1));
+}, 600000);
