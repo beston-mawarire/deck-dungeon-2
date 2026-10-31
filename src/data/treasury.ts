@@ -220,3 +220,31 @@ export const CRIMSON_ITEMS: GearBase[] = [
   crimson({ id: "cx_crown_avarice", kind: "trinket", slot: "trinket", name: "Crown of Avarice", tags: ["Gold", "Strike"],
     text: "+1 Damage for every 20 Gold you hold. Every hit you land gives 2 Gold.", hooks: { modifyAttack: (_b, c) => { c.bonus += Math.floor(c.attacker.gold / 20); }, onHit: (_b, c) => { c.attacker.gold += 2; } } })
 ];
+
+// ===================== DEEP RARES =====================
+// Rares that rival Epics: they drop past floor 5, or from the start once unlocked with Renown ("Deep Treasures").
+const deep = (d: Omit<GearBase, "onlyRarity" | "deep">): GearBase => ({ ...d, onlyRarity: "rare", deep: true });
+export const DEEP_RARES: GearBase[] = [
+  deep({ id: "dr_abyssal_edge", kind: "weapon", slot: "main", name: "Abyssal Edge", tags: ["Strike", "Crit"], damage: 8, faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT],
+    text: "Deep find. Crits on 5 and 6; your crits apply 2 Exposed.", hooks: { onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "exposed", 2) } }),
+  deep({ id: "dr_moltencore_maul", kind: "weapon", slot: "main", name: "Moltencore Maul", tags: ["Strike", "Burn"], damage: 11, twoHanded: true, faces: [MISS, HIT, HIT, HIT, HIT, CRIT],
+    text: "Deep find. Two-handed. Every hit applies 2 Burn; Burning enemies take +2.",
+    hooks: { onHit: mainHit((b, c) => applyStatus(b, c.attacker, c.defender, "burn", 2)), modifyAttack: (_b, c) => { if (!c.offhand && st(c.defender, "burn") > 0) c.bonus += 2; } } }),
+  deep({ id: "dr_riftwood_staff", kind: "weapon", slot: "main", name: "Riftwood Staff", tags: ["Arcane", "Storm", "Frost"], damage: 7,
+    faces: [cast("Rift", "graze", hex("static", 2)), cast("Frost", "hit", hex("chill", 2)), cast("Static", "hit", hex("static", 3)), HIT, cast("Soak", "hit", hex("soaked", 2)), cast("Storm", "crit", hex("shock", 1))],
+    text: "Deep find. One-handed spell staff: Static, Chill, Soaked and a Shock to set it all off.", hooks: {} }),
+  deep({ id: "dr_wardens_tower", kind: "off", slot: "off", shield: true, name: "Warden's Tower Shield", tags: ["Guard", "Strike"], armor: 6, maxHp: 6,
+    text: "Deep find. +6 Armor, +6 Max HP. Guarding gives 2 Might and Barrier equal to your Armor.", hooks: { onGuard: (b, f) => { applyStatus(b, f, f, "might", 2); applyStatus(b, f, f, "barrier", f.armor); } } }),
+  deep({ id: "dr_voidglass_orb", kind: "off", slot: "off", barrierElement: "chill", name: "Voidglass Orb", tags: ["Arcane", "Hex"],
+    text: "Deep find. Spell Amp +20%. Enemies with 3+ different negative statuses take +4 from your spells.", hooks: { stats: s => { s.spellAmp += 20; }, modifyAttack: (_b, c) => { if (c.spec.magic && negKinds(c.defender) >= 3) c.bonus += 4; } } }),
+  deep({ id: "dr_deepforged_plate", kind: "armour", slot: "armour", name: "Deepforged Plate", tags: ["Guard", "Blood"], armor: 7, maxHp: 10,
+    text: "Deep find. Heavy: +7 Armor and +10 Max HP.", hooks: {} }),
+  deep({ id: "dr_nightglass_leathers", kind: "armour", slot: "armour", name: "Nightglass Leathers", tags: ["Tempo", "Crit"], armor: 2, dodge: { rare: 12 },
+    text: "Deep find. Light: +2 Armor, 12% Dodge, +6% Crit chance.", hooks: { stats: s => { s.critChance += 6; } } }),
+  deep({ id: "dr_pilgrim_signet", kind: "trinket", slot: "trinket", name: "Signet of the Deep", tags: ["Strike", "Blood"], maxHp: 8,
+    text: "Deep find. +2 Damage and +8 Max HP.", hooks: { stats: s => { s.damage += 2; s.offDamage += 2; } } }),
+  deep({ id: "dr_echo_charm", kind: "trinket", slot: "trinket", name: "Echoing Charm", tags: ["Arcane", "Hex"],
+    text: "Deep find. Reactions you cause deal +40% and heal you 3.", hooks: { reactionMult: () => 1.4 } }), // heal: statuses.ts
+  deep({ id: "dr_marrow_ring", kind: "trinket", slot: "trinket", name: "Marrowstone Ring", tags: ["Guard", "Crit"], armor: 3,
+    text: "Deep find. +3 Armor and +5% Crit chance.", hooks: { stats: s => { s.critChance += 5; } } })
+];

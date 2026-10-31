@@ -12,13 +12,16 @@ export interface Meta {
 
 const KEY = "dd2-meta-v1";
 
-export const UNLOCK_TIERS: { at: number; name: string; ids: string[] }[] = [
+const TIERS: { at: number; name: string; ids: string[] }[] = [
   { at: 20, name: "Wandering Armoury", ids: ["w_crossbow", "w_trident", "w_lute", "o_grimoire", "a_frost_plate"] },
   { at: 50, name: "Epic Lore", ids: ["e_frostbound", "e_thundering", "e_bloodthirsty", "e_bastion", "e_hexing", "e_lucky", "e_cataclysmic", "e_gorgon"] },
   { at: 90, name: "Legends of the Deep I", ids: ["l_tempest_maul", "l_gravecaller", "l_sanguine_regalia", "t_quicksilver", "war_drum", "blood_moon"] },
   { at: 150, name: "Legends of the Deep II", ids: ["l_ouroboros", "l_loaded_fate", "l_crown_endless", "t_alchemist_ring", "a_mirror_mail", "lr_twin_souls", "lr_philosophers_stone"] },
-  { at: 220, name: "Trophies of the Fallen", ids: ["l_skarn_horn", "l_morwen_tear", "l_hollow_decree"] }
+  { at: 220, name: "Trophies of the Fallen", ids: ["l_skarn_horn", "l_morwen_tear", "l_hollow_decree"] },
+  { at: 120, name: "Deep Treasures (Rares that rival Epics, from floor 1)", ids: ["dr_abyssal_edge", "dr_moltencore_maul", "dr_riftwood_staff", "dr_wardens_tower", "dr_voidglass_orb", "dr_deepforged_plate", "dr_nightglass_leathers", "dr_pilgrim_signet", "dr_echo_charm", "dr_marrow_ring"] }
 ];
+/** Unlock tiers, in Renown order. */
+export const UNLOCK_TIERS = [...TIERS].sort((a, b) => a.at - b.at);
 
 export function loadMeta(): Meta {
   try {

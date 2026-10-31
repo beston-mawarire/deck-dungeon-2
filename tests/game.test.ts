@@ -924,3 +924,30 @@ describe("treasury and encounters", () => {
     expect(run.popup?.title).toMatch(/^Floor 2/);
   });
 });
+
+describe("deep rares and forge golems", () => {
+  it("Deep Rares only drop past floor 5 while locked", async () => {
+    const { setLocked } = await import("../src/game/loot");
+    setLocked(new Set(["dr_abyssal_edge", "dr_deepforged_plate"]));
+    const h = newHero("warrior");
+    const rng = makeRng(123);
+    let shallow = 0, deepFound = 0;
+    for (let i = 0; i < 6000; i++) {
+      if (["dr_abyssal_edge", "dr_deepforged_plate"].includes(rollItem(h, "rare", 3, rng).base)) shallow++;
+      if (["dr_abyssal_edge", "dr_deepforged_plate"].includes(rollItem(h, "rare", 6, rng).base)) deepFound++;
+    }
+    setLocked(new Set());
+    expect(shallow).toBe(0);
+    expect(deepFound).toBeGreaterThan(0);
+  });
+  it("Forge Golems leave Scrap", () => {
+    const run = newRun("warrior", 321);
+    chooseRoom(run, "fight");
+    if (run.scene.t !== "combat") return;
+    const e = run.scene.battle.enemy;
+    e.items = { m_forge: 1 }; e.hp = 0;
+    const scrap = run.hero.scrap;
+    combatAction(run, "attack");
+    expect(run.hero.scrap).toBe(scrap + 4 + 1);
+  });
+});

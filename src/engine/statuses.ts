@@ -219,6 +219,7 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
     applyStatus(b, source, source, "haste", 1, depth + 1);
   }
   if (source && source !== t && (source.items["l_ouroboros"] ?? 0) > 0) heal(b, source, 5, "Ouroboros");
+  if (source && source !== t && (source.items["dr_echo_charm"] ?? 0) > 0) heal(b, source, 3, "Echoing Charm");
   if (source && source !== t && (source.items["l_codex_ruin"] ?? 0) > 0) applyStatus(b, source, t, "doom", 3, depth + 1);
 
   const m = reactionMult(b, source);

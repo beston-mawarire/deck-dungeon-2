@@ -16,6 +16,7 @@ export const TRAITS: HookDef[] = [
   trait({ id: "m_static", name: "Sparking", tags: ["Storm"], text: "Its hits apply Shock", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "shock", 1) } }),
   trait({ id: "m_lifedrink", name: "Lifedrinker", tags: ["Blood"], text: "Heals half the damage it deals (a vampire: Holy hits it harder)", hooks: { onHit: (b, c) => { heal(b, c.attacker, Math.floor(c.dealt / 2), "Lifedrinker"); } } }),
   trait({ id: "m_crackle", name: "Crackling", tags: ["Storm"], text: "Its hits give you 2 Static", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "static", 2) } }),
+  trait({ id: "m_forge", name: "Forged", tags: ["Burn", "Guard"], text: "Its hits apply 1 Burn. When it falls, it leaves Scrap behind", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "burn", 1) } }),
   trait({ id: "m_brittle", name: "Brittle", tags: ["Guard"], text: "Takes +3 from crits", hooks: { whenHit: (b, c) => { if (c.kind === "crit" && c.dealt > 0) ping(b, c.defender, 3, "Brittle"); } } }),
   // Elite affixes
   trait({ id: "x_blazing", name: "Blazing", tags: ["Burn"], text: "Its hits apply 2 Burn", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "burn", 2) } }),
@@ -70,6 +71,7 @@ export const MONSTERS: MonsterDef[] = [
   { name: "Zealot", family: "Cultist", hp: 13, power: 3, traits: ["m_zeal"] },
   { name: "Stone Golem", family: "Construct", hp: 18, power: 3, armor: 3, traits: [], faces: [MISS, MISS, HIT, HIT, HIT, spell("Crush", "crit", hex("stun", 1))] },
   { name: "Storm Wisp", family: "Construct", hp: 10, power: 3, traits: ["m_crackle", "m_incorporeal"] },
+  { name: "Forge Golem", family: "Construct", hp: 17, power: 3, armor: 3, traits: ["m_forge"], faces: [MISS, HIT, HIT, HIT, HIT, spell("Hammerfall", "crit", hex("stun", 1))] },
   { name: "Sentry", family: "Construct", hp: 12, power: 3, armor: 1, traits: ["m_static"] }
 ];
 

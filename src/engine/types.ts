@@ -225,6 +225,8 @@ export interface GearBase extends HookDef {
   barrierElement?: StatusId;
   /** Dodge % this item gives at each rarity (new Dodge gear only). */
   dodge?: Partial<Record<Rarity, number>>;
+  /** Deep finds: only drop past floor 5 — unless unlocked earlier with Renown. */
+  deep?: boolean;
   /** Never rolls below this rarity (anything that grants Barrier is Uncommon or better). */
   minItemRarity?: Rarity;
   /** Only ever rolls at this rarity (the greater starter-kit items). */

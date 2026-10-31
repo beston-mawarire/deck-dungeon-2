@@ -335,6 +335,12 @@ function afterFight(run: Run) {
   }
   run.carry = b.carry;
   run.stats.kills++;
+  // Forge Golems leave Scrap behind (more from Elite and Champion golems).
+  let golemScrap = 0;
+  if ((b.enemy.items["m_forge"] ?? 0) > 0) {
+    golemScrap = ({ normal: 4, elite: 8, champion: 14, crimson: 14, boss: 14 } as Record<string, number>)[rank] + run.floor;
+    h.scrap += golemScrap;
+  }
   // Caught a thief: it coughs up 60% of what you're carrying, on top.
   let thiefPay = 0;
   if ((b.enemy.items["m_thief"] ?? 0) > 0) {
@@ -410,7 +416,7 @@ function afterFight(run: Run) {
     return;
   }
   run.scene = { t: "loot", title: then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined };
-  const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", curseNote].filter(Boolean);
+  const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean);
   run.message = notes.join(" ");
 }
 
