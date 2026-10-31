@@ -413,6 +413,20 @@ function forgeScene(r: Run) {
   <div class="row" style="margin-top:12px"><button class="primary" data-leave>Leave</button></div>`;
 }
 
+function clearedScene(r: Run) {
+  if (r.scene.t !== "cleared") return "";
+  const s = r.scene;
+  const next = s.floor + 1;
+  return `<div class="victory cleared">
+    <div class="victory-title">FLOOR ${s.floor} CLEARED</div>
+    <p class="center">${esc(s.boss)} has fallen.</p>
+    <p class="center sub">${r.stats.kills} kills · level ${r.hero.level} · ${r.hero.f.hp}/${r.hero.f.maxHp} HP</p>
+    <p class="center" style="margin-top:10px">Below lies <b>Floor ${next} — ${esc(floorName(next))}</b>.</p>
+    <div class="row" style="justify-content:center;margin-top:14px"><button class="primary big" data-descend>Descend to floor ${next} ↓</button></div>
+    <p class="center sub" style="margin-top:8px">Check your 🎒 gear before you go.</p>
+  </div>`;
+}
+
 function restScene(r: Run) {
   if (r.scene.t !== "rest") return "";
   const curses = Object.keys(r.hero.curses);
@@ -598,8 +612,8 @@ function helpGlossary() {
   ${group("💥 Bursts — pile one status high enough", THRESHOLDS.map(t => row(t.icon, t.name, t.text)).join(""))}
   ${group("📊 Your stats", [
     row("⚔️", "Damage", "Added to every hit, then multiplied by the face: Graze ×½, Hit ×1, Crit ×2"),
-    row("🛡️", "Armor", "Stops Armor ÷ (Armor + 10) of each hit: 3 Armor stops about a quarter, 10 stops half, 20 stops two-thirds. Tops out at 75%, or 90% while Guarding. Crits and spells ignore it"),
-    row("🧱", "Guard", "Needs a shield (Warriors can also Guard with a two-hander). Doubles your Armor this round, and lets it stop up to 90%"),
+    row("🛡️", "Armor", "Stops Armor ÷ (Armor + 10) of each hit: 3 Armor stops about a quarter, 10 stops half, 20 stops two-thirds, 30 stops three-quarters. No cap, but each extra point counts for a little less. Crits and spells ignore it"),
+    row("🧱", "Guard", "Needs a shield (Warriors can also Guard with a two-hander). Doubles your Armor this round"),
     row("💨", "Dodge", "A % chance to avoid a hit entirely (max 60%). Not the same as Evade: Dodge bonuses and Evade bonuses don't trigger each other"),
     row("🎯", "Crit chance", "A % chance that a Hit becomes a Crit (max 50%), on top of your die's Crit faces"),
     row("💥", "Bash", "A % chance (from your weapon and rare relics only, max 30%) to Stun and deal +50%"),
@@ -785,6 +799,7 @@ function render() {
   const body =
     s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r)
     : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r)
+    : s.t === "cleared" ? clearedScene(r)
     : s.t === "rest" ? restScene(r) : s.t === "confirm" ? confirmScene(r) : s.t === "event" ? eventScene(r) : overScene(r);
   celebrateScene(r);
   const msg = [r.message, note].filter(Boolean);
@@ -978,6 +993,7 @@ function bind() {
   on("[data-keepsake]", () => { say(takeKeepsake(r), false); sfx("legendary"); });
   on("[data-choosetalent]", () => { ackedTalentScene = r.scene; });
   on("[data-closepopup]", () => { r.popup = undefined; });
+  on("[data-descend]", () => { r.message = ""; advance(r); });
   on("[data-help]", () => { helpOpen = true; });
   on("[data-closehelp]", () => { helpOpen = false; });
   on("[data-closewin]", () => { winSeen = true; });

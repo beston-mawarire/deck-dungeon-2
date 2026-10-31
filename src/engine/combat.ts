@@ -113,12 +113,12 @@ function purify(b: Battle, ctx: AttackCtx) {
 }
 
 /**
- * How much of a hit Armor stops: Armor / (Armor + 10). Light armour barely dents a blow, heavy armour really counts:
- * 3 Armor stops 23%, 5 stops 33%, 10 stops 50%, 20 stops 67%. Tops out at 75%; while Guarding (which doubles Armor) 90%.
+ * How much of a hit Armor stops: Armor / (Armor + 10). No cap, but each extra point is worth a little less:
+ * 3 Armor stops 23%, 10 stops 50%, 20 stops 67%, 30 stops 75%, 60 stops 86%. Guarding doubles your Armor.
  */
-export function armorReduction(armor: number, guarding: boolean): number {
+export function armorReduction(armor: number, _guarding = false): number {
   if (armor <= 0) return 0;
-  return Math.min(guarding ? 0.9 : 0.75, armor / (armor + 10));
+  return armor / (armor + 10);
 }
 
 export function armorOf(f: Fighter): number {

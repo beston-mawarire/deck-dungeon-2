@@ -763,13 +763,17 @@ describe("armor and story beats", () => {
     expect(armorReduction(0, false)).toBe(0);
     expect(armorReduction(10, false)).toBeCloseTo(0.5);
     expect(armorReduction(3, false)).toBeCloseTo(3 / 13);
-    expect(armorReduction(100, false)).toBe(0.75);
-    expect(armorReduction(100, true)).toBe(0.9);
+    // No cap, but diminishing returns: each point is worth less than the last.
+    expect(armorReduction(100, false)).toBeCloseTo(100 / 110);
+    expect(armorReduction(20, false) - armorReduction(10, false)).toBeLessThan(armorReduction(10, false) - armorReduction(0, false));
   });
   it("arriving on floor 5 shows the despair popup", () => {
     const run = newRun("mage", 77);
     run.floor = 4; run.step = 7;
     advance(run);
+    expect(run.scene.t).toBe("cleared"); // waits for the player after the boss
+    expect(run.floor).toBe(4);
+    advance(run); // "Descend"
     expect(run.floor).toBe(5);
     expect(run.popup?.title).toMatch(/Darkness/);
   });
@@ -920,6 +924,8 @@ describe("treasury and encounters", () => {
   it("each new floor announces itself", () => {
     const run = newRun("cleric", 5);
     run.step = 7;
+    advance(run);
+    expect(run.scene.t).toBe("cleared");
     advance(run);
     expect(run.floor).toBe(2);
     expect(run.popup?.title).toMatch(/^Floor 2/);

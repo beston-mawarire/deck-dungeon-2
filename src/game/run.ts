@@ -67,6 +67,7 @@ export type Scene =
   | { t: "rest"; done: boolean }
   | { t: "confirm"; room: RoomType }
   | { t: "event"; ev: GameEvent; result: string | null; found: GearItem[] }
+  | { t: "cleared"; floor: number; boss: string }
   | { t: "over"; won: boolean };
 
 export interface Run {
@@ -92,6 +93,10 @@ export interface Run {
   seenBosses: Set<string>;
   /** Shop rerolls used at the current Merchant (each costs more). */
   shopRerolls: number;
+  /** The floor whose "Floor cleared" screen has been shown (you continue from it to go deeper). */
+  clearedFloor?: number;
+  /** The last boss beaten (for the Floor cleared screen). */
+  lastBoss?: string;
   /** A story popup waiting to be shown (e.g. arriving on the last floor). */
   popup?: { title: string; text: string; icon: string };
 }
@@ -349,6 +354,7 @@ function afterFight(run: Run) {
   }
   if (rank === "boss") {
     run.stats.bosses++;
+    if (then !== "crimson") run.lastBoss = b.enemy.name;
     h.f.persist["bossKills"] = (h.f.persist["bossKills"] ?? 0) + 1;
   }
   // Catch your breath: a small heal after every won fight.
@@ -895,6 +901,14 @@ export function chooseTalent(run: Run, id: string) {
 export function advance(run: Run, fromTalent = false) {
   if (!fromTalent) {
     if (run.step >= STEPS_PER_FLOOR) {
+      // After a floor boss, stop on a "Floor cleared" screen; the player continues when ready.
+      // (Not after the campaign's final boss: that goes straight to the victory.)
+      const finalBoss = run.mode === "campaign" && run.floor >= FLOORS;
+      if (!finalBoss && run.clearedFloor !== run.floor) {
+        run.clearedFloor = run.floor;
+        run.scene = { t: "cleared", floor: run.floor, boss: run.lastBoss ?? "The guardian" };
+        return;
+      }
       run.floor++;
       run.step = 0;
       run.message = `Floor ${run.floor}. The air is colder, and the hoards are richer: your Fortune grows.`;
