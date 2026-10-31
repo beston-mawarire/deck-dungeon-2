@@ -964,6 +964,21 @@ describe("class actions and new stats", () => {
     expect(st(c2.f, "consecrated")).toBe(99);
   });
 
+  it("Holy off-hands deal Holy damage: more to Undead, more again when Consecrated", () => {
+    const h = newHero("warrior");
+    equipItem(h, { uid: 970, base: "ho_sunburst_shield", rarity: "rare", level: 1, bonuses: {}, revealed: true });
+    const e = dummy(); e.family = "Undead";
+    const b = startBattle(h.f, e, 71);
+    b.round = 1;
+    heroPhase(b, "guard");
+    expect(200 - e.hp).toBe(Math.round(5 * 1.5));
+    applyStatus(b, h.f, e, "consecrated", 2);
+    const before = e.hp;
+    b.round = 2;
+    heroPhase(b, "guard");
+    expect(before - e.hp).toBe(Math.round(5 * 1.5 * 1.3));
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);
