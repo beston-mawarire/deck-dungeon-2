@@ -316,3 +316,7 @@ button.continue { width: 100%; margin: 10px 0 2px; }
 button.big { min-height: 54px; font-size: 1.1rem; font-weight: 700; }
 .splash-foot { margin-top: 18px; }
 button.danger { background: var(--bad); border-color: var(--bad); color: #fff; font-weight: 700; }
+details.gloss { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; margin: 6px 0; background: var(--panel); }
+details.gloss summary { font-weight: 700; color: var(--ink); padding: 4px 0; }
+.gl { margin: 6px 0; line-height: 1.4; }
+.gi { display: inline-block; min-width: 1.8em; }

@@ -1,11 +1,12 @@
 // Deck Dungeon 2 — the playable game.
-import { BONUSES, CRIMSON, CURSES, KEEPSAKES, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
+import { BONUSES, CRIMSON, CURSES, KEEPSAKES, TRAITS, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
 import { FUSION_RECIPES } from "../data/fusions";
 import { ORIGINS } from "../data/origins";
 import { armorOf, armorReduction, beginRound, tollOf, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
+import { NEGATIVE_STATUSES } from "../engine/types";
 import {
   BACKPACK_SIZE, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost,
   keepsOffHand, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
@@ -572,8 +573,61 @@ function helpPopup() {
       "Your class is a starting point — you are what you wear. Build around what you find.",
       "Elites and Champions hit hard but drop great gear. Watch for <b>⛓️ Toll</b> enemies: every action you take costs HP.",
       "Read the enemy's chips (Unholy, Conductive, Thief…) — they tell you what works."])}
+    ${helpGlossary()}
     <div class="row" style="justify-content:center;margin-top:14px"><button class="primary" data-closehelp>Got it</button></div>
   </div></div>`;
+}
+
+/** The full reference, built from the game's own data so it always matches what's in the game. */
+function helpGlossary() {
+  const neg = (Object.keys(STATUS_INFO) as StatusId[]).filter(x => (NEGATIVE_STATUSES as readonly string[]).includes(x));
+  const pos = (Object.keys(STATUS_INFO) as StatusId[]).filter(x => !(NEGATIVE_STATUSES as readonly string[]).includes(x));
+  const row = (icon: string, name: string, text: string) => `<p class="gl"><span class="gi">${icon}</span><b>${esc(name)}</b> — ${esc(text)}</p>`;
+  const group = (title: string, body: string, open = false) => `<details class="gloss" ${open ? "open" : ""}><summary>${title}</summary>${body}</details>`;
+  const enemyTraits = TRAITS.filter(t => !t.id.startsWith("m_") || ["m_toll", "m_thief", "m_lifedrink", "m_forge", "m_crackle"].includes(t.id));
+  return `<h2>Reference</h2><p class="sub">Tap a heading to open it.</p>
+  ${group("😖 Negative statuses (debuffs)", neg.map(x => row(STATUS_INFO[x].icon, STATUS_INFO[x].name, STATUS_INFO[x].text)).join(""))}
+  ${group("💪 Positive statuses (buffs)", pos.map(x => row(STATUS_INFO[x].icon, STATUS_INFO[x].name, STATUS_INFO[x].text)).join(""))}
+  ${group("✴️ Reactions — two statuses on the same fighter", REACTIONS.map(x => row(`${STATUS_INFO[x.a].icon}+${STATUS_INFO[x.b].icon}`, x.name, x.text)).join("") +
+    row("✝️", "Smite", "When your Ward blocks a status an enemy tried to put on you, your next hit with a Holy weapon also deals 20% of its Max HP (once per fight)"))}
+  ${group("💥 Bursts — pile one status high enough", THRESHOLDS.map(t => row(t.icon, t.name, t.text)).join(""))}
+  ${group("📊 Your stats", [
+    row("⚔️", "Damage", "Added to every hit, then multiplied by the face: Graze ×½, Hit ×1, Crit ×2"),
+    row("🛡️", "Armor", "Stops Armor ÷ (Armor + 4) of each hit: 4 Armor stops half. Tops out at 70%, or 90% while Guarding. Crits and spells ignore it"),
+    row("🧱", "Guard", "Needs a shield (Warriors can also Guard with a two-hander). Doubles your Armor this round, and lets it stop up to 90%"),
+    row("💨", "Dodge", "A % chance to avoid a hit entirely (max 60%). Not the same as Evade: Dodge bonuses and Evade bonuses don't trigger each other"),
+    row("🎯", "Crit chance", "A % chance that a Hit becomes a Crit (max 50%), on top of your die's Crit faces"),
+    row("💥", "Bash", "A % chance (from your weapon and rare relics only, max 30%) to Stun and deal +50%"),
+    row("🔮", "Spell Amp", "Spell faces (from wands, staffs and other magic weapons) deal this much more"),
+    row("❤️", "Max HP", "Each level-up adds +3. Winning a fight heals 15%; beating a boss heals 30%"),
+    row("🔋", "Static cap", "The most Static you can stack on an enemy (10, or more with certain items)")
+  ].join(""))}
+  ${group("🗡️ Weapons and gear", [
+    row("🎲", "Faces", "Miss (nothing), Graze (half), Hit, Crit (double, ignores Armor). Named faces add effects — spells, Bleed, Stun and so on"),
+    row("✋", "Off-hand", "A weapon in your off-hand rolls a second die. Daggers, throwing knives, kunai, shuriken and wands are built for it; ordinary weapons deal only 60% there"),
+    row("🙌", "Two-handed", "Takes both hands (unless you have Titan's Grip or the War Harness)"),
+    row("💣", "Grenades", "Off-hand only. No damage — they apply a status, and are thrown on round 1 and every 3rd round after"),
+    row("✝️", "Holy", "Holy weapons deal +50% to Undead, vampires and Crimson foes, and can Smite"),
+    row("✨", "Purify", "A face that strips every negative status off the enemy and deals 2× your Damage for each one (ignores Armor)"),
+    row("🔮", "Elemental Barrier", "Mage off-hands with an element let the Mage raise a barrier: roll 5–6 to block, 3–4 to halve, and attackers get the element"),
+    row("🕯️", "Keepsake", "One at a time, from bosses after floor 5. Each grants a powerful passive"),
+    row("📜", "Legendaries", "Arrive hidden. Use a Scroll of Revelation to reveal them; until then they act like a plain item"),
+    row("🩸", "Crimson", "Above Legendary. Only from Crimson bosses in Endless (Crimson Vaults need a Crimson Key from Crimson Elites)")
+  ].join(""))}
+  ${group("👹 Enemy traits", [
+    row("☠️", "Unholy", "Undead, vampires and Crimson foes: Holy weapons deal +50% to them"),
+    row("⚡", "Conductive", "Constructs (golems, sentries): Shock, Static and electric reactions hit them twice as hard"),
+    ...enemyTraits.map(t => row("•", t.name, t.text))
+  ].join(""))}
+  ${group("🧭 The dungeon", [
+    row("✦", "Fortune", "Every floor deeper slightly improves your odds of Rare, Epic and Legendary finds"),
+    row("💀", "Elites & Champions", "Tougher fights with random traits, and better loot"),
+    row("✴️", "A Strange Presence", "A named, unique foe — once per run — that always drops an Epic or better"),
+    row("💰", "Thieves", "Kill them within 5 rounds or they escape with 30% of your Gold; kill them and you get 60% on top"),
+    row("🕯️", "Curses", "Lasting penalties from shrines, idols and cursing foes. A Campfire can cleanse one"),
+    row("🔨", "Forge", "Upgrade or reroll gear with Scrap; sacrifice items in an Offering; Combine two of the same item"),
+    row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell one item per visit")
+  ].join(""))}`;
 }
 
 function splashScreen() {
