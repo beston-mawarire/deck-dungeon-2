@@ -135,8 +135,12 @@ function breakStreak(b: Battle, a: Fighter) {
   if (n >= 3) log(b, `🔗 Streak broken at ${n}.`);
   a.persist["streak"] = 0;
 }
+/** Items, relics and talents that use the hit streak. Without one of them, there is no streak. */
+export const STREAK_IDS = ["r_unbroken_chain", "t_relentless", "t_tally_beads"];
+export const hasStreak = (f: Fighter) => STREAK_IDS.some(id => stacksOf(f, id) > 0);
 function addStreak(a: Fighter) {
   if (a.id !== "player") return;
+  if (!hasStreak(a)) { a.persist["streak"] = 0; return; }
   a.persist["streak"] = streakOf(a) + 1;
   a.persist["bestStreak"] = Math.max(a.persist["bestStreak"] ?? 0, a.persist["streak"]);
 }

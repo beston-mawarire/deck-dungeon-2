@@ -719,6 +719,11 @@ describe("class actions and new stats", () => {
 
   it("hit streak grows on hits and breaks on a graze, across fights", () => {
     const h = newHero("warrior");
+    // No streak gear, no streak.
+    const b0 = startBattle(h.f, dummy(), 1);
+    resolveFace(b0, b0.player, b0.enemy, 2, false);
+    expect(h.f.persist["streak"] ?? 0).toBe(0);
+    h.relics["r_unbroken_chain"] = 1; recompute(h);
     const b = startBattle(h.f, dummy(), 1);
     resolveFace(b, b.player, b.enemy, 2, false);
     resolveFace(b, b.player, b.enemy, 3, false);
@@ -732,6 +737,7 @@ describe("class actions and new stats", () => {
 
   it("against a guarding foe, a hit that still gets through keeps the streak; a full block breaks it", () => {
     const h = newHero("warrior");
+    h.relics["r_unbroken_chain"] = 1; recompute(h);
     const e = dummy();
     e.armor = 1;
     const b = startBattle(h.f, e, 4);
