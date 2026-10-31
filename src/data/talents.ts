@@ -129,7 +129,7 @@ export const HOLY_TALENTS: HookDef[] = [
     hooks: { onRoundStart: (b, f, s) => { const e = other(b, f); applyStatus(b, f, e, "burn", 1); if (s >= 2) applyStatus(b, f, e, "weak", 1); if (s >= 3) applyStatus(b, f, e, "exposed", 1); } } }),
   talent({ id: "t_divine_favor", name: "Divine Favor", tags: ["Holy", "Guard"], text: "Start every fight with Ward (II: Ward returns every 4th round; III: every 3rd)",
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1), onRoundStart: (b, f, s) => { const every = s >= 3 ? 3 : s >= 2 ? 4 : 0; if (every && b.round % every === 0) applyStatus(b, f, f, "ward", 1); } } }),
-  talent({ id: "t_righteous", name: "Righteous Fury", tags: ["Holy", "Strike"], text: "Holy hits deal +2 / +3 / +5 more to Undead, vampires and Crimson foes",
+  talent({ id: "t_righteous", name: "Righteous Fury", tags: ["Holy", "Strike"], text: "Holy hits deal +2 / +3 / +5 more to Undead, vampires, Crimson foes and anything that curses or Dooms",
     hooks: { modifyAttack: (_b, c, s) => { if (wieldsHoly(c.attacker) && isUnholy(c.defender)) c.bonus += rank(s, 2, 3, 5); } } })
 ];
 

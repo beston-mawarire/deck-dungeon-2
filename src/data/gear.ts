@@ -70,7 +70,7 @@ export const WEAPONS: GearBase[] = [
     faces: [GRAZE, HIT, HIT, HIT, spell("Parry", "hit", self("evade", 1)), CRIT], hooks: {} }),
   weapon({ id: "w_rapier", name: "Rapier", tags: ["Crit", "Tempo"], text: "Precise. A 6 sets up your next roll.", damage: 3,
     faces: [GRAZE, HIT, HIT, HIT, CRIT, spell("Riposte", "crit", self("focus", 1))], hooks: {} }),
-  // ---------- Holy weapons: +50% to Undead, vampires and Crimson foes; they can Smite ----------
+  // ---------- Holy weapons: +50% to Undead, vampires, Crimson foes and anything that curses or Dooms; they can Smite ----------
   weapon({ id: "w_blessed_mace", name: "Blessed Mace", tags: ["Holy", "Guard"], text: "Holy. A 5 blesses you with Ward.", damage: 4,
     faces: [GRAZE, HIT, HIT, HIT, spell("Bless", "hit", self("ward", 1)), CRIT], hooks: {} }),
   weapon({ id: "w_sunhammer", name: "Sunhammer", tags: ["Holy", "Burn", "Strike"], text: "Holy. Two-handed. A 6 is a Dawnstrike: 3 Burn.", damage: 6, twoHanded: true,

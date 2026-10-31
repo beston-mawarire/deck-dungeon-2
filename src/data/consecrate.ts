@@ -60,7 +60,7 @@ export const HOLY_WEAPONS: GearBase[] = [
   only("uncommon", { kind: "weapon", slot: "main", id: "hw_sunsteel_falchion", name: "Sunsteel Falchion", tags: ["Holy", "Crit"], damage: 5, faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT], text: "Holy. Crits on 5 and 6.", hooks: {} }),
   only("uncommon", { kind: "weapon", slot: "main", id: "hw_prayer_flail", name: "Prayer Flail", tags: ["Holy", "Blood"], damage: 4, faces: PLAIN, text: "Holy. Its hits heal you 1.",
     hooks: { onHit: (b, c) => { if (!c.offhand) heal(b, c.attacker, 1, "Prayer Flail"); } } }),
-  only("rare", { kind: "weapon", slot: "main", id: "hw_lightbringer", name: "Lightbringer", tags: ["Holy", "Strike"], damage: 6, faces: PLAIN, text: "Holy. Its hits deal +3 to Undead and Crimson foes.",
+  only("rare", { kind: "weapon", slot: "main", id: "hw_lightbringer", name: "Lightbringer", tags: ["Holy", "Strike"], damage: 6, faces: PLAIN, text: "Holy. Its hits deal +3 to Unholy foes (Undead, Crimson, and anything that curses or Dooms).",
     hooks: { modifyAttack: (_b, c) => { if (!c.offhand && isUnholy(c.defender)) c.bonus += 3; } } }),
   only("rare", { kind: "weapon", slot: "main", weaponType: "dagger", id: "hw_silver_stiletto", name: "Silver Stiletto", tags: ["Holy", "Crit", "Tempo"], damage: 3, offDamage: 4, faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT],
     text: "Holy dagger. Crits on 5 and 6. Best in the off-hand: a second, Holy die.", hooks: {} }),

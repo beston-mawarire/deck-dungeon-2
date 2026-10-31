@@ -55,8 +55,16 @@ export function wieldsTag(f: Fighter, tag: string): boolean {
   return false;
 }
 
-/** Undead, vampires and Crimson things: Holy weapons deal +50% to them. */
-export const isUnholy = (f: Fighter) => f.family === "Undead" || !!f.crimson || (f.items["x_vampiric"] ?? 0) > 0 || (f.items["m_lifedrink"] ?? 0) > 0;
+/** Moves and faces that curse you or Doom you: whoever uses them is Unholy too. */
+const DARK_MOVES = ["Malediction", "Doombringer", "Reap"];
+const DARK_FACES = ["Collect", "Hollow Decree"];
+const DARK_TRAITS = ["x_accursed", "m_death"];
+/** Undead, vampires, Crimson things, and anything that curses or Dooms: Holy weapons deal +50% to them. */
+export const isUnholy = (f: Fighter) =>
+  f.family === "Undead" || !!f.crimson || (f.items["x_vampiric"] ?? 0) > 0 || (f.items["m_lifedrink"] ?? 0) > 0 ||
+  DARK_TRAITS.some(t => (f.items[t] ?? 0) > 0) ||
+  !!f.moves?.some(m => DARK_MOVES.includes(m.name)) ||
+  !!f.faces?.some(x => !!x.name && DARK_FACES.includes(x.name));
 
 /** How many times Smite can land per fight, and how hard (fraction of the enemy's Max HP). */
 const smiteLimit = (a: Fighter) => (stacksOf(a, "l_dawnbringer") > 0 ? 99 : 1 + stacksOf(a, "r_halo_retribution"));

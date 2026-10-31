@@ -663,7 +663,7 @@ function helpGlossary() {
     row("✋", "Off-hand", "A weapon in your off-hand rolls a second die. Daggers, throwing knives, kunai, shuriken and wands are built for it; ordinary weapons deal only 60% there"),
     row("🙌", "Two-handed", "Takes both hands (unless you have Titan's Grip or the War Harness)"),
     row("💣", "Grenades", "Off-hand only. No damage — they apply a status, and are thrown on round 1 and every 3rd round after"),
-    row("✝️", "Holy", "Holy weapons deal +50% to Undead, vampires and Crimson foes, and can Smite"),
+    row("✝️", "Holy", "Holy weapons deal +50% to Undead, vampires, Crimson foes and anything that curses or Dooms, and can Smite"),
     row("✨", "Purify", "A face that strips every negative status off the enemy and deals 2× your Damage for each one (ignores Armor)"),
     row("😤", "Reckless", "Some gear makes you deal more damage but also take more from every hit. It stacks, for better and worse"),
     row("⛓️", "Roll cap", "Some heavy gear stops your die rolling above 4 or 5; the Manacles do the same to the enemy's die"),
@@ -675,7 +675,7 @@ function helpGlossary() {
     row("🩸", "Crimson", "Above Legendary. Only from Crimson bosses in Endless (Crimson Vaults need a Crimson Key from Crimson Elites)")
   ].join(""))}
   ${group("👹 Enemy traits", [
-    row("☠️", "Unholy", "Undead, vampires and Crimson foes: Holy weapons deal +50% to them"),
+    row("☠️", "Unholy", "Undead, vampires, Crimson foes and anything that curses or Dooms: Holy weapons deal +50% to them"),
     row("⚡", "Conductive", "Constructs (golems, sentries): Shock, Static and electric reactions hit them twice as hard"),
     ...enemyTraits.map(t => row("•", t.name, t.text))
   ].join(""))}

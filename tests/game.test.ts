@@ -3,7 +3,7 @@ import { LEGENDARIES, loadLibrary } from "../src/data";
 import { makeMonster, makeThief } from "../src/data/monsters";
 import { makeBoss } from "../src/data/bosses";
 import { EPIC_CRIMSON } from "../src/data/abyss";
-import { beginRound, endRound, enemyPhase, heroPhase, playRound, resolveFace, startBattle } from "../src/engine/combat";
+import { beginRound, endRound, enemyPhase, heroPhase, isUnholy, playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
 import { applyStatus, endOfRound, st } from "../src/engine/statuses";
@@ -977,6 +977,16 @@ describe("class actions and new stats", () => {
     b.round = 2;
     heroPhase(b, "guard");
     expect(before - e.hp).toBe(Math.round(5 * 1.5 * 1.3));
+  });
+
+  it("foes that curse or Doom are Unholy (Holy weapons +50%)", () => {
+    const e = dummy(); e.family = "Beast";
+    expect(isUnholy(e)).toBe(false);
+    e.items = { x_accursed: 1 };
+    expect(isUnholy(e)).toBe(true);
+    const hollow = makeBoss(5, makeRng(3));
+    expect(hollow.family).toBe("Construct");
+    expect(isUnholy(hollow)).toBe(true); // Doombringer
   });
 
   it("Penance stores damage taken and adds it to the next attack", () => {
