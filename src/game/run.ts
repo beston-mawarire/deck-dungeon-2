@@ -95,7 +95,7 @@ export interface Run {
   shopRerolls: number;
   /** The floor whose "Floor cleared" screen has been shown (you continue from it to go deeper). */
   clearedFloor?: number;
-  /** Relics just gained, waiting for their "New relic!" popup. */
+  /** Relics (by id) and scrolls ("scroll:N") just gained, waiting for their popup. */
   relicNews?: string[];
   /** The player ended this run themselves. */
   abandoned?: boolean;
@@ -414,7 +414,7 @@ function afterFight(run: Run) {
     if (relic) {
       grantRelic(run, relic);
     }
-    h.scrolls += scrolls;
+    grantScrolls(run, scrolls);
     recompute(h);
     // Crimson bosses offer a Crimson item alongside two boss finds.
     const offer = b.enemy.crimson ? [rollItem(h, "crimson", run.floor, run.rng), roll(TABLES.boss), roll(TABLES.boss)] : [roll(TABLES.boss), roll(TABLES.boss), roll(TABLES.boss)];
@@ -426,6 +426,7 @@ function afterFight(run: Run) {
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (relic) grantRelic(run, relic);
+  if (scrolls) grantScrolls(run, scrolls);
   run.scene = { t: "loot", title: then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined };
   const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean);
   run.message = notes.join(" ");
@@ -489,7 +490,6 @@ export function collectLoot(run: Run) {
   const s = run.scene;
   const h = run.hero;
   h.f.gold += s.gold;
-  h.scrolls += s.scrolls;
   h.potions += s.potions;
   recompute(h);
   s.gold = 0;
@@ -550,7 +550,7 @@ export function claimResplendent(run: Run): string | null {
   if (s.t !== "resplendent" || s.picked === null) return null;
   const card = s.cards[s.picked];
   if (card.kind === "scroll") {
-    run.hero.scrolls++;
+    grantScrolls(run, 1);
     advance(run);
     return null;
   }
@@ -699,7 +699,7 @@ export function chooseEvent(run: Run, i: number) {
     addCurse: () => { const c = CURSES[Math.floor(run.rng() * CURSES.length)]; h.curses[c.id] = (h.curses[c.id] ?? 0) + 1; recompute(h); return c.name; },
     clearCurses: () => { const n = Object.keys(h.curses).length; h.curses = {}; recompute(h); return n; },
     addXp: (n: number) => gainXp(run, n),
-    addScrolls: (n: number) => { h.scrolls += n; },
+    addScrolls: (n: number) => { grantScrolls(run, n); },
     addPotions: (n: number) => { h.potions += n; },
     addScrap: (n: number) => { h.scrap += n; },
     addPity: (n: number) => { run.loot.pity += n; },
@@ -943,4 +943,11 @@ export function grantRelic(run: Run, id: string) {
   run.found.add(id);
   (run.relicNews ??= []).push(id);
   recompute(h);
+}
+
+/** Give the hero Scrolls of Revelation and queue their popup. */
+export function grantScrolls(run: Run, n: number) {
+  if (n <= 0) return;
+  run.hero.scrolls += n;
+  (run.relicNews ??= []).push(`scroll:${n}`);
 }

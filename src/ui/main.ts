@@ -318,7 +318,7 @@ const takeButtons = (it: GearItem) =>
 function lootScene(r: Run) {
   if (r.scene.t !== "loot") return "";
   const s = r.scene;
-  const extras = [s.gold ? `🪙 ${s.gold} Gold` : "", s.potions ? `🧪 Potion` : "", s.scrolls ? `📜 Scroll of Revelation` : "", s.relic ? `💎 New relic: ${getItem(s.relic).name} — ${getItem(s.relic).text}` : ""].filter(Boolean);
+  const extras = [s.gold ? `🪙 ${s.gold} Gold` : "", s.potions ? `🧪 Potion` : "", s.scrolls ? `📜 ${s.scrolls > 1 ? `${s.scrolls} Scrolls` : "Scroll"} of Revelation (yours)` : "", s.relic ? `💎 New relic: ${getItem(s.relic).name} — ${getItem(s.relic).text}` : ""].filter(Boolean);
   // After a won fight, the rewards sit in a framed Victory panel.
   const victory = s.title === "Victory" || s.title.startsWith("You caught") || s.title === "The Mimic's hoard";
   const body = `${extras.length ? `<div class="panel">${extras.map(x => `<p>${esc(x)}</p>`).join("")}</div>` : ""}
@@ -760,6 +760,18 @@ function originPopup(o: OriginId) {
 
 /** "New relic!" popup: a relic is easy to miss in a line of text, so each one gets its own moment. */
 function relicPopup(id: string, more: number) {
+  if (id.startsWith("scroll:")) {
+    const n = Number(id.split(":")[1]) || 1;
+    const hidden = run ? [...EQUIP_SLOTS.map(s => run!.hero.equip[s]), ...run.hero.backpack].filter(it => it && !it.revealed).length : 0;
+    return `<div class="overlay popup-wrap"><div class="popup relic-pop scroll-pop r-legendary">
+    <div class="center relic-gem">📜</div>
+    <div class="center relic-kicker scroll-kicker">${n > 1 ? `${n} SCROLLS` : "NEW SCROLL"}</div>
+    <h1 class="center bigname nm">Scroll of Revelation</h1>
+    <p class="center">Reveals a hidden Legendary's true power. You have <b>${run?.hero.scrolls ?? n}</b>.</p>
+    <p class="center sub">${hidden ? `You're carrying ${hidden} unrevealed item${hidden > 1 ? "s" : ""}: open 🎒 Gear & build to read one.` : "Keep it for when you find a Legendary: use it from 🎒 Gear & build."}</p>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-relicok>${more ? `Next (${more} more)` : "Got it"}</button></div>
+  </div></div>`;
+  }
   const it = getItem(id);
   const rar = it.rarity ?? "common";
   const n = run?.hero.relics[id] ?? 1;
@@ -798,7 +810,7 @@ const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }
 // ---------- Loot fanfare ----------
 const celebrated = new Set<number>();
 let fanfareEl: HTMLElement | null = null;
-function celebrate(rarity: string, label?: string) {
+function celebrate(rarity: string, label?: string, banner = true) {
   if (rarity !== "rare" && rarity !== "epic" && rarity !== "legendary" && rarity !== "crimson") return;
   fanfareEl?.remove();
   const el = document.createElement("div");
@@ -809,7 +821,7 @@ function celebrate(rarity: string, label?: string) {
         return `<i class="spark" style="left:50%;top:38%;--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d}px;animation-delay:${Math.random() * 0.25}s"></i>`;
       }).join("")
     : "";
-  el.innerHTML = rarity === "rare" ? "" : `<div class="banner">${esc(label ?? rarity.toUpperCase())}</div>${sparks}`;
+  el.innerHTML = rarity === "rare" ? "" : `${banner ? `<div class="banner">${esc(label ?? rarity.toUpperCase())}</div>` : ""}${sparks}`;
   document.body.appendChild(el);
   fanfareEl = el;
   if (rarity !== "epic") navigator.vibrate?.(rarity === "crimson" ? [80, 50, 80, 50, 200] : [60, 40, 120]);
@@ -869,7 +881,11 @@ function render() {
   const relicNow = !levelPopup && !winPopup && s.t !== "combat" && r.relicNews?.length ? r.relicNews[0] : undefined;
   if (relicNow) {
     const key = `${relicNow}:${r.hero.relics[relicNow]}:${r.relicNews!.length}:${r.floor}:${r.step}`;
-    if (!celebratedRelic.has(key)) { celebratedRelic.add(key); celebrate(["rare", "epic", "legendary"].includes(getItem(relicNow).rarity ?? "") ? (getItem(relicNow).rarity as string) : "rare", "NEW RELIC"); }
+    if (!celebratedRelic.has(key)) {
+      celebratedRelic.add(key);
+      if (relicNow.startsWith("scroll:")) celebrate("epic", "SCROLL OF REVELATION", false);
+      else celebrate(["rare", "epic", "legendary"].includes(getItem(relicNow).rarity ?? "") ? (getItem(relicNow).rarity as string) : "rare", "NEW RELIC", false);
+    }
   }
   app.innerHTML = `${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${menuOpen ? runMenu(r) : ""}`;
   bind();

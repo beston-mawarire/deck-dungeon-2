@@ -338,3 +338,5 @@ details.gloss summary { font-weight: 700; color: var(--ink); padding: 4px 0; }
 .music-row b { min-width: 42px; text-align: right; }
 .music-hint { margin: 0 auto 4px; display: block; opacity: .85; animation: pulse-hint 2s ease-in-out infinite; }
 @keyframes pulse-hint { 50% { opacity: .5; } }
+.scroll-pop .relic-gem { filter: drop-shadow(0 0 12px rgba(240,138,42,.7)); }
+.scroll-pop .scroll-kicker { color: var(--legendary); }
