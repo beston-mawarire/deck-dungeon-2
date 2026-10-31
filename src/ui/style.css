@@ -263,3 +263,12 @@ button.classact { border-color: var(--rare); color: #b9d8ff; }
 .fortune .stars { font-size: 1.6rem; line-height: 1; letter-spacing: .12em; color: var(--gold); text-shadow: 0 0 10px rgba(232,184,74,.6); }
 .fortune .stars .dim { color: #4a3f55; text-shadow: none; }
 .fortune .hint { color: #f1d38a; font-style: italic; font-size: .9rem; letter-spacing: normal; }
+
+/* ---------- Mode buttons with Story ---------- */
+.modes { display: grid; gap: 8px; }
+.moderow { display: flex; gap: 8px; align-items: stretch; }
+.moderow > button.grow { text-align: left; }
+button.story { min-height: 44px; white-space: nowrap; }
+@media (min-width: 600px) { .modes { grid-template-columns: 1fr 1fr; } }
+.story-pop { border-color: var(--rare); }
+.story-text { font-size: 1.05rem; line-height: 1.55; font-style: italic; color: #e9e0f3; }

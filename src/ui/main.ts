@@ -33,6 +33,8 @@ let mode: Mode = "campaign";
 let bagOpen = false;
 /** The class the player tapped on the title screen (the popup before a run starts). */
 let pendingOrigin: OriginId | null = null;
+/** Which mode's story popup is open on the title screen. */
+let storyOpen: Mode | null = null;
 /** The talent scene whose "You have levelled up!" popup has been seen. */
 let ackedTalentScene: unknown = null;
 let note = "";
@@ -197,7 +199,10 @@ function titleScreen() {
   <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span><span class="grow"></span><button class="small" data-codex>📖 Codex</button></div>
     ${next ? `<p class="sub">Next unlock at ${next.at} Renown: <b>${esc(next.name)}</b> (${locked.size} items still locked)</p>` : `<p class="sub">Everything is unlocked.</p>`}</div>
   <h2>Mode</h2>
-  <div class="row"><button data-mode="campaign" class="${mode === "campaign" ? "primary" : ""}">Campaign · ${FLOORS} floors</button><button data-mode="endless" class="${mode === "endless" ? "primary" : ""}">Endless · how deep?</button></div>
+  <div class="modes">
+    <div class="moderow"><button data-mode="campaign" class="grow ${mode === "campaign" ? "primary" : ""}">🏰 Campaign · ${FLOORS} floors</button><button class="small story" data-story="campaign">📖 Story</button></div>
+    <div class="moderow"><button data-mode="endless" class="grow ${mode === "endless" ? "primary" : ""}">♾️ Endless · how deep?</button><button class="small story" data-story="endless">📖 Story</button></div>
+  </div>
   <p class="sub">${mode === "campaign" ? `${FLOORS} floors, ${FLOORS} bosses — the Hollow King waits at the bottom.` : `Past floor ${FLOORS}, the bosses you didn't meet return, and new ones are forged from a library of names, titles and powers. Floor ${WALL_FLOOR} is a wall only a broken build gets through.`}</p>
   <h2>Choose an origin</h2>
   <div class="cards">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
@@ -504,6 +509,22 @@ const ORIGIN_PITCH: Record<OriginId, string> = {
   cleric: "The Cleric wins by outlasting. Healing, Ward and Holy weapons that Smite the wicked — and Penance: kneel, take what they give you, and return every point of it in one blow. Survives what others can't, and turns suffering into damage."
 };
 
+const STORIES: Record<Mode, { icon: string; title: string; text: string }> = {
+  campaign: { icon: "🏰", title: "Campaign", text: "Deep within a dungeon, a gate to the netherworld has been opened. Dark beasts and unspeakable horrors pour out from it. Your king has called upon you as the mightiest in the kingdom to venture into the dungeon and close the gate." },
+  endless: { icon: "♾️", title: "Endless", text: "At the forsaken dungeon depths, a rift between worlds has been torn open. The fate of the lands has been sealed. You venture deep into the dungeon to take as many creatures of the dark with you before you are defeated." }
+};
+
+function storyPopup(m: Mode) {
+  const st = STORIES[m];
+  return `<div class="overlay popup-wrap"><div class="popup story-pop">
+    <button class="small closex" data-closestory aria-label="Close">✕</button>
+    <div class="center bigicon">${st.icon}</div>
+    <h1 class="center bigname">${st.title}</h1>
+    <p class="story-text">${esc(st.text)}</p>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-closestory>Close</button></div>
+  </div></div>`;
+}
+
 function originPopup(o: OriginId) {
   const og = ORIGINS[o];
   const p = getItem(og.passive);
@@ -578,7 +599,7 @@ function celebrateScene(r: Run) {
 function render() {
   app.classList.toggle("with-side", !!run);
   if (!run) {
-    app.innerHTML = view === "codex" ? codexScreen() : `${titleScreen()}${pendingOrigin ? originPopup(pendingOrigin) : ""}`;
+    app.innerHTML = view === "codex" ? codexScreen() : `${titleScreen()}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}`;
     bind();
     return;
   }
@@ -737,6 +758,8 @@ function bind() {
   on("[data-mute]", () => toggleMute());
   if (!run) {
     on("[data-mode]", el => { mode = el.dataset.mode as Mode; });
+    on("[data-story]", el => { storyOpen = el.dataset.story as Mode; });
+    on("[data-closestory]", () => { storyOpen = null; });
     on("[data-codex]", () => { view = "codex"; });
     on("[data-back]", () => { view = "title"; });
     on("[data-origin]", el => { pendingOrigin = el.dataset.origin as OriginId; });
