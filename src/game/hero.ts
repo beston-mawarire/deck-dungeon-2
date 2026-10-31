@@ -101,7 +101,7 @@ export function itemLines(item: GearItem): string[] {
   if (eb.kind === "weapon" && eb.tags.includes("Holy")) lines.push("✝️ Holy: +50% to Undead, vampires and Crimson foes. When your Ward stops an enemy's status, your next hit Smites (20% of its Max HP, once per fight).");
   if (eb.faces?.some(f => f.cleanse)) lines.push("✨ Purify: strips every negative status from the enemy and deals 2× Damage for each one (ignores Armor). Nothing on them, no damage.");
   if (eb.shield) lines.push("🛡️ Shield: lets you Guard.");
-  if (eb.barrierElement) lines.push(`🔮 Mage: lets you raise an Elemental Barrier (${eb.barrierElement}).`);
+  if (eb.barrierElement) lines.push(`🔮 Mage: lets you raise an Elemental Barrier (${(eb.barrierElements ?? [eb.barrierElement]).join(", ")}).`);
   if (itemDodge(item)) lines.push(`💨 ${itemDodge(item)}% Dodge`);
   if (item.bash) lines.push(`💥 ${item.bash}% Bash (Stuns and deals +50%)`);
   if (b.legendary && !item.revealed) lines.push("A Legendary, waiting to be revealed. Use a Scroll of Revelation.");
@@ -144,6 +144,7 @@ export function recompute(h: Hero) {
 
   const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0, spellAmp: 0, critChance: 0 };
   f.barrierElement = undefined;
+  f.barrierElements = undefined;
   f.twoHanded = false;
   f.offTwoHanded = false;
   f.mainType = undefined;
@@ -172,7 +173,7 @@ export function recompute(h: Hero) {
     // Dual wielding: a weapon (not a grenade) in each hand.
     if (slot === "off" && eb.kind === "weapon" && eb.weaponType !== "grenade" && h.equip.main && effectiveBase(h.equip.main).kind === "weapon") f.dualWield = true;
     if (slot === "off" && eb.twoHanded) f.offTwoHanded = true;
-    if (slot === "off" && eb.barrierElement) f.barrierElement = eb.barrierElement;
+    if (slot === "off" && eb.barrierElement) { f.barrierElement = eb.barrierElement; f.barrierElements = eb.barrierElements; }
     if (slot === "main" && eb.kind === "weapon") {
       s.damage = weaponDamage(it);
       f.faces = eb.faces ?? PLAIN_FACES;

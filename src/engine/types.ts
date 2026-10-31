@@ -67,6 +67,8 @@ export interface Fighter {
   boss?: boolean;
   /** Mage: the element the off-hand's Elemental Barrier throws back. */
   barrierElement?: StatusId;
+  /** Mage: every element the barrier throws back (multi-element charms). */
+  barrierElements?: StatusId[];
   /** Dodge chance in % (capped at 60). Separate from Evade: neither triggers the other's bonuses. */
   dodge?: number;
   /** Extra % chance that a Hit becomes a Crit (capped at 50%). */
@@ -223,6 +225,8 @@ export interface GearBase extends HookDef {
   shield?: boolean;
   /** Mage off-hands: the element an Elemental Barrier throws back at attackers. */
   barrierElement?: StatusId;
+  /** Multi-element charms: every element the barrier throws back (each at full stacks). */
+  barrierElements?: StatusId[];
   /** Dodge % this item gives at each rarity (new Dodge gear only). */
   dodge?: Partial<Record<Rarity, number>>;
   /** Deep finds: only drop past floor 5 — unless unlocked earlier with Renown. */

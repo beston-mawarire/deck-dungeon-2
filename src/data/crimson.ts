@@ -5,6 +5,7 @@ import { REACTIONS } from "../engine/statuses";
 import type { AttackCtx, Battle, GearBase, StatusId } from "../engine/types";
 import { NEGATIVE_STATUSES } from "../engine/types";
 import { CRIMSON_ITEMS } from "./treasury";
+import { CHARM_CRIMSON } from "./charms";
 import { applyStatus, cast, CRIT, GRAZE, heal, HIT, log, loseHp, other, ping, purify, st } from "./helpers";
 
 const crimson = (d: Omit<GearBase, "rarity">): GearBase => ({ ...d, rarity: "crimson" });
@@ -102,4 +103,4 @@ export const CRIMSON: GearBase[] = [
 ];
 
 // The Treasury's Crimson items join the pool.
-CRIMSON.push(...CRIMSON_ITEMS);
+CRIMSON.push(...CRIMSON_ITEMS, ...CHARM_CRIMSON);

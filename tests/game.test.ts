@@ -702,6 +702,21 @@ describe("class actions and new stats", () => {
     expect(st(e, "burn")).toBeGreaterThanOrEqual(2);
   });
 
+  it("multi-element charms throw every element back from a barrier", () => {
+    const h = newHero("mage");
+    equipItem(h, { uid: 777, base: "ch_triad", rarity: "rare", level: 1, bonuses: {}, revealed: true });
+    expect(h.f.barrierElements).toEqual(["burn", "chill", "static"]);
+    const e = foe(10);
+    e.hp = e.maxHp = 200;
+    const b = startBattle(h.f, e, 53);
+    b.round = 1;
+    h.f.flags["eBarrier"] = 1; h.f.flags["eBarrierTier"] = 2;
+    enemyPhase(b);
+    // Burn 4 lands, then Chill 4 reacts with it (Steam), then Static 4.
+    expect(b.log.some(l => /Steam/.test(l))).toBe(true);
+    expect(st(e, "static")).toBe(4);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);

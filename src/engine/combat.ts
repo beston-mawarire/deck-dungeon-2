@@ -305,7 +305,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     ctx.raw = raw;
     fx(b, { who: d.id, kind: "block", text: tier >= 2 ? "Barrier holds" : "Barrier bends", icon: "🔮" });
     log(b, `${d.name}'s Elemental Barrier ${tier >= 2 ? "blocks the whole hit" : "takes half of it"}.`);
-    if (d.barrierElement && a.hp > 0) applyStatus(b, d, a, d.barrierElement, tier >= 2 ? 4 : 2);
+    if (d.barrierElement && a.hp > 0) for (const el of d.barrierElements ?? [d.barrierElement]) if (a.hp > 0) applyStatus(b, d, a, el, tier >= 2 ? 4 : 2);
   }
   const armor = ctx.ignoreArmor ? 0 : armorOf(d);
   // Armor stops a percentage of each hit (see armorReduction); Guarding doubles Armor and lifts the cap.
