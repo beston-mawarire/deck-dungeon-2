@@ -34,7 +34,7 @@ export const CRIMSON: GearBase[] = [
     faces: [cast("Verse", "graze", litany), cast("Verse", "hit", litany), cast("Verse", "hit", litany), cast("Verse", "hit", litany), cast("Verse", "hit", litany), cast("Amen", "crit", litany)],
     text: "Every face is a spell that applies two different random negative statuses (2 each). The first reaction you cause each round gives you Haste.",
     hooks: {} }), // Haste on reaction: statuses.ts
-  crimson({ id: "c_heartseeker", kind: "weapon", slot: "main", name: "Heartseeker", tags: ["Crit", "Kill"], damage: 6, offDamage: 5,
+  crimson({ id: "c_heartseeker", weaponType: "dagger", kind: "weapon", slot: "main", name: "Heartseeker", tags: ["Crit", "Kill"], damage: 6, offDamage: 5,
     faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT, heartstrike, heartstrike],
     text: "A d8. Faces 7 and 8 are Heartstrikes: crits that add a fifth of the enemy's current HP. Works in the off-hand.",
     hooks: {} }),

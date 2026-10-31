@@ -1,5 +1,6 @@
 // Relics. Text matches the Library doc; "(+x)" is what each extra stack adds.
 import { attack } from "../engine/combat";
+import { CRIT_RELICS } from "./blades";
 import { loseHp, other, st } from "../engine/statuses";
 import type { HookDef } from "../engine/types";
 import { applyStatus, gain, gold, heal, inflict, log, on, ping, scale } from "./helpers";
@@ -105,12 +106,12 @@ export const STATUS_RELICS: HookDef[] = [
     } } }),
   relic({ id: "mirror_of_spite", name: "Mirror of Spite", rarity: "rare", tags: ["Hex"], text: "Negative statuses put on you are copied onto the enemy",
     hooks: { incomingStatus: (b, self, s, amount) => {
-      const neg = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder"].includes(s);
+      const neg = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder", "dazzled"].includes(s);
       if (neg && !self.flags["mirroring"]) { self.flags["mirroring"] = 1; applyStatus(b, self, other(b, self), s, amount); self.flags["mirroring"] = 0; }
       return amount;
     } } }),
   relic({ id: "plague_bearer", name: "Plague Bearer", rarity: "rare", tags: ["Poison", "Hex"], text: "Your hits deal +1 for each different negative status on the enemy",
-    hooks: { modifyAttack: (_b, ctx) => { ctx.bonus += (["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder"] as const).filter(x => st(ctx.defender, x) > 0).length; } } }),
+    hooks: { modifyAttack: (_b, ctx) => { ctx.bonus += (["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder", "dazzled"] as const).filter(x => st(ctx.defender, x) > 0).length; } } }),
   relic({ id: "doomsayers_bell", name: "Doomsayer's Bell", rarity: "rare", tags: ["Hex", "Kill"], text: "Apply 1 Doom to the enemy every round (+1)",
     hooks: { onRoundEnd: (b, f, s) => applyStatus(b, f, other(b, f), "doom", s) } })
 ];
@@ -150,7 +151,7 @@ export const LEGENDARY_RELICS: HookDef[] = [
 ];
 
 // ---------- Guard & shield relics ----------
-const NEG = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder"];
+const NEG = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder", "dazzled"];
 export const GUARD_RELICS: HookDef[] = [
   relic({ id: "r_shield_polish", name: "Shield Polish", rarity: "common", tags: ["Guard"], text: "+1 Armor while Guarding (+1)",
     hooks: { onGuard: (_b, f, s) => { f.flags["guardArmor"] = (f.flags["guardArmor"] ?? 0) + s; } } }),
@@ -185,7 +186,7 @@ export const HOLY_RELICS: HookDef[] = [
 ];
 
 // ---------- Arcane & storm relics ----------
-const negCount = (f: { statuses: Record<string, number | undefined> }) => ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder"].filter(s => (f.statuses[s] ?? 0) > 0).length;
+const negCount = (f: { statuses: Record<string, number | undefined> }) => ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder", "dazzled"].filter(s => (f.statuses[s] ?? 0) > 0).length;
 export const STORM_RELICS: HookDef[] = [
   relic({ id: "r_arcane_prism", name: "Arcane Prism", rarity: "uncommon", tags: ["Arcane", "Hex"], text: "Enemies carrying 3 or more different negative statuses take 25% more damage from you (+15%)",
     hooks: { modifyAttack: (_b, c, s) => { if (negCount(c.defender) >= 3) c.mult *= 1.1 + 0.15 * s; } } }),
@@ -209,4 +210,4 @@ export const STORM_RELICS: HookDef[] = [
   relic({ id: "lr_stormheart", name: "Stormheart", rarity: "legendary", tags: ["Storm"], text: "Static you apply caps at 20 instead of 10, and every Static tick deals triple", hooks: {} })
 ];
 
-export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3, ...LEGENDARY_RELICS, ...GUARD_RELICS, ...HOLY_RELICS, ...STORM_RELICS];
+export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3, ...LEGENDARY_RELICS, ...GUARD_RELICS, ...HOLY_RELICS, ...STORM_RELICS, ...CRIT_RELICS];

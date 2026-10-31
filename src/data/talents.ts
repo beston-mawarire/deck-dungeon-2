@@ -97,7 +97,7 @@ export const MORE_TALENTS: HookDef[] = [
 ];
 
 // ---------- Guard & shield talents ----------
-const NEG = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder"] as const;
+const NEG = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder", "dazzled"] as const;
 export const GUARD_TALENTS: HookDef[] = [
   talent({ id: "t_riposte", name: "Riposte", tags: ["Guard", "Strike"], text: "After you Guard, your next attack deals +3 / +5 / +8",
     hooks: {

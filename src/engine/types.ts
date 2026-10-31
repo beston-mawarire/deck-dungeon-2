@@ -6,7 +6,7 @@ export const TAGS = [
 ] as const;
 export type Tag = (typeof TAGS)[number];
 
-export const NEGATIVE_STATUSES = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder"] as const;
+export const NEGATIVE_STATUSES = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder", "dazzled"] as const;
 export const POSITIVE_STATUSES = ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded", "smoulder_soul"] as const;
 export type NegativeStatus = (typeof NEGATIVE_STATUSES)[number];
 export type PositiveStatus = (typeof POSITIVE_STATUSES)[number];
@@ -69,6 +69,11 @@ export interface Fighter {
   barrierElement?: StatusId;
   /** Dodge chance in % (capped at 60). Separate from Evade: neither triggers the other's bonuses. */
   dodge?: number;
+  /** Extra % chance that a Hit becomes a Crit (capped at 50%). */
+  critChance?: number;
+  /** Hero: the weapon type in each hand (dagger, throwing, kunai, shuriken, grenade). */
+  mainType?: string;
+  offType?: string;
   /** Hero: the main (and off-hand) weapon is two-handed. */
   twoHanded?: boolean;
   offTwoHanded?: boolean;
@@ -175,6 +180,7 @@ export interface StatBlock {
   dodge: number;
   bash: number;
   spellAmp: number;
+  critChance: number;
 }
 
 /** Anything with hooks: gear bases, bonuses, Epic powers, relics, talents, monster traits, origin passives, curses. */
@@ -207,6 +213,8 @@ export interface GearBase extends HookDef {
   /** Legendaries only: earliest floor and the effect hidden until revealed. */
   legendary?: { minFloor: number; reveal: string; asBase: string };
 
+  /** Weapon family: daggers, throwing knives, kunai, shuriken, grenades (some items care which you hold). */
+  weaponType?: "dagger" | "throwing" | "kunai" | "shuriken" | "grenade";
   /** Shields let you Guard. */
   shield?: boolean;
   /** Mage off-hands: the element an Elemental Barrier throws back at attackers. */

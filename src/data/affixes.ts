@@ -226,7 +226,7 @@ export const LEGENDARIES: GearBase[] = [
     legendary: { minFloor: 3, asBase: "a_scale", reveal: "You can't be Burned, Poisoned or made to Bleed. Every one of those you shrug off gives you 1 Might." },
     text: "The dragon didn't need it any more.",
     hooks: { incomingStatus: (b, f, s, n) => { if (s !== "burn" && s !== "poison" && s !== "bleed") return n; applyStatus(b, f, f, "might", 1); return 0; } } }),
-  legendary({ id: "l_bloodletter", kind: "weapon", slot: "main", name: "Bloodletter", tags: ["Bleed", "Crit"], damage: 5, offDamage: 4,
+  legendary({ id: "l_bloodletter", weaponType: "dagger", kind: "weapon", slot: "main", name: "Bloodletter", tags: ["Bleed", "Crit"], damage: 5, offDamage: 4,
     faces: [GRAZE, HIT, HIT, HIT, CRIT, { ...CRIT, name: "Open Vein", run: hex("bleed", 3) }],
     legendary: { minFloor: 1, asBase: "w_dagger", reveal: "Your hits add the enemy's Bleed stacks as extra damage. Your crits apply 3 Bleed. Works in the off-hand." },
     text: "It drinks before you do.",

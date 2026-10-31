@@ -6,7 +6,7 @@ import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
 import { applyStatus, endOfRound, st } from "../src/engine/statuses";
 import { TAGS } from "../src/engine/types";
-import { equipItem, itemName, newHero, recompute, reveal, salvage, weaponDamage } from "../src/game/hero";
+import { equipItem, itemName, newHero, recompute, reveal, salvage, slotsFor, weaponDamage } from "../src/game/hero";
 import { resetDropped, resplendentCards, rollItem } from "../src/game/loot";
 import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, takeItem } from "../src/game/run";
 
@@ -44,7 +44,7 @@ describe("origins and gear", () => {
     const h = newHero("warrior");
     const b = startBattle(h.f, dummy(), 1);
     resolveFace(b, h.f, b.enemy, 6, false);
-    expect(b.enemy.hp).toBe(200 - 8); // sword 4 × crit 2
+    expect(b.enemy.hp).toBe(200 - 2 * (4 + Math.floor(b.player.armor / 3))); // (sword 4 + Warrior armor bonus) × crit 2
   });
 
   it("spell faces apply statuses, and the Mage's passive adds a stack", () => {
@@ -801,9 +801,41 @@ describe("two-handers", () => {
     h.talents["t_heavy_hitter"] = 1; recompute(h);
     const e1 = mk(); const b1 = startBattle(h.f, e1, 1); h.f.statuses = {}; resolveFace(b1, h.f, e1, 3);
     const oneHand = 500 - e1.hp;
-    expect(oneHand).toBe(h.f.damage);
+    expect(oneHand).toBe(h.f.damage + Math.floor(h.f.armor / 3));
     equipItem(h, { uid: 990, base: "w_axe", rarity: "common", level: 1, bonuses: {}, revealed: true }, "main");
     const e2 = mk(); const b2 = startBattle(h.f, e2, 1); h.f.statuses = {}; resolveFace(b2, h.f, e2, 3);
-    expect(500 - e2.hp).toBe(h.f.damage + 2);
+    expect(500 - e2.hp).toBe(h.f.damage + 2 + Math.floor(h.f.armor / 3));
+  });
+});
+
+describe("blades and bombs", () => {
+  it("blood-price daggers lower Max HP and raise Crit chance", () => {
+    const h = newHero("rogue");
+    const hp = h.f.maxHp;
+    equipItem(h, { uid: 1001, base: "d_glass_stiletto", rarity: "common", level: 1, bonuses: {}, revealed: true }, "main");
+    expect(h.f.maxHp).toBe(hp - 6);
+    expect(h.f.critChance).toBe(8);
+  });
+  it("grenades only go in the off-hand, deal no damage, and Dazzle by roll", () => {
+    const h = newHero("rogue");
+    const g = { uid: 1002, base: "gr_flashbang", rarity: "common" as const, level: 1, bonuses: {}, revealed: true };
+    expect(slotsFor(g)).toEqual(["off"]);
+    equipItem(h, g, "off");
+    const e = makeMonster(makeRng(70), 1, "normal"); e.hp = e.maxHp = 300; e.items = {};
+    const b = startBattle(h.f, e, 70);
+    resolveFace(b, h.f, e, 6, true);
+    expect(e.hp).toBe(300);
+    expect(st(e, "dazzled")).toBe(4);
+    const hp = h.f.hp;
+    b.round = 1; enemyPhase(b);
+    expect(h.f.hp).toBe(hp); // Dazzled: its attack misses
+  });
+  it("the Warrior's damage grows with Armor", () => {
+    const h = newHero("warrior");
+    const e = makeMonster(makeRng(71), 1, "normal"); e.hp = e.maxHp = 300; e.armor = 0; e.items = {};
+    h.f.armor = 9;
+    const b = startBattle(h.f, e, 71); h.f.statuses = {};
+    resolveFace(b, h.f, e, 3);
+    expect(300 - e.hp).toBe(h.f.damage + 3);
   });
 });

@@ -156,6 +156,11 @@ export function resolveFace(b: Battle, a: Fighter, d: Fighter, face: number, off
   const spec = faces[Math.min(face, faces.length) - 1];
   log(b, `${a.name} rolls ${face}${offhand ? " (off-hand)" : ""}: ${faceName(spec)}.`);
   fx(b, { who: a.id, kind: "roll", face, faceName: faceName(spec), faceKind: spec.kind, sides: faces.length, offhand });
+  if (st(a, "dazzled") > 0 && !a.flags["counterHit"]) {
+    log(b, `${a.name} is Dazzled and misses.`);
+    fx(b, { who: d.id, kind: "miss", text: "Dazzled — miss" });
+    return;
+  }
   if (st(a, "blind") > 0 && face <= 2) {
     log(b, `${a.name} is Blind and misses.`);
     fx(b, { who: d.id, kind: "miss", text: "Blind — miss" });
@@ -165,6 +170,12 @@ export function resolveFace(b: Battle, a: Fighter, d: Fighter, face: number, off
     attacker: a, defender: d, face, spec, kind: spec.kind, mult: KIND_MULT[spec.kind],
     ignoreArmor: spec.kind === "crit" || !!spec.magic, bonus: 0, noDamage: spec.kind === "miss", offhand, dealt: 0
   };
+  // Crit chance (gear, relics): a Hit may turn into a Crit.
+  if (ctx.kind === "hit" && (a.critChance ?? 0) > 0 && b.rng() * 100 < Math.min(50, a.critChance ?? 0)) {
+    ctx.kind = "crit";
+    ctx.mult = 2;
+    ctx.ignoreArmor = true;
+  }
   // A Counter strike always lands: misses and grazes become hits.
   if (a.flags["counterHit"] && (ctx.kind === "miss" || ctx.kind === "graze")) {
     ctx.kind = "hit";
@@ -395,7 +406,9 @@ function act(b: Battle, f: Fighter, doIt: () => void) {
 function heroAttack(b: Battle) {
   const swings = stacksOf(b.player, "l_thousand_hands") > 0 ? 3 : 1;
   for (let i = 0; i < swings && b.enemy.hp > 0; i++) attack(b, b.player, b.enemy);
-  if (b.player.offFaces && b.enemy.hp > 0) attack(b, b.player, b.enemy, true);
+  // Grenades in the off-hand are thrown on round 1 and every 3rd round after; other off-hands attack every turn.
+  const grenade = b.player.offType === "grenade";
+  if (b.player.offFaces && b.enemy.hp > 0 && (!grenade || b.round % 3 === 1)) attack(b, b.player, b.enemy, true);
 }
 
 interface Snapshot { hp: number; statuses: Statuses }

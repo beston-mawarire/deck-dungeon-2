@@ -35,6 +35,7 @@ export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: s
   kindled: { name: "Kindled", icon: "🕯️", text: "Your hits apply Burn equal to stacks; falls by 1 each round" },
   grounded: { name: "Grounded", icon: "🪨", text: "Shock and Static can't land on you; lasts its stacks in rounds" },
   smoulder: { name: "Smouldering", icon: "🌋", text: "Each round it burns from within: an enemy takes 4 Burn (you'd take 5), and its foe takes 1 Burn; lasts its stacks in rounds" },
+  dazzled: { name: "Dazzled", icon: "😵", text: "Its attacks miss completely; lasts its stacks in rounds (at most 4)" },
   smoulder_soul: { name: "Smouldering Soul", icon: "♨️", text: "A fire you carry: you take 1 Burn each round, but every action you take deals 5 Burn to the enemy; lasts its stacks in rounds" }
 };
 
@@ -174,6 +175,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   if (SINGLE.includes(id)) target.statuses[id] = Math.max(st(target, id), 1);
   else if (id === "shock") target.statuses.shock = Math.max(st(target, "shock"), amount);
   else if (id === "static") target.statuses.static = Math.min(staticCap(source), st(target, "static") + amount);
+  else if (id === "dazzled") target.statuses.dazzled = Math.min(4, Math.max(st(target, "dazzled"), amount));
   else target.statuses[id] = st(target, id) + amount;
   log(b, `${target.name} gains ${STATUS_INFO[id].icon} ${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` ${amount}`}.`);
   fx(b, { who: target.id, kind: "status", icon: STATUS_INFO[id].icon, text: `${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` +${amount}`}`, value: isNegative(id) ? -1 : 1 });
@@ -349,7 +351,7 @@ export function endOfRound(b: Battle, f: Fighter) {
     else f.statuses.smoulder_soul = soul + 1; // the Furnace Heart never lets it go out
     f.statuses.smoulder_soul = st(f, "smoulder_soul") - 1;
   }
-  for (const s of ["spikes", "chill", "weak", "exposed", "blind", "soaked", "kindled", "grounded"] as StatusId[]) {
+  for (const s of ["spikes", "chill", "weak", "exposed", "blind", "soaked", "kindled", "grounded", "dazzled"] as StatusId[]) {
     if (s === "spikes" && (f.items["lr_crown_thorns"] ?? 0) > 0) continue;
     if (st(f, s) > 0) f.statuses[s] = st(f, s) - 1;
   }

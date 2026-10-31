@@ -451,7 +451,8 @@ function bag(r: Run) {
   // Derived stats, so you can see what your build adds up to.
   const pct = (n: number) => `${Math.round(n * 100)}%`;
   const sides = f.faces.length;
-  const critChance = crits / sides;
+  const hitFaces = f.faces.filter(x => x.kind === "hit").length;
+  const critChance = crits / sides + (hitFaces / sides) * ((f.critChance ?? 0) / 100);
   const missChance = (misses + f.faces.filter(x => x.kind === "graze").length * 0.5) / sides;
   const guardArmor = f.armor * ((f.items["r_fortress_heart"] ?? 0) > 0 ? 3 : 2);
   let healMul = 1;
@@ -465,7 +466,7 @@ function bag(r: Run) {
         <span>🪙 ${f.gold}</span><span>⚙️ ${h.scrap}</span><span>✴️ ${h.starmetal}</span><span>📜 ${h.scrolls}</span><span>🧪 ${h.potions}</span>${h.manaPotions ? `<span>🔷 ${h.manaPotions}</span>` : ""}</div>
       <div class="stiles">
         ${tile("⚔️", "Damage", `${f.damage}${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}`, "Main die damage (+ off-hand die)")}
-        ${tile("🎯", "Crit chance", pct(critChance), `${crits} of ${sides} faces crit (double damage, ignores Armor)`)}
+        ${tile("🎯", "Crit chance", pct(critChance), `${crits} of ${sides} faces crit${f.critChance ? `, plus ${f.critChance}% Crit chance on Hits` : ""} (double damage, ignores Armor)`)}
         ${tile("🌫️", "Miss chance", pct(missChance), "Miss faces count fully, Grazes as half")}
         ${tile("🛡️", "Armor", `${f.armor}`, "Armor stops a percentage of each hit")}
         ${tile("🧱", "Damage stopped", `${pct(armorReduction(f.armor, false))}${canGuard(h) ? ` · ${pct(armorReduction(guardArmor, true))} guarding` : ""}`, canGuard(h) ? "How much of a hit your Armor stops, and while Guarding" : "How much of a hit your Armor stops (you need a shield to Guard)")}

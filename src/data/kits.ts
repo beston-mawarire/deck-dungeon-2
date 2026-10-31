@@ -22,13 +22,13 @@ export const KIT_UPGRADES: GearBase[] = [
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "barrier", f.armor) } }),
 
   // ---------- Rogue: Dagger, Throwing Knife, Leather Jerkin ----------
-  g(U, { id: "k_keen_dagger", kind: "weapon", slot: "main", name: "Keen Dagger", tags: ["Bleed", "Crit"], text: "A greater Dagger. A 6 Guts for 3 Bleed. Works in the off-hand.", damage: 4, offDamage: 3,
+  g(U, { id: "k_keen_dagger", weaponType: "dagger", kind: "weapon", slot: "main", name: "Keen Dagger", tags: ["Bleed", "Crit"], text: "A greater Dagger. A 6 Guts for 3 Bleed. Works in the off-hand.", damage: 4, offDamage: 3,
     faces: [GRAZE, HIT, HIT, HIT, CRIT, spell("Gut", "crit", hex("bleed", 3))], hooks: {} }),
-  g(R, { id: "k_shadowfang", kind: "weapon", slot: "main", name: "Shadowfang", tags: ["Bleed", "Crit"], text: "The finest Dagger. No Grazes; crits on 4, 5 and 6, and a 6 Guts for 3 Bleed. Works in the off-hand.", damage: 5, offDamage: 4,
+  g(R, { id: "k_shadowfang", weaponType: "dagger", kind: "weapon", slot: "main", name: "Shadowfang", tags: ["Bleed", "Crit"], text: "The finest Dagger. No Grazes; crits on 4, 5 and 6, and a 6 Guts for 3 Bleed. Works in the off-hand.", damage: 5, offDamage: 4,
     faces: [HIT, HIT, HIT, CRIT, CRIT, spell("Gut", "crit", hex("bleed", 3))], hooks: {} }),
-  g(U, { id: "k_balanced_knives", kind: "weapon", slot: "main", name: "Balanced Knives", tags: ["Crit", "Tempo"], text: "Greater Throwing Knives. No misses; crits on 5 and 6. Best in the off-hand.", damage: 3, offDamage: 3,
+  g(U, { id: "k_balanced_knives", weaponType: "throwing", kind: "weapon", slot: "main", name: "Balanced Knives", tags: ["Crit", "Tempo"], text: "Greater Throwing Knives. No misses; crits on 5 and 6. Best in the off-hand.", damage: 3, offDamage: 3,
     faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT], hooks: {} }),
-  g(R, { id: "k_fan_of_knives", kind: "weapon", slot: "main", name: "Fan of Knives", tags: ["Crit", "Tempo", "Bleed"], text: "Crits on 4, 5 and 6; your crits apply 1 Bleed. Best in the off-hand.", damage: 3, offDamage: 4,
+  g(R, { id: "k_fan_of_knives", weaponType: "throwing", kind: "weapon", slot: "main", name: "Fan of Knives", tags: ["Crit", "Tempo", "Bleed"], text: "Crits on 4, 5 and 6; your crits apply 1 Bleed. Best in the off-hand.", damage: 3, offDamage: 4,
     faces: [HIT, HIT, HIT, CRIT, CRIT, CRIT], hooks: { onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "bleed", 1) } }),
   g(U, { id: "k_supple_leathers", kind: "armour", slot: "armour", name: "Supple Leathers", tags: ["Tempo", "Luck"], text: "A greater Leather Jerkin. +2 Armor. Start each fight with Evade.", armor: 2,
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "evade", 1) } }),

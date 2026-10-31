@@ -5,9 +5,10 @@ import type { StatusId } from "../engine/types";
 import { wieldsHoly } from "../engine/combat";
 import { ARMOUR_ADDS, DODGE_GEAR, DOOM_WEAPONS, ELEMENTAL_WEAPONS, GREAT_WEAPONS } from "./arsenal";
 import { BASICS, STAT_GEAR } from "./basics";
+import { DAGGERS, DODGE_WEAPONS, GRENADES, HEAVY_ARMOURS, THROWER_GEAR, THROWN_WEAPONS } from "./blades";
 import { KIT_UPGRADES } from "./kits";
 
-const NEG: StatusId[] = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder"];
+const NEG: StatusId[] = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder", "dazzled"];
 
 const weapon = (d: Omit<GearBase, "kind" | "slot">): GearBase => ({ kind: "weapon", slot: "main", ...d });
 const off = (d: Omit<GearBase, "kind" | "slot">): GearBase => ({ kind: "off", slot: "off", ...d });
@@ -16,9 +17,9 @@ const trinket = (d: Omit<GearBase, "kind" | "slot">): GearBase => ({ kind: "trin
 
 export const WEAPONS: GearBase[] = [
   weapon({ id: "w_sword", name: "Iron Sword", tags: ["Strike"], text: "Steady and reliable.", damage: 4, faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT], hooks: {} }),
-  weapon({ id: "w_dagger", name: "Dagger", tags: ["Bleed", "Crit"], text: "Light; can be held in the off-hand for a second die.", damage: 3, offDamage: 2,
+  weapon({ id: "w_dagger", weaponType: "dagger", name: "Dagger", tags: ["Bleed", "Crit"], text: "Light; can be held in the off-hand for a second die.", damage: 3, offDamage: 2,
     faces: [GRAZE, HIT, HIT, HIT, CRIT, spell("Gut", "crit", hex("bleed", 2))], hooks: {} }),
-  weapon({ id: "w_throwing_knife", name: "Throwing Knife", tags: ["Crit", "Tempo"], text: "Best in the off-hand.", damage: 2, offDamage: 2,
+  weapon({ id: "w_throwing_knife", weaponType: "throwing", name: "Throwing Knife", tags: ["Crit", "Tempo"], text: "Best in the off-hand.", damage: 2, offDamage: 2,
     faces: [MISS, HIT, HIT, HIT, CRIT, CRIT], hooks: {} }),
   weapon({ id: "w_hand_axe", name: "Hand Axe", tags: ["Strike", "Bleed"], text: "One-handed; works in the off-hand.", damage: 4, offDamage: 3,
     faces: [MISS, HIT, HIT, HIT, spell("Hack", "hit", hex("bleed", 2)), { kind: "crit", name: "Cleave", cleave: true }], hooks: {} }),
@@ -56,7 +57,7 @@ export const WEAPONS: GearBase[] = [
     faces: [GRAZE, HIT, HIT, spell("Surge", "hit", hex("shock", 1)), HIT, CRIT], hooks: {} }),
   weapon({ id: "w_morningstar", name: "Morningstar", tags: ["Strike", "Bleed"], text: "Spiked and brutal. A 6 stuns.", damage: 5,
     faces: [MISS, HIT, HIT, HIT, spell("Spike", "hit", hex("bleed", 2)), spell("Bash", "crit", hex("stun", 1))], hooks: {} }),
-  weapon({ id: "w_main_gauche", name: "Main Gauche", tags: ["Guard", "Tempo"], text: "A parrying blade; best in the off-hand. A 5 sets you up to dodge.", damage: 2, offDamage: 2,
+  weapon({ id: "w_main_gauche", weaponType: "dagger", name: "Main Gauche", tags: ["Guard", "Tempo"], text: "A parrying blade; best in the off-hand. A 5 sets you up to dodge.", damage: 2, offDamage: 2,
     faces: [GRAZE, HIT, HIT, HIT, spell("Parry", "hit", self("evade", 1)), CRIT], hooks: {} }),
   weapon({ id: "w_rapier", name: "Rapier", tags: ["Crit", "Tempo"], text: "Precise. A 6 sets up your next roll.", damage: 3,
     faces: [GRAZE, HIT, HIT, HIT, CRIT, spell("Riposte", "crit", self("focus", 1))], hooks: {} }),
@@ -299,4 +300,4 @@ export const TRINKETS: GearBase[] = [
   trinket({ id: "t_quicksilver", name: "Quicksilver Ring", tags: ["Tempo"], text: "Start each fight at full HP with Haste.", hooks: { onFightStart: (b, f) => { if (f.hp >= f.maxHp) applyStatus(b, f, f, "haste", 1); } } })
 ];
 
-export const GEAR_BASES: GearBase[] = [...WEAPONS, ...OFFHANDS, ...ARMOURS, ...TRINKETS, ...KIT_UPGRADES, ...BASICS, ...DODGE_GEAR, ...ELEMENTAL_WEAPONS, ...DOOM_WEAPONS, ...ARMOUR_ADDS, ...STAT_GEAR, ...GREAT_WEAPONS];
+export const GEAR_BASES: GearBase[] = [...WEAPONS, ...OFFHANDS, ...ARMOURS, ...TRINKETS, ...KIT_UPGRADES, ...BASICS, ...DODGE_GEAR, ...ELEMENTAL_WEAPONS, ...DOOM_WEAPONS, ...ARMOUR_ADDS, ...STAT_GEAR, ...GREAT_WEAPONS, ...DAGGERS, ...THROWN_WEAPONS, ...GRENADES, ...THROWER_GEAR, ...DODGE_WEAPONS, ...HEAVY_ARMOURS];

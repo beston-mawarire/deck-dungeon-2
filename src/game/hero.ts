@@ -127,10 +127,12 @@ export function recompute(h: Hero) {
   if (h.keepsake) add(h.keepsake);
   if (!hasThirdTrinket(h) && h.equip.trinket3) { h.backpack.push(h.equip.trinket3); delete h.equip.trinket3; }
 
-  const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0, spellAmp: 0 };
+  const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0, spellAmp: 0, critChance: 0 };
   f.barrierElement = undefined;
   f.twoHanded = false;
   f.offTwoHanded = false;
+  f.mainType = undefined;
+  f.offType = undefined;
   f.faces = PLAIN_FACES;
   f.offFaces = undefined;
   for (const slot of EQUIP_SLOTS) {
@@ -147,6 +149,8 @@ export function recompute(h: Hero) {
     s.dodge += itemDodge(it);
     if (slot === "main" && it.bash) s.bash += it.bash;
     if (slot === "main" && eb.twoHanded) f.twoHanded = true;
+    if (slot === "main") f.mainType = eb.weaponType;
+    if (slot === "off") f.offType = eb.weaponType;
     if (slot === "off" && eb.twoHanded) f.offTwoHanded = true;
     if (slot === "off" && eb.barrierElement) f.barrierElement = eb.barrierElement;
     if (slot === "main" && eb.kind === "weapon") {
@@ -180,6 +184,10 @@ export function recompute(h: Hero) {
   f.dodge = Math.min(60, Math.max(0, s.dodge));
   f.bash = Math.min(30, Math.max(0, s.bash));
   f.spellAmp = Math.max(0, s.spellAmp);
+  // Thrower's Bandolier: +5% Crit chance with a throwing weapon in the off-hand. Mirage Sabre: + half your Dodge.
+  if (items["t_bandolier"] && f.offType && ["throwing", "kunai", "shuriken"].includes(f.offType)) s.critChance += 5;
+  if (items["w_mirage_sabre"]) s.critChance += Math.floor((f.dodge ?? 0) / 2);
+  f.critChance = Math.min(50, Math.max(0, s.critChance));
   // Twin Souls: a second die with your main weapon's faces at 60% damage.
   if (items["lr_twin_souls"]) {
     f.offFaces = f.faces;
@@ -209,6 +217,7 @@ export const keepsOffHand = (h?: Hero) => !!h && (hasGrip(h) || (h.relics["r_war
 
 export function slotsFor(item: GearItem, h?: Hero): EquipSlot[] {
   const eb = effectiveBase(item);
+  if (eb.weaponType === "grenade") return ["off"];
   if (eb.slot === "main" && eb.twoHanded) return hasGrip(h) ? ["main", "off"] : ["main"];
   if (eb.slot === "main") return eb.offDamage !== undefined ? ["main", "off"] : ["main"];
   if (eb.slot === "off") return ["off"];

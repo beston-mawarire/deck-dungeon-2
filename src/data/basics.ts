@@ -57,13 +57,13 @@ export const STAT_GEAR: GearBase[] = [
   // Weapons
   g(U, { id: "s_arming_sword", kind: "weapon", slot: "main", name: "Arming Sword", tags: ["Strike"], text: "Well balanced. Nothing fancy.", damage: 5, faces: PLAIN, hooks: {} }),
   g(U, { id: "s_war_axe", kind: "weapon", slot: "main", name: "Bearded Axe", tags: ["Strike"], text: "Heavy head, honest swing.", damage: 6, faces: [MISS, HIT, HIT, HIT, HIT, CRIT], hooks: {} }),
-  g(U, { id: "s_stiletto", kind: "weapon", slot: "main", name: "Stiletto", tags: ["Crit"], text: "Crits on 5 and 6. Works in the off-hand.", damage: 3, offDamage: 3, faces: KEEN, hooks: {} }),
+  g(U, { id: "s_stiletto", weaponType: "dagger", kind: "weapon", slot: "main", name: "Stiletto", tags: ["Crit"], text: "Crits on 5 and 6. Works in the off-hand.", damage: 3, offDamage: 3, faces: KEEN, hooks: {} }),
   g(R, { id: "s_masterwork_blade", kind: "weapon", slot: "main", name: "Masterwork Blade", tags: ["Strike"], text: "No Grazes. Superb steel.", damage: 6, faces: SOLID, hooks: {} }),
   g(R, { id: "s_greataxe", kind: "weapon", slot: "main", name: "Greataxe", tags: ["Strike"], text: "Two-handed. Enormous.", damage: 9, twoHanded: true, faces: [MISS, HIT, HIT, HIT, HIT, CRIT], hooks: {} }),
   g(R, { id: "s_duelling_blade", kind: "weapon", slot: "main", name: "Duelling Blade", tags: ["Crit"], text: "No Grazes; crits on 5 and 6. Works in the off-hand.", damage: 5, offDamage: 4, faces: [HIT, HIT, HIT, HIT, CRIT, CRIT], hooks: {} }),
   // Off-hands
   g(U, { id: "s_iron_buckler", kind: "off", slot: "off", name: "Iron Buckler", shield: true, tags: ["Guard"], text: "+2 Armor.", armor: 2, hooks: {} }),
-  g(U, { id: "s_parrying_knife", kind: "weapon", slot: "main", name: "Parrying Knife", tags: ["Tempo"], text: "A plain second blade. Best in the off-hand.", damage: 2, offDamage: 3, faces: PLAIN, hooks: {} }),
+  g(U, { id: "s_parrying_knife", weaponType: "dagger", kind: "weapon", slot: "main", name: "Parrying Knife", tags: ["Tempo"], text: "A plain second blade. Best in the off-hand.", damage: 2, offDamage: 3, faces: PLAIN, hooks: {} }),
   g(U, { id: "s_steel_kite", kind: "off", slot: "off", name: "Steel Kite Shield", shield: true, tags: ["Guard"], text: "+3 Armor.", armor: 3, hooks: {} }),
   g(R, { id: "s_great_shield", kind: "off", slot: "off", name: "Great Shield", shield: true, tags: ["Guard"], text: "+5 Armor.", armor: 5, hooks: {} }),
   g(R, { id: "s_offhand_saber", kind: "weapon", slot: "main", name: "Offhand Sabre", tags: ["Strike"], text: "No Grazes. Best in the off-hand.", damage: 3, offDamage: 5, faces: SOLID, hooks: {} }),
