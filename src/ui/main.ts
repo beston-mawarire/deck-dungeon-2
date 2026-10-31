@@ -16,7 +16,8 @@ import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, TRANSMUTE_COST,
-  ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR
+  ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR,
+  abandonRun,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
@@ -45,6 +46,9 @@ let pendingOrigin: OriginId | null = null;
 let storyOpen: Mode | null = null;
 /** The How to play guide is open. */
 let helpOpen = false;
+/** The in-run menu (main menu / end run). */
+let menuOpen = false;
+let endArmed = false;
 /** The talent scene whose "You have levelled up!" popup has been seen. */
 let ackedTalentScene: unknown = null;
 let note = "";
@@ -186,7 +190,7 @@ function hud(r: Run) {
     const canDrink = h.potions > 0 && f.hp < f.maxHp && !busy;
     return `<div class="hud compact"><div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">${floorLabel(r)}</span><span class="grow"></span>
       <span class="stat">🪙 <b>${f.gold}</b></span>
-      <button class="small" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (+12 HP)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${f.flags["mana"] || busy ? "disabled" : ""} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${h.manaPotions}</button>` : ""}<button class="small" data-bag title="Gear & build">🎒</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div></div>`;
+      <button class="small" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (+12 HP)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${f.flags["mana"] || busy ? "disabled" : ""} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${h.manaPotions}</button>` : ""}<button class="small" data-bag title="Gear & build">🎒</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu" ${busy ? "disabled" : ""}>☰</button></div></div>`;
   }
   return `<div class="hud">
     <div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">Lv ${h.level}</span><span class="grow"></span><span class="stat">${floorLabel(r)}</span></div>
@@ -195,7 +199,7 @@ function hud(r: Run) {
       <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span><span>🧪 <b>${h.potions}</b></span><span>📜 <b>${h.scrolls}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
     <div class="bar xp"><i style="width:${(h.xp / need) * 100}%"></i></div>
     <div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>
-    <div class="row" style="margin-top:6px"><button class="small" data-bag>🎒 Gear & build</button>${h.potions && f.hp < f.maxHp && !busy ? `<button class="small" data-potion>🧪 Potion (+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>
+    <div class="row" style="margin-top:6px"><button class="small" data-bag>🎒 Gear & build</button>${h.potions && f.hp < f.maxHp && !busy ? `<button class="small" data-potion>🧪 Potion (+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ Menu</button></div>
   </div>`;
 }
 
@@ -457,7 +461,7 @@ function overScene(r: Run) {
   if (r.scene.t !== "over") return "";
   const h = r.hero;
   const won = r.scene.won;
-  return `<div class="banner ${won ? "won" : "lost"}">${won ? "The Hollow King falls. You win!" : "You have fallen."}</div>
+  return `<div class="banner ${won ? "won" : "lost"}">${won ? "The Hollow King falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen."}</div>
   <div class="panel"><p>${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses · biggest hit ${r.stats.bestHit}</p>
   ${recorded ? `<p>🏅 +${recorded.earned} Renown (total ${meta.renown})${recorded.unlocked.length ? ` · Unlocked: <b>${recorded.unlocked.map(esc).join(", ")}</b>` : ""}</p>` : ""}
   <p class="sub">Final build:</p><div class="cards">${EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x).map(it => itemCard(it)).join("")}</div></div>
@@ -693,6 +697,20 @@ function storyPopup(m: Mode) {
 
 let winSeen = false;
 /** A story moment: a centered popup with an icon, a title and a little text. */
+function runMenu(r: Run) {
+  const atMap = r.scene.t === "map";
+  const over = r.scene.t === "over";
+  return `<div class="overlay popup-wrap"><div class="popup">
+    <h2>☰ Menu</h2>
+    <div class="col" style="gap:8px;display:flex;flex-direction:column">
+      <button class="primary big" data-closemenu>▶ Resume</button>
+      <button class="big" data-mainmenu>🏠 Main menu</button>
+      <p class="sub center">${over ? "This run is over." : atMap ? "Your run is saved here; pick it up with Continue." : "Your run is saved at the last path choice; Continue picks it up from there."}</p>
+      ${over ? "" : `<button class="big ${endArmed ? "danger" : ""}" data-endrun>${endArmed ? "Tap again to end this run" : "🏳️ End run"}</button>
+      <p class="sub center">Ending the run counts as a death: you keep the Renown you've earned, but the run is gone.</p>`}
+    </div></div></div>`;
+}
+
 function storyBeat(p: { icon: string; title: string; text: string }, close = "data-closepopup") {
   return `<div class="overlay popup-wrap"><div class="popup story-pop beat">
     <div class="center bigicon">${p.icon}</div>
@@ -807,7 +825,7 @@ function render() {
   const levelPopup = s.t === "talent" && ackedTalentScene !== s;
   if (levelPopup && !celebratedLevel.has(s)) { celebratedLevel.add(s); celebrate("legendary", "LEVEL UP!"); }
   const winPopup = s.t === "over" && s.won && r.mode === "campaign" && !winSeen;
-  app.innerHTML = `${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}`;
+  app.innerHTML = `${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${menuOpen ? runMenu(r) : ""}`;
   bind();
 }
 
@@ -993,6 +1011,14 @@ function bind() {
   on("[data-keepsake]", () => { say(takeKeepsake(r), false); sfx("legendary"); });
   on("[data-choosetalent]", () => { ackedTalentScene = r.scene; });
   on("[data-closepopup]", () => { r.popup = undefined; });
+  on("[data-menu]", () => { if (!busy) { menuOpen = true; endArmed = false; } });
+  on("[data-closemenu]", () => { menuOpen = false; endArmed = false; });
+  on("[data-mainmenu]", () => { menuOpen = false; endArmed = false; bagOpen = false; helpOpen = false; run = null; view = "title"; meta = loadMeta(); });
+  on("[data-endrun]", () => {
+    if (!endArmed) { endArmed = true; return; }
+    endArmed = false; menuOpen = false; bagOpen = false;
+    abandonRun(r);
+  });
   on("[data-descend]", () => { r.message = ""; advance(r); });
   on("[data-help]", () => { helpOpen = true; });
   on("[data-closehelp]", () => { helpOpen = false; });

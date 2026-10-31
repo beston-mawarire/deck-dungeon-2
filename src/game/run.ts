@@ -95,6 +95,8 @@ export interface Run {
   shopRerolls: number;
   /** The floor whose "Floor cleared" screen has been shown (you continue from it to go deeper). */
   clearedFloor?: number;
+  /** The player ended this run themselves. */
+  abandoned?: boolean;
   /** The last boss beaten (for the Floor cleared screen). */
   lastBoss?: string;
   /** A story popup waiting to be shown (e.g. arriving on the last floor). */
@@ -929,3 +931,12 @@ export function advance(run: Run, fromTalent = false) {
 }
 
 export const baseName = (item: GearItem) => baseOf(item.base).name;
+
+/** The player gives up: the run ends here, and Renown is earned for how far you got. */
+export function abandonRun(run: Run) {
+  if (run.scene.t === "over") return;
+  run.abandoned = true;
+  run.popup = undefined;
+  run.message = "";
+  run.scene = { t: "over", won: false };
+}

@@ -162,9 +162,9 @@ export function makeMonster(rng: () => number, floor: number, rank: MonsterRank)
     // Tougher than before, and tougher the deeper you go.
     // Crimson Elites: rarer and harder than Champions, with the Crimson trait on top.
     // Elites should be a real fight even on floor 1: a starting kit shouldn't simply walk through one.
-    hp = Math.round(hp * (rank === "crimson" ? 2.8 + 0.18 * floor : rank === "champion" ? 2.6 + 0.15 * floor : 1.9 + 0.1 * floor));
+    hp = Math.round(hp * (rank === "crimson" ? 2.8 + 0.18 * floor : rank === "champion" ? 2.75 + 0.16 * floor : 2.1 + 0.12 * floor));
     power += rank === "crimson" ? 3 + Math.floor(floor / 2) : rank === "champion" ? 3 + Math.floor(floor / 2) : 2 + (floor >= 3 ? 1 : 0);
-    armorBonus = rank === "elite" || rank === "champion" ? 1 : 0;
+    armorBonus = rank === "champion" ? 2 : rank === "elite" ? 1 : 0;
     if (rank === "crimson") items["x_crimson"] = 1;
     prefix = `${names.join(" ")} `;
   }
