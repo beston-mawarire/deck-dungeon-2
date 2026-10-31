@@ -839,3 +839,13 @@ describe("blades and bombs", () => {
     expect(300 - e.hp).toBe(h.f.damage + 3);
   });
 });
+
+describe("off-hand weapons", () => {
+  it("ordinary one-handers are clumsy in the off-hand; daggers and throwing weapons aren't", () => {
+    const mk = (base: string) => ({ uid: 1, base, rarity: "common" as const, level: 1, bonuses: {}, revealed: true });
+    expect(weaponDamage(mk("w_hand_axe"), true)).toBe(Math.max(1, Math.floor(3 * 0.6)));
+    expect(weaponDamage(mk("w_dagger"), true)).toBe(2);
+    expect(weaponDamage(mk("w_throwing_knife"), true)).toBe(2);
+    expect(weaponDamage(mk("ku_kunai"), true)).toBe(3);
+  });
+});

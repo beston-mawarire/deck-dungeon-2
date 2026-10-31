@@ -53,11 +53,22 @@ export function effectiveBase(item: GearItem): GearBase {
 export const RARITY_DAMAGE: Record<Rarity, number> = { common: 0, uncommon: 0, rare: 1, epic: 3, legendary: 1, crimson: 3 };
 export const RARITY_COLOR: Record<Rarity, string> = { common: "#9a9aa2", uncommon: "#4fc074", rare: "#4f9cf0", epic: "#b06cf0", legendary: "#f08a2a", crimson: "#e0283f" };
 
+/**
+ * Ordinary weapons (swords, axes, maces...) are clumsy in the off-hand: 60% damage. Daggers, throwing knives,
+ * kunai, shuriken, grenades, Arcane weapons (wands) and purpose-made off-hand blades keep their full off-hand damage.
+ */
+export function offhandPenalty(item: GearItem): boolean {
+  const eb = effectiveBase(item);
+  // Blades built as a second weapon (off-hand damage at least their main damage) are exempt too.
+  return eb.kind === "weapon" && !eb.twoHanded && !eb.weaponType && !eb.tags.includes("Arcane") && (eb.offDamage ?? 0) < (eb.damage ?? 0);
+}
+
 export function weaponDamage(item: GearItem, offhand = false): number {
   const base = effectiveBase(item);
   const d = offhand ? base.offDamage ?? 0 : base.damage ?? 0;
   const hidden = !!baseOf(item.base).legendary && !item.revealed;
-  return d + (item.level - 1) + (hidden ? 0 : RARITY_DAMAGE[item.rarity]);
+  const full = d + (item.level - 1) + (hidden ? 0 : RARITY_DAMAGE[item.rarity]);
+  return offhand && offhandPenalty(item) ? Math.max(1, Math.floor(full * 0.6)) : full;
 }
 
 export function itemName(item: GearItem): string {
@@ -79,7 +90,7 @@ export function itemLines(item: GearItem): string[] {
   const b = baseOf(item.base);
   const eb = effectiveBase(item);
   const lines: string[] = [];
-  if (eb.damage !== undefined) lines.push(`Damage ${weaponDamage(item)}${eb.twoHanded ? " · two-handed" : ""}${eb.offDamage ? ` · off-hand ${weaponDamage(item, true)}` : ""}`);
+  if (eb.damage !== undefined) lines.push(`Damage ${weaponDamage(item)}${eb.twoHanded ? " · two-handed" : ""}${eb.offDamage ? ` · off-hand ${weaponDamage(item, true)}${offhandPenalty(item) ? " (clumsy: 60%)" : ""}` : ""}`);
   const armor = (eb.armor ?? 0) + Math.floor((item.level - 1) / 2);
   if (armor) lines.push(`Armor ${armor}`);
   if (eb.faces) lines.push(`Faces: ${eb.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind[0].toUpperCase() + f.kind.slice(1)}`).join(" · ")}`);
