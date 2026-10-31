@@ -251,3 +251,8 @@ button.classact { border-color: var(--rare); color: #b9d8ff; }
   .combat .actions button { flex: 1 1 30%; }
   .popup .bigname { font-size: 1.7rem; }
 }
+
+/* ---------- Victory panel ---------- */
+.victory { border: 2px solid var(--gold); border-radius: 16px; padding: 14px 12px 12px; margin-top: 8px; background: linear-gradient(180deg, rgba(232,184,74,.12), transparent 140px); box-shadow: 0 0 22px rgba(232,184,74,.25); animation: popin .25s ease-out; }
+.victory-title { text-align: center; font-size: 2rem; font-weight: 900; letter-spacing: .14em; color: var(--gold); text-shadow: 0 0 14px rgba(232,184,74,.55); margin-bottom: 8px; }
+@media (max-width: 480px) { .victory-title { font-size: 1.6rem; } }
