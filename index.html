@@ -25,14 +25,14 @@
     <div class="row">${t}</div>
   </div>`}var oc=e=>e<30?` · a Horror at 30`:e<80?` · DEATH at 80`:e<90?` · the End at 90`:``,sc=e=>e.mode===`endless`?`Floor <b>${e.floor}</b>${oc(e.floor)}`:`Floor <b>${Math.min(e.floor,qa)}</b>/${qa}`;function cc(e){let t=e.hero,n=t.f,r=Hi(t.level);if(e.scene.t===`combat`){let r=t.potions>0&&n.hp<n.maxHp&&!Js;return`<div class="hud compact"><div class="row"><b>${X(yr[t.origin].name)}</b><span class="stat">${sc(e)}</span><span class="grow"></span>
       <span class="stat">🪙 <b>${n.gold}</b></span>
-      <button class="small" data-potion ${r?``:`disabled`} title="Drink a potion (+12 HP)">🧪 ${t.potions}</button>${t.manaPotions?`<button class="small" data-mana ${n.flags.mana||Js?`disabled`:``} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${t.manaPotions}</button>`:``}<button class="small" data-bag title="Gear & build">🎒</button><button class="small" data-mute>${as()?`🔇`:`🔊`}</button><button class="small" data-menu title="Menu" ${Js?`disabled`:``}>☰</button></div></div>`}return`<div class="hud">
+      <button class="small" data-potion ${r?``:`disabled`} title="Drink a potion (+12 HP)">🧪 ${t.potions}</button>${t.manaPotions?`<button class="small" data-mana ${n.flags.mana||Js?`disabled`:``} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${t.manaPotions}</button>`:``}<button class="small" data-bag title="Inventory">🎒</button><button class="small" data-mute>${as()?`🔇`:`🔊`}</button><button class="small" data-menu title="Menu" ${Js?`disabled`:``}>☰</button></div></div>`}return`<div class="hud">
     <div class="row"><b>${X(yr[t.origin].name)}</b><span class="stat">Lv ${t.level}</span><span class="grow"></span><span class="stat">${sc(e)}</span></div>
     <div class="bar"><i style="width:${Math.max(0,n.hp/n.maxHp*100)}%"></i></div>
     <div class="row stat"><span><b>${Math.max(0,n.hp)}</b>/${n.maxHp} HP</span><span>⚔️ <b>${n.damage}</b>${n.offDamage===void 0?``:` + ${n.offDamage}`}</span><span>🛡️ <b>${n.armor}</b></span>
       <span>🪙 <b>${n.gold}</b></span><span>⚙️ <b>${t.scrap}</b></span><span>🧪 <b>${t.potions}</b></span><span>📜 <b>${t.scrolls}</b></span>${t.manaPotions?`<span>🔷 <b>${t.manaPotions}</b></span>`:``}${t.starmetal?`<span>✴️ <b>${t.starmetal}</b></span>`:``}${t.crimsonKeys?`<span class="crimson-ink">🗝️ <b>${t.crimsonKeys}</b></span>`:``}</div>
     <div class="bar xp"><i style="width:${t.xp/r*100}%"></i></div>
     <div class="steps">${Array.from({length:8},(t,n)=>`<i class="${n<e.step||e.step===7&&n<7?`done`:``}"></i>`).join(``)}</div>
-    <div class="row" style="margin-top:6px"><button class="small" data-bag>🎒 Gear & build</button>${t.potions&&n.hp<n.maxHp&&!Js?`<button class="small" data-potion>🧪 Potion (+12)</button>`:``}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${as()?`🔇`:`🔊`}</button><button class="small" data-menu title="Menu">☰ Menu</button></div>
+    <div class="row" style="margin-top:6px"><button class="small" data-bag>🎒 Inventory</button>${t.potions&&n.hp<n.maxHp&&!Js?`<button class="small" data-potion>🧪 Potion (+12)</button>`:``}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${as()?`🔇`:`🔊`}</button><button class="small" data-menu title="Menu">☰ Menu</button></div>
   </div>`}function lc(){let e=qi(Ms),t=Wi.find(e=>Ms.renown<e.at);return`<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${as()?`🔇`:`🔊`}</button></div>
   <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
   <div class="panel"><div class="row"><span>🏅 Renown <b>${Ms.renown}</b></span><span class="sub">${Ms.runs} runs · ${Ms.wins} wins · best floor ${Ms.bestFloor}</span><span class="grow"></span><button class="small" data-codex>📖 Codex</button><button class="small" data-help>❓ How to play</button></div>
@@ -143,7 +143,7 @@
       </div>
       <p class="sub" style="margin:6px 0 0">🎲 d${m}: ${u.faces.map((e,t)=>`${t+1} ${e.name??e.kind}`).join(` · `)}</p></div>`,g=di(t),_=g.map(e=>t.equip[e]),ce=t.equip.main&&mi(t.equip.main).twoHanded&&!Ei(t),v=_.filter((e,t)=>!(g[t]===`off`&&ce&&!e)).every(e=>e&&(e.rarity===`legendary`||e.rarity===`crimson`));return`<div class="overlay ${v?`legend-set`:``}"><div class="inner">
     ${v?`<div class="legend-banner">★ Every piece you wear is a Legend ★</div>`:``}
-    <div class="row"><h1 class="grow">Gear & build</h1><button data-closebag>Close</button></div>
+    <div class="row"><h1 class="grow">Inventory</h1><button data-closebag>Close</button></div>
     ${se}
     ${i?`<p class="sub">You can look, but you can't change gear mid-fight.</p>${rc(e)}`:``}
     <p><b>${X(l.name)}</b> (origin) — ${X(l.text)}.</p>
@@ -231,7 +231,7 @@
     <div class="center relic-kicker scroll-kicker">${n>1?`${n} SCROLLS`:`NEW SCROLL`}</div>
     <h1 class="center bigname nm">Scroll of Revelation</h1>
     <p class="center">Reveals a hidden Legendary's true power. You have <b>${Z?.hero.scrolls??n}</b>.</p>
-    <p class="center sub">${r?`You're carrying ${r} unrevealed item${r>1?`s`:``}: open 🎒 Gear & build to read one.`:`Keep it for when you find a Legendary: use it from 🎒 Gear & build.`}</p>
+    <p class="center sub">${r?`You're carrying ${r} unrevealed item${r>1?`s`:``}: open 🎒 Inventory to read one.`:`Keep it for when you find a Legendary: use it from 🎒 Inventory.`}</p>
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-relicok>${t?`Next (${t} more)`:`Got it`}</button></div>
   </div></div>`}let r=n(e),i=r.rarity??`common`,a=Z?.hero.relics[e]??1;return`<div class="overlay popup-wrap"><div class="popup relic-pop r-${i}">
     <div class="center relic-gem">💎</div>
