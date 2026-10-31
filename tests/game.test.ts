@@ -896,6 +896,28 @@ describe("class actions and new stats", () => {
     for (const e of EPIC_CRIMSON) expect(e.rarity).toBe("epic_crimson");
   });
 
+  it("Crit damage trinkets boost Crits; crit gear hits Chilled foes harder; the Ruinous Eye takes 4% of Max HP", () => {
+    const h = newHero("warrior");
+    equipItem(h, { uid: 950, base: "tk_exec_signet", rarity: "rare", level: 1, bonuses: {}, revealed: true });
+    expect(h.f.critDmg).toBe(35);
+    expect(h.f.armor).toBe(newHero("warrior").f.armor); // no Armor from the trinket
+    const b = startBattle(h.f, dummy(), 31);
+    resolveFace(b, b.player, b.enemy, 6, false);
+    const base = 2 * (4 + Math.floor(b.player.armor / 3));
+    expect(200 - b.enemy.hp).toBe(Math.round(base * 1.35));
+    const h2 = newHero("warrior");
+    equipItem(h2, { uid: 951, base: "cv_frostfang", rarity: "rare", level: 1, bonuses: {}, revealed: true });
+    const b2 = startBattle(h2.f, dummy(), 32);
+    b2.enemy.statuses.chill = 1;
+    resolveFace(b2, b2.player, b2.enemy, 6, false);
+    expect(200 - b2.enemy.hp).toBe(Math.round(2 * 1.5 * (b2.player.damage + Math.floor(b2.player.armor / 3))));
+    const h3 = newHero("warrior");
+    equipItem(h3, { uid: 952, base: "lx_ruinous_eye", rarity: "legendary", level: 1, bonuses: {}, revealed: true });
+    const b3 = startBattle(h3.f, dummy(), 33);
+    resolveFace(b3, b3.player, b3.enemy, 3, false);
+    expect(200 - b3.enemy.hp).toBe(4 + Math.floor(b3.player.armor / 3) + 8);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);

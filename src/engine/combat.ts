@@ -281,6 +281,8 @@ function strike(b: Battle, ctx: AttackCtx) {
   if (ctx.spec.magic && (a.spellAmp ?? 0) > 0) raw *= 1 + (a.spellAmp ?? 0) / 100;
   // Keepsake of the Deadeye: crits deal 50% more.
   if (ctx.kind === "crit" && stacksOf(a, "ks_deadeye") > 0) raw *= 1.5;
+  // Crit damage (gear): Crits hit this much harder.
+  if (ctx.kind === "crit" && (a.critDmg ?? 0) > 0) raw *= 1 + (a.critDmg ?? 0) / 100;
   // A failed Counter leaves you off-balance for one attack.
   if (a.flags["frail"]) { raw *= 0.75; a.flags["frail"] = 0; }
   // Bash (main weapon only): Stun and +50%.

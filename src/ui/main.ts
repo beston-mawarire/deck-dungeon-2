@@ -529,6 +529,7 @@ function bag(r: Run) {
         <span>🪙 ${f.gold}</span><span>⚙️ ${h.scrap}</span><span>✴️ ${h.starmetal}</span><span>📜 ${h.scrolls}</span><span>🧪 ${h.potions}</span>${h.manaPotions ? `<span>🔷 ${h.manaPotions}</span>` : ""}</div>
       <div class="stiles">
         ${tile("⚔️", "Damage", `${f.damage}${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}`, "Main die damage (+ off-hand die)")}
+        ${f.critDmg ? tile("💥", "Crit damage", `+${f.critDmg}%`, "Your Crits deal this much more") : ""}
         ${tile("🎯", "Crit chance", pct(critChance), `${crits} of ${sides} faces crit${f.critChance ? `, plus ${f.critChance}% Crit chance on Hits` : ""} (double damage, ignores Armor)`)}
         ${tile("🌫️", "Miss chance", pct(missChance), "Miss faces count fully, Grazes as half")}
         ${tile("🛡️", "Armor", `${f.armor}`, "Armor stops a percentage of each hit")}
@@ -649,6 +650,7 @@ function helpGlossary() {
     row("🛡️", "Armor", "Stops part of each hit: 3 Armor stops 21%, 10 stops 45%, 20 stops 60%, 30 stops 68%, 60 stops 77%. No cap, but each extra point counts for a little less. Crits and spells ignore it"),
     row("🧱", "Guard", "Needs a shield (Warriors can also Guard with a two-hander). Doubles your Armor this round"),
     row("💨", "Dodge", "A % chance to avoid a hit entirely (max 60%). Not the same as Evade: Dodge bonuses and Evade bonuses don't trigger each other"),
+    row("💥", "Crit damage", "A % boost to the damage of your Crits (on top of the usual double)"),
     row("🎯", "Crit chance", "A % chance that a Hit becomes a Crit (max 50%), on top of your die's Crit faces"),
     row("💥", "Bash", "A % chance (from your weapon and rare relics only, max 30%) to Stun and deal +50%"),
     row("🧪", "Status damage", "Burn, Bleed, Poison and Static on the enemy deal this much more each time they tick. Mostly on robes for status builds"),

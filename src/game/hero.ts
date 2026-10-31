@@ -144,7 +144,7 @@ export function recompute(h: Hero) {
   if (h.keepsake) add(h.keepsake);
   if (!hasThirdTrinket(h) && h.equip.trinket3) { h.backpack.push(h.equip.trinket3); delete h.equip.trinket3; }
 
-  const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0, spellAmp: 0, critChance: 0, dotAmp: 0, dmgDealt: 0, dmgTaken: 0 };
+  const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0, spellAmp: 0, critChance: 0, critDmg: 0, dotAmp: 0, dmgDealt: 0, dmgTaken: 0 };
   f.barrierElement = undefined;
   f.barrierElements = undefined;
   f.twoHanded = false;
@@ -216,6 +216,7 @@ export function recompute(h: Hero) {
   if (items["w_mirage_sabre"]) s.critChance += Math.floor((f.dodge ?? 0) / 2);
   if (f.dualWield && items["t_duellist_ring"]) s.critChance += 6;
   f.critChance = Math.min(50, Math.max(0, s.critChance));
+  f.critDmg = Math.max(0, s.critDmg ?? 0);
   // Twin Souls: a second die with your main weapon's faces at 60% damage.
   if (items["lr_twin_souls"]) {
     f.offFaces = f.faces;

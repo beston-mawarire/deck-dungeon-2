@@ -75,6 +75,8 @@ export interface Fighter {
   dodge?: number;
   /** Extra % chance that a Hit becomes a Crit (capped at 50%). */
   critChance?: number;
+  /** Crit damage (%): your Crits deal this much more. */
+  critDmg?: number;
   /** Hero: the weapon type in each hand (dagger, throwing, kunai, shuriken, grenade). */
   mainType?: string;
   offType?: string;
@@ -199,6 +201,7 @@ export interface StatBlock {
   dmgDealt?: number;
   dmgTaken?: number;
   critChance: number;
+  critDmg?: number;
 }
 
 /** Anything with hooks: gear bases, bonuses, Epic powers, relics, talents, monster traits, origin passives, curses. */
