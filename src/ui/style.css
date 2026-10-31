@@ -342,3 +342,20 @@ details.gloss summary { font-weight: 700; color: var(--ink); padding: 4px 0; }
 .scroll-pop .scroll-kicker { color: var(--legendary); }
 .beat-list { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 8px; text-align: left; }
 .beat-list li { line-height: 1.4; }
+
+/* Abyss tiers: Epic Crimson and Legendary Crimson */
+:root { --epic-crimson: #ff2e88; --legendary-crimson: #ff7a1a; }
+.r-epic_crimson { border-color: var(--epic-crimson); background: linear-gradient(160deg, #3a0f2c, #1c0a1a 55%, var(--panel2)); box-shadow: 0 0 22px rgba(255,46,136,.55), inset 0 0 18px rgba(176,108,240,.25); animation: ecpulse 2.2s infinite; }
+.r-epic_crimson .nm { color: #ff6fb0; text-shadow: 0 0 10px rgba(255,46,136,.7); }
+@keyframes ecpulse { 50% { box-shadow: 0 0 34px rgba(255,46,136,.85), inset 0 0 22px rgba(176,108,240,.4); } }
+.r-legendary_crimson { border: 2px solid var(--legendary-crimson); background: linear-gradient(160deg, #3d1406, #2a0808 50%, #140404); box-shadow: 0 0 26px rgba(255,122,26,.7), 0 0 60px rgba(224,40,63,.35); animation: lcpulse 1.8s infinite; }
+.r-legendary_crimson .nm { background: linear-gradient(90deg, #ffd27a, #ff7a1a, #ff2e2e, #ffd27a); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: lcshine 3s linear infinite; font-weight: 900; }
+@keyframes lcpulse { 50% { box-shadow: 0 0 40px rgba(255,122,26,.95), 0 0 90px rgba(224,40,63,.5); } }
+@keyframes lcshine { to { background-position: 300% 0; } }
+.flip .back.tint-epic_crimson { border-color: var(--epic-crimson); } .flip .back.tint-legendary_crimson { border-color: var(--legendary-crimson); }
+.fanfare.epic_crimson::before { background: radial-gradient(ellipse at center, rgba(255,46,136,.55), transparent 70%); }
+.fanfare.epic_crimson .banner { color: #ff7fc0; text-shadow: 0 0 26px rgba(255,46,136,1), 0 2px 0 #3a0420; }
+.fanfare.epic_crimson .spark { background: #ff4fa0; box-shadow: 0 0 12px #ff2e88; }
+.fanfare.legendary_crimson::before { background: radial-gradient(ellipse at center, rgba(255,140,30,.6), rgba(160,0,20,.3) 45%, transparent 75%); }
+.fanfare.legendary_crimson .banner { color: #ffd27a; text-shadow: 0 0 30px rgba(255,122,26,1), 0 0 60px rgba(224,40,63,.9), 0 2px 0 #4a1000; font-size: clamp(28px, 9vw, 58px); }
+.fanfare.legendary_crimson .spark { background: #ffb347; box-shadow: 0 0 14px #ff7a1a; }

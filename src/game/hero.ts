@@ -1,4 +1,5 @@
 // The hero: origin, equipped gear, backpack, relics, talents, curses — and turning all of that into a Fighter.
+import { ABYSS_ITEMS } from "../data/abyss";
 import { relicBonus } from "../data/basic_relics";
 import { CRIMSON, GEAR_BASES, LEGENDARIES } from "../data";
 import { ORIGINS } from "../data/origins";
@@ -38,7 +39,7 @@ export interface Hero {
   nextUid: number;
 }
 
-const BASES = new Map<string, GearBase>([...GEAR_BASES, ...LEGENDARIES, ...CRIMSON].map(g => [g.id, g]));
+const BASES = new Map<string, GearBase>([...GEAR_BASES, ...LEGENDARIES, ...CRIMSON, ...ABYSS_ITEMS].map(g => [g.id, g]));
 export const baseOf = (id: string) => {
   const b = BASES.get(id);
   if (!b) throw new Error(`Unknown gear base ${id}`);
@@ -51,8 +52,8 @@ export function effectiveBase(item: GearItem): GearBase {
   return b.legendary && !item.revealed ? baseOf(b.legendary.asBase) : b;
 }
 
-export const RARITY_DAMAGE: Record<Rarity, number> = { common: 0, uncommon: 0, rare: 1, epic: 3, legendary: 1, crimson: 3 };
-export const RARITY_COLOR: Record<Rarity, string> = { common: "#9a9aa2", uncommon: "#4fc074", rare: "#4f9cf0", epic: "#b06cf0", legendary: "#f08a2a", crimson: "#e0283f" };
+export const RARITY_DAMAGE: Record<Rarity, number> = { common: 0, uncommon: 0, rare: 1, epic: 3, legendary: 1, crimson: 3, epic_crimson: 8, legendary_crimson: 12 };
+export const RARITY_COLOR: Record<Rarity, string> = { common: "#9a9aa2", uncommon: "#4fc074", rare: "#4f9cf0", epic: "#b06cf0", legendary: "#f08a2a", crimson: "#e0283f", epic_crimson: "#ff2e88", legendary_crimson: "#ff7a1a" };
 
 /**
  * Ordinary weapons (swords, axes, maces...) are clumsy in the off-hand: 60% damage. Daggers, throwing knives,
@@ -302,7 +303,7 @@ export function addToBackpack(h: Hero, item: GearItem): string | null {
   return null;
 }
 
-export const SCRAP_VALUE: Record<Rarity, number> = { common: 1, uncommon: 2, rare: 4, epic: 7, legendary: 12, crimson: 20 };
+export const SCRAP_VALUE: Record<Rarity, number> = { common: 1, uncommon: 2, rare: 4, epic: 7, legendary: 12, crimson: 20, epic_crimson: 60, legendary_crimson: 150 };
 
 /** What an item scraps for (rarity + level, plus Scrap relics). */
 export function scrapValue(h: Hero, item: GearItem): number {
@@ -318,6 +319,8 @@ export function salvage(h: Hero, uid: number): number {
   h.scrap += n;
   if (found.item.rarity === "legendary") h.starmetal += 2;
   if (found.item.rarity === "crimson") h.starmetal += 4;
+  if (found.item.rarity === "epic_crimson") h.starmetal += 10;
+  if (found.item.rarity === "legendary_crimson") h.starmetal += 25;
   recompute(h);
   return n;
 }

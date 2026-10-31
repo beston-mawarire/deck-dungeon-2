@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { LEGENDARIES, loadLibrary } from "../src/data";
 import { makeMonster, makeThief } from "../src/data/monsters";
+import { makeBoss } from "../src/data/bosses";
 import { beginRound, endRound, enemyPhase, heroPhase, playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
@@ -8,7 +9,7 @@ import { applyStatus, endOfRound, st } from "../src/engine/statuses";
 import { TAGS } from "../src/engine/types";
 import { equipItem, itemName, newHero, recompute, reveal, salvage, slotsFor, weaponDamage } from "../src/game/hero";
 import { resetDropped, resplendentCards, rollItem } from "../src/game/loot";
-import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, takeItem } from "../src/game/run";
+import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem } from "../src/game/run";
 
 beforeAll(() => loadLibrary());
 
@@ -825,6 +826,59 @@ describe("class actions and new stats", () => {
     const got = salvage(h, uid);
     expect(h.scrap - before).toBe(got);
     expect(got).toBeGreaterThanOrEqual(1 + 4);
+  });
+
+  it("DEATH: its first hit kills you unless you Guard, and it heals past its Max HP", () => {
+    const h = newHero("warrior");
+    const death = makeBoss(80, makeRng(1));
+    expect(death.name).toBe("DEATH");
+    const b = startBattle(h.f, death, 21);
+    b.round = 1;
+    enemyPhase(b);
+    expect(h.f.hp <= 0 || b.log.some(l => /dodges|evades|misses/.test(l))).toBe(true);
+    const h2 = newHero("warrior");
+    const d2 = makeBoss(80, makeRng(1));
+    const b2 = startBattle(h2.f, d2, 22);
+    b2.round = 1;
+    heroPhase(b2, "guard");
+    enemyPhase(b2);
+    if (b2.log.some(l => /DEATH drinks/.test(l))) expect(d2.hp).toBeGreaterThan(d2.maxHp);
+    expect(b2.log.some(l => /DEATH reaps you/.test(l))).toBe(false);
+  });
+
+  it("floor 30–70 bosses offer an Epic Crimson; DEATH drops Abaddon; beating the End wins with a cookie", () => {
+    const run = newRun("warrior", 31);
+    run.mode = "endless";
+    for (const [floor, check] of [[40, "epic_crimson"], [80, "lc_abaddon"]] as const) {
+      run.floor = floor; run.step = STEPS_PER_FLOOR; run.scene = { t: "map" } as typeof run.scene; run.choices = ["boss"];
+      chooseRoom(run, "boss");
+      const sc = run.scene as { t: string; battle?: { enemy: { hp: number }; over?: string } };
+      if (sc.t !== "combat" || !sc.battle) throw new Error("no fight");
+      sc.battle.enemy.hp = 0;
+      sc.battle.over = "won";
+      settleCombat(run);
+      const pk = run.scene as { t: string; items?: { rarity: string; base: string }[] };
+      if (pk.t !== "pick" || !pk.items) throw new Error(`no pick: ${pk.t}`);
+      if (check === "epic_crimson") expect(pk.items[0].rarity).toBe("epic_crimson");
+      else { expect(pk.items[0].base).toBe("lc_abaddon"); expect(run.popup?.text).toMatch(/R600/); }
+    }
+    // Abaddon one-shots
+    const h = newHero("warrior");
+    equipItem(h, { uid: 990, base: "lc_abaddon", rarity: "legendary_crimson", level: 80, bonuses: {}, revealed: true });
+    const end = makeBoss(90, makeRng(2));
+    const b = startBattle(h.f, end, 3);
+    resolveFace(b, b.player, b.enemy, 3, false);
+    expect(b.enemy.hp).toBeLessThanOrEqual(0);
+    run.floor = 90; run.step = STEPS_PER_FLOOR; run.scene = { t: "map" } as typeof run.scene; run.choices = ["boss"];
+    chooseRoom(run, "boss");
+    const sc = run.scene as { t: string; battle?: { enemy: { hp: number }; over?: string } };
+    if (sc.t !== "combat" || !sc.battle) throw new Error("no fight");
+    sc.battle.enemy.hp = 0; sc.battle.over = "won";
+    settleCombat(run);
+    expect((run.scene as { t: string }).t).toBe("over");
+    expect(run.finale).toBe(true);
+    expect(run.popup?.text).toMatch(/NO MORE FOES/);
+    expect(run.hero.backpack.some(i => i.base === "lc_cookie")).toBe(true);
   });
 
   it("Penance stores damage taken and adds it to the next attack", () => {

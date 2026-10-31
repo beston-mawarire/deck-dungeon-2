@@ -1,7 +1,7 @@
 // A run: three floors of path choices, fights, chests, shops, forges and bosses.
 import { relicBonus } from "../data/basic_relics";
 import { CURSES, EPIC_POWERS, KEEPSAKES, LEGENDARIES, RELICS, TALENTS } from "../data";
-import { CAMPAIGN_FLOORS, makeBoss, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
+import { CAMPAIGN_FLOORS, DEATH_FLOOR, END_FLOOR, EPIC_CRIMSON_FLOORS, makeBoss, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
 import { EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
 import { makeMonster, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
@@ -12,7 +12,7 @@ import { heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { addToBackpack, canGuard, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, scrapValue, upgradeCost, xpToLevel } from "./hero";
-import { isLocked, type LootState, resetDropped, type ResplendentCard, resplendentCards, rollItem, rollRarity, setLocked, TABLES } from "./loot";
+import { isLocked, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -27,10 +27,10 @@ const FLOOR_LINES = [
   "The walls pulse faintly, as if the dungeon were breathing."
 ];
 
-/** The campaign is five floors (five bosses). Endless keeps going; floor 30 is the wall. */
+/** The campaign is five floors (five bosses). Endless keeps going; a Horror waits on floor 30. */
 export const FLOORS = CAMPAIGN_FLOORS;
 export const STEPS_PER_FLOOR = 7;
-export { WALL_FLOOR };
+export { DEATH_FLOOR, END_FLOOR, WALL_FLOOR };
 export type Mode = "campaign" | "endless";
 
 export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique";
@@ -103,7 +103,9 @@ export interface Run {
   /** The last boss beaten (for the Floor cleared screen). */
   lastBoss?: string;
   /** A story popup waiting to be shown (e.g. arriving on the last floor). */
-  popup?: { title: string; text: string; icon: string; list?: string[] };
+  popup?: { title: string; text: string; icon: string; list?: string[]; fanfare?: string };
+  /** Beat THE END on floor 90: the whole game is won. */
+  finale?: boolean;
 }
 
 export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: Mode = "campaign", locked: Set<string> = new Set()): Run {
@@ -130,7 +132,7 @@ export function continueEndless(run: Run) {
       "🩸 Crimson Elites: harder than any Champion. Some carry a Crimson Key.",
       "🗝️ Crimson Vaults: spend a key to face a Crimson boss for a Crimson item. Die in there and your run ends.",
       "💎 Fallen bosses sometimes leave a Keepsake, a rare charm that sits beside your trinkets.",
-      "⚠️ Every floor hits harder than the last, and somewhere far below there's a wall.",
+      "⚠️ Every floor hits harder than the last, and somewhere far below waits a Horror.",
       "🎲 There's no last floor to win. Go as deep as you dare."
     ]
   };
@@ -251,7 +253,9 @@ function openResplendent(run: Run) {
 function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique") {
   run.hero.f.persist["floor"] = run.floor;
   // A Crimson Vault always holds a Crimson boss; in Endless, a floor boss is rarely Crimson too.
-  const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && run.floor !== WALL_FLOOR && run.rng() < 0.06));
+  // (Never on the floors with a special boss: the Horror, the Epic Crimson floors, DEATH and the End.)
+  const special = run.floor === WALL_FLOOR || EPIC_CRIMSON_FLOORS.includes(run.floor) || run.floor === DEATH_FLOOR || run.floor === END_FLOOR;
+  const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && !special && run.rng() < 0.06));
   // A rare gold thief sometimes turns up in place of a normal monster.
   const thief = rank === "normal" && !then && run.rng() < 0.04;
   const enemy = then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank);
@@ -423,8 +427,27 @@ function afterFight(run: Run) {
     }
     grantScrolls(run, scrolls);
     recompute(h);
-    // Crimson bosses offer a Crimson item alongside two boss finds.
-    const offer = b.enemy.crimson ? [rollItem(h, "crimson", run.floor, run.rng), roll(TABLES.boss), roll(TABLES.boss)] : [roll(TABLES.boss), roll(TABLES.boss), roll(TABLES.boss)];
+    // THE END: nothing left to fight. The run is won, and there's a cookie.
+    if ((b.enemy.items["m_the_end"] ?? 0) > 0) {
+      const cookie = makeRewardItem(h, "lc_cookie", run.floor);
+      h.backpack.push(cookie);
+      markFound(run, cookie);
+      run.popup = { icon: "🍪", title: "THE END HAS ENDED", text: "THEN THE PLAYER WEPT, FOR HE HAD NO MORE FOES LEFT TO CONQUER", fanfare: "legendary_crimson" };
+      run.scene = { t: "over", won: true };
+      run.finale = true;
+      return;
+    }
+    // DEATH: its scythe is the only reward.
+    if ((b.enemy.items["m_death"] ?? 0) > 0) {
+      run.popup = { icon: "☠️", title: "DEATH IS DEAD", text: "Damn, that's crazy! Tell Beston he owes you R600…", fanfare: "legendary_crimson" };
+      run.scene = { t: "pick", title: "DEATH falls. Its scythe is yours", items: [makeRewardItem(h, "lc_abaddon", run.floor)] };
+      run.message = `+${gold} Gold`;
+      return;
+    }
+    // Crimson bosses offer a Crimson item alongside two boss finds; the bosses of floors 30–70 offer an Epic Crimson.
+    const offer = b.enemy.crimson ? [rollItem(h, "crimson", run.floor, run.rng), roll(TABLES.boss), roll(TABLES.boss)]
+      : EPIC_CRIMSON_FLOORS.includes(run.floor) ? [rollEpicCrimson(h, run.floor, run.rng), roll(TABLES.boss), roll(TABLES.boss)]
+      : [roll(TABLES.boss), roll(TABLES.boss), roll(TABLES.boss)];
     // After the fifth boss, bosses sometimes leave a Keepsake behind.
     const keepsake = run.floor > FLOORS && run.rng() < 0.4 ? KEEPSAKES.filter(k => k.id !== h.keepsake)[Math.floor(run.rng() * (KEEPSAKES.length - (h.keepsake ? 1 : 0)))]?.id : undefined;
     run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: offer, keepsake };
@@ -569,7 +592,7 @@ export function claimResplendent(run: Run): string | null {
 
 // ---------- Shop, Forge, Rest ----------
 
-const PRICE: Record<Rarity, number> = { common: 10, uncommon: 20, rare: 35, epic: 60, legendary: 120, crimson: 250 };
+const PRICE: Record<Rarity, number> = { common: 10, uncommon: 20, rare: 35, epic: 60, legendary: 120, crimson: 250, epic_crimson: 900, legendary_crimson: 2500 };
 
 function shopStock(run: Run): ShopEntry[] {
   const h = run.hero;
@@ -757,7 +780,7 @@ export function fuse(run: Run, out: string): string | null {
 
 // ---------- Forge: Offering, Combine, Transmute ----------
 
-const RARITY_POINTS: Record<Rarity, number> = { common: 1, uncommon: 2, rare: 4, epic: 8, legendary: 16, crimson: 32 };
+const RARITY_POINTS: Record<Rarity, number> = { common: 1, uncommon: 2, rare: 4, epic: 8, legendary: 16, crimson: 32, epic_crimson: 96, legendary_crimson: 256 };
 
 /** The value of an Offering; more and rarer items give better odds. */
 export const offeringValue = (items: GearItem[]) => items.reduce((s, it) => s + RARITY_POINTS[it.rarity] * (1 + 0.25 * (it.level - 1)), 0);
@@ -767,7 +790,7 @@ export function offeringOdds(value: number): Partial<Record<Rarity, number>> {
   const t = Math.log2(Math.max(1, value)); // 1 → 0 (common) … 16 → 4
   const odds: Partial<Record<Rarity, number>> = {};
   let total = 0;
-  const FORGEABLE = RARITIES.filter(r => r !== "crimson");
+  const FORGEABLE = RARITIES.filter(r => r !== "crimson" && r !== "epic_crimson" && r !== "legendary_crimson");
   FORGEABLE.forEach((r, i) => {
     let w = Math.max(0, 1.4 - Math.abs(i - 0.7 * t) * 1.1);
     if (r === "epic") w *= 0.8;
@@ -816,7 +839,7 @@ export function forgeCombine(run: Run, a: number, b: number): GearItem | string 
   if (promoted) r++;
   const rarity = RARITIES[r];
   const level = Math.max(A.level, B.level) + 1;
-  const slots = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0, crimson: 2 }[rarity];
+  const slots = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0, crimson: 2, epic_crimson: 3, legendary_crimson: 0 }[rarity];
   const merged: Record<string, number> = {};
   for (const src of [A.bonuses, B.bonuses]) for (const [k, n] of Object.entries(src)) merged[k] = Math.max(merged[k] ?? 0, n);
   const keep = Object.entries(merged).sort((x, y) => y[1] - x[1]).slice(0, slots);

@@ -6,7 +6,7 @@ import { armorOf, armorReduction, beginRound, tollOf, enemyPhase, endRound, hero
 import { eachHook, getItem } from "../engine/registry";
 import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
-import { NEGATIVE_STATUSES } from "../engine/types";
+import { NEGATIVE_STATUSES, rarityLabel } from "../engine/types";
 import {
   BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost,
   keepsOffHand, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
@@ -16,7 +16,7 @@ import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, TRANSMUTE_COST,
-  ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR,
+  ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   abandonRun,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -163,7 +163,7 @@ function compareHtml(h: Hero, it: GearItem): string {
   diff("Bonuses", Object.keys(cur.bonuses).length + (cur.epic ? 1 : 0), Object.keys(it.bonuses).length + (it.epic ? 1 : 0));
   if (a.faces && c.faces && a.faces.length !== c.faces.length) diff("Die faces", c.faces.length, a.faces.length);
   if (a.twoHanded && h.equip.off && !keepsOffHand(h)) rows.push(`<span class="down">Two-handed: your off-hand goes to the bag</span>`);
-  return `<div class="compare">Replaces <b>${esc(itemName(cur))}</b> (${cur.rarity}, lv ${cur.level})${rows.length ? `<br>${rows.join(" · ")}` : ""}</div>`;
+  return `<div class="compare">Replaces <b>${esc(itemName(cur))}</b> (${rarityLabel(cur.rarity)}, lv ${cur.level})${rows.length ? `<br>${rows.join(" · ")}` : ""}</div>`;
 }
 
 function itemCard(it: GearItem, buttons = "", compare = false, equippedAs = "") {
@@ -171,7 +171,7 @@ function itemCard(it: GearItem, buttons = "", compare = false, equippedAs = "") 
   const hidden = b.legendary && !it.revealed;
   return `<div class="item r-${it.rarity} ${hidden ? "unrevealed" : ""} ${equippedAs ? "is-equipped" : ""}">
     ${equippedAs ? `<div class="eqbadge">⚔️ Equipped · ${esc(equippedAs)}</div>` : ""}
-    <div class="meta">${it.rarity} · ${b.slot === "main" ? "weapon" : b.slot === "off" ? "off-hand" : b.slot} · level ${it.level}</div>
+    <div class="meta">${rarityLabel(it.rarity)} · ${b.slot === "main" ? "weapon" : b.slot === "off" ? "off-hand" : b.slot} · level ${it.level}</div>
     <div class="nm">${esc(itemName(it))}</div>
     <ul>${itemLines(it).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
     ${compare && run ? compareHtml(run.hero, it) : ""}
@@ -179,7 +179,8 @@ function itemCard(it: GearItem, buttons = "", compare = false, equippedAs = "") 
   </div>`;
 }
 
-const floorLabel = (r: Run) => (r.mode === "endless" ? `Floor <b>${r.floor}</b>${r.floor < WALL_FLOOR ? ` · wall at ${WALL_FLOOR}` : ""}` : `Floor <b>${Math.min(r.floor, FLOORS)}</b>/${FLOORS}`);
+const nextMilestone = (f: number) => (f < WALL_FLOOR ? ` · a Horror at ${WALL_FLOOR}` : f < DEATH_FLOOR ? ` · DEATH at ${DEATH_FLOOR}` : f < END_FLOOR ? ` · the End at ${END_FLOOR}` : "");
+const floorLabel = (r: Run) => (r.mode === "endless" ? `Floor <b>${r.floor}</b>${nextMilestone(r.floor)}` : `Floor <b>${Math.min(r.floor, FLOORS)}</b>/${FLOORS}`);
 
 function hud(r: Run) {
   const h = r.hero;
@@ -257,7 +258,7 @@ function codexScreen() {
 function mapScene(r: Run) {
   const pips = fortunePips(r.floor);
   return `<div class="floorname">Floor ${r.floor} · ${esc(floorName(r.floor))}</div><div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>
-  <h2>${r.step >= STEPS_PER_FLOOR ? (r.floor === WALL_FLOOR ? "The Wall" : "The boss awaits") : "Choose your path"}</h2>
+  <h2>${r.step >= STEPS_PER_FLOOR ? (r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits") : "Choose your path"}</h2>
   <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") ? "crimson-room" : ""}" data-room="${c}"><span class="ic">${c === "boss" && r.floor >= FLOORS ? "💀" : ROOM_INFO[c].icon}</span><b>${ROOM_INFO[c].name}</b><span class="sub">${esc(ROOM_INFO[c].text)}</span></button>`).join("")}</div>`;
 }
 
@@ -278,14 +279,17 @@ function guardChips(f: Fighter, who: "player" | "enemy") {
   return "";
 }
 
+/** Short numbers for the deep floors: 15926037312 → 15.9B. */
+const big = (n: number) => (n < 1e5 ? String(n) : n < 1e6 ? `${(n / 1e3).toFixed(0)}K` : n < 1e9 ? `${(n / 1e6).toFixed(1)}M` : n < 1e12 ? `${(n / 1e9).toFixed(1)}B` : `${(n / 1e12).toFixed(1)}T`);
+
 function fighterPanel(f: Fighter, who: "player" | "enemy") {
   const hp = dispHp[who] ?? f.hp;
   const intent = who === "enemy" && f.moves?.length ? f.moves[f.intent ?? 0] : null;
   const traits = who === "enemy" ? `${isUnholy(f) ? `<span class="chip holy" title="Holy weapons deal +50% to it">☠️ Unholy</span>` : ""}${currentBattle && tollOf(f, currentBattle.player) > 0 ? `<span class="chip toll" title="Attacking, Guarding, drinking a potion or using your class action each cost this much HP">⛓️ Each action costs ${tollOf(f, currentBattle.player)} HP</span>` : ""}${f.items["m_thief"] ? `<span class="chip thief" title="Kill it before it escapes: it takes 30% of your Gold, or drops 60% on top if you win">💰 Escapes after round 5 (${Math.max(0, 5 - (currentBattle?.round ?? 0))} left)</span>` : ""}${f.family === "Construct" ? `<span class="chip storm" title="Lightning hits it twice as hard: Shock doubles damage, Static and electric reactions deal double, Storm weapons +30%">⚡ Conductive</span>` : ""}${Object.keys(f.items).map(id => getItem(id)).map(d => `<span class="chip" title="${esc(d.text)}">${esc(d.name)}</span>`).join("")}` : "";
   return `<div class="panel fighter ${f.crimson ? "crimson-foe" : ""}" id="fp-${who}">
     <div class="row"><b>${esc(f.name)}</b>${f.title ? `<span class="sub">${esc(f.title)}</span>` : ""}<span class="grow"></span><span class="sub">${who === "enemy" ? `${f.family ?? ""}${f.crimson ? " · Crimson" : ""}${f.boss ? " · Boss" : f.champion ? " · Champion" : f.elite ? " · Elite" : ""}` : ""}</span></div>
-    <div class="bar ${who === "enemy" ? "enemy" : ""}"><i style="width:${Math.max(0, (hp / f.maxHp) * 100)}%"></i></div>
-    <div class="sub">${Math.max(0, hp)}/${f.maxHp} HP · ${who === "enemy" ? `Power ${f.damage}` : `Damage ${f.damage}${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}`} · Armor ${armorOf(f)}</div>
+    <div class="bar ${who === "enemy" ? "enemy" : ""}"><i style="width:${Math.min(100, Math.max(0, (hp / f.maxHp) * 100))}%"></i></div>
+    <div class="sub">${big(Math.max(0, hp))}/${big(f.maxHp)} HP · ${who === "enemy" ? `Power ${f.items["m_death"] ? "☠️ most of your Max HP" : big(f.damage)}` : `Damage ${f.damage}${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}`} · Armor ${armorOf(f)}</div>
     <div class="chips">${guardChips(f, who)}${traits}${statusChips(f)}</div>
     ${intent ? `<div class="intent">Next: ${intent.icon} <b>${esc(intent.name)}</b> — ${esc(intent.text)}</div>` : ""}
   </div>`;
@@ -472,11 +476,11 @@ function overScene(r: Run) {
   if (r.scene.t !== "over") return "";
   const h = r.hero;
   const won = r.scene.won;
-  return `<div class="banner ${won ? "won" : "lost"}">${won ? "The Hollow King falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen."}</div>
+  return `<div class="banner ${won ? "won" : "lost"}">${r.finale ? "Nothing remains. You won everything." : won ? "The Hollow King falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen."}</div>
   <div class="panel"><p>${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses · biggest hit ${r.stats.bestHit}</p>
   ${recorded ? `<p>🏅 +${recorded.earned} Renown (total ${meta.renown})${recorded.unlocked.length ? ` · Unlocked: <b>${recorded.unlocked.map(esc).join(", ")}</b>` : ""}</p>` : ""}
   <p class="sub">Final build:</p><div class="cards">${EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x).map(it => itemCard(it)).join("")}</div></div>
-  <div class="row" style="margin-top:12px">${won ? `<button class="primary" data-endless>Keep delving · better rewards below</button>` : ""}<button class="${won ? "" : "primary"}" data-newrun>New run</button></div>`;
+  <div class="row" style="margin-top:12px">${won && !r.finale ? `<button class="primary" data-endless>Keep delving · better rewards below</button>` : ""}<button class="${won ? "" : "primary"}" data-newrun>New run</button></div>`;
 }
 
 function bag(r: Run) {
@@ -554,7 +558,7 @@ function sideEquip(r: Run) {
     const it = h.equip[s];
     if (!it) return `<div class="se-item empty"><div class="se-slot">${slotName[s]}</div><span class="sub">Empty</span></div>`;
     const lines = itemLines(it).filter(l => !l.startsWith("Faces:") && !l.startsWith("✝️") && !l.startsWith("✨ Purify")).slice(0, 3);
-    return `<div class="se-item r-${it.rarity}"><div class="se-slot">${slotName[s]} · ${it.rarity} · lv ${it.level}</div><div class="nm">${esc(itemName(it))}</div>
+    return `<div class="se-item r-${it.rarity}"><div class="se-slot">${slotName[s]} · ${rarityLabel(it.rarity)} · lv ${it.level}</div><div class="nm">${esc(itemName(it))}</div>
       ${lines.map(l => `<div class="se-line">${esc(l)}</div>`).join("")}</div>`;
   }).join("");
   const relics = Object.entries(h.relics).map(([id, n]) => `<span class="chip" title="${esc(fillText(getItem(id).text, n))}">${esc(getItem(id).name)}${n > 1 ? ` ×${n}` : ""}</span>`).join("");
@@ -788,6 +792,7 @@ function relicPopup(id: string, more: number) {
   </div></div>`;
 }
 const celebratedRelic = new Set<string>();
+const celebratedPopup = new WeakSet<object>();
 
 const celebratedLevel = new WeakSet<object>();
 function levelUpPopup(r: Run) {
@@ -814,12 +819,16 @@ const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }
 const celebrated = new Set<number>();
 let fanfareEl: HTMLElement | null = null;
 function celebrate(rarity: string, label?: string, banner = true) {
-  if (rarity !== "rare" && rarity !== "epic" && rarity !== "legendary" && rarity !== "crimson") return;
+  if (!["rare", "epic", "legendary", "crimson", "epic_crimson", "legendary_crimson"].includes(rarity)) return;
+  // The Abyss tiers ride on the Crimson fanfare, bigger and in their own colours.
+  if (rarity.endsWith("_crimson")) { label ??= rarityLabel(rarity).toUpperCase(); rarity = `crimson ${rarity}`; }
   fanfareEl?.remove();
   const el = document.createElement("div");
   el.className = `fanfare ${rarity}`;
-  const sparks = rarity === "legendary" || rarity === "crimson"
-    ? Array.from({ length: 22 }, () => {
+  const isCrimson = rarity.startsWith("crimson");
+  const abyss = rarity.includes("_crimson");
+  const sparks = rarity === "legendary" || isCrimson
+    ? Array.from({ length: abyss ? 48 : 22 }, () => {
         const a = Math.random() * Math.PI * 2, d = 120 + Math.random() * 220;
         return `<i class="spark" style="left:50%;top:38%;--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d}px;animation-delay:${Math.random() * 0.25}s"></i>`;
       }).join("")
@@ -827,11 +836,12 @@ function celebrate(rarity: string, label?: string, banner = true) {
   el.innerHTML = rarity === "rare" ? "" : `${banner ? `<div class="banner">${esc(label ?? rarity.toUpperCase())}</div>` : ""}${sparks}`;
   document.body.appendChild(el);
   fanfareEl = el;
-  if (rarity !== "epic") navigator.vibrate?.(rarity === "crimson" ? [80, 50, 80, 50, 200] : [60, 40, 120]);
-  sfx(rarity === "crimson" ? "crimson" : rarity === "legendary" ? "legendary" : rarity === "epic" ? "epic" : "chest");
-  setTimeout(() => { el.remove(); if (fanfareEl === el) fanfareEl = null; }, rarity === "crimson" ? 4300 : rarity === "rare" ? 1300 : 3500);
+  if (rarity !== "epic") navigator.vibrate?.(abyss ? [120, 60, 120, 60, 120, 60, 400] : isCrimson ? [80, 50, 80, 50, 200] : [60, 40, 120]);
+  sfx(isCrimson ? "crimson" : rarity === "legendary" ? "legendary" : rarity === "epic" ? "epic" : "chest");
+  if (abyss) setTimeout(() => sfx("legendary"), 600);
+  setTimeout(() => { el.remove(); if (fanfareEl === el) fanfareEl = null; }, abyss ? 6500 : isCrimson ? 4300 : rarity === "rare" ? 1300 : 3500);
 }
-const RANK: Record<string, number> = { rare: 0.5, epic: 1, legendary: 2, crimson: 3 };
+const RANK: Record<string, number> = { rare: 0.5, epic: 1, legendary: 2, crimson: 3, epic_crimson: 4, legendary_crimson: 5 };
 /** Celebrate the best newly-seen Epic/Legendary in the current scene, once per item. */
 function celebrateScene(r: Run) {
   const s = r.scene;
@@ -880,6 +890,8 @@ function render() {
   const levelPopup = s.t === "talent" && ackedTalentScene !== s;
   if (levelPopup && !celebratedLevel.has(s)) { celebratedLevel.add(s); celebrate("legendary", "LEVEL UP!"); }
   const winPopup = s.t === "over" && s.won && r.mode === "campaign" && !winSeen;
+  // Story popups can carry their own fanfare (DEATH, the End).
+  if (r.popup?.fanfare && !celebratedPopup.has(r.popup)) { celebratedPopup.add(r.popup); celebrate(r.popup.fanfare, r.popup.title, false); }
   // A new relic gets its own popup and a little fanfare (after any level-up popup).
   const relicNow = !levelPopup && !winPopup && s.t !== "combat" && r.relicNews?.length ? r.relicNews[0] : undefined;
   if (relicNow) {

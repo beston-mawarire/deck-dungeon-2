@@ -1,4 +1,5 @@
 // Loot: rarity tables, rolling gear, chests (Wooden, Iron, Resplendent) and bad-luck protection.
+import { EPIC_CRIMSON } from "../data/abyss";
 import { BONUSES, CRIMSON, EPIC_POWERS, GEAR_BASES, LEGENDARIES } from "../data";
 import type { GearBase, GearItem, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
@@ -119,7 +120,7 @@ export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => numb
   }
   const fav = new Set(AFFINITY[h.origin]);
   const base: GearBase = weighted(rng, GEAR_BASES.filter(g => (!LOCKED.has(g.id) || (g.deep && floor > 5)) && (!g.onlyRarity || g.onlyRarity === rarity) && rank(rarity) >= rank(g.minItemRarity ?? "common")), b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1) * elementalW(b.tags));
-  const nBonuses = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0, crimson: 2 }[rarity];
+  const nBonuses = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0, crimson: 2, epic_crimson: 3, legendary_crimson: 0 }[rarity];
   const bonuses = rollBonuses(h, rarity, base, floor, rng, nBonuses);
   const epic = rarity === "epic" ? weighted(rng, EPIC_POWERS.filter(e => !LOCKED.has(e.id)), e => tagWeight(tags, e.tags)).id : undefined;
   return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses, epic, revealed: true, bash: rollBash(rarity, base, rng) };
@@ -159,4 +160,17 @@ export function resplendentCards(h: Hero, floor: number, loot: LootState, rng: (
   const great = cards.some(c => c.kind === "item" && rank(c.item.rarity) >= rank("epic"));
   loot.pity = great ? 0 : loot.pity + 3;
   return cards;
+}
+
+/** Epic Crimson: one of the Abyss items you haven't had this run, with three rolled bonuses. Only the bosses of floors 30–70 drop them. */
+export function rollEpicCrimson(h: Hero, floor: number, rng: () => number): GearItem {
+  const pool = EPIC_CRIMSON.filter(e => !DROPPED.has(e.id));
+  const base = (pool.length ? pool : EPIC_CRIMSON)[Math.floor(rng() * (pool.length || EPIC_CRIMSON.length))];
+  DROPPED.add(base.id);
+  return { uid: h.nextUid++, base: base.id, rarity: "epic_crimson", level: floor, bonuses: rollBonuses(h, "epic", base, floor, rng, 3), revealed: true };
+}
+
+/** A fixed reward item (Abaddon, the Cookie). */
+export function makeRewardItem(h: Hero, id: string, floor: number): GearItem {
+  return { uid: h.nextUid++, base: id, rarity: "legendary_crimson", level: floor, bonuses: {}, revealed: true };
 }

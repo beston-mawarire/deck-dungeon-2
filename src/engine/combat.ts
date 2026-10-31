@@ -356,6 +356,11 @@ function strike(b: Battle, ctx: AttackCtx) {
   const cut = armorReduction(armor, !!d.flags["guarding"] || stacksOf(d, "lr_anvil_heart") > 0);
   // Without Guarding, a hit that lands always does at least 1.
   const after = d.flags["guarding"] ? Math.max(0, Math.floor(raw * (1 - cut))) : raw > 0 ? Math.max(1, Math.round(raw * (1 - cut))) : 0;
+  // DEATH drinks the whole blow, even one your Armor stopped, and can heal past its Max HP.
+  if ((a.items["m_death"] ?? 0) > 0 && raw > 0) {
+    a.hp += raw;
+    log(b, `☠️ DEATH drinks ${raw}.`);
+  }
   if (ctx.kind === "crit") fx(b, { who: d.id, kind: "crit", text: "Crit!" });
   if (ctx.kind === "graze") fx(b, { who: d.id, kind: "text", text: "Graze" });
   // The hit streak: only a real Hit or Crit that gets through keeps it going.

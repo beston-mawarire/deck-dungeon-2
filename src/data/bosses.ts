@@ -1,5 +1,5 @@
 // Bosses: a move library, the ten campaign bosses, and generated bosses for Endless mode
-// (names, titles and moves mixed from libraries, with a wall on floor 30).
+// (names, titles and moves mixed from libraries, with a Horror on floor 30, DEATH on 80 and the End on 90).
 import { attack, PLAIN_FACES } from "../engine/combat";
 import type { Battle, FaceSpec, Fighter, Move } from "../engine/types";
 import { applyStatus, CRIT, GRAZE, heal, hex, HIT, log } from "./helpers";
@@ -48,6 +48,8 @@ export const MOVE_LIBRARY: Record<string, (p: number) => Move> = {
   shieldwall: p => ({ name: "Shield Wall", icon: "🧱", text: `Guards this round (Armor doubled +${2 + p}) and gains 1 Might. Crits, spells and statuses still get through`, guard: 2 + p,
     act: (b, s) => { log(b, `${s.name} holds the wall.`); applyStatus(b, s, s, "might", 1); } }),
   guardstrike: p => ({ name: "Guarded Strike", icon: "🛡️", text: `Guards this round (Armor doubled +${1 + p}) and attacks`, guard: 1 + p, act: (b, s, f) => hit(b, s, f) }),
+  reap: () => ({ name: "Reap", icon: "☠️", text: "Its first hit that lands kills you outright unless you're Guarding. Every hit ignores your Armor unless you Guard, hits for most of your Max HP, Dooms you, and heals it for the full blow",
+    act: (b, s, f) => { s.damage = Math.max(1, Math.ceil(f.maxHp * 0.6)); attack(b, s, f); } }),
   drain: () => ({ name: "Life Drain", icon: "🦇", text: "Attacks and heals what it deals", act: (b, s, f) => { const before = f.hp; hit(b, s, f); const n = Math.max(0, before - f.hp); if (n) heal(b, s, n, "Life Drain"); } })
 };
 
@@ -90,11 +92,16 @@ const FAMILIES = ["Beast", "Undead", "Cultist", "Construct"];
 
 const pick = <T>(rng: () => number, arr: T[]) => arr[Math.floor(rng() * arr.length)];
 
-/** Floor 30: the wall. Only a truly broken build gets through. */
+/** Floor 30: the Horror. Only a truly broken build gets through. */
 export const WALL_FLOOR = 30;
-const WALL: BossDef = { name: "Ur-Thane", title: "the Unbroken Gate", family: "Construct", moves: ["bulwark", "heavy", "thorns", "charge", "smash", "regrow"], armor: 20, hpMult: 6 };
+/** Floor 80: DEATH. Floor 90: the End. */
+export const DEATH_FLOOR = 80;
+export const END_FLOOR = 90;
+/** Floors whose bosses drop an Epic Crimson item. */
+export const EPIC_CRIMSON_FLOORS = [30, 40, 50, 60, 70];
+const WALL: BossDef = { name: "Ur-Thane", title: "the Horror Beneath", family: "Construct", moves: ["bulwark", "heavy", "thorns", "charge", "smash", "regrow"], armor: 20, hpMult: 6 };
 
-/** HP and Power for a boss on a floor. Past the wall, everything grows much faster. */
+/** HP and Power for a boss on a floor. Past the Horror, everything grows much faster. */
 export function bossStats(floor: number) {
   // Floors 3+ (and the Hollow King) are meant to need a lucky build.
   let hp = 32 + 22 * (floor - 1) + 12 * Math.max(0, floor - 2);
@@ -149,6 +156,8 @@ export function makeBoss(floor: number, rng: () => number, seen: Set<string> = n
     return build(NAMED_BOSSES[key], floor);
   }
   if (floor === WALL_FLOOR) return build(WALL, floor);
+  if (floor === DEATH_FLOOR) return makeDeath();
+  if (floor === END_FLOOR) return makeEnd();
   // Endless: named bosses you haven't met return first (a third of the time), then generated ones.
   const unmet = Object.keys(NAMED_BOSSES).filter(k => !seen.has(k) && k !== "hollow");
   if (unmet.length && rng() < 0.35) {
@@ -167,5 +176,34 @@ export function makeBoss(floor: number, rng: () => number, seen: Set<string> = n
   const def: BossDef = { name: pick(rng, BOSS_NAMES), title: pick(rng, BOSS_TITLES), family: pick(rng, FAMILIES), moves: [...chosen].sort(() => rng() - 0.5), traits, armor: Math.floor(rng() * 4) };
   const f = build(def, floor);
   f.title = `${f.title} · ${traits.map(t => TRAITS.find(x => x.id === t)!.name).join(", ")}`;
+  return f;
+}
+
+// ---------- DEATH (floor 80) and the End (floor 90) ----------
+TRAITS.push(
+  { kind: "trait", id: "m_death", name: "DEATH", tags: ["Kill", "Hex"],
+    text: "Its first hit that lands kills you unless you Guard. Its hits ignore Armor unless you Guard, Doom you, and heal it for the whole blow, even a blocked one (it can heal past its Max HP)",
+    hooks: {
+      modifyAttack: (_b, c) => { if (!c.defender.flags["guarding"]) c.ignoreArmor = true; },
+      onHit: (b, c) => {
+        applyStatus(b, c.attacker, c.defender, "doom", 8);
+        if (!c.attacker.flags["reaped"]) {
+          c.attacker.flags["reaped"] = 1;
+          if (!c.defender.flags["guarding"] && c.defender.hp > 0) { c.defender.hp = 0; log(b, "☠️ DEATH reaps you."); }
+        }
+      }
+    } },
+  { kind: "trait", id: "m_the_end", name: "The End", tags: ["Kill"], text: "The last thing there is", hooks: {} }
+);
+
+function makeDeath(): Fighter {
+  const f = build({ name: "DEATH", title: "", family: "Undead", moves: ["reap"], traits: ["m_death", "x_warded"], armor: 300, hpMult: 12 }, DEATH_FLOOR);
+  f.faces = [HIT, HIT, HIT, HIT, CRIT, CRIT];
+  return f;
+}
+
+function makeEnd(): Fighter {
+  const f = build({ name: "THE END", title: "of All Things", family: "Undead", moves: ["heavy", "charge", "smash", "doom", "drain", "concuss"], traits: ["m_the_end", "x_regenerating", "x_vampiric"], armor: 400, hpMult: 25 }, END_FLOOR);
+  f.faces = [HIT, HIT, HIT, CRIT, CRIT, CRIT];
   return f;
 }

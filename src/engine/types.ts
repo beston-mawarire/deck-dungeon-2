@@ -14,7 +14,9 @@ export type StatusId = NegativeStatus | PositiveStatus;
 export type Statuses = Partial<Record<StatusId, number>>;
 
 /** Crimson sits above Legendary: it only drops from Crimson bosses (Endless, after the fifth boss). */
-export const RARITIES = ["common", "uncommon", "rare", "epic", "legendary", "crimson"] as const;
+export const RARITIES = ["common", "uncommon", "rare", "epic", "legendary", "crimson", "epic_crimson", "legendary_crimson"] as const;
+/** How a rarity reads on screen ("epic_crimson" → "Epic Crimson"). */
+export const rarityLabel = (r: string) => r.split("_").map(w => w[0].toUpperCase() + w.slice(1)).join(" ");
 export type Rarity = (typeof RARITIES)[number];
 
 export type OriginId = "warrior" | "rogue" | "mage" | "cleric";
