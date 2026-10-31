@@ -636,7 +636,8 @@ describe("two-handers, thieves, curses", () => {
 
 describe("barrier gating", () => {
   it("no starting kit gives Barrier, and Barrier gear never rolls Common", () => {
-    for (const o of ["warrior", "rogue", "mage", "cleric"] as const) {
+    // The Mage's Cloth Robes are the one starting item that gives Barrier.
+    for (const o of ["warrior", "rogue", "cleric"] as const) {
       const h = newHero(o);
       const e = makeMonster(makeRng(40), 1, "normal");
       const b = startBattle(h.f, e, 40);
@@ -646,7 +647,7 @@ describe("barrier gating", () => {
     }
     const h = newHero("warrior");
     const rng = makeRng(41);
-    for (let i = 0; i < 3000; i++) expect(["w_glaive", "o_pavise"]).not.toContain(rollItem(h, "common", 2, rng).base);
+    for (let i = 0; i < 3000; i++) expect(["w_glaive", "o_pavise", "a_cloth"]).not.toContain(rollItem(h, "common", 2, rng).base);
   });
 });
 
