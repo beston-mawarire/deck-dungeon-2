@@ -96,7 +96,7 @@ export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => numb
     }
   }
   const fav = new Set(AFFINITY[h.origin]);
-  const base: GearBase = weighted(rng, GEAR_BASES.filter(g => !LOCKED.has(g.id) && (!g.onlyRarity || g.onlyRarity === rarity)), b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1));
+  const base: GearBase = weighted(rng, GEAR_BASES.filter(g => !LOCKED.has(g.id) && (!g.onlyRarity || g.onlyRarity === rarity) && rank(rarity) >= rank(g.minItemRarity ?? "common")), b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1));
   const nBonuses = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0, crimson: 2 }[rarity];
   const bonuses = rollBonuses(h, rarity, base, floor, rng, nBonuses);
   const epic = rarity === "epic" ? weighted(rng, EPIC_POWERS.filter(e => !LOCKED.has(e.id)), e => tagWeight(tags, e.tags)).id : undefined;

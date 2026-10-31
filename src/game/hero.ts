@@ -153,7 +153,7 @@ export function recompute(h: Hero) {
 export function newHero(origin: OriginId): Hero {
   const o = ORIGINS[origin];
   const f: Fighter = { id: "player", name: o.name, hp: o.hp, maxHp: o.hp, armor: 0, damage: 1, faces: PLAIN_FACES, statuses: {}, flags: {}, persist: {}, items: {}, gold: 0 };
-  const h: Hero = { origin, f, equip: {}, backpack: [], relics: {}, talents: {}, curses: {}, potions: 1, scrolls: 0, scrap: 0, starmetal: 0, crimsonKeys: 0, xp: 0, level: 1, nextUid: 1 };
+  const h: Hero = { origin, f, equip: {}, backpack: [], relics: {}, talents: {}, curses: {}, potions: 2, scrolls: 0, scrap: 0, starmetal: 0, crimsonKeys: 0, xp: 0, level: 1, nextUid: 1 };
   const [main, off, arm] = o.kit;
   h.equip.main = { uid: h.nextUid++, base: main, rarity: "common", level: 1, bonuses: {}, revealed: true };
   h.equip.off = { uid: h.nextUid++, base: off, rarity: "common", level: 1, bonuses: {}, revealed: true };

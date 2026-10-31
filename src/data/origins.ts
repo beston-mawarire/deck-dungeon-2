@@ -1,6 +1,6 @@
 // Origins (starting kit + one small passive) and curses.
 import type { HookDef, OriginId } from "../engine/types";
-import { applyStatus, depth, heal, log, other, ping, st } from "./helpers";
+import { applyStatus, heal, log, other, ping, st } from "./helpers";
 
 /** Each origin's favourite gear shows up about twice as often in its loot. New gear joins the pool at normal odds. */
 export const AFFINITY: Record<OriginId, string[]> = {
@@ -19,7 +19,7 @@ export const ORIGINS: Record<OriginId, { name: string; hp: number; kit: string[]
 
 const origin = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "origin", ...d });
 export const ORIGIN_PASSIVES: HookDef[] = [
-  origin({ id: "o_warrior", name: "Battle-Hardened", tags: ["Guard"], text: "Start each fight with Barrier equal to your Armor (at most 1 + 2 per floor)", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "barrier", Math.min(f.armor, 1 + 2 * depth(f))) } }),
+  origin({ id: "o_warrior", name: "Battle-Hardened", tags: ["Guard"], text: "Guarding is your craft: +2 Armor while Guarding, and Guarding gives 1 Might", hooks: { onGuard: (b, f) => { f.flags["guardArmor"] = (f.flags["guardArmor"] ?? 0) + 2; applyStatus(b, f, f, "might", 1); } } }),
   origin({ id: "o_rogue", name: "Opportunist", tags: ["Crit", "Luck"], text: "Your first attack each fight rolls twice and keeps the better", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "focus", 1) } }),
   origin({ id: "o_mage", name: "Arcane Spark", tags: ["Arcane"], text: "Statuses your weapon's spell faces apply get +1 stack",
     hooks: { onStatusApplied: (_b, self, t, status) => { if (self.flags["casting"] && t !== self && !["stun", "shock"].includes(status)) t.statuses[status] = st(t, status) + 1; } } }),

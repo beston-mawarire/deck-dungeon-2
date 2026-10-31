@@ -102,15 +102,15 @@ export const WEAPONS: GearBase[] = [
     faces: [MISS, HIT, HIT, HIT, HIT, { kind: "crit", name: "Butcher", cleave: true, run: hex("bleed", 2) }], hooks: {} }),
   weapon({ id: "w_runeblade", name: "Runeblade", tags: ["Arcane", "Frost", "Strike"], text: "A sword with runes: a 3 casts Rime, a 5 a Rune Burst.", damage: 4,
     faces: [GRAZE, HIT, cast("Rime", "hit", hex("chill", 2)), HIT, cast("Rune Burst", "hit", hex("exposed", 1)), CRIT], hooks: {} }),
-  weapon({ id: "w_glaive", name: "Glaive", tags: ["Strike", "Guard"], text: "Two-handed. A 5 sweeps and braces you (3 Barrier).", damage: 6, twoHanded: true,
+  weapon({ id: "w_glaive", minItemRarity: "uncommon", name: "Glaive", tags: ["Strike", "Guard"], text: "Two-handed. A 5 sweeps and braces you (3 Barrier).", damage: 6, twoHanded: true,
     faces: [GRAZE, HIT, HIT, HIT, spell("Sweep", "hit", self("barrier", 3)), CRIT], hooks: {} }),
   weapon({ id: "w_blowgun", name: "Blowgun", tags: ["Poison", "Tempo"], text: "One-handed; works in the off-hand. Darts on 2, 4 and 6.", damage: 2, offDamage: 2,
     faces: [MISS, spell("Dart", "hit", hex("poison", 2)), HIT, spell("Dart", "hit", hex("poison", 2)), HIT, spell("Toxin", "crit", hex("poison", 4))], hooks: {} })
 ];
 
 export const OFFHANDS: GearBase[] = [
-  off({ id: "o_wooden_shield", name: "Wooden Shield", tags: ["Guard"], text: "Guarding gives Barrier equal to the floor.", armor: 1,
-    hooks: { onGuard: (b, f) => applyStatus(b, f, f, "barrier", depth(f)) } }),
+  off({ id: "o_wooden_shield", name: "Wooden Shield", tags: ["Guard"], text: "+1 Armor. +2 more Armor while Guarding.", armor: 1,
+    hooks: { onGuard: (_b, f) => { f.flags["guardArmor"] = (f.flags["guardArmor"] ?? 0) + 2; } } }),
   off({ id: "o_tower_shield", name: "Tower Shield", tags: ["Guard", "Thorns"], text: "+2 Armor. While Guarding, attackers take 2.", armor: 2,
     hooks: { whenHit: (b, ctx) => { if (ctx.defender.flags["guarding"]) ping(b, ctx.attacker, 2, "Tower Shield"); } } }),
   off({ id: "o_ember_charm", name: "Ember Charm", tags: ["Burn", "Arcane"], text: "On a 2: apply 2 Burn.", hooks: { face: [on(2, (b, ctx) => applyStatus(b, ctx.attacker, ctx.defender, "burn", 2))] } }),
@@ -148,7 +148,7 @@ export const OFFHANDS: GearBase[] = [
   off({ id: "o_grimoire", name: "Grimoire", tags: ["Arcane", "Burn", "Frost"], text: "On a 6: also apply 3 Burn and 2 Chill.",
     hooks: { face: [on(6, (b, ctx) => { applyStatus(b, ctx.attacker, ctx.defender, "burn", 3); applyStatus(b, ctx.attacker, ctx.defender, "chill", 2); })] } }),
   off({ id: "o_war_banner", name: "War Banner", tags: ["Strike", "Tempo"], text: "Start each fight with 2 Might.", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "might", 2) } }),
-  off({ id: "o_pavise", name: "Pavise", tags: ["Guard"], text: "+3 Armor. Guarding gives Barrier equal to your Armor (at most 3 per floor).", armor: 3,
+  off({ id: "o_pavise", minItemRarity: "uncommon", name: "Pavise", tags: ["Guard"], text: "+3 Armor. Guarding gives Barrier equal to your Armor (at most 3 per floor).", armor: 3,
     hooks: { onGuard: (b, f) => applyStatus(b, f, f, "barrier", Math.min(f.armor, 3 * depth(f))) } }),
   off({ id: "o_lion_shield", name: "Lion Shield", tags: ["Guard", "Hex"], text: "+2 Armor. Enemies that hit you while you Guard are Weakened.", armor: 2,
     hooks: { whenHit: (b, c) => { if (c.defender.flags["guarding"]) applyStatus(b, c.defender, c.attacker, "weak", 2); } } }),
@@ -197,8 +197,8 @@ export const ARMOURS: GearBase[] = [
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "evade", 1) } }),
   armour({ id: "a_shadow", name: "Shadow Cloak", tags: ["Hex", "Tempo"], text: "Start each fight with Evade and Focus.",
     hooks: { onFightStart: (b, f) => { applyStatus(b, f, f, "evade", 1); applyStatus(b, f, f, "focus", 1); } } }),
-  armour({ id: "a_cloth", name: "Cloth Robes", tags: ["Arcane", "Guard"], text: "Start each fight with 1 Barrier per floor (+1). Burn and Chill you apply get +1 stack.",
-    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "barrier", 1 + depth(f)), onStatusApplied: (_b, _s, t, status) => { if (status === "burn" || status === "chill") t.statuses[status] = st(t, status) + 1; } } }),
+  armour({ id: "a_cloth", name: "Cloth Robes", tags: ["Arcane"], text: "Burn and Chill you apply get +1 stack.",
+    hooks: { onStatusApplied: (_b, _s, t, status) => { if (status === "burn" || status === "chill") t.statuses[status] = st(t, status) + 1; } } }),
   armour({ id: "a_padded", name: "Padded Robes", tags: ["Blood"], text: "+1 Armor. Start each fight with 2 Regen.", armor: 1,
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "regen", 2) } }),
   armour({ id: "a_spiked", name: "Spiked Mail", tags: ["Thorns", "Guard"], text: "+2 Armor. When hit, deal 2 back.", armor: 2,

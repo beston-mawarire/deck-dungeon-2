@@ -633,3 +633,19 @@ describe("two-handers, thieves, curses", () => {
     expect(Object.keys(run.hero.curses).length).toBe(1);
   });
 });
+
+describe("barrier gating", () => {
+  it("no starting kit gives Barrier, and Barrier gear never rolls Common", () => {
+    for (const o of ["warrior", "rogue", "mage", "cleric"] as const) {
+      const h = newHero(o);
+      const e = makeMonster(makeRng(40), 1, "normal");
+      const b = startBattle(h.f, e, 40);
+      expect(st(h.f, "barrier")).toBe(0);
+      expect(h.potions).toBe(2);
+      void b;
+    }
+    const h = newHero("warrior");
+    const rng = makeRng(41);
+    for (let i = 0; i < 3000; i++) expect(["w_glaive", "o_pavise"]).not.toContain(rollItem(h, "common", 2, rng).base);
+  });
+});
