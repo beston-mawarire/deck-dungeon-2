@@ -834,11 +834,16 @@ const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }
 // ---------- Loot fanfare ----------
 const celebrated = new Set<number>();
 let fanfareEl: HTMLElement | null = null;
+/** Fanfares waiting their turn: a level-up and a big drop play one after the other, never on top of each other. */
+const fanfareQueue: [string, string | undefined, boolean][] = [];
 function celebrate(rarity: string, label?: string, banner = true) {
   if (!["rare", "epic", "legendary", "crimson", "epic_crimson", "legendary_crimson"].includes(rarity)) return;
+  if (fanfareEl) { fanfareQueue.push([rarity, label, banner]); return; }
+  playFanfare(rarity, label, banner);
+}
+function playFanfare(rarity: string, label?: string, banner = true) {
   // The Abyss tiers ride on the Crimson fanfare, bigger and in their own colours.
   if (rarity.endsWith("_crimson")) { label ??= rarityLabel(rarity).toUpperCase(); rarity = `crimson ${rarity}`; }
-  fanfareEl?.remove();
   const el = document.createElement("div");
   el.className = `fanfare ${rarity}`;
   const isCrimson = rarity.startsWith("crimson");
@@ -855,7 +860,13 @@ function celebrate(rarity: string, label?: string, banner = true) {
   if (rarity !== "epic") navigator.vibrate?.(abyss ? [120, 60, 120, 60, 120, 60, 400] : isCrimson ? [80, 50, 80, 50, 200] : [60, 40, 120]);
   sfx(isCrimson ? "crimson" : rarity === "legendary" ? "legendary" : rarity === "epic" ? "epic" : "chest");
   if (abyss) setTimeout(() => sfx("legendary"), 600);
-  setTimeout(() => { el.remove(); if (fanfareEl === el) fanfareEl = null; }, abyss ? 6500 : isCrimson ? 4300 : rarity === "rare" ? 1300 : 3500);
+  setTimeout(() => {
+    el.remove();
+    if (fanfareEl === el) fanfareEl = null;
+    // Next in line, after a short breath.
+    const next = fanfareQueue.shift();
+    if (next) setTimeout(() => (fanfareEl ? fanfareQueue.unshift(next) : playFanfare(...next)), 250);
+  }, abyss ? 6500 : isCrimson ? 4300 : rarity === "rare" ? 1300 : 3500);
 }
 const RANK: Record<string, number> = { rare: 0.5, epic: 1, legendary: 2, crimson: 3, epic_crimson: 4, legendary_crimson: 5 };
 /** Celebrate the best newly-seen Epic/Legendary in the current scene, once per item. */
