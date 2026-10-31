@@ -37,6 +37,7 @@ export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: s
   smoulder: { name: "Smouldering", icon: "🌋", text: "Each round it burns from within: an enemy takes 4 Burn (you'd take 5), and its foe takes 1 Burn; lasts its stacks in rounds" },
   fracture: { name: "Fracture", icon: "🪨", text: "Does nothing at first. At 3 stacks it shatters: 4 damage per stack (ignores Armor), then clears" },
   dazzled: { name: "Dazzled", icon: "😵", text: "Its attacks miss completely; lasts its stacks in rounds (at most 4)" },
+  consecrated: { name: "Consecrated", icon: "🕊️", text: "Holy ground. On an enemy: it takes 30% more from Holy weapons. On you: your Holy weapons deal 30% more. Lasts its stacks in rounds (∞ = the whole fight)" },
   smoulder_soul: { name: "Smouldering Soul", icon: "♨️", text: "A fire you carry: you take 1 Burn each round, but every action you take deals 5 Burn to the enemy; lasts its stacks in rounds" }
 };
 
@@ -179,6 +180,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   else if (id === "shock") target.statuses.shock = Math.max(st(target, "shock"), amount);
   else if (id === "static") target.statuses.static = Math.min(staticCap(source), st(target, "static") + amount);
   else if (id === "dazzled") target.statuses.dazzled = Math.min(4, Math.max(st(target, "dazzled"), amount));
+  else if (id === "consecrated") target.statuses.consecrated = Math.max(st(target, "consecrated"), amount);
   else target.statuses[id] = st(target, id) + amount;
   log(b, `${target.name} gains ${STATUS_INFO[id].icon} ${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` ${amount}`}.`);
   fx(b, { who: target.id, kind: "status", icon: STATUS_INFO[id].icon, text: `${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` +${amount}`}`, value: isNegative(id) ? -1 : 1 });
@@ -310,6 +312,9 @@ export function dotMult(b: Battle, f: Fighter) {
   return 1 + (other(b, f).dotAmp ?? 0) / 100;
 }
 
+/** Consecrated for the whole fight (it never wears off). */
+export const CONSECRATE_FIGHT = 99;
+
 /** Burn ticks at the start of the holder's turn. */
 export function startOfTurn(b: Battle, f: Fighter) {
   const burn = st(f, "burn");
@@ -364,6 +369,8 @@ export function endOfRound(b: Battle, f: Fighter) {
   // (Hollow Crown and Bastion of Ages keep theirs). Guarding is how you hold the line.
   const bar = st(f, "barrier");
   if (bar > 0 && !f.persist["keepBarrier"]) f.statuses.barrier = Math.floor(bar / 2);
+  // Consecrated wears off a round at a time, unless it lasts the whole fight.
+  if (st(f, "consecrated") > 0 && st(f, "consecrated") < CONSECRATE_FIGHT) f.statuses.consecrated = st(f, "consecrated") - 1;
   for (const s of ["spikes", "chill", "weak", "exposed", "blind", "soaked", "kindled", "grounded", "dazzled"] as StatusId[]) {
     if (s === "spikes" && (f.items["lr_crown_thorns"] ?? 0) > 0) continue;
     if (st(f, s) > 0) f.statuses[s] = st(f, s) - 1;

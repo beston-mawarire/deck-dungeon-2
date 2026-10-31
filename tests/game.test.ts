@@ -947,6 +947,23 @@ describe("class actions and new stats", () => {
     expect(200 - b3.enemy.hp - first).toBeGreaterThan(first);
   });
 
+  it("Consecrated: Holy weapons hit 30% harder; it wears off by the round unless it lasts the fight", () => {
+    const c = newHero("cleric");
+    const plain = startBattle(c.f, dummy(), 61);
+    resolveFace(plain, plain.player, plain.enemy, 6, false);
+    const base = 200 - plain.enemy.hp;
+    const c2 = newHero("cleric");
+    const b = startBattle(c2.f, dummy(), 61);
+    applyStatus(b, c2.f, b.enemy, "consecrated", 2);
+    resolveFace(b, b.player, b.enemy, 6, false);
+    expect(200 - b.enemy.hp).toBe(Math.round(base * 1.3));
+    endRound(b);
+    expect(st(b.enemy, "consecrated")).toBe(1);
+    applyStatus(b, c2.f, c2.f, "consecrated", 99);
+    endRound(b);
+    expect(st(c2.f, "consecrated")).toBe(99);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);

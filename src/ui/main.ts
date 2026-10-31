@@ -78,7 +78,7 @@ const activeReactions = (f: Fighter) => LASTING.filter(id => (f.flags[id] ?? 0) 
 const statusChips = (f: Fighter) =>
   (Object.entries(f.statuses) as [StatusId, number][])
     .filter(([, n]) => n > 0)
-    .map(([s, n]) => `<span class="chip" title="${esc(STATUS_INFO[s].text)}">${STATUS_INFO[s].icon} ${STATUS_INFO[s].name} ${n}</span>`)
+    .map(([s, n]) => `<span class="chip" title="${esc(STATUS_INFO[s].text)}">${STATUS_INFO[s].icon} ${STATUS_INFO[s].name} ${s === "consecrated" && n >= 99 ? "∞" : n}</span>`)
     .join("") +
   activeReactions(f).map(id => { const r = reactionInfo(id); return `<span class="chip rx" title="${esc(r.text)}">✴️ ${r.name}</span>`; }).join("") +
   (f.flags["smiteReady"] && wieldsHoly(f) ? `<span class="chip rx holy" title="Your Ward stopped an enemy status: your next Holy hit Smites for 20% of the enemy's Max HP">⚡ Smite ready</span>` : "");

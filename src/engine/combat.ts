@@ -261,6 +261,11 @@ function strike(b: Battle, ctx: AttackCtx) {
   let raw = (damageOf(a, ctx.offhand) + ctx.bonus) * ctx.mult;
   if (st(a, "weak") > 0) raw *= 0.75;
   if (wieldsHoly(a) && isUnholy(d)) raw *= 1.5;
+  // Consecrated: Holy weapons hit 30% harder against a Consecrated foe, and 30% harder while you're Consecrated.
+  if (wieldsHoly(a)) {
+    if (st(d, "consecrated") > 0) raw *= 1.3;
+    if (st(a, "consecrated") > 0) raw *= 1.3;
+  }
   if (st(d, "exposed") > 0) raw += 2;
   // Lightning: Storm weapons hit Constructs 30% harder.
   if (d.family === "Construct" && wieldsTag(a, "Storm")) raw *= 1.3;
