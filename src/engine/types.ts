@@ -65,6 +65,12 @@ export interface Fighter {
   elite?: boolean;
   champion?: boolean;
   boss?: boolean;
+  /** Mage: the element the off-hand's Elemental Barrier throws back. */
+  barrierElement?: StatusId;
+  /** Dodge chance in % (capped at 60). Separate from Evade: neither triggers the other's bonuses. */
+  dodge?: number;
+  /** Bash chance in % for the main weapon (capped at 30): a bash Stuns and deals +50%. */
+  bash?: number;
   /** Crimson Elites and bosses: rare, much harder, and the only source of Crimson keys and items. */
   crimson?: boolean;
   family?: string;
@@ -149,6 +155,8 @@ export interface Hooks {
   stats?: (s: StatBlock, stacks: number) => void;
   /** Your Ward just blocked a negative status (the enemy's, or a curse's). */
   onWard?: (b: Battle, self: Fighter, status: StatusId, amount: number, stacks: number) => void;
+  /** You dodged a hit (Dodge, not Evade). */
+  onDodge?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
   /** Change healing received (multiplier). */
   healMult?: (stacks: number) => number;
 }
@@ -158,13 +166,16 @@ export interface StatBlock {
   armor: number;
   damage: number;
   offDamage: number;
+  /** Dodge %, and Bash % (Bash only from the weapon and rare relics). */
+  dodge: number;
+  bash: number;
 }
 
 /** Anything with hooks: gear bases, bonuses, Epic powers, relics, talents, monster traits, origin passives, curses. */
 export interface HookDef {
   id: string;
   name: string;
-  kind: "weapon" | "off" | "armour" | "trinket" | "bonus" | "epic" | "relic" | "talent" | "trait" | "origin" | "curse" | "consumable";
+  kind: "weapon" | "off" | "armour" | "trinket" | "bonus" | "epic" | "relic" | "talent" | "trait" | "origin" | "curse" | "consumable" | "keepsake";
   tags: Tag[];
   text: string;
   hooks: Hooks;
@@ -190,6 +201,12 @@ export interface GearBase extends HookDef {
   /** Legendaries only: earliest floor and the effect hidden until revealed. */
   legendary?: { minFloor: number; reveal: string; asBase: string };
 
+  /** Shields let you Guard. */
+  shield?: boolean;
+  /** Mage off-hands: the element an Elemental Barrier throws back at attackers. */
+  barrierElement?: StatusId;
+  /** Dodge % this item gives at each rarity (new Dodge gear only). */
+  dodge?: Partial<Record<Rarity, number>>;
   /** Never rolls below this rarity (anything that grants Barrier is Uncommon or better). */
   minItemRarity?: Rarity;
   /** Only ever rolls at this rarity (the greater starter-kit items). */
@@ -213,4 +230,6 @@ export interface GearItem {
   revealed: boolean;
   /** How many times the Forge has rerolled this item (each reroll costs more). */
   rerolls?: number;
+  /** Weapons, Rare and up: % chance to Bash (Stun and +50% damage). */
+  bash?: number;
 }

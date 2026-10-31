@@ -24,7 +24,7 @@ npm run build:single  # one self-contained HTML file in dist-single/
   - `statuses.ts` — 18 statuses (10 negative, 8 positive), 10 reactions, per-round ticks.
   - `registry.ts` — looks items up and runs their hooks.
 - `src/data/` — the content library. Adding an item means adding an entry here.
-  - `gear.ts` — 42 weapons (each with its own faces; 7 wands, 7 Holy), 39 off-hands (11 shields, 7 grimoires), 25 armours, 35 trinkets. `kits.ts` — 24 greater starter-kit items (an Uncommon and a Rare of each starting item). `basics.ts` — 20 everyday Common/Uncommon-only items.
+  - `gear.ts` — 42 weapons (each with its own faces; 7 wands, 7 Holy), 39 off-hands (11 shields, 7 grimoires), 25 armours, 35 trinkets. `kits.ts` — 24 greater starter-kit items (an Uncommon and a Rare of each starting item). `basics.ts` — 20 everyday Common/Uncommon-only items. `arsenal.ts` — Dodge gear (Uncommon+), elemental weapons (Rare+), Doom weapons (Epic+), and 5 Keepsakes.
   - `affixes.ts` — 22 rolled bonuses (3 of them Rare-only twists on the old classes), 22 Epic powers,
     45 Legendaries (7 of them boss trophies). `crimson.ts` — 15 Crimson items, the tier above Legendary (Crimson bosses only).
   - `relics.ts` (86, 10 of them Legendary), `fusions.ts` (8 recipes), `talents.ts` (47), `origins.ts` (4 origins, 14 curses),

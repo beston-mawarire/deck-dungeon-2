@@ -199,6 +199,13 @@ export const STORM_RELICS: HookDef[] = [
   relic({ id: "r_coal_bellows", name: "Forge Bellows", rarity: "common", tags: ["Burn"], text: "Smouldering enemies take 2 more Burn each round (+2)", hooks: {} }), // statuses.ts
   relic({ id: "r_titans_grip", name: "Titan's Grip", rarity: "rare", tags: ["Strike", "Tempo"], text: "Two-handed weapons fit in either hand: dual-wield them. A two-hander in your off-hand rolls its own die at 60% of its damage", hooks: {} }), // hero.ts
   relic({ id: "r_war_harness", name: "War Harness", rarity: "uncommon", tags: ["Guard", "Strike"], text: "A two-handed weapon no longer takes your off-hand: keep your shield, charm or second blade", hooks: {} }), // hero.ts
+  // Dodge and Bash
+  relic({ id: "r_smoke_bomb", name: "Smoke Bomb", rarity: "uncommon", tags: ["Tempo"], text: "+4% Dodge (+4%)", hooks: { stats: (s, n) => { s.dodge += 4 * n; } } }),
+  relic({ id: "r_riposte_charm", name: "Riposte Charm", rarity: "uncommon", tags: ["Tempo", "Thorns"], text: "When you Dodge, the attacker takes 4 (+3)", hooks: { onDodge: (b, c, n) => ping(b, c.attacker, scale(n, 4, 3), "Riposte Charm") } }),
+  relic({ id: "r_ghost_step", name: "Ghost Step", rarity: "rare", tags: ["Tempo"], text: "+8% Dodge (+5%). Your first Dodge each fight gives Haste",
+    hooks: { stats: (s, n) => { s.dodge += 8 + 5 * (n - 1); }, onDodge: (b, c) => { if (!c.defender.flags["ghost"]) { c.defender.flags["ghost"] = 1; applyStatus(b, c.defender, c.defender, "haste", 1); } } } }),
+  relic({ id: "r_iron_knuckles", name: "Iron Knuckles", rarity: "rare", tags: ["Strike"], text: "+5% Bash on your weapon (+5%)", hooks: { stats: (s, n) => { s.bash += 5 * n; } } }),
+  relic({ id: "r_skullcracker", name: "Skullcracker's Ring", rarity: "rare", tags: ["Strike", "Guard"], text: "+8% Bash on your weapon (+4%)", hooks: { stats: (s, n) => { s.bash += 8 + 4 * (n - 1); } } }),
   relic({ id: "lr_stormheart", name: "Stormheart", rarity: "legendary", tags: ["Storm"], text: "Static you apply caps at 20 instead of 10, and every Static tick deals triple", hooks: {} })
 ];
 

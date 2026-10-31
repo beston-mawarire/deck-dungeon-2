@@ -3,6 +3,7 @@ import type { GearBase } from "../engine/types";
 import { applyStatus, cast, CRIT, depth, GRAZE, heal, HEXES, hex, HIT, MISS, on, other, ping, purify, self, spell, st } from "./helpers";
 import type { StatusId } from "../engine/types";
 import { wieldsHoly } from "../engine/combat";
+import { DODGE_GEAR, DOOM_WEAPONS, ELEMENTAL_WEAPONS } from "./arsenal";
 import { BASICS } from "./basics";
 import { KIT_UPGRADES } from "./kits";
 
@@ -109,23 +110,23 @@ export const WEAPONS: GearBase[] = [
 ];
 
 export const OFFHANDS: GearBase[] = [
-  off({ id: "o_wooden_shield", name: "Wooden Shield", tags: ["Guard"], text: "+1 Armor. +2 more Armor while Guarding.", armor: 1,
+  off({ id: "o_wooden_shield", shield: true, name: "Wooden Shield", tags: ["Guard"], text: "+1 Armor. +2 more Armor while Guarding.", armor: 1,
     hooks: { onGuard: (_b, f) => { f.flags["guardArmor"] = (f.flags["guardArmor"] ?? 0) + 2; } } }),
-  off({ id: "o_tower_shield", name: "Tower Shield", tags: ["Guard", "Thorns"], text: "+2 Armor. While Guarding, attackers take 2.", armor: 2,
+  off({ id: "o_tower_shield", shield: true, name: "Tower Shield", tags: ["Guard", "Thorns"], text: "+2 Armor. While Guarding, attackers take 2.", armor: 2,
     hooks: { whenHit: (b, ctx) => { if (ctx.defender.flags["guarding"]) ping(b, ctx.attacker, 2, "Tower Shield"); } } }),
-  off({ id: "o_ember_charm", name: "Ember Charm", tags: ["Burn", "Arcane"], text: "On a 2: apply 2 Burn.", hooks: { face: [on(2, (b, ctx) => applyStatus(b, ctx.attacker, ctx.defender, "burn", 2))] } }),
-  off({ id: "o_frost_orb", name: "Frost Orb", tags: ["Frost", "Arcane"], text: "On a 4: apply 2 Chill. Chill you apply lasts 1 round longer.",
+  off({ id: "o_ember_charm", barrierElement: "burn", name: "Ember Charm", tags: ["Burn", "Arcane"], text: "On a 2: apply 2 Burn.", hooks: { face: [on(2, (b, ctx) => applyStatus(b, ctx.attacker, ctx.defender, "burn", 2))] } }),
+  off({ id: "o_frost_orb", barrierElement: "chill", name: "Frost Orb", tags: ["Frost", "Arcane"], text: "On a 4: apply 2 Chill. Chill you apply lasts 1 round longer.",
     hooks: { face: [on(4, (b, ctx) => applyStatus(b, ctx.attacker, ctx.defender, "chill", 2))],
       onStatusApplied: (_b, _s, t, status) => { if (status === "chill") t.statuses.chill = st(t, "chill") + 1; } } }),
   off({ id: "o_holy_symbol", name: "Holy Symbol", tags: ["Blood", "Guard"], text: "Start each fight with Ward. On a 6: gain 3 Regen.",
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1), face: [on(6, (b, ctx) => applyStatus(b, ctx.attacker, ctx.attacker, "regen", 3))] } }),
-  off({ id: "o_tome", name: "Tome of Hexes", tags: ["Hex", "Arcane"], text: "On a 3: apply 2 Weak. On a 1: apply 2 Exposed.",
+  off({ id: "o_tome", barrierElement: "weak", name: "Tome of Hexes", tags: ["Hex", "Arcane"], text: "On a 3: apply 2 Weak. On a 1: apply 2 Exposed.",
     hooks: { face: [on(3, (b, ctx) => applyStatus(b, ctx.attacker, ctx.defender, "weak", 2)), on(1, (b, ctx) => applyStatus(b, ctx.attacker, ctx.defender, "exposed", 2))] } }),
-  off({ id: "o_storm_lantern", name: "Storm Lantern", tags: ["Storm", "Arcane"], text: "On a 5: apply Shock.", hooks: { face: [on(5, (b, ctx) => applyStatus(b, ctx.attacker, ctx.defender, "shock", 1))] } }),
+  off({ id: "o_storm_lantern", barrierElement: "static", name: "Storm Lantern", tags: ["Storm", "Arcane"], text: "On a 5: apply Shock.", hooks: { face: [on(5, (b, ctx) => applyStatus(b, ctx.attacker, ctx.defender, "shock", 1))] } }),
   off({ id: "o_bone_focus", name: "Bone Focus", tags: ["Hex", "Kill"], text: "On a 1: apply 2 Doom instead of grazing.",
     hooks: { face: [on(1, (b, ctx) => { ctx.noDamage = true; applyStatus(b, ctx.attacker, ctx.defender, "doom", 2); })] } }),
 
-  off({ id: "o_kite_shield", name: "Kite Shield", tags: ["Guard", "Strike"], text: "Guarding also gives 2 Might.", armor: 2,
+  off({ id: "o_kite_shield", shield: true, name: "Kite Shield", tags: ["Guard", "Strike"], text: "Guarding also gives 2 Might.", armor: 2,
     hooks: { onGuard: (b, f) => applyStatus(b, f, f, "might", 2) } }),
   off({ id: "o_prayer_beads", name: "Prayer Beads", tags: ["Blood", "Guard"], text: "On a 2 or a 4: gain 1 Regen.",
     hooks: { face: [on("even", (b, c) => { if (c.face === 2 || c.face === 4) applyStatus(b, c.attacker, c.attacker, "regen", 1); })] } }),
@@ -133,35 +134,35 @@ export const OFFHANDS: GearBase[] = [
     hooks: { face: [on(6, (b, c) => { heal(b, c.attacker, 3, "Sun Disc"); applyStatus(b, c.attacker, c.defender, "burn", 3); })] } }),
   off({ id: "o_reliquary", name: "Reliquary", tags: ["Guard", "Hex"], text: "Start each fight with Ward; the enemy starts Weak.",
     hooks: { onFightStart: (b, f) => { applyStatus(b, f, f, "ward", 1); applyStatus(b, f, other(b, f), "weak", 1); } } }),
-  off({ id: "o_crystal_orb", name: "Crystal Orb", tags: ["Arcane", "Storm"], text: "On a 5: apply Shock. Shocked enemies take +2 from your spells.",
+  off({ id: "o_crystal_orb", barrierElement: "static", name: "Crystal Orb", tags: ["Arcane", "Storm"], text: "On a 5: apply Shock. Shocked enemies take +2 from your spells.",
     hooks: { face: [on(5, (b, c) => applyStatus(b, c.attacker, c.defender, "shock", 1))], modifyAttack: (_b, c) => { if (c.spec.magic && st(c.defender, "shock") > 0) c.bonus += 2; } } }),
-  off({ id: "o_runestone", name: "Runestone", tags: ["Arcane", "Frost"], text: "On a 3: apply 2 Chill. Chilled enemies take +1.",
+  off({ id: "o_runestone", barrierElement: "chill", name: "Runestone", tags: ["Arcane", "Frost"], text: "On a 3: apply 2 Chill. Chilled enemies take +1.",
     hooks: { face: [on(3, (b, c) => applyStatus(b, c.attacker, c.defender, "chill", 2))], modifyAttack: (_b, c) => { if (st(c.defender, "chill") > 0) c.bonus += 1; } } }),
   off({ id: "o_smoke_pouch", name: "Smoke Pouch", tags: ["Tempo", "Hex"], text: "The enemy starts each fight Blind.",
     hooks: { onFightStart: (b, f) => applyStatus(b, f, other(b, f), "blind", 1) } }),
-  off({ id: "o_buckler", name: "Buckler", tags: ["Guard", "Tempo"], text: "+1 Armor. On a 1: gain Evade.", armor: 1,
+  off({ id: "o_buckler", shield: true, name: "Buckler", tags: ["Guard", "Tempo"], text: "+1 Armor. On a 1: gain Evade.", armor: 1,
     hooks: { face: [on(1, (b, ctx) => applyStatus(b, ctx.attacker, ctx.attacker, "evade", 1))] } }),
-  off({ id: "o_spiked_shield", name: "Spiked Shield", tags: ["Guard", "Thorns"], text: "+1 Armor. Guarding gives 3 Spikes.", armor: 1,
+  off({ id: "o_spiked_shield", shield: true, name: "Spiked Shield", tags: ["Guard", "Thorns"], text: "+1 Armor. Guarding gives 3 Spikes.", armor: 1,
     hooks: { onGuard: (b, f) => applyStatus(b, f, f, "spikes", 3) } }),
   off({ id: "o_censer", name: "Plague Censer", tags: ["Poison", "Blood"], text: "Each fight starts with 2 Poison on the enemy. On a 3: gain 1 Regen.",
     hooks: { onFightStart: (b, f) => applyStatus(b, f, other(b, f), "poison", 2), face: [on(3, (b, ctx) => applyStatus(b, ctx.attacker, ctx.attacker, "regen", 1))] } }),
-  off({ id: "o_grimoire", name: "Grimoire", tags: ["Arcane", "Burn", "Frost"], text: "On a 6: also apply 3 Burn and 2 Chill.",
+  off({ id: "o_grimoire", barrierElement: "burn", name: "Grimoire", tags: ["Arcane", "Burn", "Frost"], text: "On a 6: also apply 3 Burn and 2 Chill.",
     hooks: { face: [on(6, (b, ctx) => { applyStatus(b, ctx.attacker, ctx.defender, "burn", 3); applyStatus(b, ctx.attacker, ctx.defender, "chill", 2); })] } }),
   off({ id: "o_war_banner", name: "War Banner", tags: ["Strike", "Tempo"], text: "Start each fight with 2 Might.", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "might", 2) } }),
-  off({ id: "o_pavise", minItemRarity: "uncommon", name: "Pavise", tags: ["Guard"], text: "+3 Armor. Guarding gives Barrier equal to your Armor (at most 3 per floor).", armor: 3,
+  off({ id: "o_pavise", shield: true, minItemRarity: "uncommon", name: "Pavise", tags: ["Guard"], text: "+3 Armor. Guarding gives Barrier equal to your Armor (at most 3 per floor).", armor: 3,
     hooks: { onGuard: (b, f) => applyStatus(b, f, f, "barrier", Math.min(f.armor, 3 * depth(f))) } }),
-  off({ id: "o_lion_shield", name: "Lion Shield", tags: ["Guard", "Hex"], text: "+2 Armor. Enemies that hit you while you Guard are Weakened.", armor: 2,
+  off({ id: "o_lion_shield", shield: true, name: "Lion Shield", tags: ["Guard", "Hex"], text: "+2 Armor. Enemies that hit you while you Guard are Weakened.", armor: 2,
     hooks: { whenHit: (b, c) => { if (c.defender.flags["guarding"]) applyStatus(b, c.defender, c.attacker, "weak", 2); } } }),
-  off({ id: "o_targe", name: "Targe", tags: ["Guard", "Luck"], text: "+1 Armor. Guarding gives Focus.", armor: 1,
+  off({ id: "o_targe", shield: true, name: "Targe", tags: ["Guard", "Luck"], text: "+1 Armor. Guarding gives Focus.", armor: 1,
     hooks: { onGuard: (b, f) => applyStatus(b, f, f, "focus", 1) } }),
-  off({ id: "o_heater_shield", name: "Heater Shield", tags: ["Guard", "Blood"], text: "+2 Armor. Guarding gives 2 Regen.", armor: 2,
+  off({ id: "o_heater_shield", shield: true, name: "Heater Shield", tags: ["Guard", "Blood"], text: "+2 Armor. Guarding gives 2 Regen.", armor: 2,
     hooks: { onGuard: (b, f) => applyStatus(b, f, f, "regen", 2) } }),
-  off({ id: "o_witchwood", name: "Witchwood Focus", tags: ["Poison", "Hex", "Arcane"], text: "On a 2: apply 2 Poison and 1 Weak.",
+  off({ id: "o_witchwood", barrierElement: "poison", name: "Witchwood Focus", tags: ["Poison", "Hex", "Arcane"], text: "On a 2: apply 2 Poison and 1 Weak.",
     hooks: { face: [on(2, (b, c) => { applyStatus(b, c.attacker, c.defender, "poison", 2); applyStatus(b, c.attacker, c.defender, "weak", 1); })] } }),
   // ---------- Hybrid cleric off-hands: something for you, something against them ----------
   off({ id: "o_thurible", name: "Thurible of Judgement", tags: ["Holy", "Burn", "Blood"], text: "Each round: apply 1 Burn to the enemy and gain 1 Regen.",
     hooks: { onRoundStart: (b, f) => { applyStatus(b, f, other(b, f), "burn", 1); applyStatus(b, f, f, "regen", 1); } } }),
-  off({ id: "o_shield_faith", name: "Shield of Faith", tags: ["Holy", "Guard", "Hex"], text: "+2 Armor. Start each fight with Ward. Guarding gives Ward and applies 2 Exposed.", armor: 2,
+  off({ id: "o_shield_faith", shield: true, name: "Shield of Faith", tags: ["Holy", "Guard", "Hex"], text: "+2 Armor. Start each fight with Ward. Guarding gives Ward and applies 2 Exposed.", armor: 2,
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1), onGuard: (b, f) => { applyStatus(b, f, f, "ward", 1); applyStatus(b, f, other(b, f), "exposed", 2); } } }),
   off({ id: "o_sanct_lantern", name: "Sanctified Lantern", tags: ["Holy", "Burn", "Blood"], text: "Start each fight with Ward. Whenever your Ward blocks a status, heal 3 and apply 3 Burn.",
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1), onWard: (b, f) => { heal(b, f, 3, "Sanctified Lantern"); applyStatus(b, f, other(b, f), "burn", 3); } } }),
@@ -174,17 +175,17 @@ export const OFFHANDS: GearBase[] = [
   off({ id: "o_penitent_chain", name: "Penitent's Chain", tags: ["Holy", "Hex", "Blood"], text: "Each round: apply 1 random negative status to the enemy (Burn, Poison, Chill, Bleed, Weak or Exposed) and heal 1.",
     hooks: { onRoundStart: (b, f) => { applyStatus(b, f, other(b, f), HEXES[Math.floor(b.rng() * HEXES.length)], 1); heal(b, f, 1, "Penitent's Chain"); } } }),
   // ---------- Grimoires ----------
-  off({ id: "o_grim_rime", name: "Grimoire of Rime", tags: ["Arcane", "Frost"], text: "On a 2 or a 4: apply 1 Chill. Your spells deal +1 to Chilled enemies.",
+  off({ id: "o_grim_rime", barrierElement: "chill", name: "Grimoire of Rime", tags: ["Arcane", "Frost"], text: "On a 2 or a 4: apply 1 Chill. Your spells deal +1 to Chilled enemies.",
     hooks: { face: [on("even", (b, c) => { if (c.face !== 6) applyStatus(b, c.attacker, c.defender, "chill", 1); })], modifyAttack: (_b, c) => { if (c.spec.magic && st(c.defender, "chill") > 0) c.bonus += 1; } } }),
-  off({ id: "o_grim_storms", name: "Grimoire of Storms", tags: ["Arcane", "Storm"], text: "On a 5: apply 3 Static. On a 6: apply Shock.",
+  off({ id: "o_grim_storms", barrierElement: "static", name: "Grimoire of Storms", tags: ["Arcane", "Storm"], text: "On a 5: apply 3 Static. On a 6: apply Shock.",
     hooks: { face: [on(5, (b, c) => applyStatus(b, c.attacker, c.defender, "static", 3)), on(6, (b, c) => applyStatus(b, c.attacker, c.defender, "shock", 1))] } }),
-  off({ id: "o_grim_tides", name: "Grimoire of Tides", tags: ["Arcane", "Frost", "Storm"], text: "The enemy starts each fight Soaked 2. On a 3: apply 1 Soaked.",
+  off({ id: "o_grim_tides", barrierElement: "soaked", name: "Grimoire of Tides", tags: ["Arcane", "Frost", "Storm"], text: "The enemy starts each fight Soaked 2. On a 3: apply 1 Soaked.",
     hooks: { onFightStart: (b, f) => applyStatus(b, f, other(b, f), "soaked", 2), face: [on(3, (b, c) => applyStatus(b, c.attacker, c.defender, "soaked", 1))] } }),
-  off({ id: "o_grim_embers", name: "Grimoire of Embers", tags: ["Arcane", "Burn"], text: "On any odd roll: apply 1 Burn. Start each fight Kindled 2.",
+  off({ id: "o_grim_embers", barrierElement: "burn", name: "Grimoire of Embers", tags: ["Arcane", "Burn"], text: "On any odd roll: apply 1 Burn. Start each fight Kindled 2.",
     hooks: { face: [on("odd", (b, c) => applyStatus(b, c.attacker, c.defender, "burn", 1))], onFightStart: (b, f) => applyStatus(b, f, f, "kindled", 2) } }),
-  off({ id: "o_grim_shadows", name: "Grimoire of Shadows", tags: ["Arcane", "Hex"], text: "On a 1: apply 1 Blind and 2 Weak instead of grazing.",
+  off({ id: "o_grim_shadows", barrierElement: "blind", name: "Grimoire of Shadows", tags: ["Arcane", "Hex"], text: "On a 1: apply 1 Blind and 2 Weak instead of grazing.",
     hooks: { face: [on(1, (b, c) => { c.noDamage = true; applyStatus(b, c.attacker, c.defender, "blind", 1); applyStatus(b, c.attacker, c.defender, "weak", 2); })] } }),
-  off({ id: "o_grim_coil", name: "Grimoire of the Coil", tags: ["Arcane", "Storm", "Strike"], text: "Start each fight Charged 2. On a 6: gain 2 Charged.",
+  off({ id: "o_grim_coil", barrierElement: "static", name: "Grimoire of the Coil", tags: ["Arcane", "Storm", "Strike"], text: "Start each fight Charged 2. On a 6: gain 2 Charged.",
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "charged", 2), face: [on(6, (b, c) => applyStatus(b, c.attacker, c.attacker, "charged", 2))] } }),
   off({ id: "o_hourglass", name: "Sand Hourglass", tags: ["Tempo", "Luck"], text: "Every 4th round, gain Haste.", hooks: { onRoundStart: (b, f) => { if (b.round % 4 === 0) applyStatus(b, f, f, "haste", 1); } } })
 ];
@@ -298,4 +299,4 @@ export const TRINKETS: GearBase[] = [
   trinket({ id: "t_quicksilver", name: "Quicksilver Ring", tags: ["Tempo"], text: "Start each fight at full HP with Haste.", hooks: { onFightStart: (b, f) => { if (f.hp >= f.maxHp) applyStatus(b, f, f, "haste", 1); } } })
 ];
 
-export const GEAR_BASES: GearBase[] = [...WEAPONS, ...OFFHANDS, ...ARMOURS, ...TRINKETS, ...KIT_UPGRADES, ...BASICS];
+export const GEAR_BASES: GearBase[] = [...WEAPONS, ...OFFHANDS, ...ARMOURS, ...TRINKETS, ...KIT_UPGRADES, ...BASICS, ...DODGE_GEAR, ...ELEMENTAL_WEAPONS, ...DOOM_WEAPONS];

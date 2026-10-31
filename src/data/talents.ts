@@ -138,6 +138,8 @@ export const STORM_TALENTS: HookDef[] = [
   talent({ id: "t_boundless_static", name: "Boundless Static", rarity: "rare", tags: ["Storm"], text: "Rare. Static you apply has no cap", hooks: {} }), // statuses.ts
   talent({ id: "t_fire_within", name: "Fire Within", tags: ["Burn"], text: "Start every fight with 1 / 2 / 3 Smouldering Soul (you take 1 Burn a round; every action deals 5 Burn to the enemy)",
     hooks: { onFightStart: (b, f, s) => applyStatus(b, f, f, "smoulder_soul", s) } }),
+  talent({ id: "t_light_feet", name: "Light Feet", tags: ["Tempo"], text: "+3% / +6% / +10% Dodge", hooks: { stats: (st_, s) => { st_.dodge += rank(s, 3, 6, 10); } } }),
+  talent({ id: "t_slippery", name: "Slippery", tags: ["Tempo", "Strike"], text: "When you Dodge, gain 1 / 2 / 3 Might", hooks: { onDodge: (b, c, s) => applyStatus(b, c.defender, c.defender, "might", s) } }),
   talent({ id: "t_overwhelm", name: "Overwhelm", tags: ["Arcane", "Hex"], text: "Your hits deal +1 / +2 / +3 for every different negative status on the enemy",
     hooks: { modifyAttack: (_b, c, s) => { c.bonus += s * NEG.filter(x => st(c.defender, x) > 0).length; } } })
 ];

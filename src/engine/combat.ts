@@ -1,6 +1,10 @@
 // Combat: your weapon is your die. Roll it, read the face, fire every effect on that face, then deal damage.
 import { eachHook, fx, getItem, log, stacksOf } from "./registry";
 import { makeRng, rollDie } from "./rng";
+
+/** Dodge is capped at 60%; Bash at 30%. */
+export const DODGE_CAP = 60;
+export const BASH_CAP = 30;
 import { applyStatus, conductive, endOfRound, heal, loseHp, other, smoulderSoulAction, st, startOfTurn, staticTick } from "./statuses";
 import type { AttackCtx, Battle, FaceGroup, FaceKind, FaceSpec, Fighter, StatusId, Statuses } from "./types";
 import { NEGATIVE_STATUSES } from "./types";
@@ -152,6 +156,12 @@ export function resolveFace(b: Battle, a: Fighter, d: Fighter, face: number, off
     attacker: a, defender: d, face, spec, kind: spec.kind, mult: KIND_MULT[spec.kind],
     ignoreArmor: spec.kind === "crit" || !!spec.magic, bonus: 0, noDamage: spec.kind === "miss", offhand, dealt: 0
   };
+  // A Counter strike always lands: misses and grazes become hits.
+  if (a.flags["counterHit"] && (ctx.kind === "miss" || ctx.kind === "graze")) {
+    ctx.kind = "hit";
+    ctx.mult = 1;
+    ctx.noDamage = false;
+  }
   if (spec.kind === "hit" && face === 5 && a.flags["frenzy"]) {
     ctx.kind = "crit";
     ctx.mult = 2;
@@ -200,6 +210,25 @@ function strike(b: Battle, ctx: AttackCtx) {
     raw *= conductive(d) ? 2 : 1.5;
     if (!stacksOf(a, "lr_eye_storm")) d.statuses.shock = st(d, "shock") - 1;
   }
+  // Mana Potion: spells hit 50% harder for the rest of the fight.
+  if (a.flags["mana"] && ctx.spec.magic) raw *= 1.5;
+  // Keepsake of the Deadeye: crits deal 50% more.
+  if (ctx.kind === "crit" && stacksOf(a, "ks_deadeye") > 0) raw *= 1.5;
+  // A failed Counter leaves you off-balance for one attack.
+  if (a.flags["frail"]) { raw *= 0.75; a.flags["frail"] = 0; }
+  // Bash (main weapon only): Stun and +50%.
+  let bashed = false;
+  if (!ctx.offhand && (a.bash ?? 0) > 0 && (ctx.kind === "hit" || ctx.kind === "crit") && b.rng() * 100 < Math.min(BASH_CAP, a.bash ?? 0)) {
+    raw *= 1.5;
+    bashed = true;
+  }
+  // Penance: everything you suffered comes back in one blow.
+  const penance = !ctx.offhand ? a.flags["penanceStore"] ?? 0 : 0;
+  if (penance > 0) {
+    raw += penance;
+    a.flags["penanceStore"] = 0;
+    log(b, `✝️ Penance: ${penance} suffered, returned in full.`);
+  }
   let shatter = false;
   if (d.flags["shatter"]) {
     raw *= 3;
@@ -220,6 +249,36 @@ function strike(b: Battle, ctx: AttackCtx) {
     fx(b, { who: d.id, kind: "miss", text: "Evaded" });
     return afterStrike(b, ctx);
   }
+  // Dodge (a % chance; Countering adds 20%). It's not Evade: Evade bonuses don't fire, Dodge ones do.
+  const countering = d.flags["counter"] === b.round;
+  const dodgeChance = Math.min(DODGE_CAP, (d.dodge ?? 0) + (countering ? 20 : 0));
+  if (dodgeChance > 0 && b.rng() * 100 < dodgeChance) {
+    log(b, `${d.name} dodges!`);
+    fx(b, { who: d.id, kind: "miss", text: "Dodged" });
+    eachHook(d, "onDodge", (h, s) => h(b, ctx, s));
+    if (countering && a.hp > 0 && d.hp > 0) {
+      log(b, `${d.name} counters!`);
+      fx(b, { who: d.id, kind: "text", text: "Counter!", icon: "🗡️" });
+      d.flags["counterHit"] = 1;
+      attack(b, d, a);
+      d.flags["counterHit"] = 0;
+    }
+    return afterStrike(b, ctx);
+  }
+  if (countering) {
+    d.flags["frail"] = 1;
+    log(b, `${d.name}'s Counter fails: off-balance for the next attack.`);
+    fx(b, { who: d.id, kind: "text", text: "Off-balance", icon: "🥀" });
+  }
+  // Elemental Barrier (Mage): 5–6 blocks it all, 3–4 halves it; either way the attacker gets a taste of the element.
+  const tier = d.flags["eBarrier"] === b.round ? d.flags["eBarrierTier"] ?? 0 : 0;
+  if (tier > 0 && raw > 0) {
+    raw = tier >= 2 ? 0 : Math.ceil(raw / 2);
+    ctx.raw = raw;
+    fx(b, { who: d.id, kind: "block", text: tier >= 2 ? "Barrier holds" : "Barrier bends", icon: "🔮" });
+    log(b, `${d.name}'s Elemental Barrier ${tier >= 2 ? "blocks the whole hit" : "takes half of it"}.`);
+    if (d.barrierElement && a.hp > 0) applyStatus(b, d, a, d.barrierElement, tier >= 2 ? 2 : 1);
+  }
   const armor = ctx.ignoreArmor ? 0 : armorOf(d);
   // Armor can't soak a whole hit unless you're Guarding: at least a third always gets through.
   const floorDmg = d.flags["guarding"] || stacksOf(d, "lr_anvil_heart") ? 0 : Math.floor(raw / 3);
@@ -230,6 +289,12 @@ function strike(b: Battle, ctx: AttackCtx) {
   const label = ctx.kind === "crit" ? "Crit! " : ctx.kind === "graze" ? "Graze. " : "";
   log(b, `${label}${a.name} hits ${d.name} for ${ctx.dealt}${armor && raw > 0 ? ` (${raw} − ${armor} Armor)` : ""}.`);
   if (shatter) applyStatus(b, a, d, "stun", 1);
+  if (bashed && ctx.dealt > 0) {
+    log(b, "💥 Bash!");
+    fx(b, { who: d.id, kind: "text", text: "Bash!", icon: "💥" });
+    applyStatus(b, a, d, "stun", 1);
+  }
+  if (penance > 0 && d.hp <= 0) heal(b, a, Math.ceil(a.maxHp * 0.15), "Penance");
   if (ctx.dealt > 0 && charged > 0) {
     a.statuses.charged = 0;
     applyStatus(b, a, d, "static", charged);
@@ -350,7 +415,8 @@ function checkOver(b: Battle) {
   return !!b.over;
 }
 
-export type Action = "attack" | "guard" | "flee";
+/** Attack, Guard (needs a shield), Flee, and one action per class. */
+export type Action = "attack" | "guard" | "flee" | "counter" | "barrier" | "penance" | "warcry";
 
 /** Begin a round. Returns true if the enemy acts first this round (Ambush). */
 export function beginRound(b: Battle): boolean {
@@ -390,6 +456,36 @@ export function heroPhase(b: Battle, action: Action) {
     eachHook(p, "onGuard", (h, s) => h(b, p, s));
     log(b, `${p.name} Guards (Armor ${armorOf(p)}).`);
     fx(b, { who: "player", kind: "text", text: `Guard · Armor ${armorOf(p)}`, icon: "🛡️" });
+  } else if (action === "counter") {
+    act(b, p, () => {
+      p.flags["counter"] = b.round;
+      log(b, `${p.name} takes a Counter stance.`);
+      fx(b, { who: "player", kind: "text", text: "Counter stance", icon: "🗡️" });
+    });
+  } else if (action === "barrier") {
+    act(b, p, () => {
+      const r = rollDie(b.rng, 6);
+      const tier = r >= 5 ? 2 : r >= 3 ? 1 : 0;
+      p.flags["eBarrier"] = b.round;
+      p.flags["eBarrierTier"] = tier;
+      fx(b, { who: "player", kind: "roll", face: r, faceName: tier === 2 ? "Full barrier" : tier === 1 ? "Partial barrier" : "Fizzled", faceKind: tier === 2 ? "crit" : tier === 1 ? "hit" : "miss", sides: 6 });
+      log(b, `${p.name} raises an Elemental Barrier: rolls ${r} — ${tier === 2 ? "a full block" : tier === 1 ? "it will take half" : "it fizzles"}.`);
+    });
+  } else if (action === "penance") {
+    act(b, p, () => {
+      p.flags["penanceRound"] = b.round;
+      log(b, `${p.name} kneels in Penance. What you suffer this round is stored (${p.flags["penanceStore"] ?? 0} so far).`);
+      fx(b, { who: "player", kind: "text", text: "Penance", icon: "✝️" });
+    });
+  } else if (action === "warcry") {
+    act(b, p, () => {
+      if (p.flags["warcry"]) return;
+      p.flags["warcry"] = 1;
+      applyStatus(b, p, p, "might", 2 + Math.floor((p.persist["floor"] ?? 1) / 2));
+      applyStatus(b, p, e, "weak", 2);
+      log(b, `${p.name} lets out a War Cry!`);
+      fx(b, { who: "player", kind: "text", text: "War Cry!", icon: "📯" });
+    });
   } else act(b, p, () => heroAttack(b));
   checkOver(b);
 }

@@ -73,6 +73,14 @@ let LOCKED = new Set<string>();
 export const setLocked = (ids: Set<string>) => { LOCKED = ids; };
 export const isLocked = (id: string) => LOCKED.has(id);
 
+/** Bash on weapons, Rare and up: a % chance to Stun and deal +50%. Only the weapon (and rare relics) give it. */
+const BASH_RANGE: Partial<Record<Rarity, [number, number]>> = { rare: [4, 10], epic: [8, 16], legendary: [12, 22], crimson: [18, 30] };
+function rollBash(rarity: Rarity, base: GearBase, rng: () => number): number | undefined {
+  const r = BASH_RANGE[rarity];
+  if (!r || base.kind !== "weapon" || rng() >= 0.45) return undefined;
+  return Math.round(r[0] + rng() * (r[1] - r[0]));
+}
+
 /** Legendaries (and Crimson items) already rolled this run: each drops at most once per run. */
 let DROPPED = new Set<string>();
 export const resetDropped = () => { DROPPED = new Set(); };
@@ -83,7 +91,7 @@ export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => numb
     const pool = CRIMSON.filter(c => !DROPPED.has(c.id));
     const base = weighted(rng, pool.length ? pool : CRIMSON, b => 1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0));
     DROPPED.add(base.id);
-    return { uid: h.nextUid++, base: base.id, rarity: "crimson", level: floor, bonuses: rollBonuses(h, "rare", base, floor, rng, 2), revealed: true };
+    return { uid: h.nextUid++, base: base.id, rarity: "crimson", level: floor, bonuses: rollBonuses(h, "rare", base, floor, rng, 2), revealed: true, bash: rollBash("crimson", base, rng) };
   }
   if (rarity === "legendary") {
     const pool = LEGENDARIES.filter(l => (l.legendary?.minFloor ?? 1) <= floor && !LOCKED.has(l.id) && !DROPPED.has(l.id));
@@ -92,7 +100,7 @@ export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => numb
       // A gentle lean toward your build; Legendaries should feel like a surprise, not a fixed path.
       const base = weighted(rng, pool, b => 1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0));
       DROPPED.add(base.id);
-      return { uid: h.nextUid++, base: base.id, rarity: "legendary", level: floor, bonuses: {}, revealed: false };
+      return { uid: h.nextUid++, base: base.id, rarity: "legendary", level: floor, bonuses: {}, revealed: false, bash: rollBash("legendary", base, rng) };
     }
   }
   const fav = new Set(AFFINITY[h.origin]);
@@ -100,7 +108,7 @@ export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => numb
   const nBonuses = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0, crimson: 2 }[rarity];
   const bonuses = rollBonuses(h, rarity, base, floor, rng, nBonuses);
   const epic = rarity === "epic" ? weighted(rng, EPIC_POWERS.filter(e => !LOCKED.has(e.id)), e => tagWeight(tags, e.tags)).id : undefined;
-  return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses, epic, revealed: true };
+  return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses, epic, revealed: true, bash: rollBash(rarity, base, rng) };
 }
 
 function rollBonuses(h: Hero, rarity: Rarity, base: GearBase, floor: number, rng: () => number, n: number): Record<string, number> {

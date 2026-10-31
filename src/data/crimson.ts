@@ -45,10 +45,10 @@ export const CRIMSON: GearBase[] = [
     hooks: { modifyAttack: (b, c) => { if (c.spec.cleanse) { for (const s of ["bleed", "burn", "exposed"] as const) applyStatus(b, c.attacker, c.defender, s, 2); } } } }),
 
   // ---------- Off-hands ----------
-  crimson({ id: "c_crimson_aegis", kind: "off", slot: "off", name: "Crimson Aegis", tags: ["Guard", "Thorns"], armor: 5,
+  crimson({ id: "c_crimson_aegis", shield: true, kind: "off", slot: "off", name: "Crimson Aegis", tags: ["Guard", "Thorns"], armor: 5,
     text: "While Guarding, every hit you take is thrown back in full (before Armor), and you gain that much Barrier.",
     hooks: { whenHit: (b, c) => { const n = c.raw ?? 0; if (c.defender.flags["guarding"] && n > 0) { ping(b, c.attacker, n, "🩸 Crimson Aegis"); applyStatus(b, c.defender, c.defender, "barrier", n); } } } }),
-  crimson({ id: "c_red_grimoire", kind: "off", slot: "off", name: "Grimoire of Red Pages", tags: ["Arcane", "Hex"],
+  crimson({ id: "c_red_grimoire", barrierElement: "burn", kind: "off", slot: "off", name: "Grimoire of Red Pages", tags: ["Arcane", "Hex"],
     text: "Every negative status you apply also applies 1 stack of a status it reacts with, so reactions fire constantly. Reactions you cause deal +50%.",
     hooks: {
       reactionMult: () => 1.5,

@@ -1,20 +1,20 @@
 // Deck Dungeon 2 — the playable game.
-import { BONUSES, CRIMSON, CURSES, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
+import { BONUSES, CRIMSON, CURSES, KEEPSAKES, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
 import { FUSION_RECIPES } from "../data/fusions";
 import { ORIGINS } from "../data/origins";
 import { armorOf, beginRound, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly } from "../engine/combat";
 import { getItem } from "../engine/registry";
-import { REACTIONS, STATUS_INFO } from "../engine/statuses";
+import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
 import {
-  BACKPACK_SIZE, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, equipItem, fillText, type Hero, itemLines, itemName, rerollCost,
+  BACKPACK_SIZE, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, equipItem, fillText, type Hero, itemLines, itemName, rerollCost,
   keepsOffHand, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
 } from "../game/hero";
 import { lockedIds, loadMeta, type Meta, recordRun, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  combinablePairs, sellItem, sellPrice, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, TRANSMUTE_COST,
+  combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, TRANSMUTE_COST,
   ROOM_INFO, type Run, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -31,6 +31,10 @@ let run: Run | null = null;
 let view: "title" | "codex" = "title";
 let mode: Mode = "campaign";
 let bagOpen = false;
+/** The class the player tapped on the title screen (the popup before a run starts). */
+let pendingOrigin: OriginId | null = null;
+/** The talent scene whose "You have levelled up!" popup has been seen. */
+let ackedTalentScene: unknown = null;
 let note = "";
 let noteBad = false;
 let recorded: { earned: number; unlocked: string[] } | null = null;
@@ -119,7 +123,8 @@ function reactionsPanel(r: Run) {
       ${b ? `${describe(b.player, "On you")}${describe(b.enemy, `On ${b.enemy.name}`)}` : `<p class="sub">Statuses and reactions only last for a fight. Open this mid-fight to see what's active.</p>`}
       <p style="margin-top:10px"><b>This run</b></p>${history}
     </div>
-    <details><summary>Reaction guide — two statuses on the same fighter react</summary><p class="sub">The names in brackets are things you own that mention that status.</p>${smiteRow}${guide}</details>
+    <details><summary>Reaction guide — two statuses on the same fighter react</summary><p class="sub">The names in brackets are things you own that mention that status.</p>${smiteRow}${guide}
+      <p style="margin-top:8px"><b>Bursts</b> — pile one status high enough and it goes off on its own:</p>${THRESHOLDS.map(t => `<div class="rxguide"><b>${t.icon} ${t.name}</b><br><span class="sub">${esc(t.text)}</span></div>`).join("")}</details>
     <details><summary>All statuses</summary>${(Object.keys(STATUS_INFO) as StatusId[]).map(s => `<p>${STATUS_INFO[s].icon} <b>${STATUS_INFO[s].name}</b> — ${esc(STATUS_INFO[s].text)}</p>`).join("")}</details>`;
 }
 
@@ -169,13 +174,13 @@ function hud(r: Run) {
     const canDrink = h.potions > 0 && f.hp < f.maxHp && !busy;
     return `<div class="hud compact"><div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">${floorLabel(r)}</span><span class="grow"></span>
       <span class="stat">🪙 <b>${f.gold}</b></span>
-      <button class="small" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (+12 HP)">🧪 ${h.potions}</button><button class="small" data-bag title="Gear & build">🎒</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div></div>`;
+      <button class="small" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (+12 HP)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${f.flags["mana"] || busy ? "disabled" : ""} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${h.manaPotions}</button>` : ""}<button class="small" data-bag title="Gear & build">🎒</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div></div>`;
   }
   return `<div class="hud">
     <div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">Lv ${h.level}</span><span class="grow"></span><span class="stat">${floorLabel(r)}</span></div>
     <div class="bar"><i style="width:${Math.max(0, (f.hp / f.maxHp) * 100)}%"></i></div>
     <div class="row stat"><span><b>${Math.max(0, f.hp)}</b>/${f.maxHp} HP</span><span>⚔️ <b>${f.damage}</b>${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}</span><span>🛡️ <b>${f.armor}</b></span>
-      <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span><span>🧪 <b>${h.potions}</b></span><span>📜 <b>${h.scrolls}</b></span>${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
+      <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span><span>🧪 <b>${h.potions}</b></span><span>📜 <b>${h.scrolls}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
     <div class="bar xp"><i style="width:${(h.xp / need) * 100}%"></i></div>
     <div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>
     <div class="row" style="margin-top:6px"><button class="small" data-bag>🎒 Gear & build</button>${h.potions && f.hp < f.maxHp && !busy ? `<button class="small" data-potion>🧪 Potion (+12)</button>` : ""}<span class="grow"></span><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>
@@ -218,6 +223,7 @@ function codexScreen() {
     ${section("Weapons & gear", GEAR_BASES)}
     ${section("Legendaries", LEGENDARIES.map(l => ({ id: l.id, name: l.name, text: l.legendary!.reveal })))}
     ${section("Crimson", CRIMSON)}
+    ${section("Keepsakes", KEEPSAKES)}
     ${section("Epic powers", EPIC_POWERS)}
     ${section("Bonuses", BONUSES)}
     ${section("Relics", RELICS)}
@@ -264,7 +270,7 @@ function combatScene(r: Run) {
     <div class="c-player">${fighterPanel(b.player, "player")}
     ${(b.player.statuses.stun ?? 0) > 0 ? `<div class="toast err">💫 You're Stunned: your next turn will be skipped.</div>` : ""}</div>
     <div class="c-actions"><div class="row actions ${busy ? "busy" : ""}">
-      <button class="primary" data-act="attack">Attack</button><button data-act="guard">Guard</button>${e.boss || e.elite ? "" : `<button data-act="flee">Flee</button>`}
+      ${availableActions(r).map(a => `<button class="${a === "attack" ? "primary" : a === "flee" ? "" : a === "guard" ? "" : "classact"}" data-act="${a}" title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(b.player)}</button>`).join("")}
     </div>
     <p class="center sub diefaces">Your die: ${b.player.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind}`).join(" · ")}</p></div>
     </div>
@@ -287,7 +293,9 @@ function lootScene(r: Run) {
 function pickScene(r: Run) {
   if (r.scene.t !== "pick") return "";
   const s = r.scene;
+  const ks = s.keepsake ? getItem(s.keepsake) : null;
   return `<h2>${esc(s.title)}</h2>
+    ${ks ? `<div class="item keepsake"><div class="meta">Keepsake · one at a time${r.hero.keepsake ? ` · replaces ${esc(getItem(r.hero.keepsake).name)}` : ""}</div><div class="nm">🕯️ ${esc(ks.name)}</div><p>${esc(ks.text)}.</p><div class="row"><button class="small primary" data-keepsake>Take the Keepsake</button></div><p class="sub">Free: it doesn't count as your pick.</p></div>` : ""}
     <div class="cards">${s.items.map(it => itemCard(it, takeButtons(it), true)).join("")}</div>
     ${s.passed?.length ? `<h2>You passed up</h2><div class="cards">${s.passed.map(it => itemCard(it)).join("")}</div>` : ""}
     <div class="row" style="margin-top:12px"><button data-finish>Take nothing</button></div>`;
@@ -315,7 +323,7 @@ function resplendentScene(r: Run) {
 
 function talentScene(r: Run) {
   if (r.scene.t !== "talent") return "";
-  return `<h2>Level up! +3 Max HP — choose a talent</h2><div class="cards">${r.scene.options.map(id => {
+  return `<h2>Choose a talent</h2><div class="cards">${r.scene.options.map(id => {
     const t = getItem(id);
     const rank = (r.hero.talents[id] ?? 0) + 1;
     return `<button class="room" data-talent="${id}"><b>${esc(t.name)} ${"I".repeat(rank)}</b><span class="sub">${t.tags.join(" · ")}</span><p>${esc(t.text)}</p></button>`;
@@ -337,7 +345,7 @@ function shopScene(r: Run) {
   <div class="row" style="margin-top:12px"><button data-reroll>Reroll stock · ${shopRerollCost(r)} 🪙</button><button class="primary" data-leave>Leave</button></div>`;
 }
 
-const SLOT_LABEL: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket" };
+const SLOT_LABEL: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket", trinket3: "Trinket ★" };
 /** "Main hand" etc. if the item is equipped, "" if it's in the bag. */
 function equippedSlot(r: Run, it: GearItem): string {
   const s = EQUIP_SLOTS.find(k => r.hero.equip[k]?.uid === it.uid);
@@ -422,8 +430,8 @@ function overScene(r: Run) {
 function bag(r: Run) {
   const h = r.hero;
   const inCombat = r.scene.t === "combat";
-  const slotName: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket" };
-  const equipped = EQUIP_SLOTS.map(s => {
+  const slotName: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket", trinket3: "Trinket ★" };
+  const equipped = openSlots(h).map(s => {
     const it = h.equip[s];
     return `<div><div class="sub">${slotName[s]}</div>${it ? itemCard(it, inCombat ? "" : `<button class="small" data-unequip="${s}">Unequip</button>${revealBtn(r, it)}`) : `<div class="item"><span class="sub">Empty</span></div>`}</div>`;
   }).join("");
@@ -436,14 +444,16 @@ function bag(r: Run) {
   const stats = `<div class="panel"><div class="row stat">
       <span>❤️ <b>${Math.max(0, f.hp)}</b>/${f.maxHp}</span><span>⚔️ Damage <b>${f.damage}</b>${f.offDamage !== undefined ? ` + off-hand <b>${f.offDamage}</b>` : ""}</span><span>🛡️ Armor <b>${f.armor}</b></span>
       <span>Lv <b>${h.level}</b> (${h.xp}/${xpToLevel(h.level)} XP)</span></div>
+      ${f.dodge || f.bash ? `<div class="row stat">${f.dodge ? `<span>💨 Dodge <b>${f.dodge}%</b></span>` : ""}${f.bash ? `<span>💥 Bash <b>${f.bash}%</b></span>` : ""}</div>` : ""}
       <div class="row stat"><span>🎲 d${f.faces.length}: ${crits} crit face${crits === 1 ? "" : "s"}, ${misses} miss face${misses === 1 ? "" : "s"}</span></div>
       <div class="row stat"><span>🪙 ${f.gold}</span><span>⚙️ ${h.scrap}</span><span>✴️ ${h.starmetal}</span><span>📜 ${h.scrolls}</span><span>🧪 ${h.potions}</span></div>
       <p class="sub" style="margin:4px 0 0">${f.faces.map((x, i) => `${i + 1} ${x.name ?? x.kind}`).join(" · ")}</p>
       <p class="sub" style="margin:4px 0 0">Armor can't stop more than two-thirds of a hit unless you Guard.</p></div>`;
   // Every slot you're using holds a Legendary (or Crimson): the whole bag glows.
-  const worn = EQUIP_SLOTS.map(s => h.equip[s]);
+  const slotsOpen = openSlots(h);
+  const worn = slotsOpen.map(s => h.equip[s]);
   const twoHander = h.equip.main && effectiveBase(h.equip.main).twoHanded && !keepsOffHand(h);
-  const needed = worn.filter((it, i) => !(EQUIP_SLOTS[i] === "off" && twoHander && !it));
+  const needed = worn.filter((it, i) => !(slotsOpen[i] === "off" && twoHander && !it));
   const legendSet = needed.every(it => it && (it.rarity === "legendary" || it.rarity === "crimson"));
   return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
@@ -451,6 +461,7 @@ function bag(r: Run) {
     ${stats}
     ${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>${reactionsPanel(r)}` : ""}
     <p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>
+    ${h.keepsake ? `<div class="item keepsake"><div class="meta">Keepsake</div><div class="nm">🕯️ ${esc(getItem(h.keepsake).name)}</div><p>${esc(getItem(h.keepsake).text)}.</p></div>` : ""}
     <h2>Equipped</h2><div class="cards">${equipped}</div>
     <h2>Backpack ${h.backpack.length}/${BACKPACK_SIZE}</h2><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div>
     <h2>Relics</h2>${list(h.relics)}
@@ -463,8 +474,8 @@ function bag(r: Run) {
 /** Wide screens: your equipped gear, always in view on the left. */
 function sideEquip(r: Run) {
   const h = r.hero;
-  const slotName: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket" };
-  const rows = EQUIP_SLOTS.map(s => {
+  const slotName: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket", trinket3: "Trinket ★" };
+  const rows = openSlots(h).map(s => {
     const it = h.equip[s];
     if (!it) return `<div class="se-item empty"><div class="se-slot">${slotName[s]}</div><span class="sub">Empty</span></div>`;
     const lines = itemLines(it).filter(l => !l.startsWith("Faces:") && !l.startsWith("✝️") && !l.startsWith("✨ Purify")).slice(0, 3);
@@ -480,6 +491,49 @@ function revealBtn(r: Run, it: GearItem) {
   if (!b.legendary || it.revealed) return "";
   return `<button class="small primary" data-reveal="${it.uid}" ${r.hero.scrolls ? "" : "disabled"}>📜 Reveal</button>`;
 }
+
+// ---------- Popups: class choice, level up ----------
+
+const ORIGIN_ICON: Record<OriginId, string> = { warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" };
+const ORIGIN_PITCH: Record<OriginId, string> = {
+  warrior: "The Warrior wins by standing firm. Guarding is your craft — with a shield, or even with a two-handed weapon — and every Guard makes you hit harder. Once a fight, let loose a War Cry. Build into shields, heavy weapons and Armor and you become a wall that hits back.",
+  rogue: "The Rogue wins by never being where the blow lands. Two dice, first strikes and crits — and Counter: brace, dodge the next attack and strike back with a hit that can't miss. Stack Dodge and crit gear and you'll dance through fights untouched.",
+  mage: "The Mage wins by stacking statuses until they explode. Every face can be a spell; Burn, Chill, Static and more combine into reactions and bursts. With an elemental off-hand, raise an Elemental Barrier that throws your element back at attackers. Fragile early, devastating later.",
+  cleric: "The Cleric wins by outlasting. Healing, Ward and Holy weapons that Smite the wicked — and Penance: kneel, take what they give you, and return every point of it in one blow. Survives what others can't, and turns suffering into damage."
+};
+
+function originPopup(o: OriginId) {
+  const og = ORIGINS[o];
+  const p = getItem(og.passive);
+  return `<div class="overlay popup-wrap"><div class="popup">
+    <button class="small closex" data-closeorigin aria-label="Close">✕</button>
+    <h1 class="center bigname">${og.name}</h1>
+    <div class="center bigicon">${ORIGIN_ICON[o]}</div>
+    <p>${esc(ORIGIN_PITCH[o])}</p>
+    <p class="sub"><b>${esc(p.name)}:</b> ${esc(p.text)}.</p>
+    <p class="sub">Starts with ${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>Start run</button><button data-closeorigin>Back</button></div>
+  </div></div>`;
+}
+
+const celebratedLevel = new WeakSet<object>();
+function levelUpPopup(r: Run) {
+  return `<div class="overlay popup-wrap"><div class="popup levelup">
+    <h1 class="center bigname">You have levelled up!</h1>
+    <p class="center">Level <b>${r.hero.level}</b> · +3 Max HP</p>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-choosetalent>Choose talent</button></div>
+  </div></div>`;
+}
+
+const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }> = {
+  attack: { label: () => "Attack", tip: "Roll your die and strike." },
+  guard: { label: () => "Guard", tip: "Double your Armor this round; Armor can stop a whole hit. Needs a shield (a Warrior can Guard with a two-hander)." },
+  counter: { label: () => "Counter", tip: "Uses your turn. +20% Dodge this round; if you Dodge an attack, strike back with a hit that can't miss. If you're hit, you're off-balance for your next attack." },
+  barrier: { label: () => "Elemental Barrier", tip: "Uses your turn. Roll: 5–6 blocks every hit this round and gives attackers 2 of your off-hand's element; 3–4 halves them and gives 1; 1–2 fizzles." },
+  penance: { label: p => `Penance${p.flags["penanceStore"] ? ` (${p.flags["penanceStore"]})` : ""}`, tip: "Uses your turn. Damage and negative statuses you take this round are stored; your next attack adds it all. A kill with it heals you." },
+  warcry: { label: () => "War Cry", tip: "Once per fight. Uses your turn: gain Might and Weaken the enemy." },
+  flee: { label: () => "Flee", tip: "Leave the fight (not Elites or bosses)." }
+};
 
 // ---------- Render ----------
 
@@ -522,7 +576,7 @@ function celebrateScene(r: Run) {
 function render() {
   app.classList.toggle("with-side", !!run);
   if (!run) {
-    app.innerHTML = view === "codex" ? codexScreen() : titleScreen();
+    app.innerHTML = view === "codex" ? codexScreen() : `${titleScreen()}${pendingOrigin ? originPopup(pendingOrigin) : ""}`;
     bind();
     return;
   }
@@ -544,7 +598,10 @@ function render() {
     : s.t === "rest" ? restScene(r) : s.t === "confirm" ? confirmScene(r) : s.t === "event" ? eventScene(r) : overScene(r);
   celebrateScene(r);
   const msg = [r.message, note].filter(Boolean);
-  app.innerHTML = `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}`;
+  // Level up: once the rewards are picked, a fanfare and a popup before the talent choice.
+  const levelPopup = s.t === "talent" && ackedTalentScene !== s;
+  if (levelPopup && !celebratedLevel.has(s)) { celebratedLevel.add(s); celebrate("legendary", "LEVEL UP!"); }
+  app.innerHTML = `${levelPopup ? levelUpPopup(r) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}`;
   bind();
 }
 
@@ -632,6 +689,7 @@ function hpOf(who: "player" | "enemy") {
 async function playTurn(action: Action) {
   if (!run || run.scene.t !== "combat" || busy) return;
   const r = run;
+  if (!availableActions(r).includes(action)) return;
   const b = (r.scene as { battle: Battle }).battle;
   busy = true;
   const startEnemyHp = b.enemy.hp;
@@ -679,7 +737,9 @@ function bind() {
     on("[data-mode]", el => { mode = el.dataset.mode as Mode; });
     on("[data-codex]", () => { view = "codex"; });
     on("[data-back]", () => { view = "title"; });
-    on("[data-origin]", el => { recorded = null; celebrated.clear(); banked = 0; run = newRun(el.dataset.origin as OriginId, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
+    on("[data-origin]", el => { pendingOrigin = el.dataset.origin as OriginId; });
+    on("[data-closeorigin]", () => { pendingOrigin = null; });
+    on("[data-start]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; run = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
     return;
   }
   const r = run;
@@ -704,6 +764,9 @@ function bind() {
     }
   });
   on("[data-claim]", () => say(claimResplendent(r)));
+  on("[data-mana]", () => { say(drinkMana(r)); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
+  on("[data-keepsake]", () => { say(takeKeepsake(r), false); sfx("legendary"); });
+  on("[data-choosetalent]", () => { ackedTalentScene = r.scene; });
   on("[data-talent]", el => chooseTalent(r, el.dataset.talent!));
   on("[data-buy]", el => say(buy(r, Number(el.dataset.buy))));
   on("[data-reroll]", () => say(rerollShop(r)));

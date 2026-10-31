@@ -228,3 +228,26 @@ button.crimson-btn { background: var(--crimson); border-color: var(--crimson); c
   .overlay { padding: 8px max(12px, env(safe-area-inset-left)); }
   .flip, .flip .face { min-height: 120px; }
 }
+
+/* ---------- Rooms bar in Rare blue ---------- */
+.steps i.done { background: var(--rare); }
+
+/* ---------- Popups (class choice, level up) ---------- */
+.popup-wrap { display: grid; place-items: center; background: rgba(8,6,12,.82); }
+.popup { position: relative; width: min(460px, 100%); background: var(--panel); border: 2px solid var(--gold); border-radius: 18px; padding: 22px 20px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.6); animation: popin .25s ease-out; }
+@keyframes popin { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.popup .bigname { font-size: 2rem; margin: 0 0 4px; }
+.popup .bigicon { font-size: 3.4rem; margin: 4px 0 10px; }
+.popup .closex { position: absolute; top: 10px; right: 10px; }
+.popup.levelup { border-color: var(--legendary); box-shadow: 0 0 40px rgba(240,138,42,.45); }
+.popup.levelup .bigname { color: #ffd27a; }
+
+/* ---------- Class actions, keepsakes ---------- */
+button.classact { border-color: var(--rare); color: #b9d8ff; }
+.combat .actions { flex-wrap: wrap; }
+.item.keepsake { border-color: #c9a0ff; background: linear-gradient(160deg, #2a2038, var(--panel2)); margin-bottom: 10px; }
+.item.keepsake .nm { color: #e2ccff; }
+@media (max-width: 480px) {
+  .combat .actions button { flex: 1 1 30%; }
+  .popup .bigname { font-size: 1.7rem; }
+}

@@ -5,8 +5,12 @@ import { PLAIN_FACES } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import type { Fighter, GearBase, GearItem, OriginId, Rarity, Slot, StatBlock } from "../engine/types";
 
-export type EquipSlot = "main" | "off" | "armour" | "trinket1" | "trinket2";
-export const EQUIP_SLOTS: EquipSlot[] = ["main", "off", "armour", "trinket1", "trinket2"];
+export type EquipSlot = "main" | "off" | "armour" | "trinket1" | "trinket2" | "trinket3";
+/** trinket3 only opens with the Keepsake of the Collector. */
+export const EQUIP_SLOTS: EquipSlot[] = ["main", "off", "armour", "trinket1", "trinket2", "trinket3"];
+export const hasThirdTrinket = (h: Hero) => h.keepsake === "ks_collector";
+/** The slots this hero can actually use right now. */
+export const openSlots = (h: Hero) => EQUIP_SLOTS.filter(s => s !== "trinket3" || hasThirdTrinket(h));
 export const BACKPACK_SIZE = 5;
 
 export interface Hero {
@@ -24,6 +28,10 @@ export interface Hero {
   starmetal: number;
   /** Crimson Keys (from Crimson Elites): each opens one Crimson Vault. */
   crimsonKeys: number;
+  /** Mana Potions: spells hit harder for the rest of a fight. */
+  manaPotions: number;
+  /** One Keepsake at a time (from bosses after floor 5). */
+  keepsake?: string;
   xp: number;
   level: number;
   nextUid: number;
@@ -77,6 +85,10 @@ export function itemLines(item: GearItem): string[] {
   if (eb.faces) lines.push(`Faces: ${eb.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind[0].toUpperCase() + f.kind.slice(1)}`).join(" · ")}`);
   if (eb.kind === "weapon" && eb.tags.includes("Holy")) lines.push("✝️ Holy: +50% to Undead, vampires and Crimson foes. When your Ward stops an enemy's status, your next hit Smites (20% of its Max HP, once per fight).");
   if (eb.faces?.some(f => f.cleanse)) lines.push("✨ Purify: strips every negative status from the enemy and deals 2× Damage for each one (ignores Armor). Nothing on them, no damage.");
+  if (eb.shield) lines.push("🛡️ Shield: lets you Guard.");
+  if (eb.barrierElement) lines.push(`🔮 Mage: lets you raise an Elemental Barrier (${eb.barrierElement}).`);
+  if (itemDodge(item)) lines.push(`💨 ${itemDodge(item)}% Dodge`);
+  if (item.bash) lines.push(`💥 ${item.bash}% Bash (Stuns and deals +50%)`);
   if (b.legendary && !item.revealed) lines.push("A Legendary, waiting to be revealed. Use a Scroll of Revelation.");
   else if (b.legendary) lines.push(`★ ${b.legendary.reveal}`);
   else if (eb.text) lines.push(eb.text);
@@ -86,6 +98,19 @@ export function itemLines(item: GearItem): string[] {
 }
 
 export const slotOfBase = (b: GearBase): Slot => b.slot;
+
+/** Dodge % from a piece of Dodge gear: set by its rarity, +1 per level. */
+export function itemDodge(it: GearItem): number {
+  const d = effectiveBase(it).dodge?.[it.rarity];
+  return d ? d + (it.level - 1) : 0;
+}
+
+/** You can Guard with a shield in your off-hand — or, as a Warrior, with a two-handed weapon. */
+export function canGuard(h: Hero): boolean {
+  const off = h.equip.off;
+  if (off && effectiveBase(off).shield) return true;
+  return h.origin === "warrior" && !!h.equip.main && !!effectiveBase(h.equip.main).twoHanded;
+}
 
 /** Rebuild the Fighter's stats and hook sources from everything the hero has. */
 export function recompute(h: Hero) {
@@ -99,8 +124,11 @@ export function recompute(h: Hero) {
   for (const [id, n] of Object.entries(h.relics)) add(id, n);
   for (const [id, n] of Object.entries(h.talents)) add(id, n);
   for (const [id, n] of Object.entries(h.curses)) add(id, n);
+  if (h.keepsake) add(h.keepsake);
+  if (!hasThirdTrinket(h) && h.equip.trinket3) { h.backpack.push(h.equip.trinket3); delete h.equip.trinket3; }
 
-  const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0 };
+  const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0 };
+  f.barrierElement = undefined;
   f.faces = PLAIN_FACES;
   f.offFaces = undefined;
   for (const slot of EQUIP_SLOTS) {
@@ -114,6 +142,9 @@ export function recompute(h: Hero) {
     if (it.epic) add(it.epic);
     s.armor += (eb.armor ?? 0) + (eb.armor ? Math.floor((it.level - 1) / 2) : 0);
     s.maxHp += eb.maxHp ?? 0;
+    s.dodge += itemDodge(it);
+    if (slot === "main" && it.bash) s.bash += it.bash;
+    if (slot === "off" && eb.barrierElement) f.barrierElement = eb.barrierElement;
     if (slot === "main" && eb.kind === "weapon") {
       s.damage = weaponDamage(it);
       f.faces = eb.faces ?? PLAIN_FACES;
@@ -131,7 +162,7 @@ export function recompute(h: Hero) {
   s.maxHp += 3 * (h.level - 1); // every level-up: +3 Max HP
   s.maxHp -= f.persist["maxHpLoss"] ?? 0;
   // A revealed trinket with its own faces (Dice of the Damned) replaces your main die.
-  for (const slot of ["trinket1", "trinket2"] as const) {
+  for (const slot of ["trinket1", "trinket2", "trinket3"] as const) {
     const it = h.equip[slot];
     if (it?.revealed && baseOf(it.base).legendary && baseOf(it.base).faces) f.faces = baseOf(it.base).faces!;
   }
@@ -142,6 +173,8 @@ export function recompute(h: Hero) {
   f.armor = Math.max(0, s.armor);
   f.damage = Math.max(0, s.damage);
   f.offDamage = f.offFaces ? Math.max(0, s.offDamage) : undefined;
+  f.dodge = Math.min(60, Math.max(0, s.dodge));
+  f.bash = Math.min(30, Math.max(0, s.bash));
   // Twin Souls: a second die with your main weapon's faces at 60% damage.
   if (items["lr_twin_souls"]) {
     f.offFaces = f.faces;
@@ -153,7 +186,7 @@ export function recompute(h: Hero) {
 export function newHero(origin: OriginId): Hero {
   const o = ORIGINS[origin];
   const f: Fighter = { id: "player", name: o.name, hp: o.hp, maxHp: o.hp, armor: 0, damage: 1, faces: PLAIN_FACES, statuses: {}, flags: {}, persist: {}, items: {}, gold: 0 };
-  const h: Hero = { origin, f, equip: {}, backpack: [], relics: {}, talents: {}, curses: {}, potions: 2, scrolls: 0, scrap: 0, starmetal: 0, crimsonKeys: 0, xp: 0, level: 1, nextUid: 1 };
+  const h: Hero = { origin, f, equip: {}, backpack: [], relics: {}, talents: {}, curses: {}, potions: 1, scrolls: 0, scrap: 0, starmetal: 0, crimsonKeys: 0, manaPotions: 0, xp: 0, level: 1, nextUid: 1 };
   const [main, off, arm] = o.kit;
   h.equip.main = { uid: h.nextUid++, base: main, rarity: "common", level: 1, bonuses: {}, revealed: true };
   h.equip.off = { uid: h.nextUid++, base: off, rarity: "common", level: 1, bonuses: {}, revealed: true };
@@ -175,7 +208,7 @@ export function slotsFor(item: GearItem, h?: Hero): EquipSlot[] {
   if (eb.slot === "main") return eb.offDamage !== undefined ? ["main", "off"] : ["main"];
   if (eb.slot === "off") return ["off"];
   if (eb.slot === "armour") return ["armour"];
-  return ["trinket1", "trinket2"];
+  return h && hasThirdTrinket(h) ? ["trinket1", "trinket2", "trinket3"] : ["trinket1", "trinket2"];
 }
 
 /** Find an item anywhere the hero holds it. */

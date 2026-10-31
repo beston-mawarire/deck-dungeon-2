@@ -81,6 +81,16 @@ export const REACTIONS = [
 ] as const;
 export type ReactionId = (typeof REACTIONS)[number]["id"];
 
+/** Elemental statuses (for the Keepsake of the Elements). */
+export const ELEMENTAL: StatusId[] = ["burn", "chill", "shock", "static", "soaked"];
+
+/** Status thresholds: pile up enough and it bursts. */
+export const THRESHOLDS = [
+  { id: "frostbitten", name: "Frostbitten", icon: "🧊", status: "chill" as StatusId, at: 6, per: 3, text: "6+ Chill bursts: 3 damage per stack, and the Chill clears" },
+  { id: "bledout", name: "Bled Out", icon: "🩸", status: "bleed" as StatusId, at: 10, per: 2, text: "10+ Bleed bursts: 2 damage per stack, and the Bleed clears" },
+  { id: "overdose", name: "Overdose", icon: "☠️", status: "poison" as StatusId, at: 12, per: 2, text: "12+ Poison bursts: 2 damage per stack, and the Poison clears" }
+];
+
 /** Take HP from a fighter; Barrier absorbs first. Returns HP actually lost. */
 export function loseHp(b: Battle, f: Fighter, amount: number): number {
   amount = Math.max(0, Math.round(amount));
@@ -91,6 +101,7 @@ export function loseHp(b: Battle, f: Fighter, amount: number): number {
     amount -= used;
   }
   f.hp -= amount;
+  if (amount > 0 && f.flags["penanceRound"] === b.round) f.flags["penanceStore"] = (f.flags["penanceStore"] ?? 0) + amount;
   if (amount > 0) fx(b, { who: f.id, kind: "dmg", value: amount });
   else if (bar > 0) fx(b, { who: f.id, kind: "block", text: "Barrier", icon: "🛡️" });
   return amount;
@@ -152,7 +163,12 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   }
   eachHook(target, "incomingStatus", (h, s) => (amount = h(b, target, id, amount, s)));
   if (id === "burn" && st(target, "soaked") > 0) amount = Math.ceil(amount / 2);
+  // Keepsake of the Elements: elemental statuses you apply are 50% stronger.
+  if (source && source !== target && (source.items["ks_elements"] ?? 0) > 0 && ELEMENTAL.includes(id)) amount = Math.ceil(amount * 1.5);
+  // Mana Potion: statuses your spells apply get +1.
+  if (source && source !== target && source.flags["casting"] && source.flags["mana"]) amount += 1;
   if (amount <= 0) return;
+  if (isNegative(id) && target.flags["penanceRound"] === b.round) target.flags["penanceStore"] = (target.flags["penanceStore"] ?? 0) + amount;
 
   const had = (x: StatusId) => st(target, x) > 0;
   if (SINGLE.includes(id)) target.statuses[id] = Math.max(st(target, id), 1);
@@ -161,6 +177,19 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   else target.statuses[id] = st(target, id) + amount;
   log(b, `${target.name} gains ${STATUS_INFO[id].icon} ${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` ${amount}`}.`);
   fx(b, { who: target.id, kind: "status", icon: STATUS_INFO[id].icon, text: `${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` +${amount}`}`, value: isNegative(id) ? -1 : 1 });
+
+  // Thresholds: some statuses burst when they pile up too high.
+  for (const t of THRESHOLDS) {
+    if (id !== t.status || st(target, t.status) < t.at) continue;
+    const n = st(target, t.status);
+    target.statuses[t.status] = 0;
+    fx(b, { who: target.id, kind: "reaction", text: `${t.name}!` });
+    const lost = loseHp(b, target, Math.round(n * t.per * reactionMult(b, source)));
+    log(b, `${t.icon} ${t.name}! ${n} ${STATUS_INFO[t.status].name} bursts: ${target.name} takes ${lost}.`);
+    const key = `rx:${target.id === "player" ? "you" : "foe"}:${t.id}`;
+    b.player.persist[key] = (b.player.persist[key] ?? 0) + 1;
+    if (target.hp <= 0) return;
+  }
 
   if (depth === 0) {
     for (const r of REACTIONS) {

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { LEGENDARIES, loadLibrary } from "../src/data";
 import { makeMonster, makeThief } from "../src/data/monsters";
-import { enemyPhase, playRound, resolveFace, startBattle } from "../src/engine/combat";
+import { enemyPhase, heroPhase, playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
 import { applyStatus, endOfRound, st } from "../src/engine/statuses";
@@ -641,11 +641,116 @@ describe("barrier gating", () => {
       const e = makeMonster(makeRng(40), 1, "normal");
       const b = startBattle(h.f, e, 40);
       expect(st(h.f, "barrier")).toBe(0);
-      expect(h.potions).toBe(2);
+      expect(h.potions).toBe(1);
       void b;
     }
     const h = newHero("warrior");
     const rng = makeRng(41);
     for (let i = 0; i < 3000; i++) expect(["w_glaive", "o_pavise"]).not.toContain(rollItem(h, "common", 2, rng).base);
+  });
+});
+
+describe("class actions and new stats", () => {
+  const foe = (power = 3) => { const e = makeMonster(makeRng(50), 1, "normal"); e.hp = e.maxHp = 400; e.armor = 0; e.damage = power; e.family = "Beast"; e.items = {}; e.faces = [{ kind: "hit" }, { kind: "hit" }, { kind: "hit" }, { kind: "hit" }, { kind: "hit" }, { kind: "hit" }]; return e; };
+
+  it("Guard needs a shield, except a Warrior with a two-hander", async () => {
+    const { availableActions } = await import("../src/game/run");
+    const run = newRun("rogue", 51);
+    chooseRoom(run, "fight");
+    expect(availableActions(run)).not.toContain("guard");
+    expect(availableActions(run)).toContain("counter");
+    const w = newRun("warrior", 52);
+    chooseRoom(w, "fight");
+    expect(availableActions(w)).toContain("guard");
+    expect(availableActions(w)).toContain("warcry");
+    delete w.hero.equip.off; recompute(w.hero);
+    expect(availableActions(w)).not.toContain("guard");
+    equipItem(w.hero, { uid: 700, base: "w_axe", rarity: "common", level: 1, bonuses: {}, revealed: true }, "main");
+    expect(availableActions(w)).toContain("guard");
+  });
+
+  it("Counter: a dodge triggers a hit that can't miss", () => {
+    const h = newHero("rogue");
+    h.f.dodge = 40; // +20 from Counter = 60%
+    const e = foe();
+    let countered = 0;
+    for (let seed = 0; seed < 40; seed++) {
+      e.hp = 400;
+      const b = startBattle(h.f, e, seed);
+      h.f.statuses = {}; // no starting Evade: test Dodge alone
+      h.f.dodge = 40;
+      b.round = 1;
+      heroPhase(b, "counter");
+      enemyPhase(b);
+      if (b.log.some(l => l.includes("counters!"))) { countered++; expect(e.hp).toBeLessThan(400); }
+    }
+    expect(countered).toBeGreaterThan(5);
+  });
+
+  it("Elemental Barrier: a full block throws the element back", () => {
+    const h = newHero("mage");
+    expect(h.f.barrierElement).toBe("burn");
+    const e = foe(10);
+    const b = startBattle(h.f, e, 53);
+    b.round = 1;
+    h.f.flags["eBarrier"] = 1; h.f.flags["eBarrierTier"] = 2;
+    const hp = h.f.hp;
+    enemyPhase(b);
+    expect(h.f.hp).toBe(hp);
+    expect(st(e, "burn")).toBeGreaterThanOrEqual(2);
+  });
+
+  it("Penance stores damage taken and adds it to the next attack", () => {
+    const h = newHero("cleric");
+    const e = foe(6);
+    const b = startBattle(h.f, e, 54);
+    b.round = 1;
+    heroPhase(b, "penance");
+    enemyPhase(b);
+    const stored = h.f.flags["penanceStore"];
+    expect(stored).toBeGreaterThan(0);
+    const hp = e.hp;
+    resolveFace(b, h.f, e, 3);
+    expect(hp - e.hp).toBeGreaterThanOrEqual(stored);
+    expect(h.f.flags["penanceStore"]).toBe(0);
+  });
+
+  it("Frostbitten and Bled Out burst at their thresholds", () => {
+    const h = newHero("warrior");
+    const e = foe();
+    const b = startBattle(h.f, e, 55);
+    applyStatus(b, h.f, e, "chill", 5);
+    const hp = e.hp;
+    applyStatus(b, h.f, e, "chill", 1);
+    expect(st(e, "chill")).toBe(0);
+    expect(hp - e.hp).toBeGreaterThanOrEqual(18);
+    applyStatus(b, h.f, e, "bleed", 10);
+    expect(st(e, "bleed")).toBe(0);
+  });
+
+  it("Dodge caps at 60% and Bash at 30%; Bash only rolls on Rare+ weapons", () => {
+    const h = newHero("rogue");
+    h.relics["r_smoke_bomb"] = 30; h.relics["r_iron_knuckles"] = 20;
+    recompute(h);
+    expect(h.f.dodge).toBe(60);
+    expect(h.f.bash).toBe(30);
+    const rng = makeRng(56);
+    for (let i = 0; i < 2000; i++) {
+      const it = rollItem(h, i % 2 ? "uncommon" : "common", 3, rng);
+      expect(it.bash).toBeUndefined();
+    }
+  });
+
+  it("the Collector keepsake opens a third trinket slot", () => {
+    const h = newHero("mage");
+    h.keepsake = "ks_collector";
+    recompute(h);
+    expect(equipItem(h, { uid: 800, base: "t_band_vigor", rarity: "common", level: 1, bonuses: {}, revealed: true }, "trinket1")).toBeNull();
+    expect(equipItem(h, { uid: 801, base: "t_band_vigor", rarity: "common", level: 1, bonuses: {}, revealed: true }, "trinket2")).toBeNull();
+    expect(equipItem(h, { uid: 802, base: "t_band_vigor", rarity: "common", level: 1, bonuses: {}, revealed: true }, "trinket3")).toBeNull();
+    expect(h.equip.trinket3?.uid).toBe(802);
+    h.keepsake = undefined; recompute(h);
+    expect(h.equip.trinket3).toBeUndefined();
+    expect(h.backpack.some(i => i.uid === 802)).toBe(true);
   });
 });

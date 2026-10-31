@@ -4,7 +4,7 @@ import { loadLibrary } from "../src/data";
 import { RARITIES, type GearItem } from "../src/engine/types";
 import { effectiveBase, equipItem, type Hero, reveal, slotsFor, upgradeCost, weaponDamage } from "../src/game/hero";
 import {
-  advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, combatAction, drinkPotion, eventOptionAvailable, finishLoot,
+  advance, availableActions, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, combatAction, drinkPotion, eventOptionAvailable, finishLoot,
   forgeUpgrade, fuse, newRun, rest, type Run, STEPS_PER_FLOOR, takeItem
 } from "../src/game/run";
 
@@ -38,7 +38,9 @@ export function botStep(run: Run) {
     const e = s.battle.enemy;
     const intent = e.moves?.[e.intent ?? 0]?.name ?? "";
     if (h.potions > 0 && hpPct < 0.35) drinkPotion(run);
-    combatAction(run, /Cataclysm|Heavy/.test(intent) && hpPct < 0.7 ? "guard" : "attack");
+    const can = availableActions(run);
+    if (can.includes("warcry") && (e.boss || e.elite)) combatAction(run, "warcry");
+    else combatAction(run, /Cataclysm|Heavy/.test(intent) && hpPct < 0.7 && can.includes("guard") ? "guard" : "attack");
   } else if (s.t === "loot" || s.t === "pick") {
     for (const it of [...s.items]) {
       if (better(h, it)) takeItem(run, it.uid, "equip");

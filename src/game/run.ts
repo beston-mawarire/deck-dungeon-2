@@ -1,5 +1,5 @@
 // A run: three floors of path choices, fights, chests, shops, forges and bosses.
-import { CURSES, EPIC_POWERS, LEGENDARIES, RELICS, TALENTS } from "../data";
+import { CURSES, EPIC_POWERS, KEEPSAKES, LEGENDARIES, RELICS, TALENTS } from "../data";
 import { CAMPAIGN_FLOORS, makeBoss, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
 import { EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
@@ -10,7 +10,7 @@ import { makeRng } from "../engine/rng";
 import { heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
-import { addToBackpack, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, upgradeCost, xpToLevel } from "./hero";
+import { addToBackpack, canGuard, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, upgradeCost, xpToLevel } from "./hero";
 import { isLocked, type LootState, resetDropped, type ResplendentCard, resplendentCards, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
 /** The campaign is five floors (five bosses). Endless keeps going; floor 30 is the wall. */
@@ -39,14 +39,14 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   crimson_vault: { name: "Crimson Vault", icon: "🗝️", text: "Spend a Crimson Key: fight a Crimson boss for a Crimson item. Dying here doesn't end your run." }
 };
 
-export interface ShopEntry { kind: "item" | "potion" | "scroll" | "relic"; item?: GearItem; relic?: string; price: number; sold?: boolean }
+export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "relic"; item?: GearItem; relic?: string; price: number; sold?: boolean }
 
 export type Scene =
   | { t: "map" }
   | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent" }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
-  | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[] }
+  | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
   | { t: "talent"; options: string[] }
   | { t: "shop"; stock: ShopEntry[]; /** One item may be sold per Merchant visit. */ soldItem?: string }
   | { t: "forge" }
@@ -216,8 +216,24 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   if (battle.over) afterFight(run);
 }
 
+/** Which actions the hero can take right now. Guard needs a shield (a Warrior can Guard with a two-hander too). */
+export function availableActions(run: Run): Action[] {
+  if (run.scene.t !== "combat") return [];
+  const h = run.hero;
+  const b = run.scene.battle;
+  const out: Action[] = ["attack"];
+  if (canGuard(h)) out.push("guard");
+  if (h.origin === "rogue") out.push("counter");
+  if (h.origin === "mage" && h.f.barrierElement) out.push("barrier");
+  if (h.origin === "cleric") out.push("penance");
+  if (h.origin === "warrior" && !h.f.flags["warcry"]) out.push("warcry");
+  if (!b.enemy.boss && !b.enemy.elite) out.push("flee");
+  return out;
+}
+
 export function combatAction(run: Run, action: Action) {
   if (run.scene.t !== "combat") return;
+  if (!availableActions(run).includes(action)) action = "attack";
   const b = run.scene.battle;
   const before = b.enemy.hp;
   playRound(b, action);
@@ -228,6 +244,32 @@ export function combatAction(run: Run, action: Action) {
 /** After the UI has played a phase, finish the fight if it's over. */
 export function settleCombat(run: Run) {
   if (run.scene.t === "combat" && run.scene.battle.over) afterFight(run);
+}
+
+/** Mana Potion: spells hit 50% harder, and statuses they apply get +1, for the rest of the fight. */
+export function drinkMana(run: Run): string | null {
+  const h = run.hero;
+  if (run.scene.t !== "combat") return "Mana Potions only work in a fight.";
+  if (h.manaPotions <= 0) return null;
+  if (h.f.flags["mana"]) return "You're already brimming with mana this fight.";
+  h.manaPotions--;
+  h.f.flags["mana"] = 1;
+  run.scene.battle.fx.push({ who: "player", kind: "text", text: "Mana surges!", icon: "🔷" });
+  run.scene.battle.log.push("🔷 You drink a Mana Potion: your spells surge for the rest of the fight.");
+  return null;
+}
+
+/** Take the Keepsake on offer (you can only hold one: it replaces yours). */
+export function takeKeepsake(run: Run): string | null {
+  const s = run.scene;
+  if (s.t !== "pick" || !s.keepsake) return null;
+  const h = run.hero;
+  const old = h.keepsake;
+  h.keepsake = s.keepsake;
+  run.found.add(s.keepsake);
+  s.keepsake = undefined;
+  recompute(h);
+  return old ? `You set down ${getItem(old).name}.` : null;
 }
 
 export function drinkPotion(run: Run) {
@@ -285,6 +327,10 @@ function afterFight(run: Run) {
   const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, odds, run.floor), run.floor, run.rng);
   if (rank === "normal" && run.rng() < 0.2) items.push(roll(TABLES.drop));
   if (rank === "normal" && run.rng() < 0.1) potions++;
+  if ((rank === "normal" && run.rng() < 0.05) || (rank === "elite" && run.rng() < 0.15)) {
+    h.manaPotions++;
+    run.message = "You find a Mana Potion. 🔷";
+  }
   if (rank === "elite") {
     items.push(roll(TABLES.elite));
     if (then === "mimic") items.push(roll(TABLES.elite));
@@ -322,7 +368,9 @@ function afterFight(run: Run) {
     recompute(h);
     // Crimson bosses offer a Crimson item alongside two boss finds.
     const offer = b.enemy.crimson ? [rollItem(h, "crimson", run.floor, run.rng), roll(TABLES.boss), roll(TABLES.boss)] : [roll(TABLES.boss), roll(TABLES.boss), roll(TABLES.boss)];
-    run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: offer };
+    // After the fifth boss, bosses sometimes leave a Keepsake behind.
+    const keepsake = run.floor > FLOORS && run.rng() < 0.4 ? KEEPSAKES.filter(k => k.id !== h.keepsake)[Math.floor(run.rng() * (KEEPSAKES.length - (h.keepsake ? 1 : 0)))]?.id : undefined;
+    run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: offer, keepsake };
     run.message = `+${gold} Gold${relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""} · healed 30%${curseNote ? ` ${curseNote}` : ""}`;
     return;
   }
@@ -477,6 +525,7 @@ function shopStock(run: Run): ShopEntry[] {
   const shopRelic = randomRelic(run);
   stock.push({ kind: "relic", relic: shopRelic, price: ({ common: 40, uncommon: 55, rare: 85, legendary: 160 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 50 });
   stock.push({ kind: "potion", price: 15 });
+  if (run.rng() < 0.5) stock.push({ kind: "mana", price: 25 });
   if (run.rng() < 0.12) stock.push({ kind: "scroll", price: 100 + 25 * (run.floor - 1) });
   return stock;
 }
@@ -492,6 +541,7 @@ export function buy(run: Run, i: number): string | null {
     if (err) return err;
   }
   if (e.kind === "potion") h.potions++;
+  if (e.kind === "mana") h.manaPotions++;
   if (e.kind === "scroll") h.scrolls++;
   if (e.kind === "item" && e.item) markFound(run, e.item);
   if (e.kind === "relic" && e.relic) {
