@@ -77,6 +77,8 @@ export interface Fighter {
   critChance?: number;
   /** Crit damage (%): your Crits deal this much more. */
   critDmg?: number;
+  /** Hollow Vessel: this off-hand item's hooks fire twice. */
+  offEcho?: string;
   /** Hero: the weapon type in each hand (dagger, throwing, kunai, shuriken, grenade). */
   mainType?: string;
   offType?: string;

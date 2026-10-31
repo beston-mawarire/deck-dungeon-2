@@ -29,7 +29,10 @@ export function eachHook<K extends keyof Hooks>(
     if (stacks <= 0) continue;
     const def = ITEMS.get(id);
     const h = def?.hooks[key];
-    if (def && h) fn(h as NonNullable<Hooks[K]>, stacks, def);
+    if (!def || !h) continue;
+    fn(h as NonNullable<Hooks[K]>, stacks, def);
+    // Hollow Vessel: the off-hand's effects happen twice (its stat hooks too).
+    if (f.offEcho === id) fn(h as NonNullable<Hooks[K]>, stacks, def);
   }
 }
 

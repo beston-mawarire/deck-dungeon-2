@@ -199,6 +199,11 @@ export function recompute(h: Hero) {
   }
   eachHook(f, "stats", (hk, n) => hk(s, n));
   if (items["l_mountain"]) s.armor *= 2;
+  // Hollow Vessel: Max HP can't go above 20, but the off-hand's effects fire twice.
+  const vessel = (items["ep_hollow_vessel"] ?? 0) > 0;
+  if (vessel) s.maxHp = Math.min(20, s.maxHp);
+  const offIt = h.equip.off;
+  f.offEcho = vessel && offIt ? (baseOf(offIt.base).legendary && offIt.revealed ? offIt.base : effectiveBase(offIt).id) : undefined;
   f.maxHp = Math.max(1, s.maxHp);
   f.hp = Math.min(f.hp, f.maxHp);
   f.armor = Math.max(0, s.armor);

@@ -918,6 +918,35 @@ describe("class actions and new stats", () => {
     expect(200 - b3.enemy.hp).toBe(4 + Math.floor(b3.player.armor / 3) + 8);
   });
 
+  it("HP Epics: Hollow Vessel caps Max HP at 20 and doubles the off-hand; Swelling Heart's growth ends with the fight; Bloodprice pays HP for damage", () => {
+    const m = newHero("mage");
+    equipItem(m, { uid: 960, base: "ep_hollow_vessel", rarity: "epic", level: 1, bonuses: {}, revealed: true });
+    expect(m.f.maxHp).toBe(20);
+    const b = startBattle(m.f, dummy(), 51);
+    resolveFace(b, b.player, b.enemy, 2, false);
+    // Fire Bolt 3 (+1 Arcane Spark, +1 Cloth Robes) and the Ember Charm's 2 Burn (+1 robes) twice
+    expect(st(b.enemy, "burn")).toBe(5 + 3 + 3);
+    const h = newHero("warrior");
+    equipItem(h, { uid: 961, base: "ep_swelling_heart", rarity: "epic", level: 1, bonuses: {}, revealed: true });
+    const max = h.f.maxHp;
+    const b2 = startBattle(h.f, dummy(), 52);
+    resolveFace(b2, b2.player, b2.enemy, 3, false);
+    resolveFace(b2, b2.player, b2.enemy, 4, false);
+    expect(h.f.maxHp).toBe(max + 4);
+    b2.enemy.hp = 0;
+    endRound(b2);
+    expect(h.f.maxHp).toBe(max);
+    const w = newHero("warrior");
+    equipItem(w, { uid: 962, base: "ep_bloodprice", rarity: "epic", level: 1, bonuses: {}, revealed: true });
+    const b3 = startBattle(w.f, dummy(), 53);
+    const hp0 = w.f.hp;
+    resolveFace(b3, b3.player, b3.enemy, 3, false);
+    expect(w.f.hp).toBe(hp0 - Math.ceil(w.f.maxHp * 0.05));
+    const first = 200 - b3.enemy.hp;
+    resolveFace(b3, b3.player, b3.enemy, 3, false);
+    expect(200 - b3.enemy.hp - first).toBeGreaterThan(first);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);
