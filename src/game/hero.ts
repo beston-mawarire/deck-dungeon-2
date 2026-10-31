@@ -340,8 +340,10 @@ export function reveal(h: Hero, uid: number): string | null {
 
 export const upgradeCost = (item: GearItem) => 3 * item.level;
 export const REROLL_COST = 4;
-/** Each Forge reroll on the same item costs 3 more Scrap than the last. */
-export const rerollCost = (item: GearItem) => REROLL_COST + 3 * (item.rerolls ?? 0);
+/** Each Forge reroll on the same item costs more: ×1, ×2, ×3… the base, up to 5 rerolls per item. */
+export const MAX_REROLLS = 5;
+export const rerollCost = (item: GearItem) => REROLL_COST * ((item.rerolls ?? 0) + 1);
+export const rerollsLeft = (item: GearItem) => Math.max(0, MAX_REROLLS - (item.rerolls ?? 0));
 
 /** Tags of everything equipped, relics and talents (used to lean loot and talent offers). */
 export function heroTags(h: Hero): Map<string, number> {

@@ -11,7 +11,7 @@ import { makeRng } from "../engine/rng";
 import { heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
-import { addToBackpack, canGuard, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { addToBackpack, canGuard, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { isLocked, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -648,11 +648,13 @@ export function sellItem(run: Run, uid: number): string | null {
   return null;
 }
 
-/** Each reroll at the same Merchant costs 10 more than the last. */
-export const shopRerollCost = (run: Run) => 10 + 10 * run.shopRerolls;
+/** Each reroll at the same Merchant costs more (×1, ×2, ×3… of 10 Gold), up to 5 rerolls per visit. */
+export const MAX_SHOP_REROLLS = 5;
+export const shopRerollCost = (run: Run) => 10 * (run.shopRerolls + 1);
 
 export function rerollShop(run: Run): string | null {
   if (run.scene.t !== "shop") return null;
+  if (run.shopRerolls >= MAX_SHOP_REROLLS) return "The Merchant has nothing else to show you.";
   const cost = shopRerollCost(run);
   if (run.hero.f.gold < cost) return "Not enough Gold.";
   run.hero.f.gold -= cost;
@@ -680,6 +682,7 @@ export function forgeReroll(run: Run, uid: number): string | null {
   if (!found) return null;
   const keys = Object.keys(found.item.bonuses);
   if (!keys.length) return "This item has no bonuses to reroll.";
+  if ((found.item.rerolls ?? 0) >= MAX_REROLLS) return "This item can't be rerolled any more.";
   const cost = rerollCost(found.item);
   if (h.scrap < cost) return `Needs ${cost} Scrap.`;
   h.scrap -= cost;

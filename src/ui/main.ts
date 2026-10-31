@@ -8,14 +8,14 @@ import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
 import { NEGATIVE_STATUSES, rarityLabel } from "../engine/types";
 import {
-  BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost,
+  BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost, rerollsLeft,
   keepsOffHand, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
 } from "../game/hero";
 import { lockedIds, loadMeta, type Meta, recordRun, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, TRANSMUTE_COST,
+  combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   abandonRun,
 } from "../game/run";
@@ -384,7 +384,7 @@ function shopScene(r: Run) {
   <h2>Sell</h2>
   ${r.scene.soldItem ? `<p class="sub">You sold ${esc(r.scene.soldItem)}. The Merchant won't buy anything else this visit.</p>`
     : `<p class="sub">The Merchant will buy one item per visit, for 40% of its price.</p><div class="cards">${allGear(r).map(it => itemCard(it, `<button class="small" data-sell="${it.uid}">Sell · ${sellPrice(it)} 🪙</button>`, false, equippedSlot(r, it))).join("")}</div>`}
-  <div class="row" style="margin-top:12px"><button data-reroll>Reroll stock · ${shopRerollCost(r)} 🪙</button><button class="primary" data-leave>Leave</button></div>`;
+  <div class="row" style="margin-top:12px">${r.shopRerolls >= MAX_SHOP_REROLLS ? `<button disabled>No rerolls left</button>` : `<button data-reroll>Reroll stock · ${shopRerollCost(r)} 🪙 (${MAX_SHOP_REROLLS - r.shopRerolls} left)</button>`}<button class="primary" data-leave>Leave</button></div>`;
 }
 
 const SLOT_LABEL: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket", trinket3: "Trinket ★" };
@@ -408,7 +408,7 @@ function forgeScene(r: Run) {
   let body = "";
   if (forgeTab === "upgrade") {
     body = `<p class="sub">Upgrading raises an item's level (more damage, stronger bonuses). Each reroll of the same item costs more.</p>
-    <div class="cards">${allGear(r).map(it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small" data-rr="${it.uid}">Reroll · ${rerollCost(it)} ⚙️</button>` : ""}`, false, equippedSlot(r, it))).join("")}</div>`;
+    <div class="cards">${allGear(r).map(it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small" data-rr="${it.uid}" ${rerollsLeft(it) ? "" : "disabled"}>${rerollsLeft(it) ? `Reroll · ${rerollCost(it)} ⚙️ (${rerollsLeft(it)} left)` : "No rerolls left"}</button>` : ""}`, false, equippedSlot(r, it))).join("")}</div>`;
   } else if (forgeTab === "offer") {
     const chosen = h.backpack.filter(i => offerSel.has(i.uid));
     const odds = offeringOdds(offeringValue(chosen));

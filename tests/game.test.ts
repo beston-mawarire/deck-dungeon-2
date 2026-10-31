@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { LEGENDARIES, loadLibrary } from "../src/data";
 import { makeMonster, makeThief } from "../src/data/monsters";
 import { makeBoss } from "../src/data/bosses";
+import { EPIC_CRIMSON } from "../src/data/abyss";
 import { beginRound, endRound, enemyPhase, heroPhase, playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
@@ -9,7 +10,7 @@ import { applyStatus, endOfRound, st } from "../src/engine/statuses";
 import { TAGS } from "../src/engine/types";
 import { equipItem, itemName, newHero, recompute, reveal, salvage, slotsFor, weaponDamage } from "../src/game/hero";
 import { resetDropped, resplendentCards, rollItem } from "../src/game/loot";
-import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem } from "../src/game/run";
+import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem, rerollShop } from "../src/game/run";
 
 beforeAll(() => loadLibrary());
 
@@ -879,6 +880,20 @@ describe("class actions and new stats", () => {
     expect(run.finale).toBe(true);
     expect(run.popup?.text).toMatch(/NO MORE FOES/);
     expect(run.hero.backpack.some(i => i.base === "lc_cookie")).toBe(true);
+  });
+
+  it("rerolls cost ×1, ×2, ×3… and stop after 5", () => {
+    const run = newRun("warrior", 41);
+    run.hero.f.gold = 10000;
+    chooseRoom(run, "shop");
+    const paid: number[] = [];
+    for (let i = 0; i < 6; i++) { const g = run.hero.f.gold; const err = rerollShop(run); paid.push(err ? -1 : g - run.hero.f.gold); }
+    expect(paid).toEqual([10, 20, 30, 40, 50, -1]);
+  });
+
+  it("there are twelve Epic Crimsons, and every one is a real item", () => {
+    expect(EPIC_CRIMSON.length).toBe(12);
+    for (const e of EPIC_CRIMSON) expect(e.rarity).toBe("epic_crimson");
   });
 
   it("Penance stores damage taken and adds it to the next attack", () => {

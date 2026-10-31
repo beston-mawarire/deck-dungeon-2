@@ -1,7 +1,7 @@
 // The Abyss: Epic Crimson items (only from the bosses of floors 30, 40, 50, 60 and 70),
 // and the Legendary Crimson rewards for the impossible: Abaddon (beat DEATH) and the Cookie (beat the End).
 import type { GearBase } from "../engine/types";
-import { applyStatus, CRIT, heal, HIT, log, other } from "./helpers";
+import { applyStatus, cast, CRIT, GRAZE, heal, hex, HIT, log, other } from "./helpers";
 
 const ec = (d: Omit<GearBase, "rarity">): GearBase => ({ ...d, rarity: "epic_crimson" });
 
@@ -31,6 +31,36 @@ export const EPIC_CRIMSON: GearBase[] = [
       onHit: (b, c) => applyStatus(b, c.attacker, c.attacker, "might", 1), onKill: (b, c) => { heal(b, c.attacker, c.attacker.maxHp, "Crown of Ten Thousand Teeth"); } } })
 ];
 
+/** More Epic Crimsons, one for each kind of build. */
+export const EPIC_CRIMSON_2: GearBase[] = [
+  ec({ id: "ec_veil_of_stars", kind: "armour", slot: "armour", name: "Veil of a Thousand Stars", tags: ["Arcane", "Tempo"], armor: 12, maxHp: 40, dodge: { epic_crimson: 30 },
+    text: "Light: +12 Armor, +40 Max HP, 30% Dodge. Spell Amp +60%. Every Dodge gives you Evade and 3 Might.",
+    hooks: { stats: s => { s.spellAmp += 60; }, onDodge: (b, c) => { applyStatus(b, c.defender, c.defender, "evade", 1); applyStatus(b, c.defender, c.defender, "might", 3); } } }),
+  ec({ id: "ec_reaver_mail", kind: "armour", slot: "armour", name: "Mail of the Red Reaver", tags: ["Guard", "Blood", "Strike"], armor: 24, maxHp: 60,
+    text: "Medium: +24 Armor, +60 Max HP. Your hits heal 25% of the damage they deal. Healing past your Max HP becomes Barrier.",
+    hooks: { onHit: (b, c) => { const a = c.attacker; const n = Math.ceil(c.dealt * 0.25); const over = Math.max(0, a.hp + n - a.maxHp); heal(b, a, n, "Red Reaver"); if (over > 0) applyStatus(b, a, a, "barrier", over); } } }),
+  ec({ id: "ec_staff_unmaking", kind: "weapon", slot: "main", name: "Staff of the Unmaking", tags: ["Arcane", "Burn", "Frost", "Storm", "Poison"], damage: 30, twoHanded: true,
+    faces: [cast("Ruin", "hit", hex("doom", 10)), cast("Hellfire", "crit", hex("burn", 15)), cast("Absolute Zero", "crit", hex("chill", 8)), cast("Godstorm", "crit", hex("static", 12)), cast("Blight", "crit", hex("poison", 15)), cast("Unmake", "crit", (b, c) => { for (const x of ["burn", "chill", "static", "poison"] as const) applyStatus(b, c.attacker, c.defender, x, 6); })],
+    text: "Two-handed. Every face is a spell, and five of them Crit. Spell Amp +80%.", hooks: { stats: s => { s.spellAmp += 80; } } }),
+  ec({ id: "ec_wand_last_word", kind: "weapon", slot: "main", name: "Wand of the Last Word", tags: ["Arcane", "Storm", "Hex"], damage: 22, offDamage: 22,
+    faces: [cast("Word", "hit", hex("exposed", 3)), cast("Word", "hit", hex("weak", 3)), cast("Spark", "crit", hex("shock", 2)), cast("Spark", "crit", hex("static", 6)), cast("Silence", "crit", hex("stun", 1)), cast("The Last Word", "crit", (b, c) => { c.bonus += 30; })],
+    text: "One-handed; works in the off-hand. Every face is a spell. A 6 deals +30. Spell Amp +40%.", hooks: { stats: s => { s.spellAmp += 40; } } }),
+  ec({ id: "ec_nightfang", kind: "weapon", slot: "main", weaponType: "dagger", name: "Nightfang", tags: ["Crit", "Bleed", "Tempo"], damage: 20, offDamage: 24,
+    faces: [HIT, CRIT, CRIT, CRIT, CRIT, CRIT],
+    text: "Dagger. Crits on 2–6. +30% Crit chance. Crits apply 8 Bleed and give you Haste. Best in the off-hand.",
+    hooks: { stats: s => { s.critChance += 30; }, onCrit: (b, c) => { applyStatus(b, c.attacker, c.defender, "bleed", 8); applyStatus(b, c.attacker, c.attacker, "haste", 1); } } }),
+  ec({ id: "ec_kingsblade", kind: "weapon", slot: "main", name: "The Last Kingsblade", tags: ["Strike", "Guard", "Crit"], damage: 34,
+    faces: [GRAZE, HIT, HIT, CRIT, CRIT, CRIT],
+    text: "One-handed. Crits on 4–6. Every hit gives you 2 Might and 4 Barrier. Kills heal you 30%.",
+    hooks: { onHit: (b, c) => { applyStatus(b, c.attacker, c.attacker, "might", 2); applyStatus(b, c.attacker, c.attacker, "barrier", 4); },
+      onKill: (b, c) => { heal(b, c.attacker, Math.ceil(c.attacker.maxHp * 0.3), "Kingsblade"); } } }),
+  ec({ id: "ec_sun_reliquary", kind: "off", slot: "off", name: "Reliquary of the Unsetting Sun", tags: ["Holy", "Guard", "Blood"],
+    text: "Holy. Ward returns every round. 8 Regen every round. When your Ward stops a status, deal 15% of the enemy's Max HP. Healing is doubled.",
+    hooks: { onRoundStart: (b, f) => { applyStatus(b, f, f, "ward", 1); applyStatus(b, f, f, "regen", 8); },
+      onWard: (b, f) => { const e = other(b, f); const n = Math.ceil(e.maxHp * 0.15); e.hp -= n; log(b, `☀️ The Unsetting Sun burns ${e.name} for ${n}.`); },
+      healMult: () => 2 } })
+];
+
 export const ABADDON: GearBase = {
   id: "lc_abaddon", rarity: "legendary_crimson", kind: "weapon", slot: "main", name: "Abaddon", tags: ["Kill", "Crit", "Hex"], damage: 99, twoHanded: true,
   faces: [CRIT, CRIT, CRIT, CRIT, CRIT, CRIT],
@@ -43,4 +73,5 @@ export const COOKIE: GearBase = {
   text: "+1 Max HP. It's a cookie. You earned it.", hooks: {}
 };
 
+EPIC_CRIMSON.push(...EPIC_CRIMSON_2);
 export const ABYSS_ITEMS: GearBase[] = [...EPIC_CRIMSON, ABADDON, COOKIE];
