@@ -675,11 +675,11 @@ function splashScreen() {
     <h1 class="splash-title">DECK DUNGEON <span>2</span></h1>
     <p class="splash-tag">You are what you wear. Your weapon is your die.</p>
     <div class="splash-buttons">
+      ${musicBlocked() ? `<button class="small music-hint" data-startmusic>🎵 Tap for music</button>` : ""}
       <button class="primary big" data-play>${sv ? "▶ Play (continue available)" : "▶ Play"}</button>
       <button class="big" data-help>❓ How to play</button>
       <button class="big" data-options>⚙️ Options</button>
     </div>
-    ${musicBlocked() ? `<button class="small music-hint" data-startmusic>🎵 Tap for music</button>` : ""}
     <p class="sub splash-foot">🏅 ${meta.renown} Renown · ${meta.runs} runs · ${meta.wins} wins</p>
   </div>`;
 }
