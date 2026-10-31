@@ -98,6 +98,8 @@ export interface Run {
   clearedFloor?: number;
   /** Relics (by id) and scrolls ("scroll:N") just gained, waiting for their popup. */
   relicNews?: string[];
+  /** Who ended the run (shown on the death screen). */
+  killer?: { name: string; title?: string; family?: string; rank: string; hp: number; maxHp: number; damage: number; armor: number; crimson?: boolean; traits: string[]; statuses: [string, number][] };
   /** The player ended this run themselves. */
   abandoned?: boolean;
   /** The last boss beaten (for the Floor cleared screen). */
@@ -344,7 +346,14 @@ function afterFight(run: Run) {
   const h = run.hero;
   const curseNote = applyQueuedCurses(run);
   if (b.over === "lost") {
-    // Dying anywhere ends the run, Crimson Vaults included.
+    // Dying anywhere ends the run, Crimson Vaults included. Remember who did it.
+    const e = b.enemy;
+    run.killer = {
+      name: e.name, title: e.title, family: e.family, rank: e.boss ? "Boss" : e.champion ? "Champion" : e.elite ? "Elite" : "",
+      hp: Math.max(0, e.hp), maxHp: e.maxHp, damage: e.damage, armor: e.armor, crimson: e.crimson,
+      traits: Object.keys(e.items).map(id => getItem(id).name),
+      statuses: Object.entries(e.statuses).filter(([, n]) => (n ?? 0) > 0) as [string, number][]
+    };
     run.scene = { t: "over", won: false };
     return;
   }

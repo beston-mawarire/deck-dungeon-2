@@ -473,11 +473,24 @@ function confirmScene(r: Run) {
   <div class="row" style="margin-top:12px"><button class="primary" data-risk="yes">Accept the risk</button><button data-risk="no">Walk away</button></div>`;
 }
 
+function killerPanel(r: Run) {
+  const k = r.killer!;
+  const pct = k.maxHp ? Math.min(100, Math.max(0, (k.hp / k.maxHp) * 100)) : 0;
+  return `<div class="panel fighter killer ${k.crimson ? "crimson-foe" : ""}">
+    <div class="sub killer-tag">☠️ Slain by</div>
+    <div class="row"><b>${esc(k.name)}</b>${k.title ? `<span class="sub">${esc(k.title)}</span>` : ""}<span class="grow"></span><span class="sub">${esc([k.family, k.crimson ? "Crimson" : "", k.rank].filter(Boolean).join(" · "))}</span></div>
+    <div class="bar enemy"><i style="width:${pct}%"></i></div>
+    <div class="sub">${big(k.hp)}/${big(k.maxHp)} HP left · ${k.name === "DEATH" ? "Power ☠️" : `Power ${big(k.damage)}`} · Armor ${k.armor}</div>
+    <div class="chips">${k.traits.map(t => `<span class="chip">${esc(t)}</span>`).join("")}${k.statuses.map(([s, n]) => STATUS_INFO[s as StatusId] ? `<span class="chip">${STATUS_INFO[s as StatusId].icon} ${STATUS_INFO[s as StatusId].name} ${n}</span>` : "").join("")}</div>
+  </div>`;
+}
+
 function overScene(r: Run) {
   if (r.scene.t !== "over") return "";
   const h = r.hero;
   const won = r.scene.won;
   return `<div class="banner ${won ? "won" : "lost"}">${r.finale ? "Nothing remains. You won everything." : won ? "The Hollow King falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen."}</div>
+  ${!won && r.killer && !r.abandoned ? killerPanel(r) : ""}
   <div class="panel"><p>${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses · biggest hit ${r.stats.bestHit}</p>
   ${recorded ? `<p>🏅 +${recorded.earned} Renown (total ${meta.renown})${recorded.unlocked.length ? ` · Unlocked: <b>${recorded.unlocked.map(esc).join(", ")}</b>` : ""}</p>` : ""}
   <p class="sub">Final build:</p><div class="cards">${EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x).map(it => itemCard(it)).join("")}</div></div>

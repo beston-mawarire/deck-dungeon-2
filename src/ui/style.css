@@ -361,3 +361,5 @@ details.gloss summary { font-weight: 700; color: var(--ink); padding: 4px 0; }
 .fanfare.legendary_crimson .spark { background: #ffb347; box-shadow: 0 0 14px #ff7a1a; }
 .key-found { margin: 8px 0; padding: 12px 14px; border: 2px solid var(--crimson); border-radius: 12px; background: linear-gradient(160deg, #3a0f18, #1c0a10); color: #ff3b52; font-weight: 900; font-size: 1.35rem; letter-spacing: .06em; text-transform: uppercase; text-align: center; text-shadow: 0 0 14px rgba(224,40,63,.8); animation: crimsonpulse 2.2s infinite; }
 .key-found span { display: block; margin-top: 4px; font-size: .85rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: #ffb3bd; text-shadow: none; }
+.killer { border-color: var(--bad); margin-top: 8px; }
+.killer-tag { text-transform: uppercase; letter-spacing: .15em; color: var(--bad); font-weight: 800; margin-bottom: 4px; }
