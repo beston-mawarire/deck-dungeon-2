@@ -191,7 +191,7 @@ function hud(r: Run) {
     const canDrink = h.potions > 0 && f.hp < f.maxHp && !busy;
     return `<div class="hud compact"><div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">${floorLabel(r)}</span><span class="grow"></span>
       <span class="stat">🪙 <b>${f.gold}</b></span>
-      <button class="small" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (+12 HP)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${f.flags["mana"] || busy ? "disabled" : ""} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${h.manaPotions}</button>` : ""}<button class="small" data-bag title="Gear & build">🎒</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu" ${busy ? "disabled" : ""}>☰</button></div></div>`;
+      <button class="small" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (+12 HP)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${f.flags["mana"] || busy ? "disabled" : ""} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${h.manaPotions}</button>` : ""}<button class="small" data-bag title="Inventory">🎒</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu" ${busy ? "disabled" : ""}>☰</button></div></div>`;
   }
   return `<div class="hud">
     <div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">Lv ${h.level}</span><span class="grow"></span><span class="stat">${floorLabel(r)}</span></div>
@@ -200,7 +200,7 @@ function hud(r: Run) {
       <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span><span>🧪 <b>${h.potions}</b></span><span>📜 <b>${h.scrolls}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
     <div class="bar xp"><i style="width:${(h.xp / need) * 100}%"></i></div>
     <div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>
-    <div class="row" style="margin-top:6px"><button class="small" data-bag>🎒 Gear & build</button>${h.potions && f.hp < f.maxHp && !busy ? `<button class="small" data-potion>🧪 Potion (+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ Menu</button></div>
+    <div class="row" style="margin-top:6px"><button class="small" data-bag>🎒 Inventory</button>${h.potions && f.hp < f.maxHp && !busy ? `<button class="small" data-potion>🧪 Potion (+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ Menu</button></div>
   </div>`;
 }
 
@@ -550,7 +550,7 @@ function bag(r: Run) {
   const legendSet = needed.every(it => it && (it.rarity === "legendary" || it.rarity === "crimson"));
   return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
-    <div class="row"><h1 class="grow">Gear & build</h1><button data-closebag>Close</button></div>
+    <div class="row"><h1 class="grow">Inventory</h1><button data-closebag>Close</button></div>
     ${stats}
     ${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>${reactionsPanel(r)}` : ""}
     <p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>
@@ -789,7 +789,7 @@ function relicPopup(id: string, more: number) {
     <div class="center relic-kicker scroll-kicker">${n > 1 ? `${n} SCROLLS` : "NEW SCROLL"}</div>
     <h1 class="center bigname nm">Scroll of Revelation</h1>
     <p class="center">Reveals a hidden Legendary's true power. You have <b>${run?.hero.scrolls ?? n}</b>.</p>
-    <p class="center sub">${hidden ? `You're carrying ${hidden} unrevealed item${hidden > 1 ? "s" : ""}: open 🎒 Gear & build to read one.` : "Keep it for when you find a Legendary: use it from 🎒 Gear & build."}</p>
+    <p class="center sub">${hidden ? `You're carrying ${hidden} unrevealed item${hidden > 1 ? "s" : ""}: open 🎒 Inventory to read one.` : "Keep it for when you find a Legendary: use it from 🎒 Inventory."}</p>
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-relicok>${more ? `Next (${more} more)` : "Got it"}</button></div>
   </div></div>`;
   }
