@@ -25,11 +25,17 @@ loadLibrary();
 
 const app = document.getElementById("app")!;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+/** Combat speed (Options): 1 = normal, 0.5 = fast, 0.2 = very fast. */
+let speed = (() => { try { return Number(localStorage.getItem("dd2-speed") ?? "1") || 1; } catch { return 1; } })();
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms * speed));
 
 let meta: Meta = loadMeta();
 let run: Run | null = null;
-let view: "title" | "codex" = "title";
+let view: "splash" | "title" | "codex" = "splash";
+/** The Options panel is open (from the splash screen). */
+let optionsOpen = false;
+/** Reset progress needs a second tap to confirm. */
+let resetArmed = false;
 let mode: Mode = "campaign";
 let bagOpen = false;
 /** The class the player tapped on the title screen (the popup before a run starts). */
@@ -197,7 +203,7 @@ function hud(r: Run) {
 function titleScreen() {
   const locked = lockedIds(meta);
   const next = UNLOCK_TIERS.find(t => meta.renown < t.at);
-  return `<div class="row"><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>
+  return `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>
   <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
   <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span><span class="grow"></span><button class="small" data-codex>📖 Codex</button><button class="small" data-help>❓ How to play</button></div>
     ${next ? `<p class="sub">Next unlock at ${next.at} Renown: <b>${esc(next.name)}</b> (${locked.size} items still locked)</p>` : `<p class="sub">Everything is unlocked.</p>`}</div>
@@ -570,6 +576,37 @@ function helpPopup() {
   </div></div>`;
 }
 
+function splashScreen() {
+  const sv = savedSummary();
+  return `<div class="splash">
+    <div class="splash-dice">🎲</div>
+    <h1 class="splash-title">DECK DUNGEON <span>2</span></h1>
+    <p class="splash-tag">You are what you wear. Your weapon is your die.</p>
+    <div class="splash-buttons">
+      <button class="primary big" data-play>${sv ? "▶ Play (continue available)" : "▶ Play"}</button>
+      <button class="big" data-help>❓ How to play</button>
+      <button class="big" data-options>⚙️ Options</button>
+    </div>
+    <p class="sub splash-foot">🏅 ${meta.renown} Renown · ${meta.runs} runs · ${meta.wins} wins</p>
+  </div>`;
+}
+
+function optionsPopup() {
+  const sp = (v: number, label: string) => `<button class="${speed === v ? "primary" : ""}" data-speed="${v}">${label}</button>`;
+  return `<div class="overlay popup-wrap"><div class="popup">
+    <button class="small closex" data-closeoptions aria-label="Close">✕</button>
+    <h1 class="center bigname">⚙️ Options</h1>
+    <h2>Sound</h2>
+    <div class="row"><button data-mute class="${isMuted() ? "" : "primary"}">${isMuted() ? "🔇 Sound off" : "🔊 Sound on"}</button></div>
+    <h2>Combat speed</h2>
+    <div class="row">${sp(1, "Normal")}${sp(0.5, "Fast")}${sp(0.2, "Very fast")}</div>
+    <h2>Progress</h2>
+    <p class="sub">Renown, unlocks, the Codex and any saved run are kept in this browser.</p>
+    <div class="row"><button class="${resetArmed ? "danger" : ""}" data-reset>${resetArmed ? "Tap again to erase everything" : "Reset all progress"}</button></div>
+    <div class="row" style="justify-content:center;margin-top:14px"><button class="primary" data-closeoptions>Done</button></div>
+  </div></div>`;
+}
+
 function storyPopup(m: Mode) {
   const st = STORIES[m];
   return `<div class="overlay popup-wrap"><div class="popup story-pop">
@@ -667,7 +704,7 @@ function celebrateScene(r: Run) {
 function render() {
   app.classList.toggle("with-side", !!run);
   if (!run) {
-    app.innerHTML = view === "codex" ? codexScreen() : `${titleScreen()}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}`;
+    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}`;
     bind();
     return;
   }
@@ -834,6 +871,20 @@ function bind() {
     on("[data-closestory]", () => { storyOpen = null; });
     on("[data-codex]", () => { view = "codex"; });
     on("[data-back]", () => { view = "title"; });
+    on("[data-play]", () => { view = "title"; });
+    on("[data-home]", () => { view = "splash"; });
+    on("[data-options]", () => { optionsOpen = true; resetArmed = false; });
+    on("[data-closeoptions]", () => { optionsOpen = false; resetArmed = false; });
+    on("[data-speed]", el => { speed = Number(el.dataset.speed); try { localStorage.setItem("dd2-speed", String(speed)); } catch { /* ignore */ } });
+    on("[data-reset]", () => {
+      if (!resetArmed) { resetArmed = true; return; }
+      try { localStorage.removeItem("dd2-meta-v1"); } catch { /* ignore */ }
+      clearSave();
+      meta = loadMeta();
+      resetArmed = false;
+      optionsOpen = false;
+      say("All progress has been reset.", false);
+    });
     on("[data-origin]", el => { pendingOrigin = el.dataset.origin as OriginId; });
     on("[data-closeorigin]", () => { pendingOrigin = null; });
     on("[data-help]", () => { helpOpen = true; });

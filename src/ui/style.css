@@ -303,3 +303,16 @@ button.continue { width: 100%; margin: 10px 0 2px; }
 .beat .bigicon { animation: descend 1.1s ease-out; }
 @keyframes descend { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .overlay:not(.popup-wrap) { background: rgba(10,8,14,.99); }
+
+/* ---------- Splash title screen ---------- */
+.splash { min-height: calc(100vh - 60px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px;
+  background: radial-gradient(ellipse at 50% 35%, rgba(232,184,74,.14), transparent 60%); }
+.splash-dice { font-size: 4.2rem; animation: splashroll 3.2s ease-in-out infinite; filter: drop-shadow(0 0 18px rgba(232,184,74,.45)); }
+@keyframes splashroll { 0%, 100% { transform: rotate(-8deg) translateY(0); } 50% { transform: rotate(8deg) translateY(-8px); } }
+.splash-title { font-size: clamp(2.2rem, 9vw, 3.6rem); font-weight: 900; letter-spacing: .08em; margin: 4px 0 0; text-shadow: 0 4px 0 #000, 0 0 30px rgba(232,184,74,.25); }
+.splash-title span { color: var(--gold); }
+.splash-tag { color: var(--muted); font-style: italic; margin: 0 0 18px; }
+.splash-buttons { display: grid; gap: 10px; width: min(320px, 90%); }
+button.big { min-height: 54px; font-size: 1.1rem; font-weight: 700; }
+.splash-foot { margin-top: 18px; }
+button.danger { background: var(--bad); border-color: var(--bad); color: #fff; font-weight: 700; }
