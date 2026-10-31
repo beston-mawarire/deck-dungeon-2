@@ -749,6 +749,16 @@ describe("class actions and new stats", () => {
     expect(h.f.persist["streak"]).toBe(0);
   });
 
+  it("streak gear unlocks the streak, and the Unending Tally only halves a broken streak", () => {
+    const h = newHero("warrior");
+    equipItem(h, { uid: 902, base: "cx_unending_tally", rarity: "crimson", level: 1, bonuses: {}, revealed: true });
+    const b = startBattle(h.f, dummy(), 5);
+    for (let i = 0; i < 6; i++) resolveFace(b, b.player, b.enemy, 3, false);
+    expect(h.f.persist["streak"]).toBe(6);
+    resolveFace(b, b.player, b.enemy, 1, false); // graze
+    expect(h.f.persist["streak"]).toBe(3);
+  });
+
   it("Shieldwall foes warn, then guard: Armor doubles but crits still land in full", () => {
     const h = newHero("warrior");
     const e = dummy();

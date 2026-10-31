@@ -8,6 +8,7 @@ import { CRIMSON_ITEMS } from "./treasury";
 import { CHARM_CRIMSON, SINGLE_CHARM_CRIMSON } from "./charms";
 import { SHIELD_CRIMSON } from "./shields";
 import { ROBE_CRIMSON } from "./robes";
+import { STREAK_GEAR_2 } from "./streak";
 import { applyStatus, cast, CRIT, GRAZE, heal, HIT, log, loseHp, other, ping, purify, st } from "./helpers";
 
 const crimson = (d: Omit<GearBase, "rarity">): GearBase => ({ ...d, rarity: "crimson" });
@@ -105,4 +106,4 @@ export const CRIMSON: GearBase[] = [
 ];
 
 // The Treasury's Crimson items join the pool.
-CRIMSON.push(...CRIMSON_ITEMS, ...CHARM_CRIMSON, ...SINGLE_CHARM_CRIMSON, ...SHIELD_CRIMSON, ...ROBE_CRIMSON);
+CRIMSON.push(...CRIMSON_ITEMS, ...CHARM_CRIMSON, ...SINGLE_CHARM_CRIMSON, ...SHIELD_CRIMSON, ...ROBE_CRIMSON, ...STREAK_GEAR_2.filter(g => g.rarity === "crimson"));

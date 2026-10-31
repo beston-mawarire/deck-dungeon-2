@@ -132,11 +132,14 @@ export function streakOf(f: Fighter): number {
 function breakStreak(b: Battle, a: Fighter) {
   if (a.id !== "player") return;
   const n = streakOf(a);
-  if (n >= 3) log(b, `🔗 Streak broken at ${n}.`);
-  a.persist["streak"] = 0;
+  // Hourglass of Momentum / The Unending Tally: a broken streak only drops to half.
+  const keepHalf = stacksOf(a, "lx_hourglass") > 0 || stacksOf(a, "cx_unending_tally") > 0;
+  const left = keepHalf ? Math.floor(n / 2) : 0;
+  if (n >= 3) log(b, `🔗 Streak broken at ${n}${left ? `, holds at ${left}` : ""}.`);
+  a.persist["streak"] = left;
 }
 /** Items, relics and talents that use the hit streak. Without one of them, there is no streak. */
-export const STREAK_IDS = ["r_unbroken_chain", "t_relentless", "t_tally_beads"];
+export const STREAK_IDS = ["r_unbroken_chain", "t_relentless", "t_tally_beads", "sk_rapier", "sk_chainblade", "sk_metronome", "lx_hourglass", "sk_fencer_jacket", "sk_rhythm_plate", "sk_rosary", "cx_unending_tally"];
 export const hasStreak = (f: Fighter) => STREAK_IDS.some(id => stacksOf(f, id) > 0);
 function addStreak(a: Fighter) {
   if (a.id !== "player") return;
