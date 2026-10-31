@@ -129,6 +129,8 @@ export function recompute(h: Hero) {
 
   const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0, spellAmp: 0 };
   f.barrierElement = undefined;
+  f.twoHanded = false;
+  f.offTwoHanded = false;
   f.faces = PLAIN_FACES;
   f.offFaces = undefined;
   for (const slot of EQUIP_SLOTS) {
@@ -144,6 +146,8 @@ export function recompute(h: Hero) {
     s.maxHp += eb.maxHp ?? 0;
     s.dodge += itemDodge(it);
     if (slot === "main" && it.bash) s.bash += it.bash;
+    if (slot === "main" && eb.twoHanded) f.twoHanded = true;
+    if (slot === "off" && eb.twoHanded) f.offTwoHanded = true;
     if (slot === "off" && eb.barrierElement) f.barrierElement = eb.barrierElement;
     if (slot === "main" && eb.kind === "weapon") {
       s.damage = weaponDamage(it);

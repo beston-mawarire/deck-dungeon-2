@@ -140,6 +140,8 @@ export const STORM_TALENTS: HookDef[] = [
     hooks: { onFightStart: (b, f, s) => applyStatus(b, f, f, "smoulder_soul", s) } }),
   talent({ id: "t_light_feet", name: "Light Feet", tags: ["Tempo"], text: "+3% / +6% / +10% Dodge", hooks: { stats: (st_, s) => { st_.dodge += rank(s, 3, 6, 10); } } }),
   talent({ id: "t_slippery", name: "Slippery", tags: ["Tempo", "Strike"], text: "When you Dodge, gain 1 / 2 / 3 Might", hooks: { onDodge: (b, c, s) => applyStatus(b, c.defender, c.defender, "might", s) } }),
+  talent({ id: "t_heavy_hitter", name: "Heavy Hitter", tags: ["Strike"], text: "Two-handed weapons deal +2 / +3 / +5",
+    hooks: { modifyAttack: (_b, c, s) => { if (c.offhand ? c.attacker.offTwoHanded : c.attacker.twoHanded) c.bonus += rank(s, 2, 3, 5); } } }),
   talent({ id: "t_overwhelm", name: "Overwhelm", tags: ["Arcane", "Hex"], text: "Your hits deal +1 / +2 / +3 for every different negative status on the enemy",
     hooks: { modifyAttack: (_b, c, s) => { c.bonus += s * NEG.filter(x => st(c.defender, x) > 0).length; } } })
 ];

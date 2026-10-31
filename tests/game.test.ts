@@ -793,3 +793,17 @@ describe("toll foes", () => {
     expect(run.hero.f.hp).toBe(Math.min(run.hero.f.maxHp, hp - 1 + 12));
   });
 });
+
+describe("two-handers", () => {
+  it("Heavy Hitter adds damage only with a two-handed weapon", () => {
+    const mk = () => { const e = makeMonster(makeRng(60), 1, "normal"); e.hp = e.maxHp = 500; e.armor = 0; e.items = {}; return e; };
+    const h = newHero("warrior");
+    h.talents["t_heavy_hitter"] = 1; recompute(h);
+    const e1 = mk(); const b1 = startBattle(h.f, e1, 1); h.f.statuses = {}; resolveFace(b1, h.f, e1, 3);
+    const oneHand = 500 - e1.hp;
+    expect(oneHand).toBe(h.f.damage);
+    equipItem(h, { uid: 990, base: "w_axe", rarity: "common", level: 1, bonuses: {}, revealed: true }, "main");
+    const e2 = mk(); const b2 = startBattle(h.f, e2, 1); h.f.statuses = {}; resolveFace(b2, h.f, e2, 3);
+    expect(500 - e2.hp).toBe(h.f.damage + 2);
+  });
+});

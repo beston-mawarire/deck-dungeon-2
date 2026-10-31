@@ -96,3 +96,19 @@ export const KEEPSAKES: HookDef[] = [
     hooks: { whenHit: (b, c) => { if (c.defender.armor > 0) ping(b, c.attacker, c.defender.armor, "Thornheart"); } } })
 ];
 
+
+// ---------- Great two-handers: Rare and up, simple effects, big numbers ----------
+export const GREAT_WEAPONS: GearBase[] = [
+  { id: "w_zweihander", kind: "weapon", slot: "main", name: "Zweihänder", minItemRarity: "rare", tags: ["Strike"], damage: 9, twoHanded: true,
+    faces: [GRAZE, HIT, HIT, HIT, HIT, { kind: "crit", name: "Cleave", cleave: true }], text: "Two-handed. A 6 Cleaves (overkill carries to the next fight).", hooks: {} },
+  { id: "w_claymore", kind: "weapon", slot: "main", name: "Claymore", minItemRarity: "rare", tags: ["Strike", "Crit"], damage: 9, twoHanded: true,
+    faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT], text: "Two-handed. Crits on 5 and 6.", hooks: {} },
+  { id: "w_headsman_axe", kind: "weapon", slot: "main", name: "Headsman's Axe", minItemRarity: "rare", tags: ["Strike", "Bleed"], damage: 10, twoHanded: true,
+    faces: [MISS, HIT, HIT, HIT, HIT, spell("Behead", "crit", hex("bleed", 3))], text: "Two-handed. A 6 Beheads: 3 Bleed.", hooks: {} },
+  { id: "w_siege_maul", kind: "weapon", slot: "main", name: "Siege Maul", minItemRarity: "rare", tags: ["Strike", "Guard"], damage: 10, twoHanded: true,
+    faces: [MISS, HIT, HIT, HIT, HIT, spell("Crush", "crit", hex("stun", 1))], text: "Two-handed. A 6 Crushes: Stun.", hooks: {} },
+  { id: "w_halberd", kind: "weapon", slot: "main", name: "Halberd", minItemRarity: "rare", tags: ["Strike", "Hex"], damage: 8, twoHanded: true,
+    faces: [HIT, HIT, HIT, HIT, spell("Hook", "hit", hex("exposed", 2)), CRIT], text: "Two-handed. Never misses or grazes; a 5 hooks them open (Exposed 2).", hooks: {} },
+  { id: "w_dragon_lance", kind: "weapon", slot: "main", name: "Dragon Lance", minItemRarity: "rare", tags: ["Strike", "Burn"], damage: 9, twoHanded: true,
+    faces: [GRAZE, HIT, HIT, HIT, HIT, spell("Dragonfire", "crit", hex("burn", 4))], text: "Two-handed. A 6 breathes Dragonfire: 4 Burn.", hooks: {} }
+];
