@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.9.2
+- The floor boss no longer breaks the plain-fight streak.
+
 ## 1.9.1
 - Transformation odds now climb 10% per plain fight after the 14th (10%, 20%, 30%… up to 90%).
 - Only fighting something other than a normal monster breaks the streak; every non-combat room (events, shops, chests, campfires, boards…) leaves it alone.

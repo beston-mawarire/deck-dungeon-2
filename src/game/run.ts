@@ -311,8 +311,8 @@ function openResplendent(run: Run) {
 
 function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death", defName?: string) {
   run.hero.f.persist["floor"] = run.floor;
-  // Fighting anything but a normal monster breaks the plain-fight streak.
-  if (rank !== "normal") run.normalStreak = 0;
+  // Fighting anything but a normal monster breaks the plain-fight streak (the floor boss doesn't count: you can't avoid it).
+  if (rank !== "normal" && !(rank === "boss" && !then)) run.normalStreak = 0;
   // A Crimson Vault always holds a Crimson boss; in Endless, a floor boss is rarely Crimson too.
   // (Never on the floors with a special boss: the Horror, the Epic Crimson floors, DEATH and the End.)
   const special = run.floor === WALL_FLOOR || EPIC_CRIMSON_FLOORS.includes(run.floor) || run.floor === DEATH_FLOOR || run.floor === END_FLOOR;
