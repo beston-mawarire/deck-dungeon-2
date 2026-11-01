@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 // Game version (package.json) and build number (commit count), shown on the title screens.
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string };
 let build = "dev";
-try { build = String(Number(execSync("git rev-list --count HEAD").toString().trim()) + 1); } catch { /* not a git checkout */ }
+try { build = execSync("git rev-list --count HEAD").toString().trim(); } catch { /* not a git checkout */ }
 
 // `npm run build:single` makes one self-contained HTML file (for sharing / phone play).
 const single = process.env.SINGLE === "1";
