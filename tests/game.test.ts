@@ -50,6 +50,20 @@ describe("origins and gear", () => {
     expect(b.enemy.hp).toBe(200 - 2 * (4 + Math.floor(b.player.armor / 3))); // (sword 4 + Warrior armor bonus) × crit 2
   });
 
+  it("Haste stacks (cap 3) and one stack is spent per turn", () => {
+    const h = newHero("warrior");
+    const b = startBattle(h.f, dummy(), 1);
+    b.player.statuses.haste = 0;
+    applyStatus(b, b.player, b.player, "haste", 1);
+    applyStatus(b, b.player, b.player, "haste", 1);
+    expect(st(b.player, "haste")).toBe(2);
+    applyStatus(b, b.player, b.player, "haste", 5);
+    expect(st(b.player, "haste")).toBe(3);
+    b.player.statuses.haste = 2;
+    heroPhase(b, "attack");
+    expect(st(b.player, "haste")).toBe(1);
+  });
+
   it("spell faces apply statuses, and the Mage's passive adds a stack", () => {
     const h = newHero("mage");
     const b = startBattle(h.f, dummy(), 1);

@@ -8,7 +8,9 @@ export const st = (f: Fighter, s: StatusId) => f.statuses[s] ?? 0;
 export const other = (b: Battle, f: Fighter) => (f === b.player ? b.enemy : b.player);
 
 /** Statuses that never stack above 1 (Shock can go to 2 with Conductor, set by the item). */
-const SINGLE: StatusId[] = ["stun", "evade", "haste", "focus", "ward"];
+const SINGLE: StatusId[] = ["stun", "evade", "focus", "ward"];
+/** Haste stacks: each stack is one extra action, one used per turn. Capped so it can't snowball. */
+export const HASTE_CAP = 3;
 
 export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: string }> = {
   bleed: { name: "Bleed", icon: "🩸", text: "Lose 1 HP per stack at end of round; stacks fall by 1" },
@@ -24,7 +26,7 @@ export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: s
   regen: { name: "Regen", icon: "💚", text: "Heal 1 per stack at end of round; stacks fall by 1" },
   barrier: { name: "Barrier", icon: "🛡️", text: "Absorbs damage before HP; half of it fades at the end of each round" },
   might: { name: "Might", icon: "💪", text: "+1 Damage per stack this fight" },
-  haste: { name: "Haste", icon: "💨", text: "An extra action next round, then it's used up" },
+  haste: { name: "Haste", icon: "💨", text: "An extra action on your turn. Stacks (up to 3): one is used each turn" },
   focus: { name: "Focus", icon: "🎲", text: "Next roll: roll twice, keep the better" },
   evade: { name: "Evade", icon: "🌀", text: "The next hit misses" },
   spikes: { name: "Spikes", icon: "🌵", text: "When hit, deal stacks back; stacks fall by 1 each round" },
@@ -189,6 +191,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   else if (id === "shock") target.statuses.shock = Math.max(st(target, "shock"), amount);
   else if (id === "static") target.statuses.static = Math.min(staticCap(source), st(target, "static") + amount);
   else if (id === "dazzled") target.statuses.dazzled = Math.min(4, Math.max(st(target, "dazzled"), amount));
+  else if (id === "haste") target.statuses.haste = Math.min(HASTE_CAP, st(target, "haste") + amount);
   else if (id === "consecrated") target.statuses.consecrated = Math.max(st(target, "consecrated"), amount);
   else target.statuses[id] = st(target, id) + amount;
   log(b, `${target.name} gains ${STATUS_INFO[id].icon} ${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` ${amount}`}.`);

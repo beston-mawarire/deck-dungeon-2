@@ -552,8 +552,8 @@ function act(b: Battle, f: Fighter, doIt: () => void) {
   smoulderSoulAction(b, f);
   doIt();
   if (st(f, "haste") > 0 && other(b, f).hp > 0) {
-    f.statuses.haste = 0;
-    log(b, `💨 ${f.name} acts again (Haste).`);
+    f.statuses.haste = st(f, "haste") - 1;
+    log(b, `💨 ${f.name} acts again (Haste${st(f, "haste") ? `, ${st(f, "haste")} left` : ""}).`);
     fx(b, { who: f.id, kind: "text", text: "Haste!", icon: "💨" });
     staticTick(b, f);
     actionToll(b, f);
