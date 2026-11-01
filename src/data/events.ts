@@ -62,10 +62,10 @@ export interface GameEvent {
 const leave: EventOption = { label: "Walk away", run: () => "You leave it be." };
 
 export const EVENTS: GameEvent[] = [
-  { id: "lucky_pot", weight: 0.35, minFloor: 6, title: "The Lucky Pot", icon: "🍀",
+  { id: "lucky_pot", weight: 0.35, minFloor: 6, minGold: 100, title: "The Lucky Pot", icon: "🍀",
     text: "A battered iron pot sits in a shaft of light that has no business being down here. It hums. It smells faintly of clover.",
     options: [
-      { label: "Throw all your Gold into the pot", hint: "Every coin you carry", can: c => c.gold() > 0,
+      { label: "Throw all your Gold into the pot", hint: "Every coin you carry (the pot wants at least 100)", can: c => c.gold() >= 100,
         run: c => { const g = c.gold(); c.addGold(-g); c.cloverBlessing(); return `${g} Gold clatters into the pot and vanishes. A tiny green leaf drifts down into your palm. 🍀 Four-Leaf Clover: your next 4 chests are a little luckier (slightly better odds of Rare, Epic and Legendary).`; } },
       { label: "Leave", run: () => "You keep your coin. The humming stops." }
     ] },

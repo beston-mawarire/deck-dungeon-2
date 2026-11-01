@@ -1304,6 +1304,12 @@ describe("class actions and new stats", () => {
     run.hero.f.gold = 123;
     const ev = EVENTS.find(e => e.id === "lucky_pot")!;
     expect(ev.minFloor).toBe(6);
+    run.hero.f.gold = 99;
+    run.scene = { t: "event", ev, result: null, found: [] };
+    chooseEvent(run, 0);
+    expect(run.hero.f.gold).toBe(99);
+    expect(run.hero.f.persist["cloverChests"] ?? 0).toBe(0);
+    run.hero.f.gold = 123;
     run.scene = { t: "event", ev, result: null, found: [] };
     chooseEvent(run, 0);
     expect(run.hero.f.gold).toBe(0);
