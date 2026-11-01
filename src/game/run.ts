@@ -223,11 +223,10 @@ export function chooseRoom(run: Run, room: RoomType) {
 
 function enterRoom(run: Run, room: RoomType) {
   const h = run.hero;
-  // Plain fights build the streak; shops, campfires, forges, shrines, chests and the floor boss leave it alone; anything else resets it.
   // A contract's clock: every room you enter (except the board itself) uses one of its rooms.
   if (run.bounty && room !== "bounty") run.bounty.roomsLeft = Math.max(0, run.bounty.roomsLeft - 1);
+  // Plain fights build the streak. Only fighting something other than a normal monster breaks it (see fight()).
   if (room === "fight") run.normalStreak = (run.normalStreak ?? 0) + 1;
-  else if (!STREAK_NEUTRAL.includes(room)) run.normalStreak = 0;
   switch (room) {
     case "fight": return fight(run, "normal");
     case "elite": return fight(run, "elite");
@@ -312,6 +311,8 @@ function openResplendent(run: Run) {
 
 function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death", defName?: string) {
   run.hero.f.persist["floor"] = run.floor;
+  // Fighting anything but a normal monster breaks the plain-fight streak.
+  if (rank !== "normal") run.normalStreak = 0;
   // A Crimson Vault always holds a Crimson boss; in Endless, a floor boss is rarely Crimson too.
   // (Never on the floors with a special boss: the Horror, the Epic Crimson floors, DEATH and the End.)
   const special = run.floor === WALL_FLOOR || EPIC_CRIMSON_FLOORS.includes(run.floor) || run.floor === DEATH_FLOOR || run.floor === END_FLOOR;
@@ -841,12 +842,11 @@ export function sellItem(run: Run, uid: number): string | null {
 
 /** Shop prices grow with the floor: +12% per floor below the first. */
 /** Odds that a beaten normal monster transforms into a Champion: 0 until 14 plain fights in a row,
- *  then 10%, rising 6% with every plain fight after that (a long enough streak all but guarantees it). */
+ *  then 10%, rising 10% with every plain fight after that (up to 90%). */
 export function transformationChance(streak: number): number {
-  return streak < TRANSFORM_STREAK ? 0 : Math.min(0.9, 0.1 + 0.06 * (streak - TRANSFORM_STREAK));
+  return streak < TRANSFORM_STREAK ? 0 : Math.min(0.9, 0.1 + 0.1 * (streak - TRANSFORM_STREAK));
 }
 export const TRANSFORM_STREAK = 14;
-const STREAK_NEUTRAL: RoomType[] = ["shop", "rest", "forge", "shrine", "wooden", "iron", "boss"];
 function rollTransformation(run: Run): boolean {
   if (run.rng() >= transformationChance(run.normalStreak ?? 0)) return false;
   run.normalStreak = 0;

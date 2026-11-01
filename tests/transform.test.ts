@@ -11,13 +11,16 @@ it("normal fights in a row build the streak; anything else resets it", () => {
   expect(run.normalStreak).toBe(2);
   for (const room of ["rest", "shop", "forge", "wooden"] as const) { chooseRoom(run, room); expect(run.normalStreak).toBe(2); }
   chooseRoom(run, "event");
-  expect(run.normalStreak).toBe(0);
+  if (run.scene.t !== "combat") expect(run.normalStreak).toBe(2); // events don't break it…
+  run.scene = { t: "map" };
+  chooseRoom(run, "elite");
+  expect(run.normalStreak).toBe(0); // …but fighting anything other than a normal monster does
 });
 
 it("transformation odds: none before 14 in a row, then rare and rising", () => {
   expect(transformationChance(TRANSFORM_STREAK - 1)).toBe(0);
   expect(transformationChance(TRANSFORM_STREAK)).toBeCloseTo(0.1);
-  expect(transformationChance(TRANSFORM_STREAK + 5)).toBeCloseTo(0.4);
+  expect(transformationChance(TRANSFORM_STREAK + 4)).toBeCloseTo(0.5);
   expect(transformationChance(TRANSFORM_STREAK + 50)).toBeCloseTo(0.9);
 });
 
