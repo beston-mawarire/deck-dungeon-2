@@ -12,6 +12,7 @@ import { ROBES } from "./robes";
 import { BRUTE_GEAR } from "./brutes";
 import { CRIT_VS_STATUS, TRINKETS_2 } from "./trinkets2";
 import { POTION_GEAR } from "./potions";
+import { FUSED_TRINKETS, JEWEL_TRINKETS } from "./jeweller";
 import { HP_EPICS } from "./epics_hp";
 import { CONSECRATE_GEAR, HOLY_OFFHANDS, HOLY_WEAPONS } from "./consecrate";
 import { BLESSING_GEAR } from "./blessings";
@@ -316,4 +317,4 @@ export const TRINKETS: GearBase[] = [
   trinket({ id: "t_quicksilver", name: "Quicksilver Ring", tags: ["Tempo"], text: "Start each fight at full HP with Haste.", hooks: { onFightStart: (b, f) => { if (f.hp >= f.maxHp) applyStatus(b, f, f, "haste", 1); } } })
 ];
 
-export const GEAR_BASES: GearBase[] = [...POTION_GEAR, ...CHARMS, ...SINGLE_CHARMS, ...SHIELDS, ...ROBES, ...BRUTE_GEAR, ...TRINKETS_2, ...CRIT_VS_STATUS, ...HP_EPICS, ...CONSECRATE_GEAR, ...HOLY_WEAPONS, ...HOLY_OFFHANDS, ...BLESSING_GEAR, ...DEPTH_EPICS, ...ICE_FORGE, ...BLEED_GEAR, ...WEAK_GEAR, ...MIGHT_GEAR, ...HEAVY_GEAR, ...WAR_HAMMERS, ...SACRIFICE_WEAPONS, ...CURSED_EPICS, ...CURSE_EATERS, ...CURSED_CASTERS, ...STREAK_GEAR, ...STREAK_GEAR_2.filter(g => !g.rarity), ...WEAPONS, ...OFFHANDS, ...ARMOURS, ...TRINKETS, ...KIT_UPGRADES, ...BASICS, ...DODGE_GEAR, ...ELEMENTAL_WEAPONS, ...DOOM_WEAPONS, ...ARMOUR_ADDS, ...STAT_GEAR, ...GREAT_WEAPONS, ...DAGGERS, ...THROWN_WEAPONS, ...GRENADES, ...THROWER_GEAR, ...DODGE_WEAPONS, ...HEAVY_ARMOURS, ...DUAL_GEAR, ...FAITH_WEAPONS, ...RARE_ITEMS, ...EPIC_ITEMS, ...DEEP_RARES];
+export const GEAR_BASES: GearBase[] = [...POTION_GEAR, ...JEWEL_TRINKETS, ...FUSED_TRINKETS, ...CHARMS, ...SINGLE_CHARMS, ...SHIELDS, ...ROBES, ...BRUTE_GEAR, ...TRINKETS_2, ...CRIT_VS_STATUS, ...HP_EPICS, ...CONSECRATE_GEAR, ...HOLY_WEAPONS, ...HOLY_OFFHANDS, ...BLESSING_GEAR, ...DEPTH_EPICS, ...ICE_FORGE, ...BLEED_GEAR, ...WEAK_GEAR, ...MIGHT_GEAR, ...HEAVY_GEAR, ...WAR_HAMMERS, ...SACRIFICE_WEAPONS, ...CURSED_EPICS, ...CURSE_EATERS, ...CURSED_CASTERS, ...STREAK_GEAR, ...STREAK_GEAR_2.filter(g => !g.rarity), ...WEAPONS, ...OFFHANDS, ...ARMOURS, ...TRINKETS, ...KIT_UPGRADES, ...BASICS, ...DODGE_GEAR, ...ELEMENTAL_WEAPONS, ...DOOM_WEAPONS, ...ARMOUR_ADDS, ...STAT_GEAR, ...GREAT_WEAPONS, ...DAGGERS, ...THROWN_WEAPONS, ...GRENADES, ...THROWER_GEAR, ...DODGE_WEAPONS, ...HEAVY_ARMOURS, ...DUAL_GEAR, ...FAITH_WEAPONS, ...RARE_ITEMS, ...EPIC_ITEMS, ...DEEP_RARES];

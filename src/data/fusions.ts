@@ -3,10 +3,11 @@
 import { other, st } from "../engine/statuses";
 import type { HookDef } from "../engine/types";
 import { applyStatus, heal, log, on, ping } from "./helpers";
+import { JEWEL_FUSED_RELICS, JEWEL_RELIC_RECIPES } from "./jeweller";
 
 const fused = (d: Omit<HookDef, "kind" | "rarity">): HookDef => ({ kind: "relic", rarity: "legendary", ...d });
 
-export const FUSION_RELICS: HookDef[] = [
+const BASE_FUSIONS: HookDef[] = [
   fused({ id: "f_thousand_cuts", name: "Thousand Cuts", tags: ["Bleed", "Crit"], text: "Every hit applies Bleed equal to your roll; crits double all Bleed on the enemy",
     hooks: { onHit: (b, c) => { applyStatus(b, c.attacker, c.defender, "bleed", Math.min(c.face, 12)); if (c.kind === "crit") c.defender.statuses.bleed = st(c.defender, "bleed") * 2; } } }),
   fused({ id: "f_dragons_breath", name: "Dragon's Breath", tags: ["Burn"], text: "Burn on enemies never halves; every fight starts with 5 Burn on the enemy",
@@ -28,7 +29,7 @@ export const FUSION_RELICS: HookDef[] = [
     hooks: { face: [on(2, (b, c) => { applyStatus(b, c.attacker, c.defender, "chill", 1); applyStatus(b, c.attacker, c.defender, "shock", 1); })] } })
 ];
 
-export const FUSION_RECIPES: { a: string; b: string; out: string }[] = [
+const BASE_RECIPES: { a: string; b: string; out: string }[] = [
   { a: "serrated_edge", b: "keen_eye", out: "f_thousand_cuts" },
   { a: "tinderbox", b: "bellows", out: "f_dragons_breath" },
   { a: "spiked_bracer", b: "iron_plate", out: "f_iron_maiden" },
@@ -38,3 +39,6 @@ export const FUSION_RECIPES: { a: string; b: string; out: string }[] = [
   { a: "hydra_fang", b: "viper_fang", out: "f_pandemic" },
   { a: "frost_shard", b: "static_charm", out: "f_tempest_core" }
 ];
+
+export const FUSION_RELICS: HookDef[] = [...BASE_FUSIONS, ...JEWEL_FUSED_RELICS];
+export const FUSION_RECIPES: { a: string; b: string; out: string }[] = [...BASE_RECIPES, ...JEWEL_RELIC_RECIPES];

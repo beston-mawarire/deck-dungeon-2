@@ -500,3 +500,22 @@ button.auto-btn { background: linear-gradient(180deg, #5ec8a0, #2f8f6c); border-
 .help .gt { display: flex; flex-direction: column; gap: 2px; }
 .help .gt b { color: #f1d38a; }
 .help .gt span { color: #d9d1e6; line-height: 1.45; }
+.fusable-tag { display: inline-block; font-size: .72rem; font-weight: 800; color: #9cf0d8; border: 1px solid #4fb89a; border-radius: 999px; padding: 1px 8px; margin-left: 4px; background: rgba(79,184,154,.12); vertical-align: middle; }
+p.fusable-tag { margin: 8px auto 0; }
+.relic-merged { color: #f1d38a; font-weight: 700; }
+
+/* ---------- The Jeweller ---------- */
+.jbench { display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; gap: 8px; margin: 14px 0 12px; }
+.jslot { min-height: 104px; border: 2px dashed #8b6fc4; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px; text-align: center;
+  background: radial-gradient(circle at 50% 35%, rgba(176,108,240,.18), rgba(0,0,0,.25)); }
+.jslot.empty { opacity: .8; }
+button.jslot { border-style: solid; cursor: pointer; }
+.jslot-ic { font-size: 1.8rem; }
+.jplus { align-self: center; font-size: 1.6rem; color: #c9a0ff; font-weight: 900; }
+button.jfuse { font-size: 1.05rem; padding: 12px 18px; background: linear-gradient(180deg, #c99bff, #8a55d8); border-color: #8a55d8; color: #160a26; }
+button.jfuse:disabled { opacity: .5; }
+.jhead { color: #e4d6f2; margin: 16px 0 6px; font-size: 1rem; letter-spacing: .04em; }
+.jpicks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.jpick { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 8px 10px; border-width: 2px; }
+.jpick .sub { font-size: .75rem; }
+.fusable-hint { color: #9cf0d8; }

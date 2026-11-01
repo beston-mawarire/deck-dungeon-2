@@ -302,7 +302,7 @@ export function findItem(h: Hero, uid: number): { item: GearItem; where: EquipSl
   return it ? { item: it, where: "backpack" } : null;
 }
 
-function removeItem(h: Hero, uid: number) {
+export function removeItem(h: Hero, uid: number) {
   for (const s of EQUIP_SLOTS) if (h.equip[s]?.uid === uid) delete h.equip[s];
   h.backpack = h.backpack.filter(i => i.uid !== uid);
 }

@@ -4,6 +4,7 @@ import { CURSES, EPIC_POWERS, KEEPSAKES, LEGENDARIES, RELICS, TALENTS } from "..
 import { CAMPAIGN_FLOORS, DEATH_FLOOR, END_FLOOR, EPIC_CRIMSON_FLOORS, makeBoss, makeDeath, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
 import { CROSSROADS_GUISES, crossroadsEvent, EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
+import { findRecipe, TRINKET_RECIPES } from "../data/jeweller";
 import { makeDragon, makeGoblin, makeMonster, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
 import { type Action, actionToll, BLESSINGS, playRound, startBattle } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
@@ -13,7 +14,7 @@ import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { autoBattleWins } from "./auto";
 import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
-import { gainPotions, potionCap, potionsPerFight, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { removeItem, gainPotions, potionCap, potionsPerFight, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -35,7 +36,7 @@ export const STEPS_PER_FLOOR = 7;
 export { DEATH_FLOOR, END_FLOOR, WALL_FLOOR };
 export type Mode = "campaign" | "endless";
 
-export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads";
+export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -50,6 +51,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   forge: { name: "Forge", icon: "🔨", text: "Spend Scrap to upgrade or reroll gear." },
   rest: { name: "Campfire", icon: "🔥", text: "Rest and heal." },
   sanctum: { name: "Dragon Sanctum", icon: "🐲", text: "Your Dragon Heart beats faster. Something old waits here." },
+  jeweller: { name: "Jeweller", icon: "💍", text: "Two things on the bench, one comes back. For a fee." },
   crossroads: { name: "The Crossroads", icon: "🌒", text: "Two tunnels, one figure." },
   bounty: { name: "Bounty Board", icon: "📋", text: "Notices nailed to a post. Work for hire." },
   event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
@@ -77,6 +79,8 @@ export type Scene =
   | { t: "smith"; uses: number }
   /** The Dragon Sanctum: unify with your Dragon Heart. */
   | { t: "sanctum"; done?: boolean }
+  /** The Jeweller's bench: two slots, then pay to fuse. */
+  | { t: "jeweller"; left?: JewelSlot; right?: JewelSlot }
   /** The Bounty Board: three contracts to choose from. */
   | { t: "bounty"; offers: Bounty[] }
   | { t: "alchemist"; stock: { id: string; price: number; sold?: boolean }[] }
@@ -108,6 +112,8 @@ export interface Run {
   seenBosses: Set<string>;
   /** Shop rerolls used at the current Merchant (each costs more). */
   shopRerolls: number;
+  /** The Forge and the Jeweller take turns: true when the next one offered is the Jeweller. */
+  jewellerNext?: boolean;
   /** The look the Crossroads wears on the map this time (an index into CROSSROADS_GUISES). */
   crossroadsGuise?: number;
   /** The contract taken at a Bounty Board (one at a time). */
@@ -190,6 +196,9 @@ export function genChoices(run: Run): RoomType[] {
   out.add("fight");
   while (out.size < 3) out.add(pickW(run.rng, w));
   const rooms = [...out].sort(() => run.rng() - 0.5);
+  // The Forge and the Jeweller take turns: every other time a forge would be offered, it's the Jeweller instead.
+  const fi = rooms.indexOf("forge");
+  if (fi >= 0) { if (run.jewellerNext) rooms[fi] = "jeweller"; run.jewellerNext = !run.jewellerNext; }
   // Holding a Crimson Key: a Crimson Vault is always offered as an extra path.
   if (crimsonActive(run) && run.hero.crimsonKeys > 0) rooms.push("crimson_vault");
   // A Dragon Heart not yet unified: the Dragon Sanctum is very often an extra path.
@@ -268,6 +277,7 @@ function enterRoom(run: Run, room: RoomType) {
     }
     case "shop": run.shopRerolls = 0; run.scene = { t: "shop", stock: shopStock(run), markup: Math.round((wealthMult(run) - 1) * 100) }; return;
     case "forge": run.scene = { t: "forge" }; return;
+    case "jeweller": run.scene = { t: "jeweller" }; return;
     case "rest": run.scene = { t: "rest", done: false }; return;
     case "event": {
       // Unique encounters (the dragon, the mirror pool) happen at most once per run.
@@ -675,10 +685,12 @@ export function relicRarityWeight(rarity: string, floor: number, quality = 1): n
 }
 
 /** Roll a relic. `quality` > 1 for bosses and Champions (better odds of Rare and Legendary). */
+/** Burn and Smoulder relics are strong: they turn up a little less often. */
+const fireRelicWeight = (r: { tags: readonly string[]; text: string }) => (r.tags.includes("Burn") || /smoulder/i.test(r.text) ? 0.8 : 1);
 export function randomRelic(run: Run, quality = 1): string {
   const tags = heroTags(run.hero);
   const pool = RELICS.filter(r => !isLocked(r.id) && r.id !== "transmuter");
-  const w = pool.map(r => relicRarityWeight(r.rarity ?? "common", run.floor, quality) * (1 + 0.3 * r.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)));
+  const w = pool.map(r => relicRarityWeight(r.rarity ?? "common", run.floor, quality) * (1 + 0.3 * r.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * fireRelicWeight(r));
   let x = run.rng() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < pool.length; i++) {
     x -= w[i];
@@ -1253,6 +1265,79 @@ function settleBounty(run: Run): boolean {
     run.message = [run.message, `📋 Your bounty expired: ${bountyText(q, h.origin)}. (${bountyProgress(h, q)}/${q.target})`].filter(Boolean).join(" ");
   }
   return false;
+}
+
+// ---------- The Jeweller ----------
+
+export type JewelSlot = { kind: "relic"; id: string } | { kind: "item"; uid: number };
+
+/** What one attempt at the bench costs: Gold (scaled like shop prices) and Scrap. Paid even if nothing happens. */
+export function jewelCost(run: Run): { gold: number; scrap: number } {
+  return { gold: Math.round(25 * shopMult(run)), scrap: 6 + 2 * run.floor };
+}
+
+const sameSlot = (a?: JewelSlot, b?: JewelSlot) => !!a && !!b && a.kind === b.kind && (a.kind === "relic" ? a.id === (b as { id: string }).id : a.uid === (b as { uid: number }).uid);
+
+/** Put something on the bench (left first, then right). Only trinkets and relics. */
+export function jewelPlace(run: Run, slot: JewelSlot): string | null {
+  const s = run.scene;
+  if (s.t !== "jeweller") return null;
+  if (slot.kind === "item") {
+    const it = findItem(run.hero, slot.uid)?.item;
+    if (!it || baseOf(it.base).slot !== "trinket") return "Only trinkets and relics go on the bench.";
+  } else if (!run.hero.relics[slot.id]) return null;
+  if (sameSlot(s.left, slot) || sameSlot(s.right, slot)) return "That's already on the bench.";
+  if (!s.left) s.left = slot;
+  else if (!s.right) s.right = slot;
+  else s.right = slot;
+  return null;
+}
+
+export function jewelClear(run: Run, side: "left" | "right") {
+  if (run.scene.t === "jeweller") run.scene[side] = undefined;
+}
+
+/** Pay and try. Returns what happened, and the name of anything made. */
+export function jewelFuse(run: Run): { ok: boolean; msg: string; made?: string } {
+  const s = run.scene;
+  const h = run.hero;
+  if (s.t !== "jeweller" || !s.left || !s.right) return { ok: false, msg: "Put something in both slots first." };
+  const cost = jewelCost(run);
+  if (h.f.gold < cost.gold || h.scrap < cost.scrap) return { ok: false, msg: `The Jeweller wants ${cost.gold} Gold and ${cost.scrap} Scrap.` };
+  h.f.gold -= cost.gold;
+  h.scrap -= cost.scrap;
+  const L = s.left, R = s.right;
+  s.left = s.right = undefined;
+  const nothing = { ok: false, msg: "The stones grind together, spark… and come apart. Nothing. The Jeweller pockets the fee anyway." };
+  // Two relics: a fusion recipe.
+  if (L.kind === "relic" && R.kind === "relic") {
+    const rec = findRecipe(FUSION_RECIPES, L.id, R.id);
+    if (!rec || !h.relics[L.id] || !h.relics[R.id]) return nothing;
+    for (const id of [L.id, R.id]) { h.relics[id]--; if (!h.relics[id]) delete h.relics[id]; }
+    run.stats.fusions++;
+    grantRelic(run, rec.out);
+    return { ok: true, msg: `The two melt into one: ${getItem(rec.out).name}!`, made: getItem(rec.out).name };
+  }
+  // Two trinkets: a secret recipe.
+  if (L.kind === "item" && R.kind === "item") {
+    const A = findItem(h, L.uid), B = findItem(h, R.uid);
+    if (!A || !B) return nothing;
+    const rec = findRecipe(TRINKET_RECIPES, A.item.base, B.item.base);
+    if (!rec) return nothing;
+    const bonuses: Record<string, number> = { ...A.item.bonuses };
+    for (const [k, v] of Object.entries(B.item.bonuses)) bonuses[k] = Math.max(bonuses[k] ?? 0, v);
+    const out: GearItem = { uid: h.nextUid++, base: rec.out, rarity: "epic", level: Math.max(A.item.level, B.item.level), bonuses, epic: A.item.epic ?? B.item.epic, revealed: true };
+    const slot = A.where !== "backpack" ? A.where : B.where !== "backpack" ? B.where : null;
+    removeItem(h, A.item.uid);
+    removeItem(h, B.item.uid);
+    if (slot) h.equip[slot] = out;
+    else h.backpack.push(out);
+    markFound(run, out);
+    recompute(h);
+    run.stats.fusions++;
+    return { ok: true, msg: `The Jeweller holds it up to the light: ${baseOf(rec.out).name}!`, made: baseOf(rec.out).name };
+  }
+  return nothing;
 }
 
 // ---------- The Crossroads ----------

@@ -5,6 +5,13 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.10.0
+- **The Jeweller**: a new path that takes turns with the Forge. Put two things on the bench (left, right), press Combine, and pay Gold and Scrap — even if nothing happens. Relic fusions now happen here (the Forge just tells you a Jeweller could do it).
+- **6 new relic fusions** (Windwalker, Reaper's Toll, Thunderhead, Warlord's Banner, Undying Pack, Witch's Altar) from 10 new relics plus War Drum and Battle Standard. Relics that can fuse are labelled 🔗 Fusable in your inventory.
+- **Secret trinket fusions**: 9 plain new trinkets (Uncommon to Epic) and 12 hidden recipes, some with older trinkets, that make 12 Epic trinkets you can't find any other way. Never labelled.
+- Finding a relic you already own now says so: "Relics combined", ×2 and stronger.
+- Burn and Smoulder relics turn up a little less often.
+
 ## 1.9.3
 - How to play redesigned: a row of coloured section chips to jump around, each section in its own coloured card with a bright heading and one point per block, and the Reference as bright panels with one entry per row.
 
