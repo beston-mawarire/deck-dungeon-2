@@ -38,6 +38,16 @@ export const TRAITS: HookDef[] = [
   trait({ id: "x_smouldering", name: "Smouldering", tags: ["Burn"], text: "Its hits leave you Smouldering (you take 5 Burn a round, it takes 1)", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "smoulder", 1) } }),
   trait({ id: "x_accursed", name: "Accursed", tags: ["Hex"], text: "If it lands 3 hits on you in one fight, you're cursed for the rest of the run",
     hooks: { onHit: (b, c) => { const n = (c.attacker.flags["accursed"] ?? 0) + 1; c.attacker.flags["accursed"] = n; if (n === 3) { c.defender.persist["curseQueue"] = (c.defender.persist["curseQueue"] ?? 0) + 1; log(b, "🕯️ The Accursed marks you: a curse will follow you out of this fight."); b.fx.push({ who: c.defender.id, kind: "text", text: "Cursed!", icon: "🕯️" }); } } } }),
+  trait({ id: "m_goblin", name: "Treasure Goblin", tags: ["Gold", "Tempo"], text: "Flees with its hoard at the end of round 3. Kill it first and everything it carries is yours",
+    hooks: {
+      onFightStart: (b, f) => { log(b, `💰 ${f.name} clutches its sack. Kill it within 3 rounds!`); },
+      onRoundEnd: (b, f) => {
+        if (b.round < 3 || f.hp <= 0 || b.over) return;
+        b.over = "escaped";
+        log(b, `💨 ${f.name} vanishes with its hoard!`);
+        b.fx.push({ who: "enemy", kind: "text", text: "Escaped!", icon: "💨" });
+      }
+    } }),
   trait({ id: "m_thief", name: "Thief", tags: ["Gold", "Tempo"], text: "If it's still alive at the end of round 5, it escapes with 30% of your Gold. Kill it first and you get 60% of your Gold on top",
     hooks: {
       onFightStart: (b, f) => { log(b, `💰 ${f.name} eyes your coin purse. Kill it within 5 rounds!`); },
@@ -133,6 +143,16 @@ const THIEVES = [
   { name: "Coin Wraith", family: "Undead" },
   { name: "Clockwork Pickpocket", family: "Construct" }
 ];
+/** Treasure Goblin: stuffed with loot, slippery, and gone after round 3. */
+export function makeGoblin(rng: () => number, floor: number): Fighter {
+  const hp = Math.round(22 * monsterHpMult(floor));
+  const names = ["Treasure Goblin", "Gilded Goblin", "Hoarder Goblin"];
+  return {
+    id: "enemy", name: names[Math.floor(rng() * names.length)], title: "Escapes after round 3", hp, maxHp: hp, armor: 1, damage: 2 + monsterPowerAdd(floor), faces: PLAIN_FACES,
+    statuses: {}, flags: {}, persist: {}, items: { m_goblin: 1 }, gold: 0, family: "Beast"
+  };
+}
+
 export function makeThief(rng: () => number, floor: number): Fighter {
   const t = THIEVES[Math.floor(rng() * THIEVES.length)];
   const hp = Math.round(16 * monsterHpMult(floor));

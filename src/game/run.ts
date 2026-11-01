@@ -4,9 +4,9 @@ import { CURSES, EPIC_POWERS, KEEPSAKES, LEGENDARIES, RELICS, TALENTS } from "..
 import { CAMPAIGN_FLOORS, DEATH_FLOOR, END_FLOOR, EPIC_CRIMSON_FLOORS, makeBoss, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
 import { EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
-import { makeMonster, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
+import { makeGoblin, makeMonster, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
 import { type Action, actionToll, playRound, startBattle } from "../engine/combat";
-import { getItem } from "../engine/registry";
+import { eachHook, getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
 import { heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
@@ -33,7 +33,7 @@ export const STEPS_PER_FLOOR = 7;
 export { DEATH_FLOOR, END_FLOOR, WALL_FLOOR };
 export type Mode = "campaign" | "endless";
 
-export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique";
+export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -51,6 +51,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
   unique: { name: "A Strange Presence", icon: "✴️", text: "Someone — something — with a name. Dangerous, once per run, and carrying something rare." },
   crimson_elite: { name: "Crimson Elite", icon: "🩸", text: "Rarer and deadlier than a Champion. Great loot, and often a Crimson Key." },
+  goblin: { name: "Treasure Goblin", icon: "💰", text: "A Treasure Goblin, stuffed with loot! Kill it within 3 rounds before it escapes, and everything it carries is yours." },
   crimson_vault: { name: "Crimson Vault", icon: "🗝️", text: "Spend a Crimson Key: fight a Crimson boss for a Crimson item. Die here and your run is over." }
 };
 
@@ -58,7 +59,7 @@ export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "reli
 
 export type Scene =
   | { t: "map" }
-  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" }
+  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent"; crimsonKey?: boolean }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
@@ -160,6 +161,8 @@ export function genChoices(run: Run): RoomType[] {
   if (crimsonActive(run)) w.crimson_elite = 4;
   // Named unique foes: from floor 2, rare, each one once per run.
   if (run.floor >= 2 && UNIQUES.some(u => !run.seenBosses.has(`u:${u.id}`))) w.unique = 2;
+  // Treasure Goblins: from floor 3, about as rare as a Legendary drop.
+  if (run.floor >= 3) w.goblin = 0.5;
   if (run.step === 0) { w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; w.unique = 0; }
   const out = new Set<RoomType>();
   out.add("fight");
@@ -237,6 +240,7 @@ function enterRoom(run: Run, room: RoomType) {
       return;
     }
     case "unique": return fight(run, "elite", "unique");
+    case "goblin": return fight(run, "elite", "goblin");
   }
 }
 
@@ -252,7 +256,7 @@ function openResplendent(run: Run) {
 
 // ---------- Combat ----------
 
-function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique") {
+function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin") {
   run.hero.f.persist["floor"] = run.floor;
   // A Crimson Vault always holds a Crimson boss; in Endless, a floor boss is rarely Crimson too.
   // (Never on the floors with a special boss: the Horror, the Epic Crimson floors, DEATH and the End.)
@@ -260,7 +264,7 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && !special && run.rng() < 0.06));
   // A rare gold thief sometimes turns up in place of a normal monster.
   const thief = rank === "normal" && !then && run.rng() < 0.04;
-  const enemy = then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank);
+  const enemy = then === "goblin" ? makeGoblin(run.rng, run.floor) : then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
@@ -339,7 +343,7 @@ export function drinkPotion(run: Run) {
   let amount = h.f.items["l_bottomless"] ? Math.ceil(h.f.maxHp / 2) : 12;
   if (h.f.items["c_famine"]) amount = Math.ceil(amount / 2);
   if (run.scene.t === "combat") { actionToll(run.scene.battle, h.f); healF(run.scene.battle, h.f, amount, "Potion"); }
-  else h.f.hp = Math.min(h.f.maxHp, h.f.hp + amount);
+  else restore(h, amount);
 }
 
 function afterFight(run: Run) {
@@ -361,7 +365,7 @@ function afterFight(run: Run) {
   }
   if (b.over === "fled") { run.message = curseNote; return advance(run); }
   if (b.over === "escaped") {
-    run.message = `${b.enemy.name} got away with your Gold.${curseNote ? ` ${curseNote}` : ""}`;
+    run.message = (then === "goblin" ? "💨 The Treasure Goblin cackles and vanishes, hoard and all." : `${b.enemy.name} got away with your Gold.`) + (curseNote ? ` ${curseNote}` : "");
     return advance(run);
   }
   run.carry = b.carry;
@@ -384,7 +388,7 @@ function afterFight(run: Run) {
     h.f.persist["bossKills"] = (h.f.persist["bossKills"] ?? 0) + 1;
   }
   // Catch your breath: a small heal after every won fight.
-  h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.ceil(h.f.maxHp * 0.15));
+  restore(h, Math.ceil(h.f.maxHp * 0.15));
   const xp = { normal: 1, elite: 3, champion: 5, crimson: 7, boss: b.enemy.crimson ? 9 : 6 }[rank];
   gainXp(run, xp);
   const gold = { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank] + relicBonus(h.relics, "gold");
@@ -400,7 +404,16 @@ function afterFight(run: Run) {
     h.manaPotions++;
     run.message = "You find a Mana Potion. 🔷";
   }
-  if (then === "unique") {
+  let goblinGold = 0;
+  if (then === "goblin") {
+    // Treasure Goblin: a guaranteed Rare and a fat purse, maybe an Epic, a Legendary or a scroll. All of it is yours.
+    goblinGold = 25 + 8 * run.floor;
+    items.push(rollItem(h, "rare", run.floor, run.rng));
+    if (run.rng() < 0.45) items.push(rollItem(h, "epic", run.floor, run.rng));
+    if (run.rng() < 0.1) items.push(rollItem(h, "legendary", run.floor, run.rng));
+    if (run.rng() < 0.35) scrolls++;
+    run.message = "💰 The Treasure Goblin bursts open. Everything it carried is yours.";
+  } else if (then === "unique") {
     // Unique foes: always an Epic (sometimes a Legendary), a good relic and a fat purse.
     items.push(rollItem(h, run.rng() < 0.15 ? "legendary" : "epic", run.floor, run.rng));
     relic = randomRelic(run, 2);
@@ -433,7 +446,7 @@ function afterFight(run: Run) {
     relic = randomRelic(run, 2);
     if (run.rng() < 0.15) scrolls++;
     h.f.gold += gold;
-    h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.round(h.f.maxHp * 0.3));
+    restore(h, Math.round(h.f.maxHp * 0.3));
     if (relic) {
       grantRelic(run, relic);
     }
@@ -469,7 +482,7 @@ function afterFight(run: Run) {
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (relic) grantRelic(run, relic);
   if (scrolls) grantScrolls(run, scrolls);
-  run.scene = { t: "loot", title: then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined };
+  run.scene = { t: "loot", title: then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined };
   const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean);
   run.message = notes.join(" ");
 }
@@ -535,6 +548,7 @@ export function collectLoot(run: Run) {
   h.f.gold += s.gold;
   h.potions += s.potions;
   recompute(h);
+  lockGold(run);
   s.gold = 0;
   s.scrolls = 0;
   s.potions = 0;
@@ -656,6 +670,7 @@ export function sellItem(run: Run, uid: number): string | null {
   removeGear(h, uid);
   recompute(h);
   h.f.gold += price;
+  lockGold(run);
   s.soldItem = `${baseOf(found.item.base).legendary && !found.item.revealed ? "an unrevealed Legendary" : baseName(found.item)} for ${price} Gold`;
   return null;
 }
@@ -714,7 +729,7 @@ export function forgeReroll(run: Run, uid: number): string | null {
 export function rest(run: Run, choice: "heal" | "cleanse"): string | null {
   const h = run.hero;
   if (run.scene.t !== "rest" || run.scene.done) return null;
-  if (choice === "heal") h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.round(h.f.maxHp * 0.4));
+  if (choice === "heal") restore(h, Math.round(h.f.maxHp * 0.4));
   else {
     const ids = Object.keys(h.curses);
     if (!ids.length) return "You have no curses.";
@@ -738,7 +753,7 @@ export function chooseEvent(run: Run, i: number) {
     addGold: (n: number) => { h.f.gold = Math.max(0, h.f.gold + n); },
     hp: () => h.f.hp,
     hurt: (n: number) => { h.f.hp = Math.max(1, h.f.hp - n); },
-    healPct: (p: number) => { h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.round(h.f.maxHp * p)); },
+    healPct: (p: number) => { restore(h, Math.round(h.f.maxHp * p)); },
     addMaxHp: (n: number) => { h.f.persist["maxHpLoss"] = (h.f.persist["maxHpLoss"] ?? 0) - n; recompute(h); h.f.hp += n; },
     gainItem: (r: Rarity) => { const it = rollItem(h, r, run.floor, run.rng); found.push(it); return it; },
     gainRelic: () => { const id = randomRelic(run); grantRelic(run, id); return getItem(id).name; },
@@ -761,6 +776,7 @@ export function chooseEvent(run: Run, i: number) {
     run.scene = { t: "loot", title: s.ev.title, items: found, gold: 0, scrolls: 0, potions: 0 };
     run.message = result;
   } else s.result = result;
+  lockGold(run);
 }
 
 export function eventOptionAvailable(run: Run, i: number): boolean {
@@ -944,6 +960,7 @@ export function chooseTalent(run: Run, id: string) {
 
 /** Move to the next step: offer pending talents first, then new path choices (or the next floor). */
 export function advance(run: Run, fromTalent = false) {
+  lockGold(run);
   if (!fromTalent) {
     if (run.step >= STEPS_PER_FLOOR) {
       // After a floor boss, stop on a "Floor cleared" screen; the player continues when ready.
@@ -998,4 +1015,20 @@ export function grantScrolls(run: Run, n: number) {
   if (n <= 0) return;
   run.hero.scrolls += n;
   (run.relicNews ??= []).push(`scroll:${n}`);
+}
+
+/** Heal the hero outside a fight. Curses that cut healing (Withered, Unhealing) apply here too. */
+export function restore(h: Hero, amount: number) {
+  let a = amount;
+  eachHook(h.f, "healMult", (hm, n) => (a = Math.floor(a * hm(n))));
+  if (a > 0) h.f.hp = Math.min(h.f.maxHp, h.f.hp + a);
+}
+
+/** Destitute: Gold can go down but never up again. Called after anything that hands out Gold. */
+export function lockGold(run: Run) {
+  const f = run.hero.f;
+  if ((f.items["c_destitute"] ?? 0) <= 0) { delete f.persist["goldLock"]; return; }
+  const lock = f.persist["goldLock"] ?? f.gold;
+  f.gold = Math.min(f.gold, lock);
+  f.persist["goldLock"] = f.gold;
 }

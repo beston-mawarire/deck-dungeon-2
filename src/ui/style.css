@@ -364,3 +364,6 @@ details.gloss summary { font-weight: 700; color: var(--ink); padding: 4px 0; }
 .killer { border-color: var(--bad); margin-top: 8px; }
 .killer-tag { text-transform: uppercase; letter-spacing: .15em; color: var(--bad); font-weight: 800; margin-bottom: 4px; }
 .version { text-align: center; font-size: .75rem; color: var(--muted, #8a8494); opacity: .7; margin: 14px 0 4px; letter-spacing: .05em; }
+.goblin-room { border-color: var(--legendary); background: linear-gradient(160deg, #3a2a10, #2a2233); box-shadow: 0 0 16px rgba(240,138,42,.45); animation: goblinglow 1.8s infinite; }
+.goblin-room b { color: #ffc46b; }
+@keyframes goblinglow { 50% { box-shadow: 0 0 26px rgba(240,138,42,.75); } }

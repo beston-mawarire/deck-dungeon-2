@@ -10,7 +10,7 @@ import { applyStatus, endOfRound, st } from "../src/engine/statuses";
 import { TAGS } from "../src/engine/types";
 import { equipItem, itemName, newHero, recompute, reveal, salvage, slotsFor, weaponDamage } from "../src/game/hero";
 import { resetDropped, resplendentCards, rollItem } from "../src/game/loot";
-import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem, rerollShop, drinkPotion } from "../src/game/run";
+import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem, rerollShop, drinkPotion, lockGold, restore } from "../src/game/run";
 
 beforeAll(() => loadLibrary());
 
@@ -1068,6 +1068,54 @@ describe("class actions and new stats", () => {
     expect(st(g.f, "barrier")).toBe(2);
     applyStatus(b2, b2.enemy, g.f, "weak", 1);
     expect(st(g.f, "barrier")).toBe(2 + 4);
+  });
+
+  it("new curses: Destitute locks Gold, Unhealing stops healing, Frostbound starts fights Chilled", () => {
+    const run = newRun("warrior", 101);
+    run.hero.curses["c_destitute"] = 1; run.hero.curses["c_unhealing"] = 1; run.hero.curses["c_frostbound"] = 1;
+    recompute(run.hero);
+    run.hero.f.gold = 50;
+    lockGold(run);
+    run.hero.f.gold += 30;
+    lockGold(run);
+    expect(run.hero.f.gold).toBe(50);
+    run.hero.f.gold -= 20;
+    lockGold(run);
+    run.hero.f.gold += 5;
+    lockGold(run);
+    expect(run.hero.f.gold).toBe(30);
+    run.hero.f.hp = 10;
+    restore(run.hero, 20);
+    expect(run.hero.f.hp).toBe(10);
+    const b = startBattle(run.hero.f, dummy(), 102);
+    expect(st(b.player, "chill")).toBe(3);
+  });
+
+  it("Treasure Goblins escape after round 3, or drop a Rare and Gold you keep in full", () => {
+    const run = newRun("warrior", 103);
+    run.floor = 3;
+    chooseRoom(run, "goblin");
+    const sc = run.scene as { t: string; battle?: { enemy: { hp: number; items: Record<string, number> }; over?: string; round: number } };
+    expect(sc.t).toBe("combat");
+    expect(sc.battle!.enemy.items["m_goblin"]).toBe(1);
+    sc.battle!.enemy.hp = 0; sc.battle!.over = "won";
+    settleCombat(run);
+    const loot = run.scene as { t: string; items?: { rarity: string }[]; gold?: number };
+    expect(loot.t).toBe("loot");
+    expect(loot.items!.some(i => i.rarity === "rare")).toBe(true);
+    expect(loot.gold!).toBeGreaterThanOrEqual(25 + 8 * 3);
+  });
+
+  it("floor 10 and 20 gear never drops above its floor", () => {
+    const h = newHero("warrior");
+    const rng = makeRng(5);
+    for (let i = 0; i < 400; i++) {
+      const it = rollItem(h, "epic", 9, rng);
+      expect(it.base.startsWith("dp_")).toBe(false);
+    }
+    let seen = 0;
+    for (let i = 0; i < 2000; i++) if (rollItem(h, "epic", 20, rng).base.startsWith("dp_")) seen++;
+    expect(seen).toBeGreaterThan(0);
   });
 
   it("Penance stores damage taken and adds it to the next attack", () => {

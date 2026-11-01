@@ -44,6 +44,11 @@ export const CURSES: HookDef[] = [
   curse({ id: "c_marked", name: "Marked", tags: ["Hex"], text: "Start every fight Exposed for 2 rounds", hooks: { onFightStart: (b, f) => applyStatus(b, null, f, "exposed", 2) } }),
   curse({ id: "c_glass_bones", name: "Glass Bones", tags: ["Guard"], text: "Every hit you take deals 1 more", hooks: { whenHit: (b, c) => { if (c.dealt > 0) ping(b, c.defender, 1, "Glass Bones"); } } }),
   curse({ id: "c_famine", name: "Famine", tags: ["Blood"], text: "Potions heal half as much", hooks: {} }),
+  curse({ id: "c_destitute", name: "Destitute", tags: ["Gold"], text: "You can't earn Gold any more (you can still spend it)", hooks: {} }),
+  curse({ id: "c_unhealing", name: "Unhealing", tags: ["Blood"], text: "You can't heal any more: no potions, rest, Regen or lifesteal", hooks: { healMult: () => 0 } }),
+  curse({ id: "c_frostbound", name: "Frostbound", tags: ["Frost"], text: "Every fight starts with 3 Chill on you", hooks: { onFightStart: (b, f) => applyStatus(b, null, f, "chill", 3) } }),
+  curse({ id: "c_shaky", name: "Shaky Hands", tags: ["Luck"], text: "Your 2s become 1s", hooks: { modifyRoll: (_b, _f, r) => (r === 2 ? 1 : r) } }),
+  curse({ id: "c_tainted_blood", name: "Tainted Blood", tags: ["Blood"], text: "Lose 1 HP at the end of every round in a fight", hooks: { onRoundEnd: (b, f) => { if (f.hp > 1) ping(b, f, 1, "Tainted Blood"); } } }),
   curse({ id: "c_feeble", name: "Feeble", tags: ["Strike"], text: "−1 Damage", hooks: { stats: s => { s.damage -= 1; s.offDamage -= 1; } } })
 ];
 CURSES.push(...BRUTE_CURSES);

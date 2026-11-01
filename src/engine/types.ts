@@ -250,6 +250,8 @@ export interface GearBase extends HookDef {
   dodge?: Partial<Record<Rarity, number>>;
   /** Deep finds: only drop past floor 5 — unless unlocked earlier with Renown. */
   deep?: boolean;
+  /** Only drops on this floor or deeper (Endless). */
+  floorMin?: number;
   /** Never rolls below this rarity (anything that grants Barrier is Uncommon or better). */
   minItemRarity?: Rarity;
   /** Only ever rolls at this rarity (the greater starter-kit items). */
