@@ -12,7 +12,7 @@ import { applyStatus, heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
-import { addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { gainPotions, potionCap, POTIONS_PER_FIGHT, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -398,10 +398,26 @@ export function drinkPotion(run: Run): string | null {
   if (h.potions <= 0 || h.f.hp <= 0 || run.scene.t === "over") return null;
   if (run.scene.t === "combat" && run.scene.battle.over) return null;
   if (isParched(h)) return "🏜️ Parched: the potion turns to dust on your tongue. You can't drink potions.";
-  h.potions--;
+  const inFight = run.scene.t === "combat";
+  const drunk = h.f.flags["potionsDrunk"] ?? 0;
+  if (inFight && drunk >= POTIONS_PER_FIGHT) return `You've already drunk ${POTIONS_PER_FIGHT} potions this fight.`;
+  // Chalice of Plenty: the first potion each fight isn't used up.
+  const free = inFight && drunk === 0 && (h.f.items["lo_chalice_plenty"] ?? 0) > 0;
+  if (!free) h.potions--;
+  if (inFight) h.f.flags["potionsDrunk"] = drunk + 1;
   let amount = h.f.items["l_bottomless"] ? Math.ceil(h.f.maxHp / 2) : 12;
+  if (h.f.items["pc_apothecary_ring"]) amount += 4;
+  if (h.f.items["pc_spare_vial"]) amount += 3;
+  if (h.f.items["pc_alchemist_coat"]) amount = Math.round(amount * 1.25);
+  if (h.f.items["la_flaskwarden"]) amount *= 2;
   if (h.f.items["c_famine"]) amount = Math.ceil(amount / 2);
-  if (run.scene.t === "combat") { actionToll(run.scene.battle, h.f); healF(run.scene.battle, h.f, amount, "Potion"); }
+  if (run.scene.t === "combat") {
+    const b = run.scene.battle;
+    actionToll(b, h.f);
+    const got = healF(b, h.f, amount, free ? "Potion — the Chalice refills" : "Potion");
+    if (h.f.items["pc_brewmaster_mail"]) applyStatus(b, h.f, h.f, "barrier", Math.max(1, got || amount));
+    if (h.f.items["pc_brewers_buckler"]) applyStatus(b, h.f, h.f, "ward", 1);
+  }
   else restore(h, amount);
   return null;
 }
@@ -494,6 +510,12 @@ function afterFight(run: Run) {
   const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, odds, run.floor), run.floor, run.rng);
   if (rank === "normal" && run.rng() < 0.2) items.push(roll(TABLES.drop));
   if (rank === "normal" && run.rng() < 0.1) potions++;
+  // Potion gear: a sober win brews a potion (the Alembic always, the Vial sometimes); the Grail refills one per boss.
+  const sober = !b.player.flags["potionsDrunk"];
+  if (sober && (h.f.items["lx_endless_alembic"] ?? 0) > 0) potions++;
+  else if (sober && (h.f.items["pc_vial_of_plenty"] ?? 0) > 0 && run.rng() < 0.3) potions++;
+  if (rank === "boss" && (h.f.items["pc_grail"] ?? 0) > 0) potions++;
+  if (rank === "boss" && potions) gainPotions(h, potions); // (boss rewards come as a pick, not a loot screen)
   if ((rank === "normal" && run.rng() < 0.05) || (rank === "elite" && run.rng() < 0.15)) {
     h.manaPotions++;
     run.message = "You find a Mana Potion. 🔷";
@@ -657,7 +679,7 @@ export function collectLoot(run: Run) {
   const s = run.scene;
   const h = run.hero;
   h.f.gold += s.gold;
-  h.potions += s.potions;
+  gainPotions(h, s.potions);
   recompute(h);
   lockGold(run);
   s.gold = 0;
@@ -754,11 +776,12 @@ export function buy(run: Run, i: number): string | null {
   const h = run.hero;
   if (!e || e.sold) return null;
   if (h.f.gold < e.price) return "Not enough Gold.";
+  if (e.kind === "potion" && h.potions >= potionCap(h)) return `You can't carry more than ${potionCap(h)} Healing Potions.`;
   if (e.kind === "item" && e.item) {
     const err = addToBackpack(h, e.item);
     if (err) return err;
   }
-  if (e.kind === "potion") h.potions++;
+  if (e.kind === "potion") gainPotions(h, 1);
   if (e.kind === "mana") h.manaPotions++;
   if (e.kind === "scroll") h.scrolls++;
   if (e.kind === "item" && e.item) markFound(run, e.item);
@@ -895,7 +918,7 @@ export function chooseEvent(run: Run, i: number) {
     clearCurses: () => { const n = Object.keys(h.curses).length; h.curses = {}; recompute(h); return n; },
     addXp: (n: number) => gainXp(run, n),
     addScrolls: (n: number) => { grantScrolls(run, n); },
-    addPotions: (n: number) => { h.potions += n; },
+    addPotions: (n: number) => { gainPotions(h, n); },
     addScrap: (n: number) => { h.scrap += n; },
     addPity: (n: number) => { run.loot.pity += n; },
     potions: () => h.potions,

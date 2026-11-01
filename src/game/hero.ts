@@ -1,4 +1,5 @@
 // The hero: origin, equipped gear, backpack, relics, talents, curses — and turning all of that into a Fighter.
+import { POTION_CAP_IDS } from "../data/potions";
 import { ABYSS_ITEMS } from "../data/abyss";
 import { relicBonus } from "../data/basic_relics";
 import { CRIMSON, GEAR_BASES, LEGENDARIES } from "../data";
@@ -15,6 +16,21 @@ export const hasThirdTrinket = (h: Hero) => h.keepsake === "ks_collector";
 export const openSlots = (h: Hero) => EQUIP_SLOTS.filter(s => s !== "trinket3" || hasThirdTrinket(h));
 export const BACKPACK_SIZE = 6;
 export const DRAGON_HEART_MULT = 1.5;
+/** Healing Potions: you carry at most this many (more with potion gear), and drink at most this many per fight. */
+export const BASE_POTION_CAP = 3;
+export const POTIONS_PER_FIGHT = 3;
+export function potionCap(h: Hero): number {
+  let n = BASE_POTION_CAP;
+  for (const id of POTION_CAP_IDS) n += (h.f.items[id] ?? 0) > 0 ? h.f.items[id] : 0;
+  return n;
+}
+/** Add potions up to what you can carry. Returns how many you actually took. */
+export function gainPotions(h: Hero, n: number): number {
+  if (n <= 0) { h.potions = Math.max(0, h.potions + n); return n; }
+  const got = Math.max(0, Math.min(n, potionCap(h) - h.potions));
+  h.potions += got;
+  return got;
+}
 
 export interface Hero {
   origin: OriginId;

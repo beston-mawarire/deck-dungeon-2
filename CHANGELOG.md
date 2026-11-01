@@ -5,6 +5,14 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.7.0
+- Healing Potions: carry at most 3, and drink at most 3 per fight. The top bar shows potions carried / capacity; the Merchant won't sell you one you can't carry.
+- 15 new potion items, each letting you carry 1 more:
+  - Trinkets: Flask Chain (Uncommon), Apothecary's Ring (Rare), Vial of Plenty (Epic), The Endless Alembic (Legendary).
+  - Armour: Bandolier Vest (Uncommon), Alchemist's Coat (Rare), Brewmaster's Mail (Epic), Mantle of the Flaskwarden (Legendary).
+  - Off-hands: Potion Satchel (Uncommon), Tincture Lantern (Rare), Brewer's Buckler (Epic shield), Chalice of Plenty (Legendary).
+  - Relics: Potion Belt (Uncommon), Spare Vial (Rare), The Grail of Plenty (Legendary).
+
 ## 1.6.1
 - Meeting DEATH early (the Crossroads' future): the music stops, the screen goes black, "Floor 80" fills it, fades, and then DEATH arrives. The music returns after.
 
