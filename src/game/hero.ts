@@ -353,11 +353,13 @@ export function reveal(h: Hero, uid: number): string | null {
   return null;
 }
 
-export const upgradeCost = (item: GearItem) => 3 * item.level;
+/** Price Gouged (curse): purchases, upgrades and rerolls cost 25% more. */
+export const gouge = (h?: Hero) => ((h?.curses["c_gouged"] ?? 0) > 0 ? 1.25 : 1);
+export const upgradeCost = (item: GearItem, h?: Hero) => Math.ceil(3 * item.level * gouge(h));
 export const REROLL_COST = 4;
 /** Each Forge reroll on the same item costs double the last, up to 5 rerolls per item. Deeper items start dearer. */
 export const MAX_REROLLS = 5;
-export const rerollCost = (item: GearItem) => (REROLL_COST + Math.floor((item.level - 1) / 2)) * 2 ** (item.rerolls ?? 0);
+export const rerollCost = (item: GearItem, h?: Hero) => Math.ceil((REROLL_COST + Math.floor((item.level - 1) / 2)) * 2 ** (item.rerolls ?? 0) * gouge(h));
 export const rerollsLeft = (item: GearItem) => Math.max(0, MAX_REROLLS - (item.rerolls ?? 0));
 
 /** Tags of everything equipped, relics and talents (used to lean loot and talent offers). */

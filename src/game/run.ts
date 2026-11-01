@@ -11,7 +11,7 @@ import { makeRng } from "../engine/rng";
 import { applyStatus, heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
-import { addToBackpack, canGuard, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { addToBackpack, canGuard, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -707,7 +707,7 @@ export function sellItem(run: Run, uid: number): string | null {
 }
 
 /** Shop prices grow with the floor: +12% per floor below the first. */
-export const priceMult = (run: Run) => 1 + 0.12 * (run.floor - 1);
+export const priceMult = (run: Run) => (1 + 0.12 * (run.floor - 1)) * gouge(run.hero);
 /** Each reroll at the same Merchant costs double the last (from 10 Gold, scaled by the floor), up to 5 rerolls per visit. */
 export const MAX_SHOP_REROLLS = 5;
 export const shopRerollCost = (run: Run) => Math.round(10 * priceMult(run)) * 2 ** run.shopRerolls;
@@ -727,7 +727,7 @@ export function forgeUpgrade(run: Run, uid: number): string | null {
   const h = run.hero;
   const found = findItem(h, uid);
   if (!found) return null;
-  const cost = upgradeCost(found.item);
+  const cost = upgradeCost(found.item, h);
   if (h.scrap < cost) return `Needs ${cost} Scrap.`;
   h.scrap -= cost;
   found.item.level++;
@@ -743,7 +743,7 @@ export function forgeReroll(run: Run, uid: number): string | null {
   const keys = Object.keys(found.item.bonuses);
   if (!keys.length) return "This item has no bonuses to reroll.";
   if ((found.item.rerolls ?? 0) >= MAX_REROLLS) return "This item can't be rerolled any more.";
-  const cost = rerollCost(found.item);
+  const cost = rerollCost(found.item, h);
   if (h.scrap < cost) return `Needs ${cost} Scrap.`;
   h.scrap -= cost;
   found.item.rerolls = (found.item.rerolls ?? 0) + 1;

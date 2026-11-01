@@ -21,6 +21,7 @@ import {
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
+import { applyUpdate, updateReady, watchForUpdates } from "./update";
 import { isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
 
 loadLibrary();
@@ -416,7 +417,7 @@ function forgeScene(r: Run) {
   let body = "";
   if (forgeTab === "upgrade") {
     body = `<p class="sub">Upgrading raises an item's level (more damage, stronger bonuses). Each reroll of the same item costs more.</p>
-    <div class="cards">${allGear(r).map(it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small" data-rr="${it.uid}" ${rerollsLeft(it) ? "" : "disabled"}>${rerollsLeft(it) ? `Reroll · ${rerollCost(it)} ⚙️ (${rerollsLeft(it)} left)` : "No rerolls left"}</button>` : ""}`, false, equippedSlot(r, it))).join("")}</div>`;
+    <div class="cards">${allGear(r).map(it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small" data-rr="${it.uid}" ${rerollsLeft(it) ? "" : "disabled"}>${rerollsLeft(it) ? `Reroll · ${rerollCost(it, r.hero)} ⚙️ (${rerollsLeft(it)} left)` : "No rerolls left"}</button>` : ""}`, false, equippedSlot(r, it))).join("")}</div>`;
   } else if (forgeTab === "offer") {
     const chosen = h.backpack.filter(i => offerSel.has(i.uid));
     const odds = offeringOdds(offeringValue(chosen));
@@ -931,6 +932,8 @@ function celebrateScene(r: Run) {
 
 function render() {
   app.classList.toggle("with-side", !!run);
+  // Not in a run: a new build can load straight away.
+  if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
     app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}`;
@@ -941,6 +944,8 @@ function render() {
   const s = r.scene;
   // Autosave at every path choice; a finished run clears the save.
   if (s.t === "map") saveRun(r, banked);
+  // A new build is out: install it now that the run is safely saved at a path choice.
+  if (updateReady() && (s.t === "map" || s.t === "over")) { applyUpdate(); }
   if (s.t === "over") clearSave();
   if (s.t === "combat" && s.battle !== currentBattle) {
     currentBattle = s.battle;
@@ -1218,3 +1223,6 @@ render();
 
 // Show or hide the "Tap for music" hint as the browser blocks or allows the music.
 onMusicBlockChange(() => render());
+
+// Check for new builds; reload at the next safe moment, and say so if that has to wait.
+watchForUpdates(() => { if (run && run.scene.t !== "map" && run.scene.t !== "over") say("✨ An update is ready. It will load at your next path choice (your run is saved).", false); render(); });

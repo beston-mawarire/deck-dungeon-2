@@ -49,6 +49,11 @@ export const CURSES: HookDef[] = [
   curse({ id: "c_frostbound", name: "Frostbound", tags: ["Frost"], text: "Every fight starts with 3 Chill on you", hooks: { onFightStart: (b, f) => applyStatus(b, null, f, "chill", 3) } }),
   curse({ id: "c_shaky", name: "Shaky Hands", tags: ["Luck"], text: "Your 2s become 1s", hooks: { modifyRoll: (_b, _f, r) => (r === 2 ? 1 : r) } }),
   curse({ id: "c_tainted_blood", name: "Tainted Blood", tags: ["Blood"], text: "Lose 1 HP at the end of every round in a fight", hooks: { onRoundEnd: (b, f) => { if (f.hp > 1) ping(b, f, 1, "Tainted Blood"); } } }),
+  curse({ id: "c_faded_hexes", name: "Faded Hexes", tags: ["Hex"], text: "Statuses you put on enemies land with 1 less stack",
+    hooks: { onStatusApplied: (_b, self, t, s) => { if (t !== self && (t.statuses[s] ?? 0) > 0) t.statuses[s] = (t.statuses[s] ?? 0) - 1; } } }),
+  curse({ id: "c_gouged", name: "Price Gouged", tags: ["Gold"], text: "Shop purchases, rerolls and Forge upgrades cost 25% more", hooks: {} }),
+  curse({ id: "c_dim_luck", name: "Dim Luck", tags: ["Luck", "Crit"], text: "−5% Crit chance", hooks: { stats: s => { s.critChance -= 5; } } }),
+  curse({ id: "c_slow_wits", name: "Slow Wits", tags: ["Tempo"], text: "−5% Dodge", hooks: { stats: s => { s.dodge -= 5; } } }),
   curse({ id: "c_feeble", name: "Feeble", tags: ["Strike"], text: "−1 Damage", hooks: { stats: s => { s.damage -= 1; s.offDamage -= 1; } } })
 ];
 CURSES.push(...BRUTE_CURSES);
