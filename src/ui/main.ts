@@ -260,15 +260,15 @@ function titleScreen() {
   ${(() => { const sv = savedSummary(); return sv ? `<button class="primary continue" data-continue>▶ Continue your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run · ${sv.mode === "endless" ? "Endless " : ""}floor ${sv.floor} · level ${sv.level}</button>` : ""; })()}
   <h2 class="bright">Mode</h2>
   <div class="modes">
-    <div class="modebtn ${mode === "campaign" ? "active" : ""}" data-mode="campaign" role="button" tabindex="0"><span>🏰 Campaign · ${FLOORS} floors</span><span class="story-chip" data-story="campaign" role="button">📖 Story</span></div>
-    <div class="modebtn ${mode === "endless" ? "active" : ""}" data-mode="endless" role="button" tabindex="0"><span>♾️ Endless · how deep?</span><span class="story-chip" data-story="endless" role="button">📖 Story</span></div>
+    <div class="modebtn ${mode === "campaign" ? "active" : ""}" data-mode="campaign" role="button" tabindex="0"><span>🏰 Campaign · ${FLOORS} floors</span><span class="story-chip" data-story="campaign" role="button">📖 Read story</span></div>
+    <div class="modebtn ${mode === "endless" ? "active" : ""}" data-mode="endless" role="button" tabindex="0"><span>♾️ Endless · how deep?</span><span class="story-chip" data-story="endless" role="button">📖 Read story</span></div>
   </div>
   <p class="sub">${mode === "campaign" ? `${FLOORS} floors, ${FLOORS} bosses — the Hollow King waits at the bottom.` : `Past floor ${FLOORS}, better rewards. The bosses you didn't meet return, and new ones are forged from the depths.`}</p>
   <h2 class="bright">Choose an origin</h2>
   <div class="cards">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
     const og = ORIGINS[o];
     const p = getItem(og.passive);
-    return `<button class="room" data-origin="${o}"><span class="ic">${{ warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" }[o]}</span><b>${og.name}</b>
+    return `<button class="room origin-card" data-origin="${o}"><span class="ic">${{ warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" }[o]}</span><b>${og.name}</b>
       <span class="sub">${esc(og.blurb)}</span><p>${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p><p><b style="display:inline">${esc(p.name)}:</b> ${esc(p.text)}.</p></button>`;
   }).join("")}</div>
   <p class="version">${VERSION}</p>`;
