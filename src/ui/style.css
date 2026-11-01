@@ -585,3 +585,4 @@ button.lb-btn { border-color: #e8b84a; color: #f1d38a; }
 button.story-btn { flex: 0 0 auto; font-size: .95rem; padding: 10px 14px; font-weight: 700; background: linear-gradient(180deg, #d4c2ff, #a68ae6); border: 1px solid #6e56b0; color: #1c1236; box-shadow: 0 3px 0 #54408f; }
 .splash-buttons .lb-btn { color: #ffe39a; border-color: #c9a25a; }
 @media (max-width: 520px) { .story-row { flex-direction: column; align-items: stretch; text-align: left; } button.story-btn { width: 100%; } }
+.lb-warn { color: #ffb08a; font-weight: 700; font-size: .88rem; margin: 6px 0 2px; }

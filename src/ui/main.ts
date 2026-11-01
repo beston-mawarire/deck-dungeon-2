@@ -62,7 +62,6 @@ let lbRows: Row[] | null = null;
 let lbMe: { rank: number; value: number } | null = null;
 let lbError = "";
 let lbResult: { ranks?: Partial<Record<Board, number>> } | null | "sending" = null;
-let lbNaming = false;
 /** The in-run menu (main menu / end run). */
 let menuOpen = false;
 /** The current-bounty popup. */
@@ -680,18 +679,19 @@ function runStatsPanel(r: Run) {
   if (!leaderboardOn()) return tiles;
   const name = playerName();
   let box: string;
-  if (!name || lbNaming) {
+  if (!name) {
     box = `<div class="lb-name"><p><b>🏆 Put this run on the leaderboards</b></p>
-      <div class="row"><input id="lb-name" maxlength="16" placeholder="Your name" value="${esc(name)}" autocomplete="nickname"><button class="primary small" data-lbsubmit>${r.submitted ? "Save name" : "Submit"}</button></div>
+      <div class="row"><input id="lb-name" maxlength="16" placeholder="Your name" value="${esc(name)}" autocomplete="nickname"><button class="primary small" data-lbsubmit>Submit</button></div>
+      <p class="lb-warn">⚠️ Choose carefully: once you post, your name can't be changed.</p>
       <p class="sub">Up to 16 letters. It's remembered: your next runs go up by themselves.</p></div>`;
   } else if (lbResult === "sending") box = `<p class="lb-placed">🏆 Sending to the leaderboards…</p>`;
   else if (lbResult && lbResult.ranks) {
     const rk = lbResult.ranks;
     const best = BOARDS.filter(b => (rk[b.id] ?? 99) <= 10).map(b => `${b.icon} #${rk[b.id]} ${b.label}`);
     box = `<p class="lb-placed">🏆 On the leaderboards as <b>${esc(name)}</b>${best.length ? ` · ${best.join(" · ")}` : ` · #${rk.floor} deepest`}</p>
-      <div class="row"><button class="small" data-lb>See the leaderboards</button><button class="small" data-lbrename>Change name</button></div>`;
+      <div class="row"><button class="small" data-lb>See the leaderboards</button></div>`;
   } else if (r.submitted) box = `<p class="lb-placed">🏆 Couldn't reach the leaderboards. This run will be sent when you're back online.</p>`;
-  else box = `<div class="row"><button class="small primary" data-lbsend>🏆 Submit as ${esc(name)}</button><button class="small" data-lbrename>Change name</button></div>`;
+  else box = `<div class="row"><button class="small primary" data-lbsend>🏆 Submit as ${esc(name)}</button></div>`;
   return tiles + box;
 }
 
@@ -1430,13 +1430,12 @@ function bind() {
   on("[data-lb]", () => { lbOpen = true; loadBoard(lbBoard); });
   on("[data-lbclose]", () => { lbOpen = false; });
   on("[data-lbboard]", el => { loadBoard(el.dataset.lbboard as Board); });
-  on("[data-lbrename]", () => { lbNaming = true; });
   on("[data-lbsend]", () => { if (run) sendRun(run); });
   on("[data-lbsubmit]", () => {
     const input = app.querySelector<HTMLInputElement>("#lb-name");
     const name = setPlayerName(input?.value ?? "");
     if (!name) { say("Pick a name first (letters and numbers, up to 16)."); return; }
-    lbNaming = false;
+   
     if (run && !run.submitted) sendRun(run);
   });
   app.querySelector<HTMLInputElement>("#lb-name")?.addEventListener("click", ev => ev.stopPropagation());
@@ -1474,7 +1473,7 @@ function bind() {
     on("[data-help]", () => { helpOpen = true; });
     on("[data-closehelp]", () => { helpOpen = false; });
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode; });
-    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; run = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
+    on("[data-start]", () => { mode = "campaign"; lbResult = null; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; run = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
     return;
   }
   const r = run;
@@ -1547,7 +1546,7 @@ function bind() {
   on("[data-rest]", () => say(rest(r, "heal")));
   on("[data-risk]", el => confirmRisk(r, el.dataset.risk === "yes"));
   on("[data-event]", el => chooseEvent(r, Number(el.dataset.event)));
-  on("[data-newrun]", () => { run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
+  on("[data-newrun]", () => { run = null; bagOpen = false; meta = loadMeta(); lbResult = null; });
   on("[data-endless]", () => { if (run) run.submitted = false; lbResult = null; continueEndless(r); recorded = null; });
   on("[data-unequip]", el => say(unequip(r.hero, el.dataset.unequip as EquipSlot)));
   on("[data-equip]", el => { const it = r.hero.backpack.find(i => i.uid === Number(el.dataset.equip)); if (it) say(equipItem(r.hero, it, el.dataset.slot as EquipSlot)); });
