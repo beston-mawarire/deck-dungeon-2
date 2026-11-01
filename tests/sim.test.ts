@@ -126,3 +126,27 @@ it("lucky run probe", () => {
   }
   console.log("LUCKY", JSON.stringify(out, null, 1));
 }, 600000);
+
+// Abyss probe: how deep the bot gets with 0, 5, 10 and 20 Vanadium Plates (set ABYSS=1 to run).
+it("abyss probe", async () => {
+  loadLibrary();
+  if (!process.env.ABYSS) return;
+  const { recompute } = await import("../src/game/hero");
+  const out: Record<string, unknown> = {};
+  for (const plates of [0, 5, 10, 20]) {
+    const depths: number[] = [];
+    let wins = 0;
+    for (let i = 0; i < 200; i++) {
+      const o = (["warrior", "rogue", "mage", "cleric"] as const)[i % 4];
+      const run = newRun(o, 5000 + i, "abyss");
+      run.hero.plates = plates; recompute(run.hero); run.hero.f.hp = run.hero.f.maxHp;
+      for (let g = 0; g < 20000 && run.scene.t !== "over"; g++) botStep(run);
+      if (run.scene.t === "over" && run.scene.won) wins++;
+      depths.push(Math.min(run.floor, 10));
+    }
+    const hist: Record<number, number> = {};
+    for (const d of depths) hist[d] = (hist[d] ?? 0) + 1;
+    out[`plates${plates}`] = { avgDepth: (depths.reduce((a, b) => a + b, 0) / depths.length).toFixed(2), wins, hist };
+  }
+  console.log("ABYSS", JSON.stringify(out));
+}, 600000);

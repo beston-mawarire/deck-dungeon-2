@@ -11,20 +11,20 @@ import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engin
 import { NEGATIVE_STATUSES, rarityLabel } from "../engine/types";
 import {
   BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost, rerollsLeft,
-  keepsOffHand, findItem, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
+  keepsOffHand, findItem, recompute, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
 } from "../game/hero";
-import { lockedIds, loadMeta, type Meta, recordRun, UNLOCK_TIERS } from "../game/meta";
+import { abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
-  ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
+  ROOM_INFO, ABYSS_ROOM_INFO, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   abandonRun, smithUpgrade, runSummary, trackGold, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
-import { potionCap, potionsPerFight } from "../game/hero";
+import { PLATE_BONUS, potionCap, potionsPerFight } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
-import { BOARDS, type Board, fetchBoard, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun } from "./leaderboard";
+import { backupCode, backupVault, BOARDS, type Board, fetchBoard, fetchVault, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun, useBackupCode, vaultDirty } from "./leaderboard";
 import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
@@ -51,6 +51,13 @@ let mode: Mode = "campaign";
 let bagOpen = false;
 /** The class the player tapped on the title screen (the popup before a run starts). */
 let pendingOrigin: OriginId | null = null;
+/** The title screen's tabs: the Campaign, or an Abyss run. */
+let menuTab: "campaign" | "abyss" = "campaign";
+/** Adding a Vanadium Plate is for good: the first tap arms it, the second applies it. */
+let plateArmed = false;
+let restoreOpen = false;
+let restoreMsg = "";
+const vaultOf = (m: Meta) => ({ shards: m.ruinShards ?? 0, plates: m.plates ?? 0, classPlates: m.classPlates ?? {} });
 /** Which mode's story popup is open on the title screen. */
 let storyOpen: Mode | null = null;
 /** The How to play guide is open. */
@@ -228,7 +235,7 @@ function itemCard(it: GearItem, buttons = "", compare = false, equippedAs = "") 
 }
 
 const nextMilestone = (f: number) => (f < WALL_FLOOR ? ` · a Horror at ${WALL_FLOOR}` : f < DEATH_FLOOR ? ` · DEATH at ${DEATH_FLOOR}` : f < END_FLOOR ? ` · the End at ${END_FLOOR}` : "");
-const floorLabel = (r: Run) => (r.mode === "endless" ? `Floor <b>${r.floor}</b>${nextMilestone(r.floor)}` : `Floor <b>${Math.min(r.floor, FLOORS)}</b>/${FLOORS}`);
+const floorLabel = (r: Run) => (r.mode === "abyss" ? `Depth <b>${Math.min(r.floor, ABYSS_FLOORS)}</b>/${ABYSS_FLOORS}` : r.mode === "endless" ? `Floor <b>${r.floor}</b>${nextMilestone(r.floor)}` : `Floor <b>${Math.min(r.floor, FLOORS)}</b>/${FLOORS}`);
 
 /** The current bounty's tracker button (📋 progress/target). */
 function bountyBtn(r: Run) {
@@ -266,21 +273,58 @@ function hud(r: Run) {
 function titleScreen() {
   const locked = lockedIds(meta);
   const next = UNLOCK_TIERS.find(t => meta.renown < t.at);
-  return `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>
+  const sv = savedSummary();
+  const cont = sv ? `<button class="primary continue" data-continue>▶ Continue your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run · ${sv.mode === "abyss" ? `Abyss depth ${sv.floor}` : `${sv.mode === "endless" ? "Endless " : ""}floor ${sv.floor}`} · level ${sv.level}</button>` : "";
+  const tabs = `<div class="menu-tabs" role="tablist">
+    <button class="menu-tab ${menuTab === "campaign" ? "active" : ""}" data-menutab="campaign" role="tab">🏰 Campaign</button>
+    <button class="menu-tab abyss ${menuTab === "abyss" ? "active" : ""}" data-menutab="abyss" role="tab">${abyssUnlocked(meta) ? "🕳️" : "🔒"} Abyss Run</button></div>`;
+  const originCards = (abyss: boolean) => `<div class="cards origin-cards">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
+    const og = ORIGINS[o];
+    const p = getItem(og.passive);
+    const pl = meta.classPlates?.[o] ?? 0;
+    return `<button class="room origin-card ${abyss ? "abyss-card" : ""}" data-origin="${o}"><span class="ic">${ORIGIN_ICON[o]}</span><b>${og.name}</b>
+      ${abyss ? `<span class="plate-line">⬛ ${pl} Vanadium Plate${pl === 1 ? "" : "s"}${pl ? ` · +${Math.round(PLATE_BONUS * pl * 100)}% HP, Armor, Damage` : ""}</span>` : ""}
+      <span class="sub">${esc(og.blurb)}</span><p>${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p><p><b style="display:inline">${esc(p.name)}:</b> ${esc(p.text)}.</p></button>`;
+  }).join("")}</div>`;
+  const head = `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>`;
+  if (menuTab === "abyss") {
+    const shards = meta.ruinShards ?? 0;
+    const body = !abyssUnlocked(meta)
+      ? `<div class="panel abyss-locked"><p class="big">🔒 The Abyss is sealed.</p><p>Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find the way down.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p></div>`
+      : `<div class="panel abyss-intro"><p><b>Ten depths.</b> Every fight is a rank tougher than it looks from above: monsters are Elites, Elites are Champions, Champions are bosses, and every floor ends with an Uber boss. The loot is far richer, and richest from the deadliest foes.</p>
+          <div class="story-row"><span>Each run costs one Ruin Shard.</span><button class="story-btn" data-story="abyss">📖 Click to read story</button></div></div>
+        <div class="abyss-stock">
+          <div class="stile extra-tile shard-tile"><span>🪨</span><span><b>${shards}</b> Ruin Shard${shards === 1 ? "" : "s"}<span class="sub">From Campaign bosses, floor 20 and deeper.</span></span></div>
+          <div class="stile extra-tile plate-tile"><span>⬛</span><span><b>${meta.plates ?? 0}</b> Vanadium Plate${(meta.plates ?? 0) === 1 ? "" : "s"} to give<span class="sub">Rare drops from the same bosses.</span></span></div>
+          <div class="stile extra-tile" style="grid-column: 1 / -1"><span>🏅</span><span>Deepest: <b>${meta.abyssBest ? `depth ${meta.abyssBest}/10` : "not yet"}</b><span class="sub">${meta.abyssRuns ?? 0} Abyss run${(meta.abyssRuns ?? 0) === 1 ? "" : "s"}</span></span></div>
+        </div>
+        ${shards ? "" : `<div class="panel abyss-warn">You need a Ruin Shard to enter. Every boss from floor 20 of the Campaign drops one.</div>`}
+        <h2 class="bright">Choose a hero</h2>
+        <p class="sub">Vanadium Plates make a hero stronger in the Abyss only. Once given, a plate stays with that hero for good.</p>
+        ${originCards(true)}
+        ${backupPanel()}`;
+    return `${head}${tabs}${cont}${body}<p class="version">${VERSION}</p>`;
+  }
+  return `${head}${tabs}
   <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
   <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span></div>
     <div class="menu-btns"><button data-codex>📖 Codex</button><button data-help>❓ How to play</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>
     ${next ? `<p class="sub">Next unlock at ${next.at} Renown: <b>${esc(next.name)}</b> (${locked.size} items still locked)</p>` : `<p class="sub">Everything is unlocked.</p>`}</div>
-  ${(() => { const sv = savedSummary(); return sv ? `<button class="primary continue" data-continue>▶ Continue your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run · ${sv.mode === "endless" ? "Endless " : ""}floor ${sv.floor} · level ${sv.level}</button>` : ""; })()}
+  ${cont}
   <div class="story-row"><span>🏰 ${FLOORS} floors, ${FLOORS} bosses. The Hollow King waits at the bottom, and beyond him, deeper still.</span><button class="story-btn" data-story="campaign">📖 Click to read story</button></div>
   <h2 class="bright">Choose an origin</h2>
-  <div class="cards origin-cards">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
-    const og = ORIGINS[o];
-    const p = getItem(og.passive);
-    return `<button class="room origin-card" data-origin="${o}"><span class="ic">${{ warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" }[o]}</span><b>${og.name}</b>
-      <span class="sub">${esc(og.blurb)}</span><p>${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p><p><b style="display:inline">${esc(p.name)}:</b> ${esc(p.text)}.</p></button>`;
-  }).join("")}</div>
+  ${originCards(false)}
   <p class="version">${VERSION}</p>`;
+}
+
+/** Ruin Shards and Vanadium Plates are backed up to the server; the backup code restores them on another device. */
+function backupPanel() {
+  if (!leaderboardOn()) return "";
+  return `<div class="panel backup-panel"><p><b>🔐 Backup</b> <span class="sub">Your Shards and Plates are backed up online. Keep this code to restore them on another device:</span></p>
+    <p class="backup-code">${esc(backupCode())}</p>
+    ${restoreOpen ? `<div class="row"><input id="restore-code" class="grow" placeholder="Paste a backup code" maxlength="24" autocomplete="off"><button class="small primary" data-restore>Restore</button><button class="small" data-restoreclose>Cancel</button></div>
+      <p class="sub">Restoring replaces this device's Shards and Plates (and leaderboard identity) with the code's.</p>` : `<button class="small" data-restoreopen>Restore from a code</button>`}
+    ${restoreMsg ? `<p class="sub">${esc(restoreMsg)}</p>` : ""}</div>`;
 }
 
 function codexScreen() {
@@ -310,11 +354,12 @@ function codexScreen() {
 // ---------- Scenes ----------
 
 function mapScene(r: Run) {
-  const pips = fortunePips(r.floor);
-  return `<div class="floorname">Floor ${r.floor} · ${esc(floorName(r.floor))}</div><div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>
-  <h2>${r.step >= STEPS_PER_FLOOR ? (r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits") : "Choose your path"}</h2>
-  <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : ""}" data-room="${c}">${(() => { const g = c === "crossroads" ? CROSSROADS_GUISES[r.crossroadsGuise ?? 0] : null; const info = g ? { icon: g.icon, name: g.title, text: g.room } : ROOM_INFO[c];
-    return `<span class="ic">${c === "boss" && r.floor >= FLOORS ? "💀" : info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>`).join("")}</div>`;
+  const pips = fortunePips(depth(r));
+  const abyss = r.mode === "abyss";
+  return `<div class="floorname ${abyss ? "abyss-name" : ""}">${abyss ? `🕳️ The Abyss · Depth ${r.floor}` : `Floor ${r.floor} · ${esc(floorName(r.floor))}`}</div><div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>
+  <h2>${r.step >= STEPS_PER_FLOOR ? (r.mode === "abyss" ? "The Uber boss awaits" : r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits") : "Choose your path"}</h2>
+  <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : ""}" data-room="${c}">${(() => { const g = c === "crossroads" ? CROSSROADS_GUISES[r.crossroadsGuise ?? 0] : null; const info = g ? { icon: g.icon, name: g.title, text: g.room } : (r.mode === "abyss" && ABYSS_ROOM_INFO[c]) || ROOM_INFO[c];
+    return `<span class="ic">${c === "boss" && r.floor >= FLOORS && r.mode !== "abyss" ? "💀" : info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>`).join("")}</div>`;
 }
 
 function dieBox(who: "player" | "enemy", label: string) {
@@ -544,11 +589,11 @@ function clearedScene(r: Run) {
   const s = r.scene;
   const next = s.floor + 1;
   return `<div class="victory cleared">
-    <div class="victory-title">FLOOR ${s.floor} CLEARED</div>
+    <div class="victory-title">${r.mode === "abyss" ? `DEPTH ${s.floor} CLEARED` : `FLOOR ${s.floor} CLEARED`}</div>
     <p class="center">${esc(s.boss)} has fallen.</p>
     <p class="center sub">${r.stats.kills} kills · level ${r.hero.level} · ${r.hero.f.hp}/${r.hero.f.maxHp} HP</p>
-    <p class="center" style="margin-top:10px">Below lies <b>Floor ${next} — ${esc(floorName(next))}</b>.</p>
-    <div class="row" style="justify-content:center;margin-top:14px"><button class="primary big" data-descend>Descend to floor ${next} ↓</button></div>
+    <p class="center" style="margin-top:10px">Below lies <b>${r.mode === "abyss" ? `Depth ${next} of the Abyss` : `Floor ${next} — ${esc(floorName(next))}`}</b>.</p>
+    <div class="row" style="justify-content:center;margin-top:14px"><button class="primary big" data-descend>Descend to ${r.mode === "abyss" ? "depth" : "floor"} ${next} ↓</button></div>
     <p class="center sub" style="margin-top:8px">Check your 🎒 gear before you go.</p>
   </div>`;
 }
@@ -756,7 +801,7 @@ function leaderboardPopup() {
   else if (lbError) body = `<p class="sub center">${esc(lbError)}</p>`;
   else if (!lbRows) body = `<p class="sub center">Loading…</p>`;
   else if (!lbRows.length) body = `<p class="sub center">Nobody's on this board yet. Be the first!</p>`;
-  else body = `<ol class="lb-list">${lbRows.map(row => `<li class="${row.you ? "you" : ""} ${row.rank <= 3 ? `top${row.rank}` : ""}"><span class="lb-rank">${row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}</span><span class="lb-nm">${ORIGIN_IC[row.origin] ?? ""} ${esc(row.name)}${row.you ? " <i>(you)</i>" : ""}</span><b class="lb-val">${fmtN(row.value)}</b></li>`).join("")}</ol>
+  else body = `<ol class="lb-list">${lbRows.map(row => `<li class="${row.you ? "you" : ""} ${row.rank <= 3 ? `top${row.rank}` : ""}"><span class="lb-rank">${row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}</span><span class="lb-nm">${ORIGIN_IC[row.origin] ?? ""} ${esc(row.name)}${row.you ? " <i>(you)</i>" : ""}${row.plates ? ` <span class="lb-plates" title="Vanadium Plates">⬛${row.plates}</span>` : ""}</span><b class="lb-val">${fmtN(row.value)}</b></li>`).join("")}</ol>
     ${lbMe ? `<p class="lb-me">You: #${lbMe.rank} · ${fmtN(lbMe.value)}</p>` : ""}`;
   return `<div class="overlay"><div class="inner lb-pop">
     <div class="row"><h1 class="grow">🏆 Leaderboards</h1><button class="closebtn" data-lbclose>✕ Close</button></div>
@@ -777,13 +822,15 @@ function overScene(r: Run) {
   if (r.scene.t !== "over") return "";
   const h = r.hero;
   const won = r.scene.won;
-  return `<div class="banner ${won ? "won" : "lost"}">${r.finale ? "Nothing remains. You won everything." : won ? "The Hollow King falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen."}</div>
+  const abyss = r.mode === "abyss";
+  return `<div class="banner ${won ? "won" : "lost"}">${r.finale ? "Nothing remains. You won everything." : won && abyss ? "You reached the bottom of the Abyss!" : won ? "The Hollow King falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen."}</div>
   ${!won && r.killer && !r.abandoned ? killerPanel(r) : ""}
-  <div class="panel"><p>${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses</p>
+  <div class="panel"><p>${abyss ? `Abyss · Depth ${Math.min(r.floor, ABYSS_FLOORS)}/${ABYSS_FLOORS}${r.hero.plates ? ` · ⬛ ${r.hero.plates} plates` : ""}` : `${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor}`} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses</p>
   ${recorded ? `<p>🏅 +${recorded.earned} Renown (total ${meta.renown})${recorded.unlocked.length ? ` · Unlocked: <b>${recorded.unlocked.map(esc).join(", ")}</b>` : ""}</p>` : ""}
   ${runStatsPanel(r)}
   <p class="sub">Final build:</p><div class="cards">${EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x).map(it => itemCard(it)).join("")}</div></div>
-  <div class="row" style="margin-top:12px">${won && !r.finale ? `<button class="primary" data-endless>Keep delving · better rewards below</button>` : ""}<button class="${won ? "" : "primary"}" data-newrun>New run</button></div>`;
+  <div class="row" style="margin-top:12px">${r.ruin?.shards || r.ruin?.plates ? `<p class="ruin-line">Kept for good: ${r.ruin.shards ? `🪨 ${r.ruin.shards} Ruin Shard${r.ruin.shards === 1 ? "" : "s"}` : ""}${r.ruin.shards && r.ruin.plates ? " · " : ""}${r.ruin.plates ? `⬛ ${r.ruin.plates} Vanadium Plate${r.ruin.plates === 1 ? "" : "s"}` : ""}</p>` : ""}
+  ${won && !r.finale && !abyss ? `<button class="primary" data-endless>Keep delving · better rewards below</button>` : ""}<button class="${won ? "" : "primary"}" data-newrun>New run</button></div>`;
 }
 
 function bag(r: Run) {
@@ -939,7 +986,8 @@ const ORIGIN_PITCH: Record<OriginId, string> = {
 
 const STORIES: Record<Mode, { icon: string; title: string; text: string }> = {
   campaign: { icon: "🏰", title: "Campaign", text: "Deep within a dungeon, a gate to the netherworld has been opened. Dark beasts and unspeakable horrors pour out from it. Your king has called upon you as the mightiest in the kingdom to venture into the dungeon and close the gate." },
-  endless: { icon: "♾️", title: "Endless", text: "At the forsaken dungeon depths, a rift between worlds has been torn open. The fate of the lands has been sealed. You venture deep into the dungeon to take as many creatures of the dark with you before you are defeated." }
+  endless: { icon: "♾️", title: "Endless", text: "At the forsaken dungeon depths, a rift between worlds has been torn open. The fate of the lands has been sealed. You venture deep into the dungeon to take as many creatures of the dark with you before you are defeated." },
+  abyss: { icon: "🕳️", title: "The Abyss", text: "Below the deepest floor, past where the Horror slept, the dungeon keeps going. The old maps call it the Abyss: a wound in the world where the netherworld's champions gather their spoils. Those who come back bring a shard of ruin with them, and those shards can open the way down again. Down there, nothing is ordinary. What looks like a beast is an elite killer; what looks like a guardian is a lord. And every one of them hoards treasure that the surface has never seen. Ten depths. Few see the bottom. Fewer return with the plates of dark metal that make the next descent survivable." }
 };
 
 function helpPopup() {
@@ -1050,6 +1098,13 @@ function helpGlossary() {
     row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell one item per visit"),
     row("💍", "Jeweller", "Takes turns with the Forge; two tries per visit. Fuse: two relics (marked 🔗), or two Rare-or-better trinkets (yours to discover; costs Starmetal). A fusion that doesn't take still costs the fee. Infuse: put a same-rarity trinket into a weapon, off-hand or armour; the trinket is used up. Upgraded items can't be fused or infused"),
     row("🧪", "Healing Potions", "Heal 12. You start with 3 potion slots: carry up to 3, and drink up to 3 in one fight. Potion gear and relics add slots (more at higher rarity)")
+  ].join(""))}
+  ${group("🕳️ The Abyss", [
+    row("🔓", "Opening it", `Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign. Then each Abyss run costs one Ruin Shard`),
+    row("🪨", "Ruin Shards", "Every Campaign boss from floor 20 on drops one"),
+    row("⬛", "Vanadium Plates", "Those same bosses sometimes drop one. Give it to a class (for good): in the Abyss only, that class gets more Max HP, Armor and Damage for every plate"),
+    row("☠️", "Ten depths", "Every plain fight is a rank tougher: monsters are Elites, Elites are Champions, Champions are bosses, and each depth ends with an Uber boss. Each depth is far deadlier than the last"),
+    row("💰", "The loot", "Much richer than the Campaign, and richest from Champions, bosses and Uber bosses. Playing safe won't find the gear you need")
   ].join(""))}`;
 }
 
@@ -1148,6 +1203,23 @@ function storyBeat(p: { icon: string; title: string; text: string; list?: string
 function originPopup(o: OriginId) {
   const og = ORIGINS[o];
   const p = getItem(og.passive);
+  if (menuTab === "abyss") {
+    const pl = meta.classPlates?.[o] ?? 0;
+    const free = meta.plates ?? 0;
+    const shards = meta.ruinShards ?? 0;
+    return `<div class="overlay popup-wrap"><div class="popup abyss-pop">
+    <button class="small closex closebtn" data-closeorigin aria-label="Close">✕</button>
+    <h1 class="center bigname">${og.name}</h1>
+    <div class="center bigicon">${ORIGIN_ICON[o]}</div>
+    <p class="center">Into the Abyss as the ${og.name}.</p>
+    <div class="panel plate-panel"><p class="big">⬛ <b>${pl}</b> Vanadium Plate${pl === 1 ? "" : "s"} on the ${og.name}</p>
+      <p class="sub">${pl ? `+${Math.round(PLATE_BONUS * pl * 100)}% Max HP, Armor and Damage in the Abyss.` : "No plates yet."} Each plate adds ${Math.round(PLATE_BONUS * 100)}% more.</p>
+      ${free ? `<button class="small ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : `＋ Give a plate (${free} to give)`}</button>` : `<p class="sub">No plates to give. Campaign bosses from floor 20 sometimes drop one.</p>`}</div>
+    ${savedSummary() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary abyss-go" data-startabyss ${shards ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 1</button><button data-closeorigin>Back</button></div>
+    ${shards ? `<p class="sub center">You have ${shards} Ruin Shard${shards === 1 ? "" : "s"}.</p>` : `<p class="sub center warn">You need a Ruin Shard.</p>`}
+  </div></div>`;
+  }
   return `<div class="overlay popup-wrap"><div class="popup">
     <button class="small closex closebtn" data-closeorigin aria-label="Close">✕</button>
     <h1 class="center bigname">${og.name}</h1>
@@ -1318,6 +1390,8 @@ function render2() {
     dispHp.player = dispHp.enemy = null;
   }
   trackGold(r);
+  // Ruin Shards and Vanadium Plates go to the device (and the online backup) the moment they drop.
+  if (bankRuin(meta, r)) backupVault(vaultOf(meta));
   // The leaderboard server keeps its own record of how far this run has got.
   if (r.sid && r.floor !== r.reportedFloor && s.t !== "over") void reportFloor(r);
   if (s.t === "over" && !recorded) {
@@ -1509,6 +1583,7 @@ function bind() {
     if (run && !run.submitted) sendRun(run);
   });
   app.querySelector<HTMLInputElement>("#lb-name")?.addEventListener("click", ev => ev.stopPropagation());
+  app.querySelector<HTMLInputElement>("#restore-code")?.addEventListener("click", ev => ev.stopPropagation());
   app.querySelectorAll<HTMLInputElement>("[data-music]").forEach(el => {
     el.oninput = () => {
       const k = el.dataset.music as Track;
@@ -1534,11 +1609,42 @@ function bind() {
       try { localStorage.removeItem("dd2-meta-v1"); } catch { /* ignore */ }
       clearSave();
       meta = loadMeta();
+      meta.ruinShards = 0; meta.plates = 0; meta.classPlates = {}; saveMeta(meta);
+      backupVault(vaultOf(meta));
       resetArmed = false;
       optionsOpen = false;
       say("All progress has been reset.", false);
     });
-    on("[data-origin]", el => { pendingOrigin = el.dataset.origin as OriginId; });
+    on("[data-origin]", el => { pendingOrigin = el.dataset.origin as OriginId; plateArmed = false; });
+    on("[data-menutab]", el => { menuTab = el.dataset.menutab as typeof menuTab; restoreOpen = false; restoreMsg = ""; });
+    on("[data-addplate]", el => {
+      if (!plateArmed) { plateArmed = true; return; }
+      plateArmed = false;
+      if (applyPlate(meta, el.dataset.addplate!)) { backupVault(vaultOf(meta)); sfx("chest"); }
+    });
+    on("[data-restoreopen]", () => { restoreOpen = true; restoreMsg = ""; });
+    on("[data-restoreclose]", () => { restoreOpen = false; });
+    on("[data-restore]", () => {
+      const code = app.querySelector<HTMLInputElement>("#restore-code")?.value ?? "";
+      if (!useBackupCode(code)) { restoreMsg = "That isn't a valid backup code."; return; }
+      restoreMsg = "Restoring…";
+      fetchVault().then(v => {
+        if (!v) { restoreMsg = "Nothing is backed up under that code."; render(); return; }
+        meta.ruinShards = v.shards; meta.plates = v.plates; meta.classPlates = v.classPlates; saveMeta(meta);
+        restoreOpen = false; restoreMsg = `Restored: ${v.shards} Ruin Shard${v.shards === 1 ? "" : "s"}, ${v.plates + Object.values(v.classPlates).reduce((a: number, n) => a + (n ?? 0), 0)} Vanadium Plate(s).`;
+        render();
+      }).catch(() => { restoreMsg = "Couldn't reach the server. Try again when you're online."; render(); });
+    });
+    on("[data-startabyss]", () => {
+      const o = pendingOrigin; if (!o) return;
+      if (!spendShard(meta)) { say("You need a Ruin Shard."); return; }
+      backupVault(vaultOf(meta));
+      mode = "abyss"; lbResult = null; lbNaming = false; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
+      const nr = newRun(o, Date.now() & 0x7fffffff, "abyss", lockedIds(meta));
+      nr.hero.plates = meta.classPlates?.[o] ?? 0;
+      recompute(nr.hero); nr.hero.f.hp = nr.hero.f.maxHp;
+      run = nr; void startSession(nr);
+    });
     on("[data-closeorigin]", () => { pendingOrigin = null; });
     on("[data-help]", () => { helpOpen = true; });
     on("[data-closehelp]", () => { helpOpen = false; });
@@ -1644,5 +1750,14 @@ watchForUpdates(() => { if (run && run.scene.t !== "map" && run.scene.t !== "ove
 
 // Going offline: tell the player what that means. Coming back: a quick note.
 window.addEventListener("offline", () => { offlineOpen = true; render(); });
-window.addEventListener("online", () => { offlineOpen = false; say("📶 You're back online.", false); void flushQueue(); render(); });
+window.addEventListener("online", () => { offlineOpen = false; say("📶 You're back online.", false); void flushQueue(); if (vaultDirty()) backupVault(vaultOf(meta)); render(); });
+
+// Abyss items backup: resend a backup that didn't make it; on a device that has never held any, adopt the online copy.
+if (vaultDirty()) backupVault(vaultOf(meta));
+else if (meta.ruinShards === undefined && meta.plates === undefined && meta.classPlates === undefined) {
+  fetchVault().then(v => {
+    if (!v || (meta.ruinShards ?? 0) + (meta.plates ?? 0) > 0) return;
+    meta.ruinShards = v.shards; meta.plates = v.plates; meta.classPlates = v.classPlates; saveMeta(meta); render();
+  }).catch(() => { /* offline: try again next time */ });
+}
 if (typeof navigator !== "undefined" && navigator.onLine === false) { offlineOpen = true; render(); }

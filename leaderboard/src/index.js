@@ -3,11 +3,16 @@
 //   POST /session/floor                the run reached a floor: the server checks the step and the pace, and records it
 //   POST /runs                         a finished run: checked against the server's record; anything off is kept but hidden
 //   GET  /leaderboard?board=..&pid=..  the top players on a board (each player's best verified run), plus your own place
+//   POST /vault                        back up a player's Ruin Shards and Vanadium Plates (the device is in charge)
+//   GET  /vault?pid=..                 fetch that backup (to restore it on a new device)
 //   GET  /health                       ok
 //
 // The browser can't be trusted, so the server never takes the game's word for how far a run got:
 // it only believes floors it watched being reached, one at a time, at a believable pace.
-const BOARDS = { floor: "floor", elites: "elites", champions: "champions", damage: "damage", besthit: "best_hit", gold: "gold" };
+const BOARDS = { floor: "floor", elites: "elites", champions: "champions", damage: "damage", besthit: "best_hit", gold: "gold", abyss: "floor" };
+/** Abyss runs only go on the Abyss board; every other board is the campaign's. */
+const modeFilter = board => (board === "abyss" ? "mode = 'abyss'" : "mode != 'abyss'");
+const ABYSS_FLOORS = 10;
 const ORIGINS = ["warrior", "rogue", "mage", "cleric"];
 const MAX_FLOOR = 26;
 /** No floor (7 rooms and a boss) is cleared faster than this. */
@@ -32,13 +37,15 @@ function validate(b) {
   const name = typeof b.name === "string" ? b.name.replace(/[^\p{L}\p{N} _.\-']/gu, "").trim().slice(0, 16) : "";
   if (!name) return "bad name";
   if (!ORIGINS.includes(b.origin)) return "bad origin";
-  if (b.mode !== "campaign" && b.mode !== "endless") return "bad mode";
+  if (b.mode !== "campaign" && b.mode !== "endless" && b.mode !== "abyss") return "bad mode";
+  if (b.mode === "abyss" && !(b.floor <= ABYSS_FLOORS)) return "bad floor";
   const row = {
     pid: b.pid, name, origin: b.origin, mode: b.mode, sid: typeof b.sid === "string" && SID.test(b.sid) ? b.sid : null,
     seed: int(b.seed, 0, 2 ** 31), floor: int(b.floor, 1, MAX_FLOOR), level: int(b.level, 1, 500), kills: int(b.kills, 0, 20000),
     elites: int(b.elites, 0, 5000), champions: int(b.champions, 0, 5000), damage: int(b.damage, 0, 1e16),
     best_hit: int(b.bestHit, 0, 1e16), gold: int(b.gold, 0, 1e9), won: b.won ? 1 : 0,
-    version: typeof b.version === "string" ? b.version.slice(0, 40) : null
+    version: typeof b.version === "string" ? b.version.slice(0, 40) : null,
+    plates: int(b.plates ?? 0, 0, 10000) ?? 0
   };
   for (const [k, v] of Object.entries(row)) if (v === null && k !== "version" && k !== "sid") return `bad ${k}`;
   return row;
@@ -63,8 +70,9 @@ function discrepancy(row, s, now) {
   return null;
 }
 
-async function placeOf(db, col, value) {
-  const r = await db.prepare(`SELECT COUNT(*) AS n FROM (SELECT pid, MAX(${col}) AS v FROM runs WHERE suspect = 0 GROUP BY pid) WHERE v > ?`).bind(value).first();
+async function placeOf(db, board, value) {
+  const col = BOARDS[board];
+  const r = await db.prepare(`SELECT COUNT(*) AS n FROM (SELECT pid, MAX(${col}) AS v FROM runs WHERE suspect = 0 AND ${modeFilter(board)} GROUP BY pid) WHERE v > ?`).bind(value).first();
   return (r?.n ?? 0) + 1;
 }
 
@@ -114,18 +122,19 @@ async function postRun(req, env) {
   const followUp = s && s.ended && s.pid === row.pid && row.floor >= (s.posted_floor ?? 0);
   const why = discrepancy(row, followUp ? { ...s, ended: 0 } : s, now);
   const suspect = why ? 1 : 0;
-  await env.DB.prepare(`INSERT INTO runs (pid, name, seed, origin, mode, floor, won, level, kills, elites, champions, damage, best_hit, gold, version, created_at, sid, suspect, reason)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  await env.DB.prepare(`INSERT INTO runs (pid, name, seed, origin, mode, floor, won, level, kills, elites, champions, damage, best_hit, gold, version, created_at, sid, suspect, reason, plates)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT (pid, seed) DO UPDATE SET mode = excluded.mode, floor = MAX(floor, excluded.floor), won = MAX(won, excluded.won), level = MAX(level, excluded.level),
       kills = MAX(kills, excluded.kills), elites = MAX(elites, excluded.elites), champions = MAX(champions, excluded.champions), damage = MAX(damage, excluded.damage),
       best_hit = MAX(best_hit, excluded.best_hit), gold = MAX(gold, excluded.gold), version = excluded.version, created_at = excluded.created_at,
       sid = excluded.sid, suspect = MAX(suspect, excluded.suspect), reason = COALESCE(excluded.reason, reason)`)
-    .bind(row.pid, row.name, row.seed, row.origin, row.mode, row.floor, row.won, row.level, row.kills, row.elites, row.champions, row.damage, row.best_hit, row.gold, row.version, now, row.sid, suspect, why).run();
+    .bind(row.pid, row.name, row.seed, row.origin, row.mode, row.floor, row.won, row.level, row.kills, row.elites, row.champions, row.damage, row.best_hit, row.gold, row.version, now, row.sid, suspect, why, row.plates).run();
   if (s && s.pid === row.pid) await env.DB.prepare("UPDATE sessions SET ended = 1, posted_floor = ? WHERE sid = ?").bind(row.floor, row.sid).run();
   await env.DB.prepare("UPDATE runs SET name = ? WHERE pid = ?").bind(row.name, row.pid).run();
   if (suspect) return json({ ok: true, verified: false });
   const ranks = {};
-  for (const [board, col] of Object.entries(BOARDS)) ranks[board] = await placeOf(env.DB, col, row[col]);
+  const boards = row.mode === "abyss" ? ["abyss"] : Object.keys(BOARDS).filter(k => k !== "abyss");
+  for (const board of boards) ranks[board] = await placeOf(env.DB, board, row[BOARDS[board]]);
   return json({ ok: true, verified: true, ranks });
 }
 
@@ -136,18 +145,45 @@ async function getBoard(url, env) {
   const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 25));
   const pid = url.searchParams.get("pid") ?? "";
   const best = `WITH best AS (
-      SELECT pid, name, origin, floor, ${col} AS value, created_at,
+      SELECT pid, name, origin, floor, plates, ${col} AS value, created_at,
         ROW_NUMBER() OVER (PARTITION BY pid ORDER BY ${col} DESC, created_at ASC) AS rn
-      FROM runs WHERE suspect = 0)
-    SELECT pid, name, origin, floor, value, created_at FROM best WHERE rn = 1 ORDER BY value DESC, created_at ASC`;
+      FROM runs WHERE suspect = 0 AND ${modeFilter(board)})
+    SELECT pid, name, origin, floor, plates, value, created_at FROM best WHERE rn = 1 ORDER BY value DESC, created_at ASC`;
   const { results } = await env.DB.prepare(`${best} LIMIT ?`).bind(limit).all();
-  const rows = results.map((r, i) => ({ rank: i + 1, name: r.name, value: r.value, origin: r.origin, floor: r.floor, you: r.pid === pid || undefined }));
+  const rows = results.map((r, i) => ({ rank: i + 1, name: r.name, value: r.value, origin: r.origin, floor: r.floor, plates: board === "abyss" ? r.plates ?? 0 : undefined, you: r.pid === pid || undefined }));
   let me = null;
   if (pid && !rows.some(r => r.you)) {
-    const mine = await env.DB.prepare(`SELECT MAX(${col}) AS v FROM runs WHERE pid = ? AND suspect = 0`).bind(pid).first();
-    if (mine && mine.v !== null) me = { rank: await placeOf(env.DB, col, mine.v), value: mine.v };
+    const mine = await env.DB.prepare(`SELECT MAX(${col}) AS v FROM runs WHERE pid = ? AND suspect = 0 AND ${modeFilter(board)}`).bind(pid).first();
+    if (mine && mine.v !== null) me = { rank: await placeOf(env.DB, board, mine.v), value: mine.v };
   }
   return json({ board, rows, me });
+}
+
+/** Back up a player's Ruin Shards and Vanadium Plates. The device is in charge: this just keeps the latest copy. */
+async function putVault(req, env) {
+  const b = await body(req);
+  if (!b || typeof b.pid !== "string" || !PID.test(b.pid)) return json({ error: "bad pid" }, 400);
+  const shards = int(b.shards, 0, 100000), plates = int(b.plates, 0, 100000);
+  if (shards === null || plates === null) return json({ error: "bad counts" }, 400);
+  const cp = {};
+  if (b.classPlates && typeof b.classPlates === "object") for (const o of ORIGINS) { const n = int(b.classPlates[o] ?? 0, 0, 100000); if (n) cp[o] = n; }
+  const now = Date.now();
+  const last = await env.DB.prepare("SELECT updated_at FROM vault WHERE pid = ?").bind(b.pid).first();
+  if (last && now - last.updated_at < 2000) return json({ error: "slow down" }, 429);
+  await env.DB.prepare(`INSERT INTO vault (pid, shards, plates, class_plates, updated_at) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT (pid) DO UPDATE SET shards = excluded.shards, plates = excluded.plates, class_plates = excluded.class_plates, updated_at = excluded.updated_at`)
+    .bind(b.pid, shards, plates, JSON.stringify(cp), now).run();
+  return json({ ok: true });
+}
+
+async function getVault(url, env) {
+  const pid = url.searchParams.get("pid") ?? "";
+  if (!PID.test(pid)) return json({ error: "bad pid" }, 400);
+  const r = await env.DB.prepare("SELECT shards, plates, class_plates, updated_at FROM vault WHERE pid = ?").bind(pid).first();
+  if (!r) return json({ found: false });
+  let classPlates = {};
+  try { classPlates = JSON.parse(r.class_plates); } catch { /* keep empty */ }
+  return json({ found: true, shards: r.shards, plates: r.plates, classPlates, updatedAt: r.updated_at });
 }
 
 export default {
@@ -160,6 +196,8 @@ export default {
       if (url.pathname === "/session/floor" && req.method === "POST") return await floorReached(req, env);
       if (url.pathname === "/runs" && req.method === "POST") return await postRun(req, env);
       if (url.pathname === "/leaderboard" && req.method === "GET") return await getBoard(url, env);
+      if (url.pathname === "/vault" && req.method === "POST") return await putVault(req, env);
+      if (url.pathname === "/vault" && req.method === "GET") return await getVault(url, env);
       return json({ error: "not found" }, 404);
     } catch (e) {
       return json({ error: "server error" }, 500);

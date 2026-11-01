@@ -8,6 +8,51 @@ export interface Meta {
   wins: number;
   bestFloor: number;
   found: string[];
+  /** Ruin Shards: each one opens a single Abyss run. */
+  ruinShards?: number;
+  /** Vanadium Plates not yet given to a class. */
+  plates?: number;
+  /** Plates given to each class (for good). They only count in Abyss runs. */
+  classPlates?: Partial<Record<string, number>>;
+  /** The deepest Abyss depth reached, and how many Abyss runs. */
+  abyssBest?: number;
+  abyssRuns?: number;
+}
+
+/** The Abyss opens to anyone who has beaten floor 15 (reached floor 16) in the campaign. */
+export const ABYSS_UNLOCK_FLOOR = 15;
+export const abyssUnlocked = (m: Meta) => m.bestFloor > ABYSS_UNLOCK_FLOOR;
+
+/** Move this run's Ruin Shards and Vanadium Plates to the device as soon as they drop. True if anything changed. */
+export function bankRuin(m: Meta, run: Run): boolean {
+  const r = run.ruin;
+  if (!r) return false;
+  const b = (r.banked = r.banked ?? { shards: 0, plates: 0 });
+  const ds = r.shards - b.shards, dp = r.plates - b.plates;
+  if (!ds && !dp) return false;
+  m.ruinShards = (m.ruinShards ?? 0) + ds;
+  m.plates = (m.plates ?? 0) + dp;
+  b.shards = r.shards; b.plates = r.plates;
+  saveMeta(m);
+  return true;
+}
+
+/** Give one unassigned plate to a class, for good. */
+export function applyPlate(m: Meta, origin: string): boolean {
+  if ((m.plates ?? 0) <= 0) return false;
+  m.plates = (m.plates ?? 0) - 1;
+  m.classPlates = { ...(m.classPlates ?? {}), [origin]: (m.classPlates?.[origin] ?? 0) + 1 };
+  saveMeta(m);
+  return true;
+}
+
+/** Pay a Ruin Shard to enter the Abyss. */
+export function spendShard(m: Meta): boolean {
+  if ((m.ruinShards ?? 0) <= 0) return false;
+  m.ruinShards = (m.ruinShards ?? 0) - 1;
+  m.abyssRuns = (m.abyssRuns ?? 0) + 1;
+  saveMeta(m);
+  return true;
 }
 
 const KEY = "dd2-meta-v1";
@@ -54,7 +99,9 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
   m.renown += earned;
   if (!alreadyEarned) m.runs++;
   if (run.scene.t === "over" && run.scene.won) m.wins++;
-  m.bestFloor = Math.max(m.bestFloor, run.floor);
+  if (run.mode === "abyss") m.abyssBest = Math.max(m.abyssBest ?? 0, Math.min(run.floor, 10));
+  else m.bestFloor = Math.max(m.bestFloor, run.floor);
+  bankRuin(m, run);
   m.found = [...new Set([...m.found, ...run.found])];
   saveMeta(m);
   return { earned, unlocked: UNLOCK_TIERS.filter(t => before < t.at && m.renown >= t.at).map(t => t.name) };

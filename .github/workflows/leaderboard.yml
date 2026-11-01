@@ -36,7 +36,7 @@ jobs:
         run: wrangler d1 execute deck-dungeon-lb --remote --file schema.sql -y
       - name: Add newer columns to an older database (skips any that already exist)
         run: |
-          for col in "sid TEXT" "suspect INTEGER NOT NULL DEFAULT 0" "reason TEXT"; do
+          for col in "sid TEXT" "suspect INTEGER NOT NULL DEFAULT 0" "reason TEXT" "plates INTEGER NOT NULL DEFAULT 0"; do
             wrangler d1 execute deck-dungeon-lb --remote -y --command "ALTER TABLE runs ADD COLUMN $col" || true
           done
       - name: Deploy the Worker

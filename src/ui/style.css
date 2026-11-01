@@ -630,3 +630,26 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .forge-pick { margin-top: 8px; border-color: #8a6534; }
 .gear-group.solo { padding-top: 10px; margin-top: 4px; }
 .backpack-group.solo { border-color: #3a4a66; }
+
+/* ---------- Title screen tabs: Campaign / Abyss Run ---------- */
+.menu-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 12px; }
+.menu-tab { padding: 12px 8px; font-size: 1.05rem; font-weight: 800; border-radius: 12px; border: 1px solid #5a4a72; background: linear-gradient(180deg, #2a2236, #1c1726); color: #cfc3e0; }
+.menu-tab.active { background: linear-gradient(180deg, #5a4626, #3a2d18); border-color: #e8b84a; color: #ffe39a; box-shadow: 0 0 12px rgba(232,184,74,.25); }
+.menu-tab.abyss.active { background: linear-gradient(180deg, #2a1f4a, #120c24); border-color: #8f6cf0; color: #d9c8ff; box-shadow: 0 0 16px rgba(143,108,240,.4); }
+.abyss-intro { border-color: #5b46a0; background: linear-gradient(160deg, #1d1636, var(--panel) 70%); }
+.abyss-locked { text-align: center; border-color: #5b46a0; background: linear-gradient(160deg, #1d1636, var(--panel) 70%); }
+.abyss-locked .big { font-size: 1.2rem; font-weight: 800; color: #d9c8ff; }
+.abyss-warn { margin-top: 10px; border-color: #a0465a; color: #ffc9d2; background: rgba(160,70,90,.12); }
+.abyss-stock { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.shard-tile { border-color: #8f6cf0; } .plate-tile { border-color: #8a93a6; }
+.origin-card.abyss-card { border-color: #8f6cf0; box-shadow: 0 0 10px rgba(143,108,240,.35); }
+.origin-card .plate-line { display: block; color: #3a2a66; font-weight: 700; font-size: .85rem; margin: 2px 0 4px; }
+.abyss-name { color: #cbb6ff; }
+.abyss-pop .plate-panel { border-color: #8a93a6; }
+.abyss-pop .plate-panel .big { font-size: 1.05rem; }
+.primary.abyss-go { background: linear-gradient(180deg, #7d5ce0, #4a2fa0); border-color: #b9a0ff; color: #fff; }
+.backup-panel { margin-top: 14px; border-style: dashed; }
+.backup-code { font-family: ui-monospace, monospace; letter-spacing: .06em; font-size: .95rem; color: #ffe39a; background: rgba(0,0,0,.3); padding: 6px 8px; border-radius: 8px; user-select: all; word-break: break-all; }
+.backup-panel input { background: #120e18; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-family: ui-monospace, monospace; min-width: 0; }
+.lb-plates { font-size: .78rem; color: #c9d1e0; margin-left: 4px; }
+.ruin-line { color: #d9c8ff; font-weight: 700; }

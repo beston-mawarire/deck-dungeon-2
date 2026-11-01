@@ -16,6 +16,8 @@ export const hasThirdTrinket = (h: Hero) => h.keepsake === "ks_collector";
 export const openSlots = (h: Hero) => EQUIP_SLOTS.filter(s => s !== "trinket3" || hasThirdTrinket(h));
 export const BACKPACK_SIZE = 6;
 export const DRAGON_HEART_MULT = 1.5;
+/** Each Vanadium Plate on a class (Abyss runs only): Max HP, Armor and Damage this much stronger. */
+export const PLATE_BONUS = 0.06;
 /** Healing Potions: 3 slots to start (potion gear adds more). */
 export const BASE_POTION_CAP = 3;
 /** Potion slots: how many Healing Potions you can carry, and also how many you can drink in one fight. */
@@ -58,6 +60,8 @@ export interface Hero {
   crucible?: boolean;
   /** Torn from a slain dragon. Each further dragon slain raises its level. Unified at a Dragon Sanctum: every stat +50%. */
   dragonHeart?: { level: number; unified?: boolean };
+  /** Vanadium Plates this class carries into an Abyss run (set only on Abyss runs). */
+  plates?: number;
   xp: number;
   level: number;
   nextUid: number;
@@ -240,6 +244,12 @@ export function recompute(h: Hero) {
     s.maxHp = up(s.maxHp); s.armor = up(s.armor); s.damage = up(s.damage); s.offDamage = up(s.offDamage);
     s.dodge = up(s.dodge); s.bash = up(s.bash); s.spellAmp = up(s.spellAmp); s.critChance = up(s.critChance);
     s.critDmg = up(s.critDmg ?? 0); s.dotAmp = up(s.dotAmp ?? 0); s.dmgDealt = up(s.dmgDealt ?? 0);
+  }
+  // Vanadium Plates (Abyss runs only): Max HP, Armor and Damage grow with every plate.
+  if (h.plates) {
+    const m = 1 + PLATE_BONUS * h.plates;
+    const up = (n: number) => (n > 0 ? Math.round(n * m) : n);
+    s.maxHp = up(s.maxHp); s.armor = up(s.armor); s.damage = up(s.damage); s.offDamage = up(s.offDamage);
   }
   // Hollow Vessel: Max HP can't go above 20, but the off-hand's effects fire twice.
   const vessel = (items["ep_hollow_vessel"] ?? 0) > 0;

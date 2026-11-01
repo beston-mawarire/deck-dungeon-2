@@ -1,7 +1,7 @@
 // A run: three floors of path choices, fights, chests, shops, forges and bosses.
 import { relicBonus } from "../data/basic_relics";
 import { CURSES, EPIC_POWERS, KEEPSAKES, LEGENDARIES, RELICS, TALENTS } from "../data";
-import { CAMPAIGN_FLOORS, DEATH_FLOOR, END_FLOOR, EPIC_CRIMSON_FLOORS, makeBoss, makeDeath, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
+import { CAMPAIGN_FLOORS, DEATH_FLOOR, END_FLOOR, EPIC_CRIMSON_FLOORS, makeBoss, makeDeath, makeCrimsonBoss, makeUber, WALL_FLOOR } from "../data/bosses";
 import { CROSSROADS_GUISES, crossroadsEvent, EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
 import { findRecipe, TRINKET_RECIPES } from "../data/jeweller";
@@ -15,7 +15,7 @@ import { RARITIES } from "../engine/types";
 import { autoBattleWins } from "./auto";
 import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
 import { removeItem, gainPotions, potionCap, potionsPerFight, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
-import { isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES } from "./loot";
+import { isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -32,9 +32,32 @@ const FLOOR_LINES = [
 
 /** The campaign is five floors (five bosses). Endless keeps going; a Horror waits on floor 20, DEATH on 25 and THE END on 26. */
 export const FLOORS = CAMPAIGN_FLOORS;
+const ABYSS_LINES = [
+  "The dark here has weight. Something enormous shifts, far below.",
+  "Bones of old heroes line the walls. Their gear is long gone. Someone took it.",
+  "The air hums. The things down here are hungry, and well armed.",
+  "Halfway. The light you brought feels thin.",
+  "Every step echoes twice. The second one isn't yours.",
+  "The Champions here wear crowns taken from kings.",
+  "The stone sweats black. The deepest hoards are near.",
+  "You can hear it breathing now.",
+  "The last depth. Whatever rules the Abyss is waiting."
+];
 export const STEPS_PER_FLOOR = 7;
 export { DEATH_FLOOR, END_FLOOR, WALL_FLOOR };
-export type Mode = "campaign" | "endless";
+export type Mode = "campaign" | "endless" | "abyss";
+/** Abyss runs: ten floors, every foe a rank tougher, far richer drops. */
+export const ABYSS_FLOORS = 10;
+/** How deep the dungeon "really" is: in the Abyss each floor counts as two (enemy strength and item level). */
+export const depth = (run: { mode: Mode; floor: number }) => (run.mode === "abyss" ? 2 * run.floor - 1 : run.floor);
+/** The floor the loot odds use. The Abyss never has the "green floors" (where most Rares are Uncommon). */
+const luckFloor = (run: Run) => (run.mode === "abyss" ? Math.max(3, depth(run)) : run.floor);
+/** Abyss: every floor down, everything gets this much tougher on top of its depth. */
+export const ABYSS_GROWTH = 1.06;
+/** From this floor on (outside the Abyss), bosses drop Ruin Shards, and sometimes a Vanadium Plate. */
+export const RUIN_FLOOR = 20;
+export const PLATE_CHANCE = 0.25;
+const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
 
 export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
 
@@ -62,11 +85,19 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   crimson_vault: { name: "Crimson Vault", icon: "🗝️", text: "Spend a Crimson Key: fight a Crimson boss for a Crimson item. Die here and your run is over." }
 };
 
+/** In the Abyss every fight is a rank tougher, and the map says so. */
+export const ABYSS_ROOM_INFO: Partial<Record<RoomType, { name: string; icon: string; text: string }>> = {
+  fight: { name: "Elite", icon: "💀", text: "The weakest thing down here. Always drops an item." },
+  elite: { name: "Champion", icon: "👹", text: "Very dangerous. Rich loot." },
+  champion: { name: "Boss", icon: "👑", text: "A boss, roaming the depths. Deadly — and the best loot outside the Uber boss." },
+  boss: { name: "Uber boss", icon: "☠️", text: "The master of this depth, empowered. Its hoard is the richest in the Abyss." }
+};
+
 export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "relic"; item?: GearItem; relic?: string; price: number; sold?: boolean }
 
 export type Scene =
   | { t: "map" }
-  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" }
+  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death"; uber?: boolean }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent"; crimsonKey?: boolean; /** A Bounty Board payout (closing it doesn't use a step). */ bounty?: boolean; /** A Dragon Heart was torn from the dragon (its level now). */ dragonHeart?: number; /** The Transmuter's Crucible dropped. */ crucible?: boolean }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
@@ -142,6 +173,8 @@ export interface Run {
   popup?: { title: string; text: string; icon: string; list?: string[]; fanfare?: string };
   /** Beat THE END on floor 26: the whole game is won. */
   finale?: boolean;
+  /** Ruin Shards and Vanadium Plates found this run, and how many of them are already banked on the device. */
+  ruin?: { shards: number; plates: number; banked?: { shards: number; plates: number } };
 }
 
 export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: Mode = "campaign", locked: Set<string> = new Set()): Run {
@@ -153,6 +186,7 @@ export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: M
   setLocked(locked);
   resetDropped();
   run.choices = genChoices(run);
+  if (mode === "abyss") run.popup = { icon: "🕳️", title: "The Abyss", text: "The Ruin Shard crumbles in your hand, and the floor gives way. Down here every beast is a rank deadlier than it should be, and every one of them carries something worth killing for. The strongest carry the best of it. Ten depths. Few see the bottom." };
   return run;
 }
 
@@ -256,8 +290,8 @@ function enterRoom(run: Run, room: RoomType) {
       h.crimsonKeys--;
       return fight(run, "boss", "crimson");
     case "wooden":
-      const woodOdds = useClover(run) ? luckyOdds(TABLES.wooden) : TABLES.wooden;
-      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, woodOdds, run.floor), run.floor, run.rng)], gold: 3 + run.floor, scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0 };
+      const woodOdds = useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden;
+      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, woodOdds, luckFloor(run)), depth(run), run.rng)], gold: 3 + run.floor, scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0 };
       return;
     case "iron": {
       const key = (h.relics["skeleton_key"] ?? 0) > 0;
@@ -265,9 +299,9 @@ function enterRoom(run: Run, room: RoomType) {
         run.message = "The chest bites! It's a Mimic.";
         return fight(run, "elite", "mimic");
       }
-      const ironOdds = useClover(run) ? luckyOdds(TABLES.iron) : TABLES.iron;
-      const items = [rollItem(h, rollRarity(run.rng, ironOdds, run.floor), run.floor, run.rng)];
-      if (key) items.push(rollItem(h, rollRarity(run.rng, ironOdds, run.floor), run.floor, run.rng));
+      const ironOdds = useClover(run) ? luckyOdds(tables(run).iron) : tables(run).iron;
+      const items = [rollItem(h, rollRarity(run.rng, ironOdds, luckFloor(run)), depth(run), run.rng)];
+      if (key) items.push(rollItem(h, rollRarity(run.rng, ironOdds, luckFloor(run)), depth(run), run.rng));
       run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: 5 + run.floor * 2, scrolls: 0, potions: 0 };
       return;
     }
@@ -320,7 +354,7 @@ export function confirmRisk(run: Run, yes: boolean) {
 }
 
 function openResplendent(run: Run) {
-  const cards = resplendentCards(run.hero, run.floor, run.loot, run.rng);
+  const cards = resplendentCards(run.hero, depth(run), run.loot, run.rng);
   useClover(run);
   run.scene = { t: "resplendent", cards, picked: null, glove: (run.hero.relics["gamblers_glove"] ?? 0) > 0 };
 }
@@ -329,6 +363,13 @@ function openResplendent(run: Run) {
 
 function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death", defName?: string) {
   run.hero.f.persist["floor"] = run.floor;
+  const F = depth(run);
+  // The Abyss: every plain fight is a rank tougher. Monsters become Elites, Elites Champions, Champions bosses, and the floor boss an Uber boss.
+  let uber = false;
+  if (run.mode === "abyss" && !then) {
+    if (rank === "boss" && run.step >= STEPS_PER_FLOOR) uber = true;
+    else rank = ({ normal: "elite", elite: "champion", champion: "boss" } as Partial<Record<MonsterRank, MonsterRank>>)[rank] ?? rank;
+  }
   // Fighting anything but a normal monster breaks the plain-fight streak (the floor boss doesn't count: you can't avoid it).
   if (rank !== "normal" && !(rank === "boss" && !then)) run.normalStreak = 0;
   // A Crimson Vault always holds a Crimson boss; in Endless, a floor boss is rarely Crimson too.
@@ -337,16 +378,22 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && !special && run.rng() < 0.06));
   // A rare gold thief sometimes turns up in place of a normal monster.
   const thief = rank === "normal" && !then && run.rng() < 0.04;
-  const enemy = then === "death" ? makeDeath() : then === "dragon" ? makeDragon(run.rng, run.floor, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, run.floor) : then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank, defName);
+  const enemy = then === "death" ? makeDeath() : then === "dragon" ? makeDragon(run.rng, F, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, F) : then === "unique" ? makeUnique(run.rng, F, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(depth(run), run.rng) : rank === "boss" ? makeBoss(F, run.rng, run.seenBosses) : thief ? makeThief(run.rng, F) : makeMonster(run.rng, F, rank, defName);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
+  }
+  if (run.mode === "abyss") {
+    const g = Math.pow(ABYSS_GROWTH, run.floor - 1);
+    enemy.maxHp = enemy.hp = Math.round(enemy.hp * g);
+    enemy.damage = Math.round(enemy.damage * g);
+    if (uber) makeUber(enemy, F, run.rng);
   }
   const battle = startBattle(run.hero.f, enemy, Math.floor(run.rng() * 1e9), run.carry);
   // Angelic Blessing: heal 2 as the fight begins.
   if ((run.hero.f.persist["angelFights"] ?? 0) > 0) healF(battle, run.hero.f, 2, "Angelic Blessing");
   run.carry = 0;
-  run.scene = { t: "combat", battle, rank, then };
+  run.scene = { t: "combat", battle, rank, then, uber: uber || undefined };
   if (battle.over) afterFight(run);
 }
 
@@ -551,8 +598,9 @@ function afterFight(run: Run) {
   let potions = 0;
   let relic: string | undefined;
   let keyFound = false;
-  const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, odds, run.floor), run.floor, run.rng);
-  if (rank === "normal" && run.rng() < 0.2) items.push(roll(TABLES.drop));
+  const T = tables(run);
+  const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, odds, luckFloor(run)), depth(run), run.rng);
+  if (rank === "normal" && run.rng() < 0.2) items.push(roll(T.drop));
   if (rank === "normal" && run.rng() < 0.1) potions++;
   // Potion gear: a sober win brews a potion (the Alembic always, the Vial sometimes); the Grail refills one per boss.
   const sober = !b.player.flags["potionsDrunk"];
@@ -572,8 +620,8 @@ function afterFight(run: Run) {
     goblinGold = 80 + 25 * run.floor;
     h.scrap += 10 + 3 * run.floor;
     if (run.rng() < 0.2) relic = randomRelic(run, 2);
-    if (run.rng() < 0.08) items.push(rollItem(h, "epic", run.floor, run.rng));
-    if (run.rng() < 0.03) items.push(rollItem(h, "legendary", run.floor, run.rng));
+    if (run.rng() < 0.08) items.push(rollItem(h, "epic", depth(run), run.rng));
+    if (run.rng() < 0.03) items.push(rollItem(h, "legendary", depth(run), run.rng));
     run.message = `🐉 The dragon's hoard: +${10 + 3 * run.floor} ⚙️ Scrap and a mountain of Gold.`;
     // Its heart: the first one is yours; every dragon after that makes it stronger.
     // (At most two hearts a run: the second one levels up the first.)
@@ -582,23 +630,23 @@ function afterFight(run: Run) {
   } else if (then === "goblin") {
     // Treasure Goblin: a guaranteed Rare and a fat purse, maybe an Epic, a Legendary or a scroll. All of it is yours.
     goblinGold = 25 + 8 * run.floor;
-    items.push(rollItem(h, "rare", run.floor, run.rng));
-    if (run.rng() < 0.45) items.push(rollItem(h, "epic", run.floor, run.rng));
-    if (run.rng() < 0.1) items.push(rollItem(h, "legendary", run.floor, run.rng));
+    items.push(rollItem(h, "rare", depth(run), run.rng));
+    if (run.rng() < 0.45) items.push(rollItem(h, "epic", depth(run), run.rng));
+    if (run.rng() < 0.1) items.push(rollItem(h, "legendary", depth(run), run.rng));
     if (run.rng() < 0.35) scrolls++;
     run.message = "💰 The Treasure Goblin bursts open. Everything it carried is yours.";
   } else if (then === "unique") {
     // Unique foes: always an Epic (sometimes a Legendary), a good relic and a fat purse.
-    items.push(rollItem(h, run.rng() < 0.15 ? "legendary" : "epic", run.floor, run.rng));
+    items.push(rollItem(h, run.rng() < 0.15 ? "legendary" : "epic", depth(run), run.rng));
     relic = randomRelic(run, 2);
     if (run.rng() < 0.3) scrolls++;
   } else if (rank === "elite") {
-    items.push(roll(TABLES.elite));
-    if (then === "mimic") items.push(roll(TABLES.elite));
+    items.push(roll(T.elite));
+    if (then === "mimic") items.push(roll(T.elite));
     if (run.rng() < 0.35) relic = randomRelic(run);
   }
   if (rank === "champion" && then !== "dragon") {
-    items.push(roll(TABLES.champion));
+    items.push(roll(T.champion));
     if (run.rng() < 0.2) scrolls++;
     const metal = run.rng() < 0.65 ? 1 + (run.rng() < 0.25 ? 1 : 0) : 0;
     if (metal) {
@@ -610,7 +658,7 @@ function afterFight(run: Run) {
     relic = relic ?? randomRelic(run, 2);
   }
   if (rank === "crimson") {
-    items.push(roll(TABLES.crimson));
+    items.push(roll(T.crimson));
     relic = randomRelic(run, 2);
     if (run.rng() < 0.5) {
       h.crimsonKeys++;
@@ -627,6 +675,18 @@ function afterFight(run: Run) {
     }
     grantScrolls(run, scrolls);
     recompute(h);
+    // From floor 20, every boss leaves a Ruin Shard (the key to an Abyss run), and sometimes a Vanadium Plate.
+    let ruinNote = "";
+    if (run.mode !== "abyss" && run.floor >= RUIN_FLOOR) {
+      run.ruin = run.ruin ?? { shards: 0, plates: 0 };
+      run.ruin.shards++;
+      ruinNote = " · 🪨 a Ruin Shard";
+      if (run.rng() < PLATE_CHANCE) {
+        run.ruin.plates++;
+        ruinNote += " · ⬛ a Vanadium Plate!";
+        if (!run.popup) run.popup = { icon: "⬛", title: "A Vanadium Plate", text: "Among the remains lies a plate of dark, impossibly hard metal, cold to the touch. It's yours to keep, beyond this run. In the Abyss, it makes one of your heroes stronger.", fanfare: "epic" };
+      }
+    }
     // THE END: nothing left to fight. The run is won, and there's a cookie.
     if ((b.enemy.items["m_the_end"] ?? 0) > 0) {
       const cookie = makeRewardItem(h, "lc_cookie", run.floor);
@@ -641,18 +701,19 @@ function afterFight(run: Run) {
     if ((b.enemy.items["m_death"] ?? 0) > 0) {
       run.popup = { icon: "☠️", title: "DEATH IS DEAD", text: "Damn, that's crazy! Tell Beston he owes you R600…", fanfare: "legendary_crimson" };
       run.scene = { t: "pick", title: "DEATH falls. Its scythe is yours", items: [makeRewardItem(h, "lc_abaddon", run.floor)] };
-      run.message = `+${gold} Gold`;
+      run.message = `+${gold} Gold${ruinNote}`;
       return;
     }
     // Crimson bosses offer a Crimson item alongside two boss finds; the bosses of floors 20–24 offer an Epic Crimson.
-    const offer = b.enemy.crimson ? [rollItem(h, "crimson", run.floor, run.rng), roll(TABLES.boss), roll(TABLES.boss)]
-      : EPIC_CRIMSON_FLOORS.includes(run.floor) ? [rollEpicCrimson(h, run.floor, run.rng), roll(TABLES.boss), roll(TABLES.boss)]
-      : [roll(TABLES.boss), roll(TABLES.boss), roll(TABLES.boss)];
+    const offer = b.enemy.crimson ? [rollItem(h, "crimson", depth(run), run.rng), roll(T.boss), roll(T.boss)]
+      : EPIC_CRIMSON_FLOORS.includes(run.floor) ? [rollEpicCrimson(h, depth(run), run.rng), roll(T.boss), roll(T.boss)]
+      : run.scene.uber ? [roll(T.uber), roll(T.uber), roll(T.uber)]
+      : [roll(T.boss), roll(T.boss), roll(T.boss)];
     // After the fifth boss, bosses sometimes leave a Keepsake behind.
     // Keepsakes are a rare find: about one boss in ten after floor 5 leaves one behind.
     const keepsake = run.floor > FLOORS && run.rng() < 0.1 ? KEEPSAKES.filter(k => k.id !== h.keepsake)[Math.floor(run.rng() * (KEEPSAKES.length - (h.keepsake ? 1 : 0)))]?.id : undefined;
     run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: offer, keepsake };
-    run.message = `+${gold} Gold${relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""} · healed 30%${curseNote ? ` ${curseNote}` : ""}`;
+    run.message = `+${gold} Gold${relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""}${ruinNote} · healed 30%${curseNote ? ` ${curseNote}` : ""}`;
     return;
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
@@ -807,7 +868,7 @@ function shopStock(run: Run): ShopEntry[] {
   const h = run.hero;
   const stock: ShopEntry[] = [];
   for (let i = 0; i < 3; i++) {
-    const item = rollItem(h, rollRarity(run.rng, TABLES.shop, run.floor), run.floor, run.rng);
+    const item = rollItem(h, rollRarity(run.rng, TABLES.shop, luckFloor(run)), depth(run), run.rng);
     stock.push({ kind: "item", item, price: Math.round(PRICE[item.rarity] * shopMult(run)) });
   }
   const shopRelic = randomRelic(run);
@@ -959,7 +1020,7 @@ export function chooseEvent(run: Run, i: number) {
     hurt: (n: number) => { h.f.hp = Math.max(1, h.f.hp - n); },
     healPct: (p: number) => { restore(h, Math.round(h.f.maxHp * p)); },
     addMaxHp: (n: number) => { h.f.persist["maxHpLoss"] = (h.f.persist["maxHpLoss"] ?? 0) - n; recompute(h); h.f.hp += n; },
-    gainItem: (r: Rarity) => { const it = rollItem(h, r, run.floor, run.rng); found.push(it); return it; },
+    gainItem: (r: Rarity) => { const it = rollItem(h, r, depth(run), run.rng); found.push(it); return it; },
     gainRelic: () => { const id = randomRelic(run); grantRelic(run, id); return getItem(id).name; },
     loseRelic: () => { const ids = Object.keys(h.relics); if (!ids.length) return null; const id = ids[Math.floor(run.rng() * ids.length)]; h.relics[id]--; if (!h.relics[id]) delete h.relics[id]; recompute(h); return getItem(id).name; },
     relicCount: () => Object.keys(h.relics).length,
@@ -1097,7 +1158,7 @@ export function forgeOffer(run: Run, uids: number[]): GearItem | string {
     return "The Forge swallows your offering… and gives nothing back.";
   }
   const rarity = rollRarity(run.rng, offeringOdds(offeringValue(items)));
-  const out = rollItem(h, rarity, Math.max(run.floor, ...items.map(i => i.level)), run.rng);
+  const out = rollItem(h, rarity, Math.max(depth(run), ...items.map(i => i.level)), run.rng);
   h.backpack.push(out);
   markFound(run, out);
   recompute(h);
@@ -1168,7 +1229,7 @@ export function forgeTransmute(run: Run, uid: number): GearItem | string {
   h.starmetal -= TRANSMUTE_COST;
   const where = found.where;
   removeGear(h, uid);
-  const out: GearItem = { uid: h.nextUid++, base: choice.id, rarity: "legendary", level: Math.max(found.item.level, run.floor), bonuses: {}, revealed: false };
+  const out: GearItem = { uid: h.nextUid++, base: choice.id, rarity: "legendary", level: Math.max(found.item.level, depth(run)), bonuses: {}, revealed: false };
   if (where !== "backpack") equipItem(h, out, where);
   else if (h.backpack.length < BACKPACK_SIZE) h.backpack.push(out);
   markFound(run, out);
@@ -1214,7 +1275,7 @@ export function advance(run: Run, fromTalent = false) {
     if (run.step >= STEPS_PER_FLOOR) {
       // After a floor boss, stop on a "Floor cleared" screen; the player continues when ready.
       // (Not after the campaign's final boss: that goes straight to the victory.)
-      const finalBoss = run.mode === "campaign" && run.floor >= FLOORS;
+      const finalBoss = (run.mode === "campaign" && run.floor >= FLOORS) || (run.mode === "abyss" && run.floor >= ABYSS_FLOORS);
       if (!finalBoss && run.clearedFloor !== run.floor) {
         run.clearedFloor = run.floor;
         run.scene = { t: "cleared", floor: run.floor, boss: run.lastBoss ?? "The guardian" };
@@ -1226,8 +1287,12 @@ export function advance(run: Run, fromTalent = false) {
       recompute(run.hero);
       run.step = 0;
       run.message = `Floor ${run.floor}. The air is colder, and the hoards are richer: your Fortune grows.`;
-      if (run.floor !== FLOORS) run.popup = { icon: "⬇️", title: `Floor ${run.floor} — ${floorName(run.floor)}`, text: `${FLOOR_LINES[(run.floor - 2) % FLOOR_LINES.length]} The deeper you go, the deadlier it gets — and the richer the loot.` };
-      if (run.floor === FLOORS) run.popup = { icon: "🕳️", title: `Floor ${FLOORS} — The Source of the Darkness`, text: "You are close now. The darkness here is thick enough to taste, and every step pulls at you. A cold despair settles in your chest, whispering that the gate cannot be closed, that no one walks back out. Somewhere below, the gate breathes." };
+      if (run.mode === "abyss") {
+        if (run.floor > ABYSS_FLOORS) { run.scene = { t: "over", won: true }; return; }
+        run.message = `Abyss depth ${run.floor}. Everything down here is stronger — and so is what it carries.`;
+        run.popup = { icon: "🕳️", title: `The Abyss — Depth ${run.floor}`, text: ABYSS_LINES[(run.floor - 2) % ABYSS_LINES.length] };
+      } else if (run.floor !== FLOORS) run.popup = { icon: "⬇️", title: `Floor ${run.floor} — ${floorName(run.floor)}`, text: `${FLOOR_LINES[(run.floor - 2) % FLOOR_LINES.length]} The deeper you go, the deadlier it gets — and the richer the loot.` };
+      if (run.floor === FLOORS && run.mode !== "abyss") run.popup = { icon: "🕳️", title: `Floor ${FLOORS} — The Source of the Darkness`, text: "You are close now. The darkness here is thick enough to taste, and every step pulls at you. A cold despair settles in your chest, whispering that the gate cannot be closed, that no one walks back out. Somewhere below, the gate breathes." };
       if (run.floor > FLOORS && run.mode === "campaign") {
         run.scene = { t: "over", won: true };
         return;
@@ -1270,7 +1335,7 @@ function settleBounty(run: Run): boolean {
     const r = q.reward;
     const what = `${bountyText(q, h.origin)}.`;
     if (r.kind === "scrap") { h.scrap += r.n; run.message = [run.message, `📋 Bounty complete! ${what} +${r.n} ⚙️ Scrap.`].filter(Boolean).join(" "); return false; }
-    run.scene = { t: "loot", title: "📋 Bounty complete", items: r.kind === "item" ? [rollItem(h, r.rarity, run.floor, run.rng)] : [], gold: r.kind === "gold" ? r.n : 0, scrolls: 0, potions: 0, bounty: true };
+    run.scene = { t: "loot", title: "📋 Bounty complete", items: r.kind === "item" ? [rollItem(h, r.rarity, depth(run), run.rng)] : [], gold: r.kind === "gold" ? r.n : 0, scrolls: 0, potions: 0, bounty: true };
     run.message = `${what} Your reward: ${rewardText(r)}.`;
     return true;
   }
@@ -1469,7 +1534,8 @@ export function runSummary(run: Run) {
   const p = run.hero.f.persist;
   trackGold(run);
   return {
-    seed: run.seed, origin: run.hero.origin, mode: run.mode, floor: run.floor, won: run.scene.t === "over" && run.scene.won,
+    seed: run.seed, origin: run.hero.origin, mode: run.mode, floor: run.mode === "abyss" ? Math.min(run.floor, ABYSS_FLOORS) : run.floor, won: run.scene.t === "over" && run.scene.won,
+    plates: run.hero.plates ?? 0,
     level: run.hero.level, kills: run.stats.kills, elites: p["q_elites"] ?? 0, champions: p["q_champions"] ?? 0,
     damage: Math.round(p["t_dmg"] ?? 0), bestHit: Math.round(Math.max(p["t_best"] ?? 0, run.stats.bestHit)), gold: run.goldEarned ?? 0
   };

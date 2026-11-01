@@ -214,3 +214,17 @@ function makeEnd(): Fighter {
   f.faces = [HIT, HIT, HIT, CRIT, CRIT, CRIT];
   return f;
 }
+
+// ---------- The Abyss: Uber bosses ----------
+/** An Abyss floor boss: an existing boss, empowered. Far more HP, harder hits, more Armor and two extra traits. */
+export function makeUber(f: Fighter, floor: number, rng: () => number) {
+  f.maxHp = f.hp = Math.round(f.hp * 2.2);
+  f.damage = Math.round(f.damage * 1.35);
+  f.armor += 2 + Math.floor(floor / 4);
+  const extra: string[] = [];
+  const pool = ELITE_AFFIX_IDS.filter(t => !f.items[t]);
+  while (extra.length < 2 && pool.length) extra.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+  for (const t of extra) f.items[t] = 1;
+  f.name = `Uber ${f.name}`;
+  f.title = `${f.title ? `${f.title} · ` : ""}${extra.map(t => TRAITS.find(x => x.id === t)!.name).join(", ")}`;
+}

@@ -5,6 +5,16 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.18.0
+- New game mode: **Abyss Run**. The title screen now has Campaign and Abyss Run tabs. The Abyss opens once you've beaten floor 15, and each run costs a Ruin Shard.
+  - Ten depths, each counting as two floors deep. Every plain fight is a rank tougher (monsters are Elites, Elites are Champions, Champions are bosses) and every depth ends with an Uber boss: an empowered boss with far more HP, harder hits, more Armor and two extra traits.
+  - Much richer loot, richest from Champions, bosses and Uber bosses (Uber bosses always offer Epics or Legendaries). The map labels rooms by what's really in them.
+- Ruin Shards: every Campaign boss from floor 20 drops one. Vanadium Plates: those bosses sometimes drop one too.
+- Vanadium Plates are given to a class for good. In Abyss runs only, each plate makes that class's Max HP, Armor and Damage stronger.
+- Shards and Plates are kept on the device the moment they drop, and backed up online. A backup code on the Abyss tab restores them on another device.
+- New Abyss leaderboard (deepest depth reached, with plates shown). Abyss runs don't count on the Campaign boards.
+- How to play has an Abyss section.
+
 ## 1.17.0
 - The Forge now asks before you scrap or offer gear you're wearing ("Keep it" backs out).
 - Spoils → Artefacts now shows your Starmetal.

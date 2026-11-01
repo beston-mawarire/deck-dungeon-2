@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS runs (
   sid TEXT,
   suspect INTEGER NOT NULL DEFAULT 0,
   reason TEXT,
+  plates INTEGER NOT NULL DEFAULT 0,
   UNIQUE (pid, seed)
 );
 CREATE INDEX IF NOT EXISTS runs_pid_time ON runs (pid, created_at);
@@ -38,3 +39,12 @@ CREATE TABLE IF NOT EXISTS sessions (
   posted_floor INTEGER
 );
 CREATE INDEX IF NOT EXISTS sessions_pid_time ON sessions (pid, started_at);
+
+-- A backup of each player's Abyss items (Ruin Shards and Vanadium Plates). The device is in charge; this copy lets them be restored.
+CREATE TABLE IF NOT EXISTS vault (
+  pid TEXT PRIMARY KEY,
+  shards INTEGER NOT NULL DEFAULT 0,
+  plates INTEGER NOT NULL DEFAULT 0,
+  class_plates TEXT NOT NULL DEFAULT '{}',
+  updated_at INTEGER NOT NULL
+);
