@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.13.7
+- Inventory and Potion buttons use the carved-stone look of the class cards, with dark text.
+
 ## 1.13.6
 - Close buttons (and the corner ✕ on popups) have their own dusky-rose fill.
 
