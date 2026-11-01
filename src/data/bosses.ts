@@ -199,7 +199,7 @@ TRAITS.push(
   { kind: "trait", id: "m_the_end", name: "The End", tags: ["Kill"], text: "The last thing there is", hooks: {} }
 );
 
-function makeDeath(): Fighter {
+export function makeDeath(): Fighter {
   const f = build({ name: "DEATH", title: "", family: "Undead", moves: ["reap"], traits: ["m_death", "x_warded"], armor: 300, hpMult: 12 }, DEATH_FLOOR);
   f.faces = [HIT, HIT, HIT, HIT, CRIT, CRIT];
   return f;

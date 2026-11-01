@@ -21,6 +21,7 @@ import {
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
+import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
 import { isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
@@ -297,7 +298,8 @@ function mapScene(r: Run) {
   const pips = fortunePips(r.floor);
   return `<div class="floorname">Floor ${r.floor} · ${esc(floorName(r.floor))}</div><div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>
   <h2>${r.step >= STEPS_PER_FLOOR ? (r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits") : "Choose your path"}</h2>
-  <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : ""}" data-room="${c}"><span class="ic">${c === "boss" && r.floor >= FLOORS ? "💀" : ROOM_INFO[c].icon}</span><b>${ROOM_INFO[c].name}</b><span class="sub">${esc(ROOM_INFO[c].text)}</span></button>`).join("")}</div>`;
+  <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : ""}" data-room="${c}">${(() => { const g = c === "crossroads" ? CROSSROADS_GUISES[r.crossroadsGuise ?? 0] : null; const info = g ? { icon: g.icon, name: g.title, text: g.room } : ROOM_INFO[c];
+    return `<span class="ic">${c === "boss" && r.floor >= FLOORS ? "💀" : info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>`).join("")}</div>`;
 }
 
 function dieBox(who: "player" | "enemy", label: string) {
@@ -1015,6 +1017,18 @@ const celebrated = new Set<number>();
 let fanfareEl: HTMLElement | null = null;
 /** Fanfares waiting their turn: a level-up and a big drop play one after the other, never on top of each other. */
 const fanfareQueue: [string, string | undefined, boolean][] = [];
+/** DEATH arrives: a deep purple dark, and its name in red, fading in and out. */
+function deathIntro() {
+  const el = document.createElement("div");
+  el.className = "death-intro";
+  el.innerHTML = `<div class="death-word">DEATH</div>`;
+  document.body.appendChild(el);
+  sfx("crimson");
+  setTimeout(() => sfx("legendary"), 700);
+  navigator.vibrate?.([300, 120, 300, 120, 600]);
+  setTimeout(() => el.remove(), 4200);
+}
+
 function celebrate(rarity: string, label?: string, banner = true) {
   if (!["rare", "epic", "legendary", "crimson", "epic_crimson", "legendary_crimson"].includes(rarity)) return;
   if (fanfareEl) { fanfareQueue.push([rarity, label, banner]); return; }
@@ -1091,6 +1105,7 @@ function render2() {
   if (s.t === "combat" && s.battle !== currentBattle) {
     currentBattle = s.battle;
     lastRoll.player = lastRoll.enemy = null;
+    if ((s.battle.enemy.items["m_death"] ?? 0) > 0) deathIntro();
     dispHp.player = dispHp.enemy = null;
   }
   if (s.t === "over" && !recorded) {

@@ -1,8 +1,8 @@
 // A run: three floors of path choices, fights, chests, shops, forges and bosses.
 import { relicBonus } from "../data/basic_relics";
 import { CURSES, EPIC_POWERS, KEEPSAKES, LEGENDARIES, RELICS, TALENTS } from "../data";
-import { CAMPAIGN_FLOORS, DEATH_FLOOR, END_FLOOR, EPIC_CRIMSON_FLOORS, makeBoss, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
-import { EVENTS, type GameEvent } from "../data/events";
+import { CAMPAIGN_FLOORS, DEATH_FLOOR, END_FLOOR, EPIC_CRIMSON_FLOORS, makeBoss, makeDeath, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
+import { CROSSROADS_GUISES, crossroadsEvent, EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
 import { makeDragon, makeGoblin, makeMonster, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
 import { type Action, actionToll, BLESSINGS, playRound, startBattle } from "../engine/combat";
@@ -34,7 +34,7 @@ export const STEPS_PER_FLOOR = 7;
 export { DEATH_FLOOR, END_FLOOR, WALL_FLOOR };
 export type Mode = "campaign" | "endless";
 
-export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty";
+export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -49,6 +49,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   forge: { name: "Forge", icon: "🔨", text: "Spend Scrap to upgrade or reroll gear." },
   rest: { name: "Campfire", icon: "🔥", text: "Rest and heal." },
   sanctum: { name: "Dragon Sanctum", icon: "🐲", text: "Your Dragon Heart beats faster. Something old waits here." },
+  crossroads: { name: "The Crossroads", icon: "🌒", text: "Two tunnels, one figure." },
   bounty: { name: "Bounty Board", icon: "📋", text: "Notices nailed to a post. Work for hire." },
   event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
@@ -62,7 +63,7 @@ export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "reli
 
 export type Scene =
   | { t: "map" }
-  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" }
+  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent"; crimsonKey?: boolean; /** A Bounty Board payout (closing it doesn't use a step). */ bounty?: boolean; /** A Dragon Heart was torn from the dragon (its level now). */ dragonHeart?: number }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
@@ -106,6 +107,8 @@ export interface Run {
   seenBosses: Set<string>;
   /** Shop rerolls used at the current Merchant (each costs more). */
   shopRerolls: number;
+  /** The look the Crossroads wears on the map this time (an index into CROSSROADS_GUISES). */
+  crossroadsGuise?: number;
   /** The contract taken at a Bounty Board (one at a time). */
   bounty?: Bounty;
   /** Normal monster fights chosen in a row (anything else resets it). Long streaks can spawn a Transformation. */
@@ -193,6 +196,11 @@ export function genChoices(run: Run): RoomType[] {
   if (heart && !heart.unified && run.rng() < 0.7) rooms.push("sanctum");
   // The Bounty Board: a rare extra path, from the first floor on.
   if (run.rng() < BOUNTY_BOARD_CHANCE) rooms.push("bounty");
+  // The Crossroads, in disguise: a very rare extra path from floor 2, once per run.
+  if (run.floor >= 2 && !run.seenBosses.has("e:crossroads") && run.rng() < CROSSROADS_PATH_CHANCE) {
+    run.crossroadsGuise = Math.floor(run.rng() * CROSSROADS_GUISES.length);
+    rooms.push("crossroads");
+  }
   return rooms;
 }
 
@@ -271,11 +279,16 @@ function enterRoom(run: Run, room: RoomType) {
       // The Wandering Blacksmith: two free upgrades at his anvil. The Alchemist: a shop of combat tonics.
       if (evDef.id === "blacksmith") { run.scene = { t: "smith", uses: 2 }; return; }
       if (evDef.id === "alchemist") { run.scene = { t: "alchemist", stock: alchemistStock(run) }; return; }
+      if (evDef.id === "crossroads") { run.scene = { t: "event", ev: crossroadsEvent(CROSSROADS_GUISES[Math.floor(run.rng() * CROSSROADS_GUISES.length)]), result: null, found: [] }; return; }
       if (evDef.id === "holy_tribute") { run.scene = { t: "tribute", paid: 0 }; return; }
       run.scene = { t: "event", ev: evDef, result: null, found: [] };
       return;
     }
     case "sanctum": run.scene = { t: "sanctum" }; return;
+    case "crossroads":
+      run.seenBosses.add("e:crossroads");
+      run.scene = { t: "event", ev: crossroadsEvent(CROSSROADS_GUISES[run.crossroadsGuise ?? 0]), result: null, found: [] };
+      return;
     case "bounty": run.scene = { t: "bounty", offers: bountyOffers(run) }; return;
     case "unique": return fight(run, "elite", "unique");
     case "goblin": return fight(run, "elite", "goblin");
@@ -296,7 +309,7 @@ function openResplendent(run: Run) {
 
 // ---------- Combat ----------
 
-function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed", defName?: string) {
+function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death", defName?: string) {
   run.hero.f.persist["floor"] = run.floor;
   // A Crimson Vault always holds a Crimson boss; in Endless, a floor boss is rarely Crimson too.
   // (Never on the floors with a special boss: the Horror, the Epic Crimson floors, DEATH and the End.)
@@ -304,7 +317,7 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && !special && run.rng() < 0.06));
   // A rare gold thief sometimes turns up in place of a normal monster.
   const thief = rank === "normal" && !then && run.rng() < 0.04;
-  const enemy = then === "dragon" ? makeDragon(run.rng, run.floor, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, run.floor) : then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank, defName);
+  const enemy = then === "death" ? makeDeath() : then === "dragon" ? makeDragon(run.rng, run.floor, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, run.floor) : then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank, defName);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
@@ -496,9 +509,9 @@ function afterFight(run: Run) {
     if (run.rng() < 0.03) items.push(rollItem(h, "legendary", run.floor, run.rng));
     run.message = `🐉 The dragon's hoard: +${10 + 3 * run.floor} ⚙️ Scrap and a mountain of Gold.`;
     // Its heart: the first one is yours; every dragon after that makes it stronger.
-    if (h.dragonHeart) h.dragonHeart.level++;
-    else h.dragonHeart = { level: 1 };
-    heartLevel = h.dragonHeart.level;
+    // (At most two hearts a run: the second one levels up the first.)
+    if (!h.dragonHeart) { h.dragonHeart = { level: 1 }; heartLevel = 1; }
+    else if (h.dragonHeart.level < MAX_DRAGON_HEARTS) heartLevel = ++h.dragonHeart.level;
   } else if (then === "goblin") {
     // Treasure Goblin: a guaranteed Rare and a fat purse, maybe an Epic, a Legendary or a scroll. All of it is yours.
     goblinGold = 25 + 8 * run.floor;
@@ -865,6 +878,7 @@ export function chooseEvent(run: Run, i: number) {
   const found: GearItem[] = [];
   let dragonWakes = false;
   let sleepingDragon = false;
+  let toPast = false, toFuture = false;
   const ctx = {
     rng: run.rng,
     gold: () => h.f.gold,
@@ -913,12 +927,16 @@ export function chooseEvent(run: Run, i: number) {
       return getItem(id).name;
     },
     addCrimsonKey: () => { h.crimsonKeys++; },
+    seePast: () => { toPast = true; },
+    seeFuture: () => { toFuture = true; },
     upgradeWeapon: () => { const w = h.equip.main; if (!w) return "You have no weapon."; w.level++; for (const k of Object.keys(w.bonuses)) w.bonuses[k]++; recompute(h); return null; }
   };
   const opt = s.ev.options[i];
   if (!opt || (opt.can && !opt.can(ctx))) return;
   const result = opt.run(ctx);
   // The Chained Dragon woke up: straight into a fight.
+  if (toPast) { run.message = result; return goToPast(run); }
+  if (toFuture) { run.message = result; return fight(run, "boss", "death"); }
   if (dragonWakes) { run.message = result; fight(run, "champion", "dragon", sleepingDragon ? "The Sleeping Dragon" : undefined); return; }
   // Repeatable options (the Golden Altar): stay here; finds pile up until you leave.
   if (opt.repeat) {
@@ -1186,6 +1204,24 @@ function settleBounty(run: Run): boolean {
     run.message = [run.message, `📋 Your bounty expired: ${bountyText(q, h.origin)}. (${bountyProgress(h, q)}/${q.target})`].filter(Boolean).join(" ");
   }
   return false;
+}
+
+// ---------- The Crossroads ----------
+
+export const CROSSROADS_PATH_CHANCE = 0.015;
+export const MAX_DRAGON_HEARTS = 2;
+
+/** "The past": back to the first room of the previous floor (you keep everything you carry). */
+function goToPast(run: Run) {
+  const h = run.hero;
+  run.floor = Math.max(1, run.floor - 1);
+  run.step = 0;
+  run.clearedFloor = undefined;
+  h.f.persist["floor"] = run.floor;
+  recompute(h);
+  run.popup = { icon: "⏪", title: `Floor ${run.floor} — again`, text: "The tunnels look familiar. The same cracks, the same smell of old smoke. You've been here before… haven't you?" };
+  run.choices = genChoices(run);
+  run.scene = { t: "map" };
 }
 
 // ---------- Dragon Sanctum ----------

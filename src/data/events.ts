@@ -40,6 +40,10 @@ export interface EventCtx {
   /** A random Common relic. Returns its name. */
   gainCommonRelic: () => string;
   addCrimsonKey: () => void;
+  /** The Crossroads: back to the first room of the previous floor. */
+  seePast: () => void;
+  /** The Crossroads: straight into a fight with DEATH. */
+  seeFuture: () => void;
 }
 
 export interface EventOption {
@@ -80,6 +84,7 @@ const sanguine = (pct: number, label: string, hint: string, run: (c: EventCtx) =
 });
 
 export const EVENTS: GameEvent[] = [
+  { id: "crossroads", unique: true, weight: 0.12, minFloor: 2, title: "The Crossroads", icon: "🌒", text: "", options: [] },
   { id: "sanguine_altar", weight: 0.8, title: "The Sanguine Altar", icon: "🩸",
     text: "A basin of black stone, stained to the rim. Carved hands reach up from its sides, palms open. It does not want gold.",
     options: [
@@ -225,3 +230,28 @@ export const EVENTS: GameEvent[] = [
   { id: "teller", title: "The Fortune Teller", icon: "🔮", text: "\"I see gold in your future… for a price.\"",
     options: [{ label: "Pay 20 Gold", hint: "Your next Resplendent chest is luckier", can: c => c.gold() >= 20, run: c => { c.addGold(-20); c.addPity(15); return "\"Your next great chest will smile on you.\""; } }, leave] }
 ];
+
+/** The Crossroads never looks the same twice: a shadowy figure offering the past or the future, in many disguises. */
+export interface CrossroadsGuise { title: string; icon: string; text: string; room: string; past: string; future: string; leave: string }
+export const CROSSROADS_GUISES: CrossroadsGuise[] = [
+  { title: "The Crossroads", icon: "🌒", room: "Two tunnels, one figure.", text: "Where the tunnel splits, a shadowy figure waits with its hood up. \"Would you like to see the future? Or perhaps the past?\"", past: "See the past", future: "See the future", leave: "Walk on" },
+  { title: "A Kind Stranger", icon: "🙂", room: "Someone friendly, for once.", text: "A smiling man in a grey coat offers to show you something wonderful. His eyes don't move when he blinks.", past: "Ask where you've been", future: "Ask where you're going", leave: "Politely decline" },
+  { title: "Two Doors", icon: "🚪", room: "Doors, with no walls around them.", text: "Two doors stand alone in the rock. One is old and worn smooth by hands. The other has no dust on it at all.", past: "The worn door", future: "The clean door", leave: "Neither" },
+  { title: "A Warm Light", icon: "✨", room: "Golden light, and a soft voice.", text: "Golden light spills from a side passage, and a soft voice offers you a gift: a memory, or a prophecy.", past: "A memory", future: "A prophecy", leave: "Turn from the light" },
+  { title: "…", icon: "❔", room: "…", text: "… … …", past: "◀", future: "▶", leave: "✕" },
+  { title: "The Hourglass", icon: "⏳", room: "Sand, falling upward.", text: "A cloaked figure turns an hourglass over, and over, and over. \"Back, or forward? The sand doesn't care which.\"", past: "Back", future: "Forward", leave: "Leave the sand alone" },
+  { title: "A Lucky Shortcut", icon: "🍀", room: "A shortcut! Probably.", text: "A cheerful sign, freshly painted: SHORTCUTS! CHOOSE YOUR DESTINATION! Below it, in smaller letters, someone has scratched: don't.", past: "Somewhere familiar", future: "Somewhere new", leave: "Ignore the sign" },
+  { title: "The Ferryman", icon: "🛶", room: "Black water, and a boat.", text: "A boatman waits on black water and holds out one bony hand. \"Upstream, or down? Both are paid for.\"", past: "Upstream", future: "Downstream", leave: "Stay on the shore" },
+  { title: "A Fortune Teller's Tent", icon: "🔮", room: "Bright silks, deep underground.", text: "Bright silks hang over a crystal ball. Nobody sits behind it, but a voice from inside asks which way you'd like to look.", past: "Look behind you", future: "Look ahead", leave: "Back out of the tent" }
+];
+
+export function crossroadsEvent(g: CrossroadsGuise): GameEvent {
+  return {
+    id: "crossroads", title: g.title, icon: g.icon, text: g.text,
+    options: [
+      { label: g.past, run: c => { c.seePast(); return "The world folds like paper. When it opens again, it's somewhere you've already been."; } },
+      { label: g.future, run: c => { c.seeFuture(); return "Everything goes cold. Something tall turns to look at you."; } },
+      { label: g.leave, run: () => "When you look back, there's nobody there." }
+    ]
+  };
+}
