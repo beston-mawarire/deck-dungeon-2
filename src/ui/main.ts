@@ -80,6 +80,7 @@ let bagTab: BagTab = "gear";
 let talentSub: "talents" | "curses" = "talents";
 let spoilsSub: "relics" | "artefacts" = "relics";
 let gearSub: "equipped" | "backpack" = "equipped";
+let statsSub: "attributes" | "statuses" = "attributes";
 /** Forge: waiting for the player to confirm destroying gear they're wearing. */
 let forgeAsk: { kind: "scrap"; uid: number } | { kind: "offer" } | null = null;
 /** Shown when the device loses its connection. */
@@ -187,8 +188,7 @@ function reactionsPanel(r: Run) {
   const smiteRow = `<div class="rxguide ${holy && wardSrc.length ? "yours" : ""}"><b>Smite</b>${holy && wardSrc.length ? ` <span class="chip rx">your build can set this off</span>` : ""}<br>
     ✨ Ward ${wardSrc.length ? `<span class="sub">(${wardSrc.map(esc).join(", ")})</span>` : ""} blocks an enemy's status + a ✝️ Holy weapon ${holy ? "" : `<span class="sub">(you have none)</span>`}<br>
     <span class="sub">Your next Holy hit deals 20% of the enemy's Max HP on top, once per fight.</span></div>`;
-  return `<h2>Statuses & reactions</h2>
-    <div class="panel">
+  return `<div class="panel">
       ${b ? `${describe(b.player, "On you")}${describe(b.enemy, `On ${b.enemy.name}`)}` : `<p class="sub">Statuses and reactions only last for a fight. Open this mid-fight to see what's active.</p>`}
       <p style="margin-top:10px"><b>This run</b></p>${history}
     </div>
@@ -496,7 +496,7 @@ function shopScene(r: Run) {
   <div class="row" style="margin-top:12px">${r.shopRerolls >= MAX_SHOP_REROLLS ? `<button disabled>No rerolls left</button>` : `<button data-reroll>Reroll stock · ${shopRerollCost(r)} 🪙 (${MAX_SHOP_REROLLS - r.shopRerolls} left)</button>`}<button class="primary" data-leave>Leave</button></div>`;
 }
 
-const SLOT_LABEL: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket", trinket3: "Trinket ★" };
+const SLOT_LABEL: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket 1", trinket2: "Trinket 2", trinket3: "Trinket 3 ★" };
 /** "Main hand" etc. if the item is equipped, "" if it's in the bag. */
 function equippedSlot(r: Run, it: GearItem): string {
   const s = EQUIP_SLOTS.find(k => r.hero.equip[k]?.uid === it.uid);
@@ -836,12 +836,12 @@ function overScene(r: Run) {
 function bag(r: Run) {
   const h = r.hero;
   const inCombat = r.scene.t === "combat";
-  const slotName: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket", trinket3: "Trinket ★" };
+  const slotName: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket 1", trinket2: "Trinket 2", trinket3: "Trinket 3 ★" };
   const equipped = openSlots(h).map(s => {
     const it = h.equip[s];
     return `<div><div class="slot-label">${slotName[s]}</div>${it ? itemCard(it, inCombat ? "" : `<button class="small" data-unequip="${s}">Unequip</button>${revealBtn(r, it)}`) : `<div class="item"><span class="sub">Empty</span></div>`}</div>`;
   }).join("");
-  const pack = h.backpack.map(it => itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(s => `<button class="small primary" data-equip="${it.uid}" data-slot="${s}">Equip${slotsFor(it, h).length > 1 ? ` (${slotName[s].toLowerCase()}${s === "trinket2" ? " 2" : ""})` : ""}</button>`).join("")}<button class="small" data-salvage="${it.uid}">Scrap</button>${revealBtn(r, it)}`, !inCombat)).join("");
+  const pack = h.backpack.map(it => itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(s => `<button class="small primary" data-equip="${it.uid}" data-slot="${s}">Equip${slotsFor(it, h).length > 1 ? ` (${slotName[s].toLowerCase()})` : ""}</button>`).join("")}<button class="small" data-salvage="${it.uid}">Scrap</button>${revealBtn(r, it)}`, !inCombat)).join("");
   const fusable = (id: string) => (FUSABLE_RELICS.has(id) ? ` <span class="fusable-tag">🔗 Fusable</span>` : "");
   const list = (o: Record<string, number>, cls = "") => Object.entries(o).map(([id, n]) => { const d = getItem(id); return `<p class="${cls}"><b class="nm">${esc(d.name)}</b>${n > 1 ? ` ×${n}` : ""}${cls === "relic-line" ? fusable(id) : ""} — <span class="desc">${esc(fillText(d.text, n))}</span></p>`; }).join("") || `<p class="sub">None yet.</p>`;
   const passive = getItem(ORIGINS[h.origin].passive);
@@ -933,7 +933,10 @@ function bag(r: Run) {
         <button class="small ${gearSub === "backpack" ? "primary" : ""}" data-gearsub="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</button></div>
       ${gearSub === "equipped" ? `<div class="gear-group equipped-group solo"><div class="cards">${equipped}</div></div>`
         : `<div class="gear-group backpack-group solo"><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div></div>`}`
-    : bagTab === "stats" ? `${stats}<p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>`
+    : bagTab === "stats" ? `<div class="row subtabs">
+        <button class="small ${statsSub === "attributes" ? "primary" : ""}" data-statssub="attributes">📊 Attributes</button>
+        <button class="small ${statsSub === "statuses" ? "primary" : ""}" data-statssub="statuses">✴️ Statuses & reactions</button></div>
+      ${statsSub === "attributes" ? `${stats}<p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>` : reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`}`
     : bagTab === "relics" ? `<div class="row subtabs">
         <button class="small ${spoilsSub === "relics" ? "primary" : ""}" data-spoilsub="relics">💎 Relics${nRelics ? ` (${nRelics})` : ""}</button>
         <button class="small ${spoilsSub === "artefacts" ? "primary" : ""}" data-spoilsub="artefacts">⚗️ Artefacts${h.crucible ? " (1)" : ""}</button></div>
@@ -943,7 +946,7 @@ function bag(r: Run) {
         <button class="small curse-subtab ${talentSub === "curses" ? "primary" : ""}" data-talentsub="curses">🕯️ Curses${nCurses ? ` (${nCurses})` : ""}</button></div>
       ${talentSub === "talents" ? list(h.talents, "talent-line")
         : `${nCurses ? list(h.curses, "curse-line") : `<p class="sub">You carry no curses. Shrines, cursing foes and dark magic can lay them on you, and only something holy can lift them.</p>`}`}`
-    : `${extras}${reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`}`;
+    : extras;
   return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
     <div class="row"><h1 class="grow">Inventory</h1><button class="closebtn" data-closebag>✕ Close</button></div>
@@ -956,7 +959,7 @@ function bag(r: Run) {
 /** Wide screens: your equipped gear, always in view on the left. */
 function sideEquip(r: Run) {
   const h = r.hero;
-  const slotName: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket", trinket3: "Trinket ★" };
+  const slotName: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket 1", trinket2: "Trinket 2", trinket3: "Trinket 3 ★" };
   const rows = openSlots(h).map(s => {
     const it = h.equip[s];
     if (!it) return `<div class="se-item empty"><div class="se-slot">${slotName[s]}</div><span class="sub">Empty</span></div>`;
@@ -1662,7 +1665,8 @@ function bind() {
   on("[data-potion]", () => { say(drinkPotion(r)); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-bag]", () => { bagOpen = true; bagTab = "gear"; gearSub = "equipped"; });
   on("[data-closebag]", () => { bagOpen = false; });
-  on("[data-bagtab]", el => { bagTab = el.dataset.bagtab as BagTab; talentSub = "talents"; spoilsSub = "relics"; });
+  on("[data-bagtab]", el => { bagTab = el.dataset.bagtab as BagTab; talentSub = "talents"; spoilsSub = "relics"; statsSub = "attributes"; });
+  on("[data-statssub]", el => { statsSub = el.dataset.statssub as typeof statsSub; });
   on("[data-gearsub]", el => { gearSub = el.dataset.gearsub as typeof gearSub; });
   on("[data-spoilsub]", el => { spoilsSub = el.dataset.spoilsub as typeof spoilsSub; });
   on("[data-talentsub]", el => { talentSub = el.dataset.talentsub as "talents" | "curses"; });

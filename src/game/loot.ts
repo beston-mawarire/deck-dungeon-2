@@ -23,8 +23,8 @@ export const TABLES = {
 /** Abyss drop tables: far richer than the campaign, and richest from the toughest foes (Champions, bosses, Uber bosses). */
 export const ABYSS_TABLES = {
   ...TABLES,
-  wooden: { common: 25, uncommon: 55, rare: 20 },
-  iron: { uncommon: 45, rare: 50, epic: 5 },
+  wooden: { uncommon: 40, rare: 50, epic: 10 },
+  iron: { rare: 55, epic: 38, legendary: 7 },
   elite: { uncommon: 40, rare: 50, epic: 9, legendary: 1 },
   champion: { rare: 55, epic: 35, legendary: 10 },
   boss: { rare: 30, epic: 50, legendary: 20 },

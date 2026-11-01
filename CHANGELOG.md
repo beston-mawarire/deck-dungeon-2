@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.18.1
+- Abyss chests are much richer: Wooden chests give Uncommon to Epic, Iron chests Rare to Legendary.
+- Trinket slots are labelled Trinket 1, Trinket 2 (and Trinket 3 ★) everywhere.
+- Inventory → Stats has two tabs: Attributes (the old Stats page) and Statuses & reactions (moved from Extras, with the reaction guide and the list of all statuses).
+
 ## 1.18.0
 - New game mode: **Abyss Run**. The title screen now has Campaign and Abyss Run tabs. The Abyss opens once you've beaten floor 15, and each run costs a Ruin Shard.
   - Ten depths, each counting as two floors deep. Every plain fight is a rank tougher (monsters are Elites, Elites are Champions, Champions are bosses) and every depth ends with an Uber boss: an empowered boss with far more HP, harder hits, more Armor and two extra traits.
