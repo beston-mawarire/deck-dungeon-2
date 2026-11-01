@@ -14,6 +14,7 @@ export const hasThirdTrinket = (h: Hero) => h.keepsake === "ks_collector";
 /** The slots this hero can actually use right now. */
 export const openSlots = (h: Hero) => EQUIP_SLOTS.filter(s => s !== "trinket3" || hasThirdTrinket(h));
 export const BACKPACK_SIZE = 6;
+export const DRAGON_HEART_MULT = 1.5;
 
 export interface Hero {
   origin: OriginId;
@@ -36,6 +37,8 @@ export interface Hero {
   manaPotions: number;
   /** One Keepsake at a time (from bosses after floor 5). */
   keepsake?: string;
+  /** Torn from a slain dragon. Each further dragon slain raises its level. Unified at a Dragon Sanctum: every stat +50%. */
+  dragonHeart?: { level: number; unified?: boolean };
   xp: number;
   level: number;
   nextUid: number;
@@ -208,6 +211,13 @@ export function recompute(h: Hero) {
   }
   eachHook(f, "stats", (hk, n) => hk(s, n, f));
   if (items["l_mountain"]) s.armor *= 2;
+  // Unified with a Dragon Heart: every stat +50%.
+  if (h.dragonHeart?.unified) {
+    const up = (n: number) => (n > 0 ? Math.round(n * DRAGON_HEART_MULT) : n);
+    s.maxHp = up(s.maxHp); s.armor = up(s.armor); s.damage = up(s.damage); s.offDamage = up(s.offDamage);
+    s.dodge = up(s.dodge); s.bash = up(s.bash); s.spellAmp = up(s.spellAmp); s.critChance = up(s.critChance);
+    s.critDmg = up(s.critDmg ?? 0); s.dotAmp = up(s.dotAmp ?? 0); s.dmgDealt = up(s.dmgDealt ?? 0);
+  }
   // Hollow Vessel: Max HP can't go above 20, but the off-hand's effects fire twice.
   const vessel = (items["ep_hollow_vessel"] ?? 0) > 0;
   if (vessel) s.maxHp = Math.min(20, s.maxHp);

@@ -17,9 +17,10 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  abandonRun, smithUpgrade, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct,
+  abandonRun, smithUpgrade, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
+import { bountyProgress, bountyText, rewardText } from "../game/bounty";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
 import { isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
@@ -51,6 +52,8 @@ let storyOpen: Mode | null = null;
 let helpOpen = false;
 /** The in-run menu (main menu / end run). */
 let menuOpen = false;
+/** The current-bounty popup. */
+let bountyOpen = false;
 /** Which Inventory tab is open. */
 type BagTab = "gear" | "stats" | "relics" | "talents" | "extras";
 let bagTab: BagTab = "gear";
@@ -208,6 +211,14 @@ function itemCard(it: GearItem, buttons = "", compare = false, equippedAs = "") 
 const nextMilestone = (f: number) => (f < WALL_FLOOR ? ` · a Horror at ${WALL_FLOOR}` : f < DEATH_FLOOR ? ` · DEATH at ${DEATH_FLOOR}` : f < END_FLOOR ? ` · the End at ${END_FLOOR}` : "");
 const floorLabel = (r: Run) => (r.mode === "endless" ? `Floor <b>${r.floor}</b>${nextMilestone(r.floor)}` : `Floor <b>${Math.min(r.floor, FLOORS)}</b>/${FLOORS}`);
 
+/** The current bounty's tracker button (📋 progress/target). */
+function bountyBtn(r: Run) {
+  const q = r.bounty;
+  if (!q) return "";
+  const n = Math.min(q.target, bountyProgress(r.hero, q));
+  return `<button class="small bounty-btn ${n >= q.target ? "done" : ""}" data-bounty title="Your bounty: ${esc(bountyText(q, r.hero.origin))}">📋 ${n}/${q.target}</button>`;
+}
+
 function hud(r: Run) {
   const h = r.hero;
   const f = h.f;
@@ -217,7 +228,7 @@ function hud(r: Run) {
     const canDrink = h.potions > 0 && f.hp > 0 && f.hp < f.maxHp && !busy && !(r.scene.t === "combat" && r.scene.battle.over);
     return `<div class="hud compact"><div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">${floorLabel(r)}</span><span class="grow"></span>
       <span class="stat">🪙 <b>${f.gold}</b></span>
-      <button class="small" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (+12 HP)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${f.flags["mana"] || busy ? "disabled" : ""} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${h.manaPotions}</button>` : ""}<button class="small" data-bag title="Inventory">🎒</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu" ${busy ? "disabled" : ""}>☰</button></div></div>`;
+      <button class="small" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (+12 HP)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${f.flags["mana"] || busy ? "disabled" : ""} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${h.manaPotions}</button>` : ""}${bountyBtn(r)}<button class="small" data-bag title="Inventory">🎒</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu" ${busy ? "disabled" : ""}>☰</button></div></div>`;
   }
   return `<div class="hud">
     <div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">Lv ${h.level}</span><span class="grow"></span><span class="stat">${floorLabel(r)}</span></div>
@@ -226,7 +237,7 @@ function hud(r: Run) {
       <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span><span>🧪 <b>${h.potions}</b></span><span>📜 <b>${h.scrolls}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
     <div class="bar xp"><i style="width:${(h.xp / need) * 100}%"></i></div>
     <div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>
-    <div class="row" style="margin-top:6px"><button class="small" data-bag>🎒 Inventory</button>${h.potions && f.hp > 0 && f.hp < f.maxHp && !busy && r.scene.t !== "over" ? `<button class="small" data-potion>🧪 Potion (+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ Menu</button></div>
+    <div class="row hud-actions" style="margin-top:6px"><button class="small" data-bag>🎒 <span class="lbl">Inventory</span></button>${bountyBtn(r)}${h.potions && f.hp > 0 && f.hp < f.maxHp && !busy && r.scene.t !== "over" ? `<button class="small" data-potion>🧪 <span class="lbl">Potion </span>(+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ <span class="lbl">Menu</span></button></div>
   </div>`;
 }
 
@@ -286,7 +297,7 @@ function mapScene(r: Run) {
   const pips = fortunePips(r.floor);
   return `<div class="floorname">Floor ${r.floor} · ${esc(floorName(r.floor))}</div><div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>
   <h2>${r.step >= STEPS_PER_FLOOR ? (r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits") : "Choose your path"}</h2>
-  <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") ? "crimson-room" : c === "goblin" ? "goblin-room" : ""}" data-room="${c}"><span class="ic">${c === "boss" && r.floor >= FLOORS ? "💀" : ROOM_INFO[c].icon}</span><b>${ROOM_INFO[c].name}</b><span class="sub">${esc(ROOM_INFO[c].text)}</span></button>`).join("")}</div>`;
+  <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : ""}" data-room="${c}"><span class="ic">${c === "boss" && r.floor >= FLOORS ? "💀" : ROOM_INFO[c].icon}</span><b>${ROOM_INFO[c].name}</b><span class="sub">${esc(ROOM_INFO[c].text)}</span></button>`).join("")}</div>`;
 }
 
 function dieBox(who: "player" | "enemy", label: string) {
@@ -356,7 +367,8 @@ function lootScene(r: Run) {
   const extras = [s.gold ? `🪙 ${s.gold} Gold` : "", s.potions ? `🧪 Potion` : "", s.scrolls ? `📜 ${s.scrolls > 1 ? `${s.scrolls} Scrolls` : "Scroll"} of Revelation (yours)` : "", s.relic ? `💎 New relic: ${getItem(s.relic).name} — ${getItem(s.relic).text}` : ""].filter(Boolean);
   // After a won fight, the rewards sit in a framed Victory panel.
   const victory = s.title === "Victory" || s.title.startsWith("You caught") || s.title === "The Mimic's hoard";
-  const key = s.crimsonKey ? `<div class="key-found">🗝️ CRIMSON KEY FOUND<span>A Crimson Vault will now be offered on your path.</span></div>` : "";
+  const key = (s.crimsonKey ? `<div class="key-found">🗝️ CRIMSON KEY FOUND<span>A Crimson Vault will now be offered on your path.</span></div>` : "")
+    + (s.dragonHeart ? `<div class="key-found heart-found">🫀 ${s.dragonHeart > 1 ? `DRAGON HEART · LEVEL ${s.dragonHeart}` : "DRAGON HEART"}<span>${s.dragonHeart > 1 ? "Another dragon's heart feeds yours. It beats stronger." : "Still warm. Still beating. It's yours now."}</span></div>` : "");
   const body = `${key}${extras.length ? `<div class="panel">${extras.map(x => `<p>${esc(x)}</p>`).join("")}</div>` : ""}
     <div class="cards" style="margin-top:10px">${s.items.map(it => itemCard(it, takeButtons(it), true)).join("")}</div>
     <div class="row" style="margin-top:12px"><button class="primary" data-finish>${s.items.length ? "Leave the rest" : "Continue"}${s.then === "resplendent" ? " → open the Resplendent chest" : ""}</button></div>`;
@@ -511,6 +523,44 @@ function alchemistScene(r: Run) {
     <div class="row" style="margin-top:12px"><button data-leave>Leave</button></div>`;
 }
 
+function sanctumScene(r: Run) {
+  if (r.scene.t !== "sanctum") return "";
+  const heart = r.hero.dragonHeart;
+  const done = r.scene.done || heart?.unified;
+  return `<h2>🐲 The Dragon Sanctum</h2><div class="panel crimson-foe"><p>${done
+    ? "The heart sinks into your chest and does not stop. Your blood runs hot. Everything you are is more."
+    : "Bones the size of bridges ring a pool of embers. Your Dragon Heart pounds against your ribs, as if it knows the way home."}</p>
+    ${done ? `<p class="crimson-ink"><b>Unified.</b> Every one of your stats is 50% stronger, for the rest of the run.</p>` : `<p class="sub">Unify with the heart: every one of your stats becomes 50% stronger, for the rest of the run.</p>`}</div>
+    <div class="row" style="margin-top:12px">${done ? `<button class="primary" data-leave>Leave the Sanctum</button>` : `<button class="crimson-btn" data-unify>🫀 Unify with the Dragon Heart</button><button data-leave>Not yet</button>`}</div>`;
+}
+
+function bountyCard(r: Run, q: { kind: string; target: number; status?: string; reward: Parameters<typeof rewardText>[0]; roomsLeft: number }, btn: string) {
+  return `<div class="item bounty-card"><div class="meta">Contract · ${q.roomsLeft} rooms</div><div class="nm">📋 ${esc(bountyText(q as Parameters<typeof bountyText>[0], r.hero.origin))}</div><p>Reward: <b>${esc(rewardText(q.reward))}</b></p>${btn}</div>`;
+}
+
+function bountyScene(r: Run) {
+  if (r.scene.t !== "bounty") return "";
+  const cur = r.bounty;
+  return `<h2>📋 The Bounty Board</h2><div class="panel"><p>Notices nailed one over another, most of them stained. Pick one. Finish it within ${r.scene.offers[0]?.roomsLeft ?? 14} rooms and the reward is yours.</p>
+    ${cur ? `<p class="sub">You already hold a contract (${esc(bountyText(cur, r.hero.origin))} · ${bountyProgress(r.hero, cur)}/${cur.target}). Taking a new one tears up the old.</p>` : ""}</div>
+    <div class="cards">${r.scene.offers.map((q, i) => bountyCard(r, q, `<button class="small primary" data-takebounty="${i}">Take this contract</button>`)).join("")}</div>
+    <div class="row" style="margin-top:12px"><button data-leave>Leave the board</button></div>`;
+}
+
+function bountyPopup(r: Run) {
+  const q = r.bounty;
+  if (!q) return "";
+  const n = Math.min(q.target, bountyProgress(r.hero, q));
+  return `<div class="overlay popup-wrap"><div class="popup bounty-pop">
+    <div class="beat-icon">📋</div><h2 class="bright">Your bounty</h2>
+    <p class="big">${esc(bountyText(q, r.hero.origin))}</p>
+    <div class="bar bounty-bar"><i style="width:${(n / q.target) * 100}%"></i></div>
+    <p><b>${n}/${q.target}</b> done · <b>${q.roomsLeft}</b> room${q.roomsLeft === 1 ? "" : "s"} left</p>
+    <p>Reward: <b>${esc(rewardText(q.reward))}</b></p>
+    ${bountyDone(r) ? `<p class="crimson-ink">Done! You'll be paid when you're back on the path.</p>` : ""}
+    <div class="row" style="justify-content:center"><button class="primary" data-closebounty>Close</button></div></div></div>`;
+}
+
 function tributeScene(r: Run) {
   if (r.scene.t !== "tribute") return "";
   const h = r.hero;
@@ -623,7 +673,12 @@ function bag(r: Run) {
     : `<div class="item keepsake empty-slot"><div class="meta">Keepsake</div><div class="nm">🕯️ Empty</div><p class="sub">Something rare could rest here. Bosses deep below sometimes leave one behind…</p></div>`;
   const angel = h.f.persist["angelFights"] ?? 0, dragon = h.f.persist["blessFights"] ?? 0, clover = h.f.persist["cloverChests"] ?? 0;
   const blessCount = (angel > 0 ? 1 : 0) + (dragon > 0 ? 1 : 0) + (clover > 0 ? 1 : 0);
-  const extras = `${keepsakeHtml}
+  const heart = h.dragonHeart;
+  const heartHtml = heart ? `<div class="item dragon-heart"><div class="meta">Crimson · level ${heart.level}</div><div class="nm">🫀 Dragon Heart</div><p>${heart.unified
+      ? "Unified. It beats in your chest now: every one of your stats is 50% stronger."
+      : "Torn from a slain dragon, still beating. Somewhere in the dark, a Dragon Sanctum could bind it to you."}</p></div>`
+    : `<div class="item dragon-heart empty-slot"><div class="meta">Dragon Heart</div><div class="nm">🫀 Empty</div><p>A place for a dragon's heart. Few who go looking for one come back.</p></div>`;
+  const extras = `${keepsakeHtml}${heartHtml}
     <div class="bag-extras">
       <div class="stile extra-tile key-tile"><span>🗝️</span><span><b>${h.crimsonKeys}</b> Crimson Key${h.crimsonKeys === 1 ? "" : "s"}<span class="sub">${h.crimsonKeys ? "A Crimson Vault will be on your path." : "Dropped by Crimson Elites, deep below."}</span></span></div>
       <div class="stile extra-tile scroll-tile"><span>📜</span><span><b>${h.scrolls}</b> Scroll${h.scrolls === 1 ? "" : "s"} of Revelation<span class="sub">${h.scrolls ? "Use one on a hidden Legendary in the Gear tab." : "Reveals a hidden Legendary's true power."}</span></span></div>
@@ -1050,6 +1105,8 @@ function render2() {
     : s.t === "smith" ? smithScene(r)
     : s.t === "alchemist" ? alchemistScene(r)
     : s.t === "tribute" ? tributeScene(r)
+    : s.t === "sanctum" ? sanctumScene(r)
+    : s.t === "bounty" ? bountyScene(r)
     : s.t === "rest" ? restScene(r) : s.t === "confirm" ? confirmScene(r) : s.t === "event" ? eventScene(r) : overScene(r);
   celebrateScene(r);
   const msg = [r.message, note].filter(Boolean);
@@ -1069,7 +1126,7 @@ function render2() {
       else celebrate(["rare", "epic", "legendary"].includes(getItem(relicNow).rarity ?? "") ? (getItem(relicNow).rarity as string) : "rare", "NEW RELIC", false);
     }
   }
-  app.innerHTML = `${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${menuOpen ? runMenu(r) : ""}`;
+  app.innerHTML = `${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}`;
   bind();
 }
 
@@ -1283,6 +1340,10 @@ function bind() {
     endArmed = false; menuOpen = false; bagOpen = false;
     abandonRun(r);
   });
+  on("[data-unify]", () => { say(unifyHeart(r)); celebrate("legendary_crimson", "Unified with the Dragon Heart", false); });
+  on("[data-takebounty]", el => { takeBounty(r, Number(el.dataset.takebounty)); sfx("chest"); });
+  on("[data-bounty]", () => { bountyOpen = true; });
+  on("[data-closebounty]", () => { bountyOpen = false; });
   on("[data-tribute]", el => { say(payTribute(r, el.dataset.tribute!)); sfx("heal"); });
   on("[data-tonicbuy]", el => { say(buyTonic(r, Number(el.dataset.tonicbuy))); });
   on("[data-tonic]", el => { say(useTonic(r, el.dataset.tonic!)); sfx("status"); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });

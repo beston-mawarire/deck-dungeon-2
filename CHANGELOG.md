@@ -5,6 +5,13 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.5.0
+- **Dragon Heart**: torn from any dragon you slay (the Chained Dragon, or the Sleeping Dragon, which now fights you when it wakes). Each further dragon raises its level. It has its own slot in Extras.
+- **Dragon Sanctum**: while you hold a heart you haven't unified, a very common extra path. Unify with the heart: every stat +50% for the rest of the run.
+- **Bounty Board**: a rare extra path from floor 1 (can recur). Pick one of three contracts and finish it within 14 rooms: flawless wins, Crits, Elites, Champions, class-action uses, applying a status, reactions, kills or quick wins. Pays Gold (usually), Scrap, or an Uncommon to Epic item. Track it with the 📋 button in the top bar.
+- Small screens: the top-bar buttons show icons only, to make room.
+- Fix: Crimson Vault and Treasure Goblin paths show their colours again.
+
 ## 1.4.3
 - Sanguine Altar: tempering now gives +4 levels. (Still one sacrifice per altar.)
 

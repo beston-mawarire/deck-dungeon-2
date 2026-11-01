@@ -11,6 +11,7 @@ import { makeRng } from "../engine/rng";
 import { applyStatus, heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
+import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
 import { addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
@@ -33,7 +34,7 @@ export const STEPS_PER_FLOOR = 7;
 export { DEATH_FLOOR, END_FLOOR, WALL_FLOOR };
 export type Mode = "campaign" | "endless";
 
-export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin";
+export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -47,6 +48,8 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   shop: { name: "Merchant", icon: "🪙", text: "Buy gear, potions and scrolls." },
   forge: { name: "Forge", icon: "🔨", text: "Spend Scrap to upgrade or reroll gear." },
   rest: { name: "Campfire", icon: "🔥", text: "Rest and heal." },
+  sanctum: { name: "Dragon Sanctum", icon: "🐲", text: "Your Dragon Heart beats faster. Something old waits here." },
+  bounty: { name: "Bounty Board", icon: "📋", text: "Notices nailed to a post. Work for hire." },
   event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
   unique: { name: "A Strange Presence", icon: "✴️", text: "Someone — something — with a name. Dangerous, once per run, and carrying something rare." },
@@ -60,7 +63,7 @@ export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "reli
 export type Scene =
   | { t: "map" }
   | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" }
-  | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent"; crimsonKey?: boolean }
+  | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent"; crimsonKey?: boolean; /** A Bounty Board payout (closing it doesn't use a step). */ bounty?: boolean; /** A Dragon Heart was torn from the dragon (its level now). */ dragonHeart?: number }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
   | { t: "talent"; options: string[] }
@@ -70,6 +73,10 @@ export type Scene =
   | { t: "confirm"; room: RoomType }
   | { t: "event"; ev: GameEvent; result: string | null; found: GearItem[]; note?: string }
   | { t: "smith"; uses: number }
+  /** The Dragon Sanctum: unify with your Dragon Heart. */
+  | { t: "sanctum"; done?: boolean }
+  /** The Bounty Board: three contracts to choose from. */
+  | { t: "bounty"; offers: Bounty[] }
   | { t: "alchemist"; stock: { id: string; price: number; sold?: boolean }[] }
   /** Holy Tribute: pay Gold to lift curses one at a time, each costing more than the last. */
   | { t: "tribute"; paid: number }
@@ -99,6 +106,8 @@ export interface Run {
   seenBosses: Set<string>;
   /** Shop rerolls used at the current Merchant (each costs more). */
   shopRerolls: number;
+  /** The contract taken at a Bounty Board (one at a time). */
+  bounty?: Bounty;
   /** Normal monster fights chosen in a row (anything else resets it). Long streaks can spawn a Transformation. */
   normalStreak?: number;
   /** The floor whose "Floor cleared" screen has been shown (you continue from it to go deeper). */
@@ -179,6 +188,11 @@ export function genChoices(run: Run): RoomType[] {
   const rooms = [...out].sort(() => run.rng() - 0.5);
   // Holding a Crimson Key: a Crimson Vault is always offered as an extra path.
   if (crimsonActive(run) && run.hero.crimsonKeys > 0) rooms.push("crimson_vault");
+  // A Dragon Heart not yet unified: the Dragon Sanctum is very often an extra path.
+  const heart = run.hero.dragonHeart;
+  if (heart && !heart.unified && run.rng() < 0.7) rooms.push("sanctum");
+  // The Bounty Board: a rare extra path, from the first floor on.
+  if (run.rng() < BOUNTY_BOARD_CHANCE) rooms.push("bounty");
   return rooms;
 }
 
@@ -201,6 +215,8 @@ export function chooseRoom(run: Run, room: RoomType) {
 function enterRoom(run: Run, room: RoomType) {
   const h = run.hero;
   // Plain fights build the streak; shops, campfires, forges, shrines, chests and the floor boss leave it alone; anything else resets it.
+  // A contract's clock: every room you enter (except the board itself) uses one of its rooms.
+  if (run.bounty && room !== "bounty") run.bounty.roomsLeft = Math.max(0, run.bounty.roomsLeft - 1);
   if (room === "fight") run.normalStreak = (run.normalStreak ?? 0) + 1;
   else if (!STREAK_NEUTRAL.includes(room)) run.normalStreak = 0;
   switch (room) {
@@ -259,6 +275,8 @@ function enterRoom(run: Run, room: RoomType) {
       run.scene = { t: "event", ev: evDef, result: null, found: [] };
       return;
     }
+    case "sanctum": run.scene = { t: "sanctum" }; return;
+    case "bounty": run.scene = { t: "bounty", offers: bountyOffers(run) }; return;
     case "unique": return fight(run, "elite", "unique");
     case "goblin": return fight(run, "elite", "goblin");
   }
@@ -286,7 +304,7 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && !special && run.rng() < 0.06));
   // A rare gold thief sometimes turns up in place of a normal monster.
   const thief = rank === "normal" && !then && run.rng() < 0.04;
-  const enemy = then === "dragon" ? makeDragon(run.rng, run.floor) : then === "goblin" ? makeGoblin(run.rng, run.floor) : then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank, defName);
+  const enemy = then === "dragon" ? makeDragon(run.rng, run.floor, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, run.floor) : then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank, defName);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
@@ -426,6 +444,13 @@ function afterFight(run: Run) {
   }
   run.carry = b.carry;
   run.stats.kills++;
+  // Bounty Board counters.
+  const bump = (k: string) => { h.f.persist[k] = (h.f.persist[k] ?? 0) + 1; };
+  bump("q_kills");
+  if (rank === "elite" || rank === "crimson") bump("q_elites");
+  if (rank === "champion") bump("q_champions");
+  if (!b.player.flags["hurt"]) bump("q_flawless");
+  if (b.round <= 3) bump("q_quick");
   // Forge Golems leave Scrap behind (more from Elite and Champion golems).
   let golemScrap = 0;
   if ((b.enemy.items["m_forge"] ?? 0) > 0) {
@@ -461,6 +486,7 @@ function afterFight(run: Run) {
     run.message = "You find a Mana Potion. 🔷";
   }
   let goblinGold = 0;
+  let heartLevel = 0;
   if (then === "dragon") {
     // The dragon's hoard: a big pile of Gold and Scrap; maybe a great relic, rarely an Epic or a Legendary.
     goblinGold = 80 + 25 * run.floor;
@@ -469,6 +495,10 @@ function afterFight(run: Run) {
     if (run.rng() < 0.08) items.push(rollItem(h, "epic", run.floor, run.rng));
     if (run.rng() < 0.03) items.push(rollItem(h, "legendary", run.floor, run.rng));
     run.message = `🐉 The dragon's hoard: +${10 + 3 * run.floor} ⚙️ Scrap and a mountain of Gold.`;
+    // Its heart: the first one is yours; every dragon after that makes it stronger.
+    if (h.dragonHeart) h.dragonHeart.level++;
+    else h.dragonHeart = { level: 1 };
+    heartLevel = h.dragonHeart.level;
   } else if (then === "goblin") {
     // Treasure Goblin: a guaranteed Rare and a fat purse, maybe an Epic, a Legendary or a scroll. All of it is yours.
     goblinGold = 25 + 8 * run.floor;
@@ -547,7 +577,7 @@ function afterFight(run: Run) {
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (relic) grantRelic(run, relic);
   if (scrolls) grantScrolls(run, scrolls);
-  run.scene = { t: "loot", title: then === "dragon" ? "The Dragon's Hoard" : then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined };
+  run.scene = { t: "loot", title: then === "dragon" ? "The Dragon's Hoard" : then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined, dragonHeart: heartLevel || undefined };
   const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean);
   run.message = notes.join(" ");
 }
@@ -656,11 +686,13 @@ export function scrapFound(run: Run, uid: number) {
 }
 
 export function finishLoot(run: Run) {
+  let bountyPay = false;
   if (run.scene.t === "loot") {
+    bountyPay = !!run.scene.bounty;
     collectLoot(run);
     if (run.scene.then === "resplendent") return openResplendent(run);
   }
-  advance(run);
+  advance(run, bountyPay);
 }
 
 export function pickResplendent(run: Run, i: number) {
@@ -832,6 +864,7 @@ export function chooseEvent(run: Run, i: number) {
   const h = run.hero;
   const found: GearItem[] = [];
   let dragonWakes = false;
+  let sleepingDragon = false;
   const ctx = {
     rng: run.rng,
     gold: () => h.f.gold,
@@ -854,7 +887,7 @@ export function chooseEvent(run: Run, i: number) {
     potions: () => h.potions,
     floor: () => run.floor,
     needGold: () => eventGold(run, s.ev),
-    wakeDragon: () => { dragonWakes = true; },
+    wakeDragon: (sleeping?: boolean) => { dragonWakes = true; sleepingDragon = !!sleeping; },
     dragonBlessing: () => {
       const k = 1 + Math.floor(run.rng() * 6);
       h.f.persist["blessKind"] = k;
@@ -886,7 +919,7 @@ export function chooseEvent(run: Run, i: number) {
   if (!opt || (opt.can && !opt.can(ctx))) return;
   const result = opt.run(ctx);
   // The Chained Dragon woke up: straight into a fight.
-  if (dragonWakes) { run.message = result; fight(run, "champion", "dragon"); return; }
+  if (dragonWakes) { run.message = result; fight(run, "champion", "dragon", sleepingDragon ? "The Sleeping Dragon" : undefined); return; }
   // Repeatable options (the Golden Altar): stay here; finds pile up until you leave.
   if (opt.repeat) {
     s.found.push(...found);
@@ -1108,12 +1141,66 @@ export function advance(run: Run, fromTalent = false) {
       }
     } else run.step++;
   }
+  if (settleBounty(run)) return;
   if (run.pendingTalents > 0) {
     run.scene = { t: "talent", options: talentOptions(run) };
     return;
   }
   run.choices = genChoices(run);
   run.scene = { t: "map" };
+}
+
+// ---------- Bounty Board ----------
+
+export const bountyOffers = (run: Run) => makeOffers(run.hero, run.rng, run.floor, heroTags(run.hero));
+
+/** Take a contract (it replaces any you already hold), then move on. */
+export function takeBounty(run: Run, i: number) {
+  const s = run.scene;
+  if (s.t !== "bounty") return;
+  const offer = s.offers[i];
+  if (!offer) return;
+  run.bounty = { ...offer, base: run.hero.f.persist[offer.kind === "status" ? `q_st_${offer.status}` : `q_${offer.kind}`] ?? 0 };
+  run.message = `📋 Contract taken: ${bountyText(offer, run.hero.origin)} within ${offer.roomsLeft} rooms.`;
+  advance(run);
+}
+
+export const bountyDone = (run: Run) => !!run.bounty && bountyProgress(run.hero, run.bounty) >= run.bounty.target;
+
+/** Back on the map: pay out a finished contract, or tear up an expired one. Returns true if it opened a reward screen. */
+function settleBounty(run: Run): boolean {
+  const q = run.bounty;
+  if (!q) return false;
+  const h = run.hero;
+  if (bountyDone(run)) {
+    run.bounty = undefined;
+    const r = q.reward;
+    const what = `${bountyText(q, h.origin)}.`;
+    if (r.kind === "scrap") { h.scrap += r.n; run.message = [run.message, `📋 Bounty complete! ${what} +${r.n} ⚙️ Scrap.`].filter(Boolean).join(" "); return false; }
+    run.scene = { t: "loot", title: "📋 Bounty complete", items: r.kind === "item" ? [rollItem(h, r.rarity, run.floor, run.rng)] : [], gold: r.kind === "gold" ? r.n : 0, scrolls: 0, potions: 0, bounty: true };
+    run.message = `${what} Your reward: ${rewardText(r)}.`;
+    return true;
+  }
+  if (q.roomsLeft <= 0) {
+    run.bounty = undefined;
+    run.message = [run.message, `📋 Your bounty expired: ${bountyText(q, h.origin)}. (${bountyProgress(h, q)}/${q.target})`].filter(Boolean).join(" ");
+  }
+  return false;
+}
+
+// ---------- Dragon Sanctum ----------
+
+/** Unify with your Dragon Heart: every stat +50% for the rest of the run. */
+export function unifyHeart(run: Run): string | null {
+  const s = run.scene;
+  const h = run.hero;
+  if (s.t !== "sanctum" || s.done || !h.dragonHeart || h.dragonHeart.unified) return null;
+  const before = h.f.maxHp;
+  h.dragonHeart.unified = true;
+  recompute(h);
+  h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.max(0, h.f.maxHp - before));
+  s.done = true;
+  return null;
 }
 
 export const baseName = (item: GearItem) => baseOf(item.base).name;

@@ -456,7 +456,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     a.hp += raw;
     log(b, `☠️ DEATH drinks ${raw}.`);
   }
-  if (ctx.kind === "crit") fx(b, { who: d.id, kind: "crit", text: "Crit!" });
+  if (ctx.kind === "crit") { fx(b, { who: d.id, kind: "crit", text: "Crit!" }); if (a.id === "player") a.persist["q_crits"] = (a.persist["q_crits"] ?? 0) + 1; }
   if (ctx.kind === "graze") fx(b, { who: d.id, kind: "text", text: "Graze" });
   // The hit streak: only a real Hit or Crit that gets through keeps it going.
   if ((ctx.kind === "hit" || ctx.kind === "crit") && after > 0) addStreak(a);
@@ -659,6 +659,7 @@ export function heroPhase(b: Battle, action: Action) {
   const e = b.enemy;
   startOfTurn(b, p);
   if (checkOver(b)) return;
+  if (action === "counter" || action === "barrier" || action === "penance" || action === "warcry") p.persist["q_skill"] = (p.persist["q_skill"] ?? 0) + 1;
   if (action === "flee") {
     if (e.boss || e.elite) log(b, "You can't flee from this fight.");
     else {

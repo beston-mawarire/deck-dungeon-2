@@ -284,7 +284,7 @@ describe("bosses, endless, events, fusions", () => {
       run.hero.relics = { whetstone: 1 };
       run.scene = { t: "event", ev, result: null, found: [] };
       chooseEvent(run, i);
-      expect(["event", "loot"]).toContain(run.scene.t);
+      expect(["event", "loot", "combat"]).toContain(run.scene.t); // (waking a dragon starts a fight)
     }
   });
 });

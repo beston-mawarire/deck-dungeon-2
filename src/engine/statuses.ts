@@ -112,6 +112,7 @@ export function loseHp(b: Battle, f: Fighter, amount: number): number {
     amount -= used;
   }
   f.hp -= amount;
+  if (amount > 0) f.flags["hurt"] = 1; // (Bounty Board: "win without losing HP")
   if (amount > 0 && f.flags["penanceRound"] === b.round) f.flags["penanceStore"] = (f.flags["penanceStore"] ?? 0) + amount;
   if (amount > 0) fx(b, { who: f.id, kind: "dmg", value: amount });
   else if (bar > 0) fx(b, { who: f.id, kind: "block", text: "Barrier", icon: "🛡️" });
@@ -194,6 +195,8 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   else if (id === "haste" && target !== b.player) target.statuses.haste = Math.min(ENEMY_HASTE_CAP, st(target, "haste") + amount);
   else if (id === "consecrated") target.statuses.consecrated = Math.max(st(target, "consecrated"), amount);
   else target.statuses[id] = st(target, id) + amount;
+  // Bounty Board counters: statuses the hero lands on foes.
+  if (source?.id === "player" && target.id === "enemy") source.persist[`q_st_${id}`] = (source.persist[`q_st_${id}`] ?? 0) + 1;
   log(b, `${target.name} gains ${STATUS_INFO[id].icon} ${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` ${amount}`}.`);
   fx(b, { who: target.id, kind: "status", icon: STATUS_INFO[id].icon, text: `${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` +${amount}`}`, value: isNegative(id) ? -1 : 1, status: id, src: source?.id });
 
@@ -226,6 +229,7 @@ const HARMFUL_REACTIONS: ReactionId[] = ["combustion", "steam", "shatter", "rupt
 
 function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, depth: number) {
   const rx = REACTIONS.find(r => r.id === id)!;
+  if (source?.id === "player") source.persist["q_reactions"] = (source.persist["q_reactions"] ?? 0) + 1;
   const name = rx.name;
   fx(b, { who: t.id, kind: "reaction", text: `${name}!`, status: `rx:${id}`, src: source?.id });
   // Run-long record (shown in the bag): which reactions happened on you, and on your enemies.

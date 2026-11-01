@@ -151,12 +151,12 @@ const THIEVES = [
   { name: "Clockwork Pickpocket", family: "Construct" }
 ];
 /** The Chained Dragon itself, woken: its own stats scaled to the next floor, with a Champion's toughness (and it counts as one). */
-export function makeDragon(_rng: () => number, floor: number): Fighter {
+export function makeDragon(_rng: () => number, floor: number, name = "The Chained Dragon", title = "Awake, and furious"): Fighter {
   const f2 = floor + 1;
   const hp = Math.round(12 * monsterHpMult(f2) * (2.75 + 0.16 * f2) * 1.3);
   const power = 3 + monsterPowerAdd(f2) + 4 + Math.floor(f2 / 2) + 2;
   return {
-    id: "enemy", name: "The Chained Dragon", title: "Awake, and furious", hp, maxHp: hp, armor: 3 + Math.floor(f2 / 3), damage: power,
+    id: "enemy", name, title, hp, maxHp: hp, armor: 3 + Math.floor(f2 / 3), damage: power,
     faces: [GRAZE, HIT, HIT, HIT, { kind: "crit", name: "Rending Claws" }, spell("Dragonfire", "hit", hex("burn", 3 + f2))],
     statuses: {}, flags: {}, persist: {}, items: { m_dragon: 1 }, gold: 0, elite: true, champion: true, family: "Beast"
   };

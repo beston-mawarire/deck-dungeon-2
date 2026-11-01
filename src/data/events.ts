@@ -27,7 +27,7 @@ export interface EventCtx {
   /** The Gold this event asks for at the current floor (its minGold, scaled like shop prices). */
   needGold: () => number;
   /** The Chained Dragon wakes: a fight starts when the choice resolves. */
-  wakeDragon: () => void;
+  wakeDragon: (sleeping?: boolean) => void;
   /** The Blind Dragon's blessing: one random blessing for 5 fights. Returns its text. */
   dragonBlessing: () => string;
   /** The Angelic Statue: clears curses, and for 2 fights heals 2 at the start and blocks every negative status. */
@@ -217,7 +217,7 @@ export const EVENTS: GameEvent[] = [
     options: [{ label: "Break the chains", hint: "A Rare item, and a curse", run: c => { c.gainItem("rare"); return `The chains fall. So does a curse: ${c.addCurse()}.`; } }, leave] },
   // Unique encounters: once per run.
   { id: "dragon", unique: true, title: "A Sleeping Dragon", icon: "🐉", text: "A dragon sleeps on a mountain of gold, one eye not quite closed.",
-    options: [{ label: "Steal from the hoard", hint: "A chance for a Legendary. Otherwise it wakes, and it hurts", run: c => { if (c.rng() < 0.4) { c.gainItem("legendary"); return "You slip away with a Legendary!"; } c.hurt(Math.ceil(c.hp() / 2)); return "It wakes. You barely escape, badly burned."; } },
+    options: [{ label: "Steal from the hoard", hint: "A chance for a Legendary. Otherwise it wakes, and you'll have to face it", run: c => { if (c.rng() < 0.4) { c.gainItem("legendary"); return "You slip away with a Legendary!"; } c.wakeDragon(true); return "Gold shifts under your boot. The eye opens fully."; } },
       { label: "Take a single coin", hint: "+30 Gold, safely", run: c => { c.addGold(30); return "One coin… well, thirty. It doesn't stir."; } }] },
   { id: "mirror", unique: true, title: "The Mirror Pool", icon: "🪞", text: "Still black water shows you — but stronger, and smiling wrongly.",
     options: [{ label: "Reach for your reflection", hint: "An Epic item and +5 Max HP, but a curse", run: c => { c.gainItem("epic"); c.addMaxHp(5); return `Your reflection hands you something… and keeps something of yours: ${c.addCurse()}.`; } },

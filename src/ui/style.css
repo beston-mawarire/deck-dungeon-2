@@ -431,3 +431,27 @@ h2.bright { color: #e4d6f2; text-shadow: 0 1px 6px rgba(200,170,255,.25); }
 .bag-body h2 { color: #e4d6f2; text-shadow: 0 1px 6px rgba(200,170,255,.25); }
 .item.curse-card { border-color: #9d6ad8; }
 .item.curse-card .nm, .item.curse-card p { color: #c08cff; }
+
+/* Bounty Board */
+.bounty-room { border-color: #c9a25a; background: linear-gradient(160deg, #2e2616, #2a2233); }
+.item.bounty-card { border-color: #c9a25a; }
+.item.bounty-card .nm { color: #f1d38a; }
+button.bounty-btn { border-color: #c9a25a; color: #f1d38a; }
+button.bounty-btn.done { background: linear-gradient(180deg, #e8c46a, #b98a2e); color: #1a1408; font-weight: 800; }
+.bounty-bar { margin: 8px 0; }
+.bounty-bar i { background: linear-gradient(90deg, #c9a25a, #f1d38a); }
+.bounty-pop .big { font-size: 1.1rem; font-weight: 700; }
+/* Small screens: icon-only labels in the HUD so the bounty tracker fits */
+@media (max-width: 430px) { .hud-actions .lbl { display: none; } }
+
+/* Dragon Heart */
+.key-found.heart-found { color: #ff5468; }
+.item.dragon-heart { border-color: var(--crimson); background: linear-gradient(160deg, #3a1520, var(--panel2) 65%); box-shadow: 0 0 16px rgba(224,40,63,.4); margin-bottom: 10px; }
+.item.dragon-heart .nm, .item.dragon-heart p, .item.dragon-heart .meta { color: #ff5468; }
+.item.dragon-heart.empty-slot { box-shadow: none; border-style: dashed; opacity: .9; }
+.item.dragon-heart.empty-slot .nm, .item.dragon-heart.empty-slot p { color: #c96a76; }
+/* Special paths keep their colours over the default room style */
+.room.crimson-room { border-color: var(--crimson); background: linear-gradient(160deg, #3a1520, #2a2233); box-shadow: 0 0 14px rgba(224,40,63,.3); }
+.room.goblin-room { border-color: var(--legendary); background: linear-gradient(160deg, #3a2a10, #2a2233); }
+.room.bounty-room { border-color: #c9a25a; background: linear-gradient(160deg, #2e2616, #2a2233); }
+.room.crimson-room b { color: #ff7a8a; }
