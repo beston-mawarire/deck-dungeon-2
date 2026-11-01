@@ -285,7 +285,7 @@ function titleScreen() {
       ${abyss ? `<span class="plate-line">⬛ ${pl} Vanadium Plate${pl === 1 ? "" : "s"}${pl ? ` · +${Math.round(PLATE_BONUS * pl * 100)}% HP, Armor, Damage` : ""}</span>` : ""}
       <span class="sub">${esc(og.blurb)}</span><p>${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p><p><b style="display:inline">${esc(p.name)}:</b> ${esc(p.text)}.</p></button>`;
   }).join("")}</div>`;
-  const infoRow = `<div class="menu-btns two"><button class="info-btn" data-info>ℹ️ Info</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>`;
+  const infoRow = `<div class="menu-btns two info-row"><button class="info-btn" data-info>ℹ️ Info</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>`;
   const head = `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>`;
   if (menuTab === "abyss") {
     const shards = meta.ruinShards ?? 0;
@@ -306,10 +306,10 @@ function titleScreen() {
     return `${head}${tabs}${infoRow}${cont}${body}<p class="version">${VERSION}</p>`;
   }
   return `${head}${tabs}${infoRow}
-  <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
   ${cont}
   <div class="story-row"><span>🏰 ${FLOORS} floors, ${FLOORS} bosses. The Hollow King waits at the bottom, and beyond him, deeper still.</span><button class="story-btn" data-story="campaign">📖 Click to read story</button></div>
   <h2 class="bright">Choose an origin</h2>
+  <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
   ${originCards(false)}
   <p class="version">${VERSION}</p>`;
 }

@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.18.3
+- Title screen: Campaign and Abyss Run look like real tabs. Info and Leaderboards are quieter and sit further from the tabs. The "You are what you wear…" line moved under "Choose an origin".
+
 ## 1.18.2
 - Title screen: Renown, unlocks, the Codex and How to play now live behind an ℹ️ Info button, beside 🏆 Leaderboards (on both the Campaign and Abyss Run tabs).
 
