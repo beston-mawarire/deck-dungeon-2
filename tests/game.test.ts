@@ -1298,6 +1298,20 @@ describe("class actions and new stats", () => {
     expect(sc.battle!.enemy.statuses.poison).toBeGreaterThan(0);
   });
 
+  it("the Lucky Pot takes all your Gold for a Four-Leaf Clover that lasts 4 chests", () => {
+    const run = newRun("warrior", 191);
+    run.floor = 6;
+    run.hero.f.gold = 123;
+    const ev = EVENTS.find(e => e.id === "lucky_pot")!;
+    expect(ev.minFloor).toBe(6);
+    run.scene = { t: "event", ev, result: null, found: [] };
+    chooseEvent(run, 0);
+    expect(run.hero.f.gold).toBe(0);
+    expect(run.hero.f.persist["cloverChests"]).toBe(4);
+    for (let i = 0; i < 5; i++) { advance(run); chooseRoom(run, "wooden"); }
+    expect(run.hero.f.persist["cloverChests"]).toBe(0);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);

@@ -590,8 +590,9 @@ function bag(r: Run) {
     <h2>Blessings</h2>
     <div class="bag-extras">
       ${(h.f.persist["angelFights"] ?? 0) > 0 ? `<div class="stile extra-tile angel-tile"><span>👼</span><span><b>Angelic Blessing</b><span class="sub">Immune to negative statuses; heal 2 at the start of each fight · ${h.f.persist["angelFights"]} fight${h.f.persist["angelFights"] === 1 ? "" : "s"} left</span></span></div>` : ""}
+      ${(h.f.persist["cloverChests"] ?? 0) > 0 ? `<div class="stile extra-tile clover-tile"><span>🍀</span><span><b>Four-Leaf Clover</b><span class="sub">Slightly better odds of Rare, Epic and Legendary from chests · ${h.f.persist["cloverChests"]} chest${h.f.persist["cloverChests"] === 1 ? "" : "s"} left</span></span></div>` : ""}
       ${(h.f.persist["blessFights"] ?? 0) > 0 ? `<div class="stile extra-tile bless-tile"><span>🐲</span><span><b>Dragon's Blessing</b><span class="sub">${esc(BLESSINGS[h.f.persist["blessKind"] ?? 0])} · ${h.f.persist["blessFights"]} fight${h.f.persist["blessFights"] === 1 ? "" : "s"} left</span></span></div>` : ""}
-      ${(h.f.persist["angelFights"] ?? 0) <= 0 && (h.f.persist["blessFights"] ?? 0) <= 0 ? `<div class="stile extra-tile empty-slot" style="grid-column: 1 / -1"><span>✨</span><span><b>None</b><span class="sub">Shrines and strange creatures in the dark sometimes grant blessings…</span></span></div>` : ""}
+      ${(h.f.persist["angelFights"] ?? 0) <= 0 && (h.f.persist["blessFights"] ?? 0) <= 0 && (h.f.persist["cloverChests"] ?? 0) <= 0 ? `<div class="stile extra-tile empty-slot" style="grid-column: 1 / -1"><span>✨</span><span><b>None</b><span class="sub">Shrines and strange creatures in the dark sometimes grant blessings…</span></span></div>` : ""}
     </div>
     <h2>Equipped</h2><div class="cards">${equipped}</div>
     <h2>Backpack ${h.backpack.length}/${BACKPACK_SIZE}</h2><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div>
@@ -706,6 +707,7 @@ function helpGlossary() {
     row("🔨", "Heavy weapons", "Rare two-handed swords and axes. Every hit builds Stagger on the enemy (2 on a Crit). At 3 (Elites 4, bosses 5) it's Staggered: it loses its next action and your next hit deals double. Then it can't build again for 2 rounds"),
     row("🔥", "Sacrifice", "Holy Sacrifice weapons burn your current HP on each roll (a 1 burns 10%, a 6 burns 60%) and add it to the hit. Until your next roll, that same % of every hit you take heals you. Pair it with healing boosts"),
     row("🔨", "War hammers", "Heavy two-handed hammers (Rare and up): they build Stagger, always come with a Bash chance, and feed you Might"),
+    row("🍀", "Four-Leaf Clover", "From the Lucky Pot, for all the Gold you carry: your next 4 chests have slightly better odds of Rare, Epic and Legendary"),
     row("👼", "Angelic Blessing", "From the Angelic Statue, for half your HP: lifts all curses, and for your next 2 fights you heal 2 at the start and no negative status can touch you"),
     row("🐲", "Dragon's Blessing", "From a blind old dragon, for 70% of your Gold: one blessing for your next 5 fights (more damage to, or less damage from, Elites, Champions or bosses)"),
     row("😤", "Reckless", "Some gear makes you deal more damage but also take more from every hit. It stacks, for better and worse"),

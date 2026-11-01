@@ -146,8 +146,14 @@ export interface LootState {
 }
 
 /** Deal the face-down cards of a Resplendent chest. */
+/** The Four-Leaf Clover blessing (Lucky Pot): a small nudge toward Rare, Epic and Legendary, for a few chests. */
+export function luckyOdds(odds: Odds): Odds {
+  return { ...odds, rare: (odds.rare ?? 0) + 4, epic: (odds.epic ?? 0) + 1.5, legendary: (odds.legendary ?? 0) + 0.5 };
+}
+
 export function resplendentCards(h: Hero, floor: number, loot: LootState, rng: () => number): ResplendentCard[] {
-  const base = resplendentOdds(floor);
+  let base = resplendentOdds(floor);
+  if ((h.f.persist["cloverChests"] ?? 0) > 0) base = luckyOdds(base);
   const clover = 3 * (h.relics["four_leaf_clover"] ?? 0);
   base.epic = (base.epic ?? 0) + loot.pity;
   base.legendary = (base.legendary ?? 0) + loot.pity / 2 + clover;

@@ -12,7 +12,7 @@ import { applyStatus, heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { addToBackpack, canGuard, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
-import { isLocked, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES } from "./loot";
+import { isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -205,7 +205,8 @@ function enterRoom(run: Run, room: RoomType) {
       h.crimsonKeys--;
       return fight(run, "boss", "crimson");
     case "wooden":
-      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, TABLES.wooden, run.floor), run.floor, run.rng)], gold: 3 + run.floor, scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0 };
+      const woodOdds = useClover(run) ? luckyOdds(TABLES.wooden) : TABLES.wooden;
+      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, woodOdds, run.floor), run.floor, run.rng)], gold: 3 + run.floor, scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0 };
       return;
     case "iron": {
       const key = (h.relics["skeleton_key"] ?? 0) > 0;
@@ -213,8 +214,9 @@ function enterRoom(run: Run, room: RoomType) {
         run.message = "The chest bites! It's a Mimic.";
         return fight(run, "elite", "mimic");
       }
-      const items = [rollItem(h, rollRarity(run.rng, TABLES.iron, run.floor), run.floor, run.rng)];
-      if (key) items.push(rollItem(h, rollRarity(run.rng, TABLES.iron, run.floor), run.floor, run.rng));
+      const ironOdds = useClover(run) ? luckyOdds(TABLES.iron) : TABLES.iron;
+      const items = [rollItem(h, rollRarity(run.rng, ironOdds, run.floor), run.floor, run.rng)];
+      if (key) items.push(rollItem(h, rollRarity(run.rng, ironOdds, run.floor), run.floor, run.rng));
       run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: 5 + run.floor * 2, scrolls: 0, potions: 0 };
       return;
     }
@@ -257,7 +259,9 @@ export function confirmRisk(run: Run, yes: boolean) {
 }
 
 function openResplendent(run: Run) {
-  run.scene = { t: "resplendent", cards: resplendentCards(run.hero, run.floor, run.loot, run.rng), picked: null, glove: (run.hero.relics["gamblers_glove"] ?? 0) > 0 };
+  const cards = resplendentCards(run.hero, run.floor, run.loot, run.rng);
+  useClover(run);
+  run.scene = { t: "resplendent", cards, picked: null, glove: (run.hero.relics["gamblers_glove"] ?? 0) > 0 };
 }
 
 // ---------- Combat ----------
@@ -803,6 +807,7 @@ export function chooseEvent(run: Run, i: number) {
       h.f.persist["blessFights"] = 5;
       return `🐲 Dragon's Blessing: ${BLESSINGS[k]}`;
     },
+    cloverBlessing: () => { h.f.persist["cloverChests"] = 4; },
     angelicBlessing: () => { h.curses = {}; h.f.persist["angelFights"] = 2; recompute(h); },
     upgradeWeapon: () => { const w = h.equip.main; if (!w) return "You have no weapon."; w.level++; for (const k of Object.keys(w.bonuses)) w.bonuses[k]++; recompute(h); return null; }
   };
@@ -1143,4 +1148,13 @@ export function useTonic(run: Run, id: string): string | null {
   b.log.push(`${TONICS[id].icon} ${TONICS[id].name}!`);
   b.fx.push({ who: id === "might" || id === "barrier" ? "player" : "enemy", kind: "text", text: TONICS[id].name, icon: TONICS[id].icon });
   return note;
+}
+
+/** Spend one chest of the Four-Leaf Clover blessing. Returns true if it was active for this chest. */
+function useClover(run: Run): boolean {
+  const f = run.hero.f;
+  if ((f.persist["cloverChests"] ?? 0) <= 0) return false;
+  f.persist["cloverChests"]--;
+  if (f.persist["cloverChests"] === 0) run.message = "🍀 The Four-Leaf Clover wilts.";
+  return true;
 }
