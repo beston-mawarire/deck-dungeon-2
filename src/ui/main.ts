@@ -17,7 +17,7 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  abandonRun, smithUpgrade, TONICS, buyTonic, useTonic,
+  abandonRun, smithUpgrade, TONICS, buyTonic, useTonic, tributeCost, payTribute,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
@@ -489,8 +489,7 @@ function clearedScene(r: Run) {
 
 function restScene(r: Run) {
   if (r.scene.t !== "rest") return "";
-  const curses = Object.keys(r.hero.curses);
-  return `<h2>Campfire</h2>${r.scene.done ? `<p>You rest a while.</p>` : `<div class="row"><button class="primary" data-rest="heal">Rest: heal 40% of Max HP</button>${curses.length ? `<button data-rest="cleanse">Cleanse ${esc(getItem(curses[0]).name)}</button>` : ""}</div>`}
+  return `<h2>Campfire</h2>${r.scene.done ? `<p>You rest a while.</p>` : `<div class="row"><button class="primary" data-rest="heal">Rest: heal 40% of Max HP</button></div>`}
   <div class="row" style="margin-top:12px"><button data-leave>Move on</button></div>`;
 }
 
@@ -510,6 +509,19 @@ function alchemistScene(r: Run) {
     <div class="cards">${s.stock.map((e, i) => `<div class="item r-epic"><div class="nm">${TONICS[e.id].icon} ${esc(TONICS[e.id].name)}</div><p>${esc(TONICS[e.id].text)}.</p>
       <button class="small ${e.sold ? "" : "primary"}" data-tonicbuy="${i}" ${e.sold || r.hero.f.gold < e.price ? "disabled" : ""}>${e.sold ? "Sold" : `Buy · ${e.price} 🪙`}</button></div>`).join("")}</div>
     <div class="row" style="margin-top:12px"><button data-leave>Leave</button></div>`;
+}
+
+function tributeScene(r: Run) {
+  if (r.scene.t !== "tribute") return "";
+  const h = r.hero;
+  const cost = tributeCost(r);
+  const ids = Object.keys(h.curses);
+  return `<h2>🕍 Holy Tribute</h2><div class="panel"><p>"${r.scene.paid ? "Another? The light grows dearer with each burden." : "One burden at a time, child. The light is patient. The plate is not."}"</p>
+    <p class="sub">Lift one curse at a time. Each one costs more than the last. You have 🪙 <b>${h.f.gold}</b>.</p></div>
+    ${ids.length ? `<div class="cards">${ids.map(id => { const d = getItem(id); const n = h.curses[id]; return `<div class="item curse-card"><div class="nm">🕯️ ${esc(d.name)}${n > 1 ? ` ×${n}` : ""}</div><p>${esc(d.text)}.</p>
+      <button class="small primary" data-tribute="${id}" ${h.f.gold < cost ? "disabled" : ""}>Lift it · ${cost} 🪙</button></div>`; }).join("")}</div>`
+      : `<p>The priest smiles. "You walk clean. Go with the light."</p>`}
+    <div class="row" style="margin-top:12px"><button class="${ids.length ? "" : "primary"}" data-leave>Leave</button></div>`;
 }
 
 function smithScene(r: Run) {
@@ -643,7 +655,7 @@ function bag(r: Run) {
         <button class="small ${talentSub === "talents" ? "primary" : ""}" data-talentsub="talents">🌟 Talents${nTalents ? ` (${nTalents})` : ""}</button>
         <button class="small curse-subtab ${talentSub === "curses" ? "primary" : ""}" data-talentsub="curses">🕯️ Curses${nCurses ? ` (${nCurses})` : ""}</button></div>
       ${talentSub === "talents" ? list(h.talents, "talent-line")
-        : `${nCurses ? list(h.curses, "curse-line") : `<p class="sub">You carry no curses. Shrines, Accursed foes and dark magic can lay them on you; a Campfire can cleanse one.</p>`}`}`
+        : `${nCurses ? list(h.curses, "curse-line") : `<p class="sub">You carry no curses. Shrines, cursing foes and dark magic can lay them on you, and only something holy can lift them.</p>`}`}`
     : `${extras}${reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`}`;
   return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
@@ -781,7 +793,7 @@ function helpGlossary() {
     row("💀", "Elites & Champions", "Tougher fights with random traits, and better loot"),
     row("✴️", "A Strange Presence", "A named, unique foe — once per run — that always drops an Epic or better"),
     row("💰", "Thieves", "Kill them within 5 rounds or they escape with 30% of your Gold; kill them and you get 60% on top"),
-    row("🕯️", "Curses", "Lasting penalties from shrines, idols and cursing foes. A Campfire can cleanse one"),
+    row("🕯️", "Curses", "Lasting penalties from shrines, idols and cursing foes. Only something holy can lift them"),
     row("🔨", "Forge", "Upgrade or reroll gear with Scrap; sacrifice items in an Offering; Combine two of the same item"),
     row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell one item per visit")
   ].join(""))}`;
@@ -1037,6 +1049,7 @@ function render2() {
     : s.t === "cleared" ? clearedScene(r)
     : s.t === "smith" ? smithScene(r)
     : s.t === "alchemist" ? alchemistScene(r)
+    : s.t === "tribute" ? tributeScene(r)
     : s.t === "rest" ? restScene(r) : s.t === "confirm" ? confirmScene(r) : s.t === "event" ? eventScene(r) : overScene(r);
   celebrateScene(r);
   const msg = [r.message, note].filter(Boolean);
@@ -1240,7 +1253,7 @@ function bind() {
     if (["wooden", "iron"].includes(el.dataset.room!)) sfx("chest");
   });
   app.querySelectorAll<HTMLElement>("[data-act]").forEach(el => (el.onclick = () => { if (!busy) void playTurn(el.dataset.act as Action); }));
-  on("[data-potion]", () => { drinkPotion(r); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
+  on("[data-potion]", () => { say(drinkPotion(r)); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-bag]", () => { bagOpen = true; bagTab = "gear"; });
   on("[data-closebag]", () => { bagOpen = false; });
   on("[data-bagtab]", el => { bagTab = el.dataset.bagtab as BagTab; talentSub = "talents"; });
@@ -1270,6 +1283,7 @@ function bind() {
     endArmed = false; menuOpen = false; bagOpen = false;
     abandonRun(r);
   });
+  on("[data-tribute]", el => { say(payTribute(r, el.dataset.tribute!)); sfx("heal"); });
   on("[data-tonicbuy]", el => { say(buyTonic(r, Number(el.dataset.tonicbuy))); });
   on("[data-tonic]", el => { say(useTonic(r, el.dataset.tonic!)); sfx("status"); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-smith]", el => { smithUpgrade(r, Number(el.dataset.smith)); sfx("chest"); });
@@ -1290,7 +1304,7 @@ function bind() {
   on("[data-combine]", el => { const [a, b] = el.dataset.combine!.split(",").map(Number); const out = forgeCombine(r, a, b); if (typeof out === "string") say(out); else { say(`Combined into ${itemName(out)} (${out.rarity}, lv ${out.level})`, false); if (RANK[out.rarity]) { celebrated.add(out.uid); celebrate(out.rarity, out.rarity === "epic" ? "EPIC FORGED" : undefined); } else sfx("chest"); } });
   on("[data-transmute]", el => { const out = forgeTransmute(r, Number(el.dataset.transmute)); if (typeof out === "string") say(out); else { say("The Crucible roars. A Legendary takes shape…", false); celebrate("legendary", "TRANSMUTED"); } });
   on("[data-fuse]", el => { const err = fuse(r, el.dataset.fuse!); say(err ?? `Fused: ${getItem(el.dataset.fuse!).name}!`, !!err); if (!err) sfx("legendary"); });
-  on("[data-rest]", el => say(rest(r, el.dataset.rest as "heal" | "cleanse")));
+  on("[data-rest]", () => say(rest(r, "heal")));
   on("[data-risk]", el => confirmRisk(r, el.dataset.risk === "yes"));
   on("[data-event]", el => chooseEvent(r, Number(el.dataset.event)));
   on("[data-newrun]", () => { run = null; bagOpen = false; meta = loadMeta(); });

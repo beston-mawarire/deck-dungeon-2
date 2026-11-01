@@ -54,7 +54,7 @@ export function botStep(run: Run) {
     if (card.kind === "scroll") { h.scrolls++; advance(run); }
     else { run.scene = { t: "pick", title: "", items: [card.item] }; }
   } else if (s.t === "talent") chooseTalent(run, s.options[0]);
-  else if (s.t === "rest") { if (!s.done) rest(run, Object.keys(h.curses).length && hpPct > 0.7 ? "cleanse" : "heal"); advance(run); }
+  else if (s.t === "rest") { if (!s.done) rest(run, "heal"); advance(run); }
   else if (s.t === "shop") {
     s.stock.forEach((e, i) => {
       if (e.kind === "potion" && h.potions < 2) buy(run, i);

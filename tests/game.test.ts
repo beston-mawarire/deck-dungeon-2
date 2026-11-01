@@ -465,6 +465,7 @@ describe("holy", () => {
     e.hp = e.maxHp = 200;
     e.armor = 0;
     e.family = "Beast";
+    e.items = {}; // a plain foe (no Unholy traits)
     const b = startBattle(h.f, e, 5);
     h.f.statuses.ward = 1;
     applyStatus(b, e, h.f, "poison", 3);

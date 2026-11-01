@@ -2,7 +2,7 @@
 // (names, titles and moves mixed from libraries, with a Horror on floor 30, DEATH on 80 and the End on 90).
 import { attack, PLAIN_FACES } from "../engine/combat";
 import type { Battle, FaceSpec, Fighter, Move } from "../engine/types";
-import { applyStatus, CRIT, GRAZE, heal, hex, HIT, log } from "./helpers";
+import { applyStatus, CRIT, GRAZE, heal, hex, HIT, log, parch } from "./helpers";
 import { ELITE_AFFIX_IDS, TRAITS } from "./monsters";
 
 /** Attack with the boss's die at a damage multiplier for this one attack. */
@@ -31,6 +31,8 @@ export const MOVE_LIBRARY: Record<string, (p: number) => Move> = {
         b.fx.push({ who: f.id, kind: "text", text: "Cursed!", icon: "🕯️" });
       } else { applyStatus(b, s, f, "weak", 2); applyStatus(b, s, f, "exposed", 2); }
     } }),
+  parch: p => ({ name: "Withering Breath", icon: "🏜️", text: "Curses you: Parched, no potions for the rest of the run (once per fight; after that it Burns)",
+    act: (b, s, f) => { if (!s.flags["parched"]) { s.flags["parched"] = 1; if (parch(b, f)) return; } applyStatus(b, s, f, "burn", 3 + p); } }),
   hex: () => ({ name: "Hex", icon: "🥀", text: "Applies 2 Weak and 2 Exposed", act: (b, s, f) => { applyStatus(b, s, f, "weak", 2); applyStatus(b, s, f, "exposed", 2); } }),
   bulwark: p => ({ name: "Bulwark", icon: "🛡️", text: `Gains ${4 + 3 * p} Barrier`, act: (b, s) => applyStatus(b, s, s, "barrier", 4 + 3 * p) }),
   regrow: () => ({ name: "Regrow", icon: "💚", text: "Heals 12% of its Max HP", act: (b, s) => { heal(b, s, Math.round(s.maxHp * 0.12), "Regrow"); } }),
@@ -58,7 +60,7 @@ interface BossDef { name: string; title: string; family: string; moves: string[]
 /** Named bosses. The campaign draws five (Hollow King last); the rest return in Endless. */
 export const NAMED_BOSSES: Record<string, BossDef> = {
   gnasher: { name: "Gnasher", title: "the Pack Lord", family: "Beast", moves: ["strike", "flurry", "rend"], traits: ["m_ambush"] },
-  rot: { name: "The Mother of Rot", title: "Queen of the Sewers", family: "Undead", moves: ["venom", "strike", "regrow"] },
+  rot: { name: "The Mother of Rot", title: "Queen of the Sewers", family: "Undead", moves: ["venom", "strike", "regrow", "parch"] },
   cinder: { name: "Brother Cinder", title: "the Ashen Zealot", family: "Cultist", moves: ["fire", "strike", "brand", "enrage"] },
   galen: { name: "Ser Galen", title: "the Unbroken", family: "Cultist", moves: ["shieldwall", "heavy", "guardstrike", "strike"], armor: 3 },
   varkas: { name: "Varkas", title: "the Iron Warden", family: "Construct", moves: ["bulwark", "concuss", "heavy", "strike"], armor: 2, hpMult: 0.9 },

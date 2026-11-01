@@ -56,9 +56,9 @@ export function wieldsTag(f: Fighter, tag: string): boolean {
 }
 
 /** Moves and faces that curse you or Doom you: whoever uses them is Unholy too. */
-const DARK_MOVES = ["Malediction", "Doombringer", "Reap"];
+const DARK_MOVES = ["Malediction", "Doombringer", "Reap", "Withering Breath"];
 const DARK_FACES = ["Collect", "Hollow Decree"];
-const DARK_TRAITS = ["x_accursed", "m_death"];
+const DARK_TRAITS = ["x_accursed", "m_death", "m_parching", "x_parching"];
 /** Undead, vampires, Crimson things, and anything that curses or Dooms: Holy weapons deal +50% to them. */
 export const isUnholy = (f: Fighter) =>
   f.family === "Undead" || !!f.crimson || (f.items["x_vampiric"] ?? 0) > 0 || (f.items["m_lifedrink"] ?? 0) > 0 ||

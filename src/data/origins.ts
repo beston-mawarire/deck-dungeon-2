@@ -30,6 +30,7 @@ export const ORIGIN_PASSIVES: HookDef[] = [
 
 const curse = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "curse", ...d });
 export const CURSES: HookDef[] = [
+  curse({ id: "c_parched", name: "Parched", tags: ["Blood"], text: "You can't drink Healing or Mana Potions", hooks: {} }),
   curse({ id: "c_rust", name: "Rust", tags: ["Guard"], text: "−1 Armor", hooks: { stats: s => { s.armor -= 1; } } }),
   curse({ id: "c_withered", name: "Withered", tags: ["Blood"], text: "Healing is halved", hooks: { healMult: () => 0.5 } }),
   curse({ id: "c_haunted", name: "Haunted", tags: ["Poison"], text: "Every fight starts with 2 Poison on you", hooks: { onFightStart: (b, f) => applyStatus(b, null, f, "poison", 2) } }),

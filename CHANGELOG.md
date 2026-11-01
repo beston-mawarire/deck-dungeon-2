@@ -5,6 +5,16 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.3.0
+- New curse, **Parched**: you can't drink Healing or Mana Potions. It bites the moment it lands and lasts the run.
+  - Normal foes: the new Dust Leech and Ash Wight (Parching Touch: their 3rd hit in a fight parches you).
+  - Elites and Champions: the new Parching affix (2nd hit).
+  - Bosses: the new Withering Breath move (the Mother of Rot, and generated bosses deeper down); once per fight, then it Burns.
+  - Parching foes count as Unholy.
+- Campfires no longer cleanse curses; they only heal.
+- New event, **The Well of Cleansing** (rare, only while cursed): lifts every curse.
+- New event, **Holy Tribute** (only while cursed): pay Gold to lift curses one at a time; each costs double the last, and the price scales with the floor and your purse.
+
 ## 1.2.2
 - The "Deeper Still" popup now mentions the new gear and encounters below floor 5, Keepsakes and Blessings.
 

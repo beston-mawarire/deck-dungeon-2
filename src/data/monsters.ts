@@ -1,7 +1,7 @@
 // Monsters: four families, Elite affixes, and the three floor bosses.
 import { PLAIN_FACES } from "../engine/combat";
 import type { FaceSpec, Fighter, HookDef } from "../engine/types";
-import { applyStatus, CRIT, GRAZE, heal, hex, HIT, log, MISS, other, ping, spell } from "./helpers";
+import { applyStatus, CRIT, GRAZE, heal, hex, HIT, log, MISS, other, parch, ping, spell } from "./helpers";
 
 const trait = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "trait", ...d });
 
@@ -36,6 +36,10 @@ export const TRAITS: HookDef[] = [
   trait({ id: "x_crimson", name: "Crimson", tags: ["Blood", "Strike"], text: "Gains 1 Might and heals 2% of its Max HP every round",
     hooks: { onRoundEnd: (b, f) => { applyStatus(b, f, f, "might", 1); heal(b, f, Math.max(1, Math.round(f.maxHp * 0.02)), "Crimson"); } } }),
   trait({ id: "x_smouldering", name: "Smouldering", tags: ["Burn"], text: "Its hits leave you Smouldering (you take 5 Burn a round, it takes 1)", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "smoulder", 1) } }),
+  trait({ id: "m_parching", name: "Parching Touch", tags: ["Hex"], text: "Its 3rd hit on you in a fight curses you: Parched (no potions, for the rest of the run)",
+    hooks: { onHit: (b, c) => { const n = (c.attacker.flags["parching"] ?? 0) + 1; c.attacker.flags["parching"] = n; if (n === 3) parch(b, c.defender); } } }),
+  trait({ id: "x_parching", name: "Parching", tags: ["Hex"], text: "Its 2nd hit on you in a fight curses you: Parched (no potions, for the rest of the run)",
+    hooks: { onHit: (b, c) => { const n = (c.attacker.flags["parchingX"] ?? 0) + 1; c.attacker.flags["parchingX"] = n; if (n === 2) parch(b, c.defender); } } }),
   trait({ id: "x_accursed", name: "Accursed", tags: ["Hex"], text: "If it lands 3 hits on you in one fight, you're cursed for the rest of the run",
     hooks: { onHit: (b, c) => { const n = (c.attacker.flags["accursed"] ?? 0) + 1; c.attacker.flags["accursed"] = n; if (n === 3) { c.defender.persist["curseQueue"] = (c.defender.persist["curseQueue"] ?? 0) + 1; log(b, "🕯️ The Accursed marks you: a curse will follow you out of this fight."); b.fx.push({ who: c.defender.id, kind: "text", text: "Cursed!", icon: "🕯️" }); } } } }),
   trait({ id: "m_dragon", name: "Dragon", tags: ["Burn", "Strike"], text: "Its claws rend, and a 6 breathes Dragonfire (Burn)", hooks: {} }),
@@ -67,9 +71,9 @@ export const TRAITS: HookDef[] = [
   trait({ id: "x_regenerating", name: "Regenerating", tags: ["Blood"], text: "Heals 2 at the end of every round", hooks: { onRoundEnd: (b, f) => { heal(b, f, 2, "Regenerating"); } } }),
 ];
 
-export const ELITE_AFFIX_IDS = ["x_bulwark", "x_tormenting", "x_accursed", "x_smouldering", "x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying"];
+export const ELITE_AFFIX_IDS = ["x_bulwark", "x_tormenting", "x_accursed", "x_parching", "x_smouldering", "x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying"];
 /** How often each affix rolls (Nullifying is rare). */
-export const AFFIX_WEIGHT: Record<string, number> = { x_nullifying: 0.35, x_concussive: 0.8, x_smouldering: 0.6, x_accursed: 0.4, x_tormenting: 0.5 };
+export const AFFIX_WEIGHT: Record<string, number> = { x_parching: 0.4, x_nullifying: 0.35, x_concussive: 0.8, x_smouldering: 0.6, x_accursed: 0.4, x_tormenting: 0.5 };
 
 interface MonsterDef { name: string; family: string; hp: number; power: number; armor?: number; traits: string[]; faces?: FaceSpec[] }
 
@@ -85,6 +89,8 @@ export const MONSTERS: MonsterDef[] = [
   { name: "Wraith", family: "Undead", hp: 9, power: 3, traits: ["m_incorporeal", "m_grave_chill"] },
   { name: "Acolyte", family: "Cultist", hp: 10, power: 2, traits: [], faces: [MISS, spell("Cinder", "hit", hex("burn", 2)), HIT, spell("Cinder", "hit", hex("burn", 2)), HIT, CRIT] },
   { name: "Hexer", family: "Cultist", hp: 9, power: 2, traits: ["m_curse_touch"] },
+  { name: "Dust Leech", family: "Beast", hp: 10, power: 2, traits: ["m_parching"] },
+  { name: "Ash Wight", family: "Undead", hp: 11, power: 3, traits: ["m_parching"] },
   { name: "Zealot", family: "Cultist", hp: 13, power: 3, traits: ["m_zeal"] },
   { name: "Stone Golem", family: "Construct", hp: 18, power: 3, armor: 3, traits: [], faces: [MISS, MISS, HIT, HIT, HIT, spell("Crush", "crit", hex("stun", 1))] },
   { name: "Storm Wisp", family: "Construct", hp: 10, power: 3, traits: ["m_crackle", "m_incorporeal"] },

@@ -55,6 +55,8 @@ export interface GameEvent {
   minGold?: number;
   /** Unique encounters happen at most once per run. */
   unique?: boolean;
+  /** Only turns up while you carry at least one curse. */
+  needCurse?: boolean;
   title: string;
   icon: string;
   text: string;
@@ -64,6 +66,16 @@ export interface GameEvent {
 const leave: EventOption = { label: "Walk away", run: () => "You leave it be." };
 
 export const EVENTS: GameEvent[] = [
+  { id: "cleansing_well", weight: 0.3, needCurse: true, title: "The Well of Cleansing", icon: "⛲",
+    text: "A circle of white stone, and water so clear it seems to glow. Your curses grow heavy just looking at it, as if they know.",
+    options: [
+      { label: "Drink from the well", hint: "Lifts every curse you carry",
+        run: c => { const n = c.clearCurses(); return `The water is cold enough to hurt. Something black and oily leaves you and sinks out of sight. ${n} curse${n === 1 ? "" : "s"} lifted.`; } },
+      { label: "Walk away", run: () => "You leave the water undisturbed." }
+    ] },
+  { id: "holy_tribute", weight: 1, needCurse: true, title: "Holy Tribute", icon: "🕍",
+    text: "A small chapel, half sunk into the rock. A hooded priest waits beside a collection plate. \"The light can lift what clings to you. The light also has upkeep.\"",
+    options: [{ label: "Approach the priest", run: () => "" }] },
   { id: "lucky_pot", weight: 0.35, minFloor: 6, minGold: 100, title: "The Lucky Pot", icon: "🍀",
     text: "A battered iron pot sits in a shaft of light that has no business being down here. It hums. It smells faintly of clover.",
     options: [

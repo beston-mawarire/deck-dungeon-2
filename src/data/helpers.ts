@@ -47,3 +47,13 @@ export const self = (status: StatusId, n: number) => (b: Battle, ctx: AttackCtx)
 export const depth = (f: Fighter) => f.persist["floor"] ?? 1;
 
 export { applyStatus, heal, log, loseHp, other, st };
+
+/** Curse the hero with Parched (no potions). It bites at once, and stays for the rest of the run. Returns false if already Parched. */
+export function parch(b: Battle, f: Fighter): boolean {
+  if (f.id !== "player" || (f.items["c_parched"] ?? 0) > 0) return false;
+  f.items["c_parched"] = 1;
+  f.persist["parchQueue"] = 1;
+  log(b, "🏜️ Your throat cracks and your flasks turn to dust: you are cursed — Parched. No more potions.");
+  b.fx.push({ who: "player", kind: "text", text: "Parched!", icon: "🏜️" });
+  return true;
+}

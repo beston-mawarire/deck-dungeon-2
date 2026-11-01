@@ -46,7 +46,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   shrine: { name: "Cursed Shrine", icon: "🕯️", text: "Take a curse for a Resplendent chest." },
   shop: { name: "Merchant", icon: "🪙", text: "Buy gear, potions and scrolls." },
   forge: { name: "Forge", icon: "🔨", text: "Spend Scrap to upgrade or reroll gear." },
-  rest: { name: "Campfire", icon: "🔥", text: "Heal, or cleanse a curse." },
+  rest: { name: "Campfire", icon: "🔥", text: "Rest and heal." },
   event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
   unique: { name: "A Strange Presence", icon: "✴️", text: "Someone — something — with a name. Dangerous, once per run, and carrying something rare." },
@@ -71,6 +71,8 @@ export type Scene =
   | { t: "event"; ev: GameEvent; result: string | null; found: GearItem[]; note?: string }
   | { t: "smith"; uses: number }
   | { t: "alchemist"; stock: { id: string; price: number; sold?: boolean }[] }
+  /** Holy Tribute: pay Gold to lift curses one at a time, each costing more than the last. */
+  | { t: "tribute"; paid: number }
   | { t: "cleared"; floor: number; boss: string }
   | { t: "over"; won: boolean };
 
@@ -245,13 +247,15 @@ function enterRoom(run: Run, room: RoomType) {
     case "rest": run.scene = { t: "rest", done: false }; return;
     case "event": {
       // Unique encounters (the dragon, the mirror pool) happen at most once per run.
-      const pool = EVENTS.filter(e => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e));
+      const cursed = Object.keys(run.hero.curses).length > 0;
+      const pool = EVENTS.filter(e => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || cursed) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e));
       const ev = pickW(run.rng, Object.fromEntries(pool.map(e => [e.id, e.weight ?? 1])) as Record<string, number>);
       const evDef = pool.find(e => e.id === ev)!;
       if (evDef.unique) run.seenBosses.add(`e:${evDef.id}`);
       // The Wandering Blacksmith: two free upgrades at his anvil. The Alchemist: a shop of combat tonics.
       if (evDef.id === "blacksmith") { run.scene = { t: "smith", uses: 2 }; return; }
       if (evDef.id === "alchemist") { run.scene = { t: "alchemist", stock: alchemistStock(run) }; return; }
+      if (evDef.id === "holy_tribute") { run.scene = { t: "tribute", paid: 0 }; return; }
       run.scene = { t: "event", ev: evDef, result: null, found: [] };
       return;
     }
@@ -332,6 +336,7 @@ export function drinkMana(run: Run): string | null {
   const h = run.hero;
   if (run.scene.t !== "combat" || run.scene.battle.over || h.f.hp <= 0) return "Mana Potions only work in a fight.";
   if (h.manaPotions <= 0) return null;
+  if (isParched(h)) return "🏜️ Parched: the potion turns to dust on your tongue. You can't drink potions.";
   if (h.f.flags["mana"]) return "You're already brimming with mana this fight.";
   h.manaPotions--;
   h.f.flags["mana"] = 1;
@@ -354,16 +359,20 @@ export function takeKeepsake(run: Run): string | null {
   return old ? `You set down ${getItem(old).name}.` : null;
 }
 
-export function drinkPotion(run: Run) {
+export const isParched = (h: Hero) => (h.curses["c_parched"] ?? 0) > 0 || (h.f.items["c_parched"] ?? 0) > 0;
+
+export function drinkPotion(run: Run): string | null {
   const h = run.hero;
   // The dead don't drink: no potions once you've fallen or the run is over.
-  if (h.potions <= 0 || h.f.hp <= 0 || run.scene.t === "over") return;
-  if (run.scene.t === "combat" && run.scene.battle.over) return;
+  if (h.potions <= 0 || h.f.hp <= 0 || run.scene.t === "over") return null;
+  if (run.scene.t === "combat" && run.scene.battle.over) return null;
+  if (isParched(h)) return "🏜️ Parched: the potion turns to dust on your tongue. You can't drink potions.";
   h.potions--;
   let amount = h.f.items["l_bottomless"] ? Math.ceil(h.f.maxHp / 2) : 12;
   if (h.f.items["c_famine"]) amount = Math.ceil(amount / 2);
   if (run.scene.t === "combat") { actionToll(run.scene.battle, h.f); healF(run.scene.battle, h.f, amount, "Potion"); }
   else restore(h, amount);
+  return null;
 }
 
 function afterFight(run: Run) {
@@ -547,16 +556,19 @@ function afterFight(run: Run) {
 function applyQueuedCurses(run: Run): string {
   const h = run.hero;
   const n = h.f.persist["curseQueue"] ?? 0;
-  if (!n) return "";
+  const parched = (h.f.persist["parchQueue"] ?? 0) > 0;
+  if (!n && !parched) return "";
   h.f.persist["curseQueue"] = 0;
+  h.f.persist["parchQueue"] = 0;
   const names: string[] = [];
+  if (parched && !h.curses["c_parched"]) { h.curses["c_parched"] = 1; names.push("Parched (You can't drink Healing or Mana Potions)"); }
   for (let i = 0; i < n; i++) {
     const c = CURSES[Math.floor(run.rng() * CURSES.length)];
     h.curses[c.id] = (h.curses[c.id] ?? 0) + 1;
     names.push(`${c.name} (${c.text})`);
   }
   recompute(h);
-  return `🕯️ You are cursed: ${names.join(", ")}. A Campfire can cleanse it.`;
+  return names.length ? `🕯️ You are cursed: ${names.join(", ")}. Only something holy can lift it.` : "";
 }
 
 /** How likely each relic rarity is at this depth. Good relics come later; Legendary relics only from floor 3. */
@@ -799,16 +811,10 @@ export function forgeReroll(run: Run, uid: number): string | null {
   return null;
 }
 
-export function rest(run: Run, choice: "heal" | "cleanse"): string | null {
+export function rest(run: Run, _choice: "heal" = "heal"): string | null {
   const h = run.hero;
   if (run.scene.t !== "rest" || run.scene.done) return null;
-  if (choice === "heal") restore(h, Math.round(h.f.maxHp * 0.4));
-  else {
-    const ids = Object.keys(h.curses);
-    if (!ids.length) return "You have no curses.";
-    delete h.curses[ids[0]];
-    recompute(h);
-  }
+  restore(h, Math.round(h.f.maxHp * 0.4));
   run.scene.done = true;
   return null;
 }
@@ -1153,6 +1159,26 @@ export const TONICS: Record<string, { name: string; icon: string; text: string; 
   poison: { name: "Vial of Venom", icon: "☠️", text: "Apply 6 Poison, more on deeper floors", base: 65 },
   blind: { name: "Flash Powder", icon: "🌫️", text: "Blind the enemy for 3 rounds", base: 70 }
 };
+/** Holy Tribute: the price to lift one more curse. Scales with the floor and your purse, and doubles with each curse lifted. */
+export function tributeCost(run: Run): number {
+  const paid = run.scene.t === "tribute" ? run.scene.paid : 0;
+  return Math.round(40 * shopMult(run)) * 2 ** paid;
+}
+export function payTribute(run: Run, curseId: string): string | null {
+  const s = run.scene;
+  if (s.t !== "tribute") return null;
+  const h = run.hero;
+  if (!h.curses[curseId]) return null;
+  const cost = tributeCost(run);
+  if (h.f.gold < cost) return "Not enough Gold.";
+  h.f.gold -= cost;
+  h.curses[curseId]--;
+  if (h.curses[curseId] <= 0) delete h.curses[curseId];
+  recompute(h);
+  s.paid++;
+  return null;
+}
+
 export function alchemistStock(run: Run) {
   const ids = Object.keys(TONICS).sort(() => run.rng() - 0.5).slice(0, 4);
   return ids.map(id => ({ id, price: Math.round(TONICS[id].base * priceMult(run) * 1.5) }));

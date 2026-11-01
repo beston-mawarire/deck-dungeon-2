@@ -429,3 +429,5 @@ h2.bright { color: #e4d6f2; text-shadow: 0 1px 6px rgba(200,170,255,.25); }
 .subtabs { margin: 4px 0 12px; gap: 8px; }
 .relic-line .nm { color: var(--gold); }
 .bag-body h2 { color: #e4d6f2; text-shadow: 0 1px 6px rgba(200,170,255,.25); }
+.item.curse-card { border-color: #9d6ad8; }
+.item.curse-card .nm, .item.curse-card p { color: #c08cff; }
