@@ -1096,11 +1096,11 @@ export function smithUpgrade(run: Run, uid: number): string | null {
 // ---------- The Alchemist: combat tonics ----------
 export const TONICS: Record<string, { name: string; icon: string; text: string; base: number }> = {
   might: { name: "Tonic of Might", icon: "💪", text: "Your next 3 attacks deal +4", base: 70 },
-  weakness: { name: "Draught of Weakness", icon: "🥀", text: "The enemy is Weak for 3 rounds (unless it's immune to statuses)", base: 60 },
+  weakness: { name: "Draught of Weakness", icon: "🥀", text: "The enemy is Weak for 3 rounds", base: 60 },
   barrier: { name: "Shellskin Elixir", icon: "🛡️", text: "Gain Barrier equal to 30% of your Max HP (it fades by half each round)", base: 75 },
   sunder: { name: "Armour-Rot Acid", icon: "🧪", text: "Halve the enemy's Armor for the rest of the fight", base: 90 },
-  poison: { name: "Vial of Venom", icon: "☠️", text: "Apply 6 Poison, more on deeper floors (unless it's immune to statuses)", base: 65 },
-  blind: { name: "Flash Powder", icon: "🌫️", text: "Blind the enemy for 3 rounds (unless it's immune to statuses)", base: 70 }
+  poison: { name: "Vial of Venom", icon: "☠️", text: "Apply 6 Poison, more on deeper floors", base: 65 },
+  blind: { name: "Flash Powder", icon: "🌫️", text: "Blind the enemy for 3 rounds", base: 70 }
 };
 export function alchemistStock(run: Run) {
   const ids = Object.keys(TONICS).sort(() => run.rng() - 0.5).slice(0, 4);
