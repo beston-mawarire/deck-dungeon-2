@@ -140,6 +140,12 @@ export interface Fx {
   faceKind?: FaceKind;
   sides?: number;
   offhand?: boolean;
+  /** Status (or the status behind a reaction) this effect is about — tints the die. */
+  status?: string;
+  /** Who caused it. */
+  src?: "player" | "enemy";
+  /** Set when the effect came out of resolving this side's die roll. */
+  fromRoll?: "player" | "enemy";
 }
 
 /** A boss move. Bosses show their next move (intent) before they act. */
@@ -153,6 +159,8 @@ export interface Move {
 }
 
 export interface Battle {
+  /** Whose die roll is being resolved right now (for tinting the die). */
+  rollFrom?: "player" | "enemy";
   player: Fighter;
   enemy: Fighter;
   round: number;

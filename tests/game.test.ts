@@ -66,6 +66,19 @@ describe("origins and gear", () => {
     expect(st(b.player, "haste")).toBe(1);
   });
 
+  it("statuses caused by a roll are tagged with that roll (for die tinting)", () => {
+    const h = newHero("mage");
+    const b = startBattle(h.f, dummy(), 1);
+    b.fx.length = 0;
+    resolveFace(b, h.f, b.enemy, 2, false);
+    const burn = b.fx.find(e => e.kind === "status" && e.status === "burn");
+    expect(burn?.fromRoll).toBe("player");
+    expect(burn?.src).toBe("player");
+    expect(b.rollFrom).toBeUndefined();
+    applyStatus(b, b.player, b.enemy, "chill", 1);
+    expect(b.fx[b.fx.length - 1].fromRoll).toBeUndefined();
+  });
+
   it("spell faces apply statuses, and the Mage's passive adds a stack", () => {
     const h = newHero("mage");
     const b = startBattle(h.f, dummy(), 1);

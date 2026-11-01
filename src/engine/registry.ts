@@ -44,5 +44,6 @@ export function log(b: Battle, msg: string) {
 
 /** Queue a visual effect for the UI (floating text, rolls, numbers). */
 export function fx(b: Battle, e: Fx) {
+  if (b.rollFrom && !e.fromRoll) e.fromRoll = b.rollFrom;
   b.fx.push(e);
 }

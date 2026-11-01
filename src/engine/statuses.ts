@@ -195,14 +195,14 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   else if (id === "consecrated") target.statuses.consecrated = Math.max(st(target, "consecrated"), amount);
   else target.statuses[id] = st(target, id) + amount;
   log(b, `${target.name} gains ${STATUS_INFO[id].icon} ${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` ${amount}`}.`);
-  fx(b, { who: target.id, kind: "status", icon: STATUS_INFO[id].icon, text: `${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` +${amount}`}`, value: isNegative(id) ? -1 : 1 });
+  fx(b, { who: target.id, kind: "status", icon: STATUS_INFO[id].icon, text: `${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` +${amount}`}`, value: isNegative(id) ? -1 : 1, status: id, src: source?.id });
 
   // Thresholds: some statuses burst when they pile up too high.
   for (const t of THRESHOLDS) {
     if (id !== t.status || st(target, t.status) < t.at) continue;
     const n = st(target, t.status);
     target.statuses[t.status] = 0;
-    fx(b, { who: target.id, kind: "reaction", text: `${t.name}!` });
+    fx(b, { who: target.id, kind: "reaction", text: `${t.name}!`, status: t.status, src: source?.id });
     const lost = loseHp(b, target, Math.round(n * t.per * reactionMult(b, source)));
     log(b, `${t.icon} ${t.name}! ${n} ${STATUS_INFO[t.status].name} bursts: ${target.name} takes ${lost}.`);
     const key = `rx:${target.id === "player" ? "you" : "foe"}:${t.id}`;
@@ -225,8 +225,9 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
 const HARMFUL_REACTIONS: ReactionId[] = ["combustion", "steam", "shatter", "rupture", "sepsis", "overload", "despair", "conduction", "electrocute", "freeze"];
 
 function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, depth: number) {
-  const name = REACTIONS.find(r => r.id === id)!.name;
-  fx(b, { who: t.id, kind: "reaction", text: `${name}!` });
+  const rx = REACTIONS.find(r => r.id === id)!;
+  const name = rx.name;
+  fx(b, { who: t.id, kind: "reaction", text: `${name}!`, status: `rx:${id}`, src: source?.id });
   // Run-long record (shown in the bag): which reactions happened on you, and on your enemies.
   const key = `rx:${t.id === "player" ? "you" : "foe"}:${id}`;
   b.player.persist[key] = (b.player.persist[key] ?? 0) + 1;

@@ -75,7 +75,7 @@ function trySmite(b: Battle, a: Fighter, d: Fighter) {
   a.flags["smiteReady"] = 0;
   a.flags["smites"] = (a.flags["smites"] ?? 0) + 1;
   const n = Math.ceil(d.maxHp * smitePct(a));
-  fx(b, { who: d.id, kind: "reaction", text: "Smite!" });
+  fx(b, { who: d.id, kind: "reaction", text: "Smite!", status: "consecrated", src: d.id === "player" ? "enemy" : "player" });
   const lost = loseHp(b, d, n);
   log(b, `⚡✝️ SMITE! Your Ward turned their spite into judgement: ${d.name} takes ${lost}.`);
   if (a.id === "player") a.persist["rx:foe:smite"] = (a.persist["rx:foe:smite"] ?? 0) + 1;
@@ -191,7 +191,7 @@ export function buildStagger(b: Battle, a: Fighter, d: Fighter, crit: boolean) {
   d.statuses.stun = Math.max(st(d, "stun"), 1);
   d.flags["staggerImmune"] = b.round + 2;
   log(b, `🔨 ${d.name} is STAGGERED!`);
-  fx(b, { who: d.id, kind: "reaction", text: "STAGGERED!" });
+  fx(b, { who: d.id, kind: "reaction", text: "STAGGERED!", status: "stagger", src: d.id === "player" ? "enemy" : "player" });
   eachHook(a, "onStagger", (h, s) => h(b, a, d, s));
 }
 
@@ -236,6 +236,12 @@ export function attack(b: Battle, a: Fighter, d: Fighter, offhand = false) {
 }
 
 export function resolveFace(b: Battle, a: Fighter, d: Fighter, face: number, offhand = false) {
+  const prev = b.rollFrom;
+  b.rollFrom = a.id;
+  try { resolveRolledFace(b, a, d, face, offhand); } finally { b.rollFrom = prev; }
+}
+
+function resolveRolledFace(b: Battle, a: Fighter, d: Fighter, face: number, offhand: boolean) {
   const faces = (offhand ? a.offFaces : a.faces) ?? PLAIN_FACES;
   const spec = faces[Math.min(face, faces.length) - 1];
   log(b, `${a.name} rolls ${face}${offhand ? " (off-hand)" : ""}: ${faceName(spec)}.`);
@@ -320,7 +326,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     raw += extra;
     d.statuses.weak = st(d, "weak") - 1;
     log(b, `💥 Overpower! +${extra}.`);
-    fx(b, { who: d.id, kind: "reaction", text: "Overpower!" });
+    fx(b, { who: d.id, kind: "reaction", text: "Overpower!", status: "might", src: d.id === "player" ? "enemy" : "player" });
     const key = `rx:${d.id === "player" ? "you" : "foe"}:overpower`;
     b.player.persist[key] = (b.player.persist[key] ?? 0) + 1;
   }
@@ -464,7 +470,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     a.statuses.blessed = 0;
     const lost = loseHp(b, d, Math.ceil(d.maxHp * 0.1 * n));
     log(b, `🌟 Blessed ×${n}: ${lost} more.`);
-    fx(b, { who: d.id, kind: "reaction", text: `Blessed ×${n}` });
+    fx(b, { who: d.id, kind: "reaction", text: `Blessed ×${n}`, status: "blessed", src: d.id === "player" ? "enemy" : "player" });
   }
   const label = ctx.kind === "crit" ? "Crit! " : ctx.kind === "graze" ? "Graze. " : "";
   log(b, `${label}${a.name} hits ${d.name} for ${ctx.dealt}${armor && raw > 0 ? ` (${raw}, ${Math.round(cut * 100)}% stopped by Armor)` : ""}.`);

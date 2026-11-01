@@ -68,7 +68,24 @@ let banked = 0;
 // Combat presentation state
 let busy = false;
 const dispHp: Record<"player" | "enemy", number | null> = { player: null, enemy: null };
-const lastRoll: Record<"player" | "enemy", { face: number; name: string; kind: string; rolling?: boolean } | null> = { player: null, enemy: null };
+const lastRoll: Record<"player" | "enemy", { face: number; name: string; kind: string; rolling?: boolean; tint?: string } | null> = { player: null, enemy: null };
+
+/** Die colours for the status (or reaction) a roll caused. */
+const DIE_TINT: Record<string, string> = {
+  bleed: "#c8323a", burn: "#ff7a2f", poison: "#74c447", chill: "#9ad8ff", shock: "#ffe34d", weak: "#a596b8", exposed: "#ff9fb4",
+  blind: "#4b4658", stun: "#f2cf5b", doom: "#6a2fa0", regen: "#7ee08a", barrier: "#6fb6ff", might: "#e5533d", haste: "#8ff0dc",
+  focus: "#c9a0ff", evade: "#c4e6ff", spikes: "#a7a9ad", ward: "#dbe6ff", static: "#b49cff", soaked: "#3f7fd8", charged: "#fff07a",
+  kindled: "#ff9a3c", grounded: "#b08850", smoulder: "#d4622a", fracture: "#cdbb9f", stagger: "#d6a25e", broken: "#8a6f5c",
+  dazzled: "#fff6a8", reinforced: "#b6bfcf", blessed: "#fff0b0", consecrated: "#ffe48a", smoulder_soul: "#ff6a3a",
+  "rx:combustion": "#ff5a1f", "rx:steam": "#d9e4ea", "rx:shatter": "#bfe9ff", "rx:rupture": "#e0284a", "rx:sepsis": "#7d9a2a",
+  "rx:overload": "#ffb627", "rx:despair": "#4a2470", "rx:bastion": "#5fd0c0", "rx:frenzy": "#ff4f7a", "rx:clarity": "#d9c2ff",
+  "rx:conduction": "#9f86ff", "rx:electrocute": "#58b8ff", "rx:freeze": "#7fc8ff", "rx:thunderstrike": "#ffd23f"
+};
+/** Light or dark number on a tinted die. */
+function dieInk(hex: string): string {
+  const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, bl = n & 255;
+  return 0.299 * r + 0.587 * g + 0.114 * bl > 140 ? "#1b1620" : "#fff6ea";
+}
 let currentBattle: Battle | null = null;
 
 const say = (msg: string | null, bad = true) => {
@@ -274,7 +291,7 @@ function mapScene(r: Run) {
 function dieBox(who: "player" | "enemy", label: string) {
   const d = lastRoll[who];
   if (!d) return `<div class="diebox"><div class="who">${label}</div><div class="die ${who} empty">·</div><div class="facename">&nbsp;</div></div>`;
-  return `<div class="diebox"><div class="who">${label}</div><div class="die ${who} ${d.kind} ${d.rolling ? "rolling" : ""}">${d.face}</div><div class="facename">${d.rolling ? "&nbsp;" : esc(d.name)}</div></div>`;
+  return `<div class="diebox"><div class="who">${label}</div><div class="die ${who} ${d.kind} ${d.rolling ? "rolling" : ""} ${d.tint ? "tinted" : ""}"${d.tint ? ` style="background:${d.tint};color:${dieInk(d.tint)};--tint:${d.tint}"` : ""}>${d.face}</div><div class="facename">${d.rolling ? "&nbsp;" : esc(d.name)}</div></div>`;
 }
 
 /** Guard warnings on foes, and the hero's hit streak. */
@@ -1073,6 +1090,11 @@ async function playFx(b: Battle) {
 
 async function showFx(e: Fx) {
   const who = e.who;
+  // A status or reaction that came out of a die roll (and was caused by the roller) colours that die.
+  if ((e.kind === "status" || e.kind === "reaction") && e.fromRoll && e.src === e.fromRoll && e.status && DIE_TINT[e.status]) {
+    const d = lastRoll[e.fromRoll];
+    if (d && !d.rolling && (e.kind === "reaction" || !d.tint)) d.tint = DIE_TINT[e.status];
+  }
   switch (e.kind) {
     case "roll": {
       const side = e.who;
@@ -1128,6 +1150,7 @@ async function playTurn(action: Action) {
   const syncHp = () => { dispHp.player = b.player.hp; dispHp.enemy = b.enemy.hp; };
   syncHp();
   render();
+  for (const side of ["player", "enemy"] as const) { const d = lastRoll[side]; if (d) d.tint = undefined; }
   const first = beginRound(b);
   await playFx(b);
   const phase = async (fn: () => void) => {
