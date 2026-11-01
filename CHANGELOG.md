@@ -5,6 +5,12 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.13.2
+- Leaderboard names can be changed again (undoes 1.13.1).
+
+## 1.13.1
+- (Undone in 1.13.2.) Leaderboard names were made permanent.
+
 ## 1.13.0
 - One mode: the Campaign (you can still keep delving after the fifth boss). The mode picker and Endless option are gone; the story has its own button.
 - 🏆 Leaderboards button on the title page.
