@@ -406,7 +406,7 @@ function talentScene(r: Run) {
 
 function shopScene(r: Run) {
   if (r.scene.t !== "shop") return "";
-  return `<h2>Merchant</h2>${(r.scene.markup ?? 0) > 0 ? `<p class="sub">👀 The Merchant eyes your purse. Prices +${r.scene.markup}% for a customer of your means.</p>` : ""}<div class="cards">${r.scene.stock.map((e, i) => {
+  return `<h2>Merchant</h2><div class="cards">${r.scene.stock.map((e, i) => {
     const btn = `<button class="small primary" data-buy="${i}" ${e.sold ? "disabled" : ""}>${e.sold ? "Sold" : `Buy · ${e.price} 🪙`}</button>`;
     if (e.kind === "item" && e.item) return itemCard(e.item, btn, !e.sold);
     const label = e.kind === "potion" ? "🧪 Healing Potion — heal 12" : e.kind === "scroll" ? "📜 Scroll of Revelation — reveals a Legendary" : `💎 ${getItem(e.relic!).name} — ${getItem(e.relic!).text}`;
@@ -449,7 +449,7 @@ function forgeScene(r: Run) {
   let body = "";
   if (forgeTab === "upgrade") {
     body = `<p class="sub">Upgrading raises an item's level (more damage, stronger bonuses). Each reroll of the same item costs more.</p>
-    ${gearGroups(r, it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small" data-rr="${it.uid}" ${rerollsLeft(it) ? "" : "disabled"}>${rerollsLeft(it) ? `Reroll · ${rerollCost(it, r.hero)} ⚙️ (${rerollsLeft(it)} left)` : "No rerolls left"}</button>` : ""}`, false, equippedSlot(r, it)))}`;
+    ${gearGroups(r, it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small danger" data-rr="${it.uid}" ${rerollsLeft(it) ? "" : "disabled"}>${rerollsLeft(it) ? `Reroll · ${rerollCost(it, r.hero)} ⚙️ (${rerollsLeft(it)} left)` : "No rerolls left"}</button>` : ""}`, false, equippedSlot(r, it)))}`;
   } else if (forgeTab === "offer") {
     const chosen = h.backpack.filter(i => offerSel.has(i.uid));
     const odds = offeringOdds(offeringValue(chosen));

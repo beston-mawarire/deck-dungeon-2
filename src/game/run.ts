@@ -195,7 +195,9 @@ export function chooseRoom(run: Run, room: RoomType) {
 
 function enterRoom(run: Run, room: RoomType) {
   const h = run.hero;
-  run.normalStreak = room === "fight" ? (run.normalStreak ?? 0) + 1 : 0;
+  // Plain fights build the streak; shops, campfires, forges, shrines, chests and the floor boss leave it alone; anything else resets it.
+  if (room === "fight") run.normalStreak = (run.normalStreak ?? 0) + 1;
+  else if (!STREAK_NEUTRAL.includes(room)) run.normalStreak = 0;
   switch (room) {
     case "fight": return fight(run, "normal");
     case "elite": return fight(run, "elite");
@@ -732,6 +734,7 @@ export function transformationChance(streak: number): number {
   return streak < TRANSFORM_STREAK ? 0 : 0.03 + 0.02 * (streak - TRANSFORM_STREAK);
 }
 export const TRANSFORM_STREAK = 14;
+const STREAK_NEUTRAL: RoomType[] = ["shop", "rest", "forge", "shrine", "wooden", "iron", "boss"];
 function rollTransformation(run: Run): boolean {
   if (run.rng() >= transformationChance(run.normalStreak ?? 0)) return false;
   run.normalStreak = 0;
@@ -746,7 +749,7 @@ export const shopMult = (run: Run) => priceMult(run) * wealthMult(run);
 export const priceMult = (run: Run) => (1 + 0.12 * (run.floor - 1)) * gouge(run.hero);
 /** Each reroll at the same Merchant costs double the last (from 10 Gold, scaled by the floor), up to 5 rerolls per visit. */
 export const MAX_SHOP_REROLLS = 5;
-export const shopRerollCost = (run: Run) => Math.round(10 * priceMult(run)) * 2 ** run.shopRerolls;
+export const shopRerollCost = (run: Run) => Math.round(10 * shopMult(run)) * 2 ** run.shopRerolls;
 
 export function rerollShop(run: Run): string | null {
   if (run.scene.t !== "shop") return null;

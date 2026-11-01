@@ -1,6 +1,6 @@
 import { beforeAll, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
-import { chooseRoom, combatAction, newRun, shopMult, priceMult, transformationChance, TRANSFORM_STREAK, wealthMult } from "../src/game/run";
+import { chooseRoom, combatAction, newRun, shopMult, shopRerollCost, priceMult, transformationChance, TRANSFORM_STREAK, wealthMult } from "../src/game/run";
 beforeAll(() => loadLibrary());
 
 it("normal fights in a row build the streak; anything else resets it", () => {
@@ -9,7 +9,8 @@ it("normal fights in a row build the streak; anything else resets it", () => {
   expect(run.normalStreak).toBe(1);
   chooseRoom(run, "fight");
   expect(run.normalStreak).toBe(2);
-  chooseRoom(run, "rest");
+  for (const room of ["rest", "shop", "forge", "wooden"] as const) { chooseRoom(run, room); expect(run.normalStreak).toBe(2); }
+  chooseRoom(run, "event");
   expect(run.normalStreak).toBe(0);
 });
 
@@ -46,6 +47,8 @@ it("shop prices rise with the Gold you carry (up to +75%)", () => {
   expect(wealthMult(run)).toBe(1);
   run.hero.f.gold = 100;
   expect(shopMult(run)).toBeCloseTo(priceMult(run) * 1.2);
+  const cheap = shopRerollCost(run); run.hero.f.gold = 0;
+  expect(shopRerollCost(run)).toBeLessThan(cheap);
   run.hero.f.gold = 5000;
   expect(wealthMult(run)).toBeCloseTo(1.75);
 });
