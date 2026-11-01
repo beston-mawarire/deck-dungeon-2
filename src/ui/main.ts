@@ -467,7 +467,7 @@ function allGear(r: Run): GearItem[] {
   return [...EQUIP_SLOTS.map(s => r.hero.equip[s]).filter((x): x is GearItem => !!x), ...r.hero.backpack];
 }
 
-let forgeTab: "upgrade" | "offer" | "combine" | "transmute" = "upgrade";
+let forgeTab: "upgrade" | "scrap" | "offer" | "combine" | "transmute" = "upgrade";
 const offerSel = new Set<number>();
 
 /** Odds in words (no numbers shown to players). p is a 0–100 share of non-failing outcomes. */
@@ -475,11 +475,15 @@ const oddsWord = (p: number) => p >= 50 ? "likely" : p >= 25 ? "possible" : p >=
 function forgeScene(r: Run) {
   const h = r.hero;
   const fusions = availableFusions(r);
-  const tabs = [["upgrade", "Upgrade & reroll"], ["offer", "Offering"], ["combine", "Combine"], ["transmute", h.crucible ? "Transmute" : "🔒 Transmute"]];
+  const tabs = [["upgrade", "Upgrade & reroll"], ["scrap", "Scrap"], ["offer", "Offering"], ["combine", "Combine"], ["transmute", h.crucible ? "Transmute" : "🔒 Transmute"]];
   let body = "";
   if (forgeTab === "upgrade") {
     body = `<p class="sub">Upgrading raises an item's level (more damage, stronger bonuses). Each reroll of the same item costs more.</p>
     ${gearGroups(r, it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small danger" data-rr="${it.uid}" ${rerollsLeft(it) ? "" : "disabled"}>${rerollsLeft(it) ? `Reroll · ${rerollCost(it, r.hero)} ⚙️ (${rerollsLeft(it)} left)` : "No rerolls left"}</button>` : ""}`, false, equippedSlot(r, it)))}`;
+  } else if (forgeTab === "scrap") {
+    const star: Partial<Record<string, number>> = { legendary: 2, crimson: 4, epic_crimson: 10, legendary_crimson: 25 };
+    body = `<p class="sub">Break down items from your bag for Scrap. Rarer and higher-level items give more, and the rarest also give Starmetal. Gear you're wearing stays safe.</p>
+      <div class="cards" style="margin-top:8px">${h.backpack.map(it => itemCard(it, `<button class="small danger" data-forgescrap="${it.uid}">Scrap · +${scrapValue(h, it)} ⚙️${star[it.rarity] ? ` +${star[it.rarity]} ✴️` : ""}</button>`)).join("") || `<p class="sub">Your bag is empty.</p>`}</div>`;
   } else if (forgeTab === "offer") {
     const chosen = h.backpack.filter(i => offerSel.has(i.uid));
     const odds = offeringOdds(offeringValue(chosen));
@@ -502,7 +506,7 @@ function forgeScene(r: Run) {
   return `<h2>Forge</h2><p class="sub">⚙️ ${h.scrap} Scrap${h.starmetal ? ` · ✴️ ${h.starmetal} Starmetal` : ""}</p>
   ${fusions.length ? `<p class="sub fusable-hint">🔗 Two of your relics could be fused. The Forge can't do it — look for a Jeweller.</p>` : ""}
   <div class="row" style="margin:8px 0">${tabs.map(([k, l]) => `<button class="small ${forgeTab === k ? "primary" : ""}" data-forgetab="${k}">${l}</button>`).join("")}</div>
-  ${body}
+  <div class="forge-body">${body}</div>
   <div class="row" style="margin-top:12px"><button class="primary" data-leave>Leave</button></div>`;
 }
 
@@ -1563,6 +1567,7 @@ function bind() {
   on("[data-endless]", () => { if (run) run.submitted = false; lbResult = null; continueEndless(r); recorded = null; });
   on("[data-unequip]", el => say(unequip(r.hero, el.dataset.unequip as EquipSlot)));
   on("[data-equip]", el => { const it = r.hero.backpack.find(i => i.uid === Number(el.dataset.equip)); if (it) say(equipItem(r.hero, it, el.dataset.slot as EquipSlot)); });
+  on("[data-forgescrap]", el => { const n = salvage(r.hero, Number(el.dataset.forgescrap)); say(`+${n} Scrap`, false); sfx("hit"); });
   on("[data-salvage]", el => { const n = salvage(r.hero, Number(el.dataset.salvage)); say(`+${n} Scrap`, false); });
   on("[data-reveal]", el => { const err = reveal(r.hero, Number(el.dataset.reveal)); say(err ?? "The Legendary reveals its true power!", !!err); if (!err) celebrate("legendary", "REVEALED"); });
 }

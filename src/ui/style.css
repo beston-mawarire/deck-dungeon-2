@@ -605,3 +605,7 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .chip[class*="odds-"] { white-space: nowrap; } .chip.odds-common { color: #d6d6dc; } .chip.odds-uncommon { color: var(--uncommon); border-color: var(--uncommon); }
 .chip.odds-rare { color: var(--rare); border-color: var(--rare); } .chip.odds-epic { color: var(--epic); border-color: var(--epic); }
 .chip.odds-legendary { color: var(--legendary); border-color: var(--legendary); }
+/* Forge: each tab's contents sit in a bordered, warmly lit frame; the description reads clearly. */
+.forge-body { border: 1px solid #6a5238; border-radius: 14px; padding: 12px; background: linear-gradient(170deg, rgba(232,184,74,.07), rgba(29,25,38,.6) 45%); box-shadow: inset 0 0 18px rgba(0,0,0,.35); }
+.forge-body > .sub:first-child { color: #ddd2e8; font-size: .95rem; border-bottom: 1px solid #5e4a6e; padding-bottom: 8px; margin-bottom: 10px; margin-top: 0; }
+.forge-body > .locked-tool { margin: 0; }
