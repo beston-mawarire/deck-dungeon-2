@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.1.1
+- Brighter section headings in the inventory (Blessings, Statuses & reactions, Relics, Talents…).
+
 ## 1.1.0
 - Inventory: Gear · Stats · Relics · Talents · Extras tabs; reactions live at the bottom of Extras.
 - Talents tab has Talents and Curses sub-tabs; talent names in Rare blue, curses in purple, relic names in gold.

@@ -649,7 +649,7 @@ function bag(r: Run) {
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
     <div class="row"><h1 class="grow">Inventory</h1><button data-closebag>Close</button></div>
     <div class="bag-tabs" role="tablist">${tabs.map(([id, label, badge]) => `<button class="bag-tab ${bagTab === id ? "active" : ""}" data-bagtab="${id}" role="tab" aria-selected="${bagTab === id}"><span class="bt-ic">${label.split(" ")[0]}${badge}</span><span class="bt-lb">${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
-    ${body}
+    <div class="bag-body">${body}</div>
     <p class="version">${VERSION}</p>
   </div></div>`;
 }
