@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.15.1
+- Key items are now called Artefacts. The Extras tab has an Artefacts group with three slots: the Transmuter's Crucible, plus two still-unknown ones. The Forge's locked Transmute tab now says you're missing an artefact.
+
 ## 1.15.0
 - New Scrap tab in the Forge: break down items from your bag for Scrap (and Starmetal for the rarest), with the reward shown on each button. Equipped gear is never offered.
 - Each Forge tab's contents now sit in a bordered frame, and the description at the top of each tab is brighter and easier to read.

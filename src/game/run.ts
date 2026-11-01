@@ -605,7 +605,7 @@ function afterFight(run: Run) {
       h.starmetal += metal;
       run.message = `The Champion leaves ${metal} Starmetal behind.`;
     }
-    // The Transmuter's Crucible: a rare key item some Champions carry (once per run).
+    // The Transmuter's Crucible: a rare artefact some Champions carry (once per run).
     if (!h.crucible && run.rng() < 0.12) { h.crucible = true; crucibleFound = true; }
     relic = relic ?? randomRelic(run, 2);
   }

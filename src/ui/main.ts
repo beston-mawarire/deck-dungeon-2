@@ -382,7 +382,7 @@ function lootScene(r: Run) {
   // After a won fight, the rewards sit in a framed Victory panel.
   const victory = s.title === "Victory" || s.title.startsWith("You caught") || s.title === "The Mimic's hoard";
   const key = (s.crimsonKey ? `<div class="key-found">🗝️ CRIMSON KEY FOUND<span>A Crimson Vault will now be offered on your path.</span></div>` : "")
-    + (s.crucible ? `<div class="key-found crucible-found">⚗️ TRANSMUTER'S CRUCIBLE<span>A key item. At any Forge, it turns a Common item into a Legendary, for Starmetal.</span></div>` : "")
+    + (s.crucible ? `<div class="key-found crucible-found">⚗️ TRANSMUTER'S CRUCIBLE<span>An artefact. At any Forge, it turns a Common item into a Legendary, for Starmetal.</span></div>` : "")
     + (s.dragonHeart ? `<div class="key-found heart-found">🫀 ${s.dragonHeart > 1 ? `DRAGON HEART · LEVEL ${s.dragonHeart}` : "DRAGON HEART"}<span>${s.dragonHeart > 1 ? "Another dragon's heart feeds yours. It beats stronger." : "Still warm. Still beating. It's yours now."}</span></div>` : "");
   const body = `${key}${extras.length ? `<div class="panel">${extras.map(x => `<p>${esc(x)}</p>`).join("")}</div>` : ""}
     <div class="cards" style="margin-top:10px">${s.items.map(it => itemCard(it, takeButtons(it), true)).join("")}</div>
@@ -496,7 +496,7 @@ function forgeScene(r: Run) {
     body = `<p class="sub">Combine two of the same item into one: a level higher, the best bonuses of both, and a chance to rise a rarity (up to Epic).</p>
       ${pairs.length ? pairs.map(([a, b]) => `<div class="panel" style="margin-top:8px"><div class="cards">${itemCard(a, "", false, equippedSlot(r, a))}${itemCard(b, "", false, equippedSlot(r, b))}</div><button class="primary small" data-combine="${a.uid},${b.uid}">Combine</button></div>`).join("") : `<p class="sub">You don't have two of the same item.</p>`}`;
   } else if (!h.crucible) {
-    body = `<div class="panel locked-tool"><p><b>🔒 You're missing a key item.</b></p>
+    body = `<div class="panel locked-tool"><p><b>🔒 You're missing an artefact.</b></p>
       <p class="sub">Transmuting needs a special tool you don't have yet. Strong foes have been known to carry strange things… Check the Extras tab of your Inventory to see what you're missing.</p></div>`;
   } else {
     const commons = allGear(r).filter(i => i.rarity === "common");
@@ -807,9 +807,14 @@ function bag(r: Run) {
       ? "Unified. It beats in your chest now: every one of your stats is 50% stronger."
       : "Torn from a slain dragon, still beating. Somewhere in the dark, a Dragon Sanctum could bind it to you."}</p></div>`
     : `<div class="item dragon-heart empty-slot"><div class="meta">Dragon Heart</div><div class="nm">🫀 Empty</div><p>A place for a dragon's heart. Few who go looking for one come back.</p></div>`;
-  const crucibleHtml = h.crucible
-    ? `<div class="item key-item"><div class="meta">Key item</div><div class="nm">⚗️ Transmuter's Crucible</div><p>At any Forge (Transmute tab): turn a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} ✴️ Starmetal.</p></div>`
-    : `<div class="item key-item empty-slot"><div class="meta">Key item</div><div class="nm">⚗️ Empty</div><p class="sub">A strange tool some Champions carry. With it, a Forge can do something remarkable…</p></div>`;
+  // Three Artefact slots. Only the first (the Transmuter's Crucible) exists so far; the other two are still a mystery.
+  const artTile = (filled: boolean, icon: string, name: string, text: string, tip: string) =>
+    `<div class="art-tile ${filled ? "filled" : "empty-slot"}" title="${esc(tip)}"><div class="art-ic">${icon}</div><div class="nm">${name}</div><p>${text}</p></div>`;
+  const crucibleHtml = `<div class="art-group"><div class="meta">Artefacts</div><div class="art-grid">${
+    h.crucible
+      ? artTile(true, "⚗️", "Transmuter's Crucible", "At a Forge: Common → Legendary", `At any Forge (Transmute tab): turn a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} Starmetal.`)
+      : artTile(false, "⚗️", "Empty", "Some Champions carry one…", "A strange tool some Champions carry. With it, a Forge can do something remarkable…")
+  }${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}</div></div>`;
   const extras = `${keepsakeHtml}${heartHtml}${crucibleHtml}
     <div class="bag-extras">
       <div class="stile extra-tile key-tile"><span>🗝️</span><span><b>${h.crimsonKeys}</b> Crimson Key${h.crimsonKeys === 1 ? "" : "s"}<span class="sub">${h.crimsonKeys ? "A Crimson Vault will be on your path." : "Dropped by Crimson Elites, deep below."}</span></span></div>
