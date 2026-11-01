@@ -51,6 +51,9 @@ let storyOpen: Mode | null = null;
 let helpOpen = false;
 /** The in-run menu (main menu / end run). */
 let menuOpen = false;
+/** Which Inventory tab is open. */
+type BagTab = "gear" | "stats" | "extras" | "relics" | "reactions";
+let bagTab: BagTab = "gear";
 /** Shown when the device loses its connection. */
 let offlineOpen = false;
 let endArmed = false;
@@ -577,32 +580,43 @@ function bag(r: Run) {
   const twoHander = h.equip.main && effectiveBase(h.equip.main).twoHanded && !keepsOffHand(h);
   const needed = worn.filter((it, i) => !(slotsOpen[i] === "off" && twoHander && !it));
   const legendSet = needed.every(it => it && (it.rarity === "legendary" || it.rarity === "crimson"));
-  return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
-    ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
-    <div class="row"><h1 class="grow">Inventory</h1><button data-closebag>Close</button></div>
-    ${stats}
-    ${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>${reactionsPanel(r)}` : ""}
-    <p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>
-    ${h.keepsake ? `<div class="item keepsake"><div class="meta">Keepsake</div><div class="nm">🕯️ ${esc(getItem(h.keepsake).name)}</div><p>${esc(getItem(h.keepsake).text)}.</p></div>`
-      : `<div class="item keepsake empty-slot"><div class="meta">Keepsake</div><div class="nm">🕯️ Empty</div><p class="sub">Something rare could rest here. Bosses deep below sometimes leave one behind…</p></div>`}
+  const keepsakeHtml = h.keepsake ? `<div class="item keepsake"><div class="meta">Keepsake</div><div class="nm">🕯️ ${esc(getItem(h.keepsake).name)}</div><p>${esc(getItem(h.keepsake).text)}.</p></div>`
+    : `<div class="item keepsake empty-slot"><div class="meta">Keepsake</div><div class="nm">🕯️ Empty</div><p class="sub">Something rare could rest here. Bosses deep below sometimes leave one behind…</p></div>`;
+  const angel = h.f.persist["angelFights"] ?? 0, dragon = h.f.persist["blessFights"] ?? 0, clover = h.f.persist["cloverChests"] ?? 0;
+  const blessCount = (angel > 0 ? 1 : 0) + (dragon > 0 ? 1 : 0) + (clover > 0 ? 1 : 0);
+  const extras = `${keepsakeHtml}
     <div class="bag-extras">
       <div class="stile extra-tile key-tile"><span>🗝️</span><span><b>${h.crimsonKeys}</b> Crimson Key${h.crimsonKeys === 1 ? "" : "s"}<span class="sub">${h.crimsonKeys ? "A Crimson Vault will be on your path." : "Dropped by Crimson Elites, deep below."}</span></span></div>
-      ${Object.keys(h.tonics ?? {}).length ? `<div class="stile extra-tile"><span>⚗️</span><span><b>Tonics</b><span class="sub">${Object.entries(h.tonics!).map(([id, n]) => `${TONICS[id].icon} ${esc(TONICS[id].name)}${n > 1 ? ` ×${n}` : ""}`).join(", ")}</span></span></div>` : ""}
-      <div class="stile extra-tile scroll-tile"><span>📜</span><span><b>${h.scrolls}</b> Scroll${h.scrolls === 1 ? "" : "s"} of Revelation<span class="sub">${h.scrolls ? "Use one on a hidden Legendary below." : "Reveals a hidden Legendary's true power."}</span></span></div>
+      <div class="stile extra-tile scroll-tile"><span>📜</span><span><b>${h.scrolls}</b> Scroll${h.scrolls === 1 ? "" : "s"} of Revelation<span class="sub">${h.scrolls ? "Use one on a hidden Legendary in the Gear tab." : "Reveals a hidden Legendary's true power."}</span></span></div>
+      ${Object.keys(h.tonics ?? {}).length ? `<div class="stile extra-tile" style="grid-column: 1 / -1"><span>⚗️</span><span><b>Tonics</b><span class="sub">${Object.entries(h.tonics!).map(([id, n]) => `${TONICS[id].icon} ${esc(TONICS[id].name)}${n > 1 ? ` ×${n}` : ""}`).join(", ")}</span></span></div>` : ""}
     </div>
     <h2>Blessings</h2>
     <div class="bag-extras">
-      ${(h.f.persist["angelFights"] ?? 0) > 0 ? `<div class="stile extra-tile angel-tile"><span>👼</span><span><b>Angelic Blessing</b><span class="sub">Immune to negative statuses; heal 2 at the start of each fight · ${h.f.persist["angelFights"]} fight${h.f.persist["angelFights"] === 1 ? "" : "s"} left</span></span></div>` : ""}
-      ${(h.f.persist["cloverChests"] ?? 0) > 0 ? `<div class="stile extra-tile clover-tile"><span>🍀</span><span><b>Four-Leaf Clover</b><span class="sub">Slightly better odds of Rare, Epic and Legendary from chests · ${h.f.persist["cloverChests"]} chest${h.f.persist["cloverChests"] === 1 ? "" : "s"} left</span></span></div>` : ""}
-      ${(h.f.persist["blessFights"] ?? 0) > 0 ? `<div class="stile extra-tile bless-tile"><span>🐲</span><span><b>Dragon's Blessing</b><span class="sub">${esc(BLESSINGS[h.f.persist["blessKind"] ?? 0])} · ${h.f.persist["blessFights"]} fight${h.f.persist["blessFights"] === 1 ? "" : "s"} left</span></span></div>` : ""}
-      ${(h.f.persist["angelFights"] ?? 0) <= 0 && (h.f.persist["blessFights"] ?? 0) <= 0 && (h.f.persist["cloverChests"] ?? 0) <= 0 ? `<div class="stile extra-tile empty-slot" style="grid-column: 1 / -1"><span>✨</span><span><b>None</b><span class="sub">Shrines and strange creatures in the dark sometimes grant blessings…</span></span></div>` : ""}
-    </div>
-    <h2>Equipped</h2><div class="cards">${equipped}</div>
-    <h2>Backpack ${h.backpack.length}/${BACKPACK_SIZE}</h2><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div>
-    <h2>Relics</h2>${list(h.relics)}
-    <h2>Talents</h2>${list(h.talents)}
-    ${Object.keys(h.curses).length ? `<h2>Curses</h2>${list(h.curses)}` : ""}
-    ${inCombat ? "" : reactionsPanel(r)}
+      ${angel > 0 ? `<div class="stile extra-tile angel-tile"><span>👼</span><span><b>Angelic Blessing</b><span class="sub">Immune to negative statuses; heal 2 at the start of each fight · ${angel} fight${angel === 1 ? "" : "s"} left</span></span></div>` : ""}
+      ${clover > 0 ? `<div class="stile extra-tile clover-tile"><span>🍀</span><span><b>Four-Leaf Clover</b><span class="sub">Slightly better odds of Rare, Epic and Legendary from chests · ${clover} chest${clover === 1 ? "" : "s"} left</span></span></div>` : ""}
+      ${dragon > 0 ? `<div class="stile extra-tile bless-tile"><span>🐲</span><span><b>Dragon's Blessing</b><span class="sub">${esc(BLESSINGS[h.f.persist["blessKind"] ?? 0])} · ${dragon} fight${dragon === 1 ? "" : "s"} left</span></span></div>` : ""}
+      ${blessCount === 0 ? `<div class="stile extra-tile empty-slot" style="grid-column: 1 / -1"><span>✨</span><span><b>None</b><span class="sub">Shrines and strange creatures in the dark sometimes grant blessings…</span></span></div>` : ""}
+    </div>`;
+  const nRelics = Object.keys(h.relics).length + Object.keys(h.talents).length + Object.keys(h.curses).length;
+  const tabs: [BagTab, string, string][] = [
+    ["gear", "⚔️ Gear", `${h.backpack.length ? `<i>${h.backpack.length}</i>` : ""}`],
+    ["stats", "📊 Stats", ""],
+    ["extras", "✨ Extras", `${blessCount + h.scrolls + h.crimsonKeys ? `<i>${blessCount + h.scrolls + h.crimsonKeys}</i>` : ""}`],
+    ["relics", "💎 Relics", `${nRelics ? `<i>${nRelics}</i>` : ""}`],
+    ["reactions", "✴️ Reactions", ""]
+  ];
+  const body =
+    bagTab === "gear" ? `${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}<h2>Equipped</h2><div class="cards">${equipped}</div>
+      <h2>Backpack ${h.backpack.length}/${BACKPACK_SIZE}</h2><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div>`
+    : bagTab === "stats" ? `${stats}<p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>`
+    : bagTab === "extras" ? extras
+    : bagTab === "relics" ? `<h2>Relics</h2>${list(h.relics)}<h2>Talents</h2>${list(h.talents)}${Object.keys(h.curses).length ? `<h2>Curses</h2>${list(h.curses)}` : ""}`
+    : reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`;
+  return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
+    ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
+    <div class="row"><h1 class="grow">Inventory</h1><button data-closebag>Close</button></div>
+    <div class="bag-tabs" role="tablist">${tabs.map(([id, label, badge]) => `<button class="bag-tab ${bagTab === id ? "active" : ""}" data-bagtab="${id}" role="tab" aria-selected="${bagTab === id}"><span class="bt-ic">${label.split(" ")[0]}${badge}</span><span class="bt-lb">${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
+    ${body}
     <p class="version">${VERSION}</p>
   </div></div>`;
 }
@@ -1188,8 +1202,9 @@ function bind() {
   });
   app.querySelectorAll<HTMLElement>("[data-act]").forEach(el => (el.onclick = () => { if (!busy) void playTurn(el.dataset.act as Action); }));
   on("[data-potion]", () => { drinkPotion(r); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
-  on("[data-bag]", () => { bagOpen = true; });
+  on("[data-bag]", () => { bagOpen = true; bagTab = r.scene.t === "combat" ? "reactions" : "gear"; });
   on("[data-closebag]", () => { bagOpen = false; });
+  on("[data-bagtab]", el => { bagTab = el.dataset.bagtab as BagTab; });
   on("[data-take]", el => say(takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack")));
   on("[data-scrapfound]", el => scrapFound(r, Number(el.dataset.scrapfound)));
   on("[data-finish]", () => { r.message = ""; finishLoot(r); });

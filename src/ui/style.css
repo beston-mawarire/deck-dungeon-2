@@ -403,3 +403,11 @@ button.tonic { border-color: #b06cf0; }
 .angel-tile { border-color: rgba(243,227,162,.7); }
 .clover-tile { border-color: rgba(95,208,138,.6); }
 h2.bright { color: #e4d6f2; text-shadow: 0 1px 6px rgba(200,170,255,.25); }
+.bag-tabs { position: sticky; top: -1px; z-index: 3; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; padding: 8px 0; margin: 4px 0 6px; background: #08060c; }
+.bag-tabs::-webkit-scrollbar { display: none; }
+.bag-tab { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 52px; padding: 5px 2px; font-size: .74rem; border-radius: 12px; min-width: 0; }
+.bag-tab .bt-ic { font-size: 1.15rem; line-height: 1.1; white-space: nowrap; }
+.bag-tab .bt-lb { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.bag-tab.active { background: linear-gradient(180deg, #f3ca63, #dba73a); color: #1a1408; border-color: #f0c15a; font-weight: 700; }
+.bag-tab i { font-style: normal; display: inline-block; margin-left: 3px; vertical-align: top; min-width: 18px; padding: 0 5px; border-radius: 999px; background: rgba(255,255,255,.14); font-size: .75rem; line-height: 18px; text-align: center; }
+.bag-tab.active i { background: rgba(0,0,0,.18); }
