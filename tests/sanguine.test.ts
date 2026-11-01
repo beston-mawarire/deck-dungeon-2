@@ -94,3 +94,23 @@ it("Butterfingers: your first attack each fight does no damage", () => {
   resolveFace(b, h.f, e, 4);
   expect(e.hp).toBeLessThan(500);
 });
+
+it("one sacrifice per Sanguine Altar", () => {
+  const run = atAltar(3);
+  run.hero.f.hp = run.hero.f.maxHp;
+  chooseEvent(run, 0);
+  const g = run.hero.f.gold, hp = run.hero.f.hp;
+  chooseEvent(run, 0);
+  chooseEvent(run, 1);
+  expect(run.hero.f.gold).toBe(g);
+  expect(run.hero.f.hp).toBe(hp);
+});
+
+it("tempering at the altar gives +4 levels", () => {
+  const run = atAltar(4);
+  run.hero.f.hp = run.hero.f.maxHp;
+  const before = Object.values(run.hero.equip).reduce((a, it) => a + (it?.level ?? 0), 0);
+  chooseEvent(run, 2);
+  const after = Object.values(run.hero.equip).reduce((a, it) => a + (it?.level ?? 0), 0);
+  expect(after - before).toBe(4);
+});

@@ -85,7 +85,7 @@ export const EVENTS: GameEvent[] = [
     options: [
       sanguine(0.1, "A trickle for Gold", "A good purse of Gold", c => { const g = 25 + 10 * c.floor(); c.addGold(g); return `Coins well up from the stain: +${g} Gold.`; }),
       sanguine(0.2, "Blood for blood", "Raise your Max HP", c => { const n = 8 + Math.floor(c.floor() / 2); c.addMaxHp(n); return `Your heart beats harder: +${n} Max HP.`; }),
-      sanguine(0.3, "Temper your gear", "A random equipped item gains 3 levels", c => { const nm = c.upgradeRandom(3); return nm ? `${nm} drinks deep and grows stronger (+3 levels).` : "You carry nothing for it to temper. The altar keeps your blood anyway."; }),
+      sanguine(0.3, "Temper your gear", "A random equipped item gains 4 levels", c => { const nm = c.upgradeRandom(4); return nm ? `${nm} drinks deep and grows stronger (+4 levels).` : "You carry nothing for it to temper. The altar keeps your blood anyway."; }),
       sanguine(0.4, "Wash away your curses", "Lifts every curse you carry", c => { const n = c.clearCurses(); return n ? `${n} curse${n === 1 ? "" : "s"} dissolve in the red.` : "You had no curses. The altar keeps your blood anyway."; }),
       sanguine(0.5, "Take on a random curse", "", c => `A whisper settles in your bones. You are cursed: ${c.addCurse()}.`),
       sanguine(0.6, "An offering for a relic", "A random Common relic", c => `Something small and warm rises from the basin: ${c.gainCommonRelic()}.`),
