@@ -395,3 +395,7 @@ button.crimson-btn { background: linear-gradient(180deg, #ef4359, #c21c33); }
 .key-tile b { color: #ff5468; }
 .scroll-tile { border-color: rgba(240,138,42,.5); }
 .scroll-tile b { color: var(--legendary); }
+.chip.blessing { border-color: #57c7a8; color: #9ef0d6; font-weight: 700; }
+.bless-tile { border-color: rgba(87,199,168,.6); }
+.row.tonics { justify-content: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+button.tonic { border-color: #b06cf0; }

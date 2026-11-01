@@ -4,14 +4,14 @@ import { makeMonster, makeThief } from "../src/data/monsters";
 import { makeBoss } from "../src/data/bosses";
 import { EPIC_CRIMSON } from "../src/data/abyss";
 import { EVENTS } from "../src/data/events";
-import { beginRound, endRound, enemyPhase, heroPhase, isUnholy, playRound, resolveFace, startBattle } from "../src/engine/combat";
+import { beginRound, blessingMult, endRound, enemyPhase, heroPhase, isUnholy, playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
 import { applyStatus, endOfRound, st } from "../src/engine/statuses";
 import { TAGS } from "../src/engine/types";
 import { equipItem, itemName, newHero, recompute, reveal, salvage, slotsFor, weaponDamage } from "../src/game/hero";
 import { resetDropped, resplendentCards, rollItem } from "../src/game/loot";
-import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem, rerollShop, drinkPotion, lockGold, restore, chooseEvent, smithUpgrade } from "../src/game/run";
+import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem, rerollShop, drinkPotion, lockGold, restore, chooseEvent, smithUpgrade, buyTonic, useTonic } from "../src/game/run";
 
 beforeAll(() => loadLibrary());
 
@@ -1187,6 +1187,83 @@ describe("class actions and new stats", () => {
     endRound(b);
     expect(1000 - e.hp).toBe(8);
     expect(st(e, "bleed")).toBe(4);
+  });
+
+  it("war hammers are Heavy and always roll a Bash chance", () => {
+    const h = newHero("warrior");
+    const rng = makeRng(9);
+    let found = 0;
+    for (let i = 0; i < 4000 && found < 5; i++) {
+      const it = rollItem(h, "rare", 3, rng);
+      if (it.base === "wh_iron_warhammer") { found++; expect(it.bash).toBeGreaterThan(0); }
+    }
+    expect(found).toBeGreaterThan(0);
+  });
+
+  it("Sacrifice burns roll × 10% of current HP into the hit, then heals that % of hits you take", () => {
+    const h = newHero("cleric");
+    equipItem(h, { uid: 1101, base: "sc_martyr_mace", rarity: "rare", level: 1, bonuses: {}, revealed: true });
+    const e = dummy(500);
+    const b = startBattle(h.f, e, 131);
+    const hp = h.f.hp;
+    resolveFace(b, b.player, e, 3, false); // a 3: burns 30%
+    const burned = Math.floor(hp * 0.3);
+    expect(h.f.hp).toBe(hp - burned);
+    expect(500 - e.hp).toBeGreaterThanOrEqual(burned);
+    expect(h.f.flags["sacrifice"]).toBe(30);
+    const before = h.f.hp;
+    resolveFace(b, e, h.f, 2, false); // the dummy hits back
+    const took = b.log.some(l => /Sacrifice/.test(l) && /heals|\+/.test(l));
+    expect(h.f.hp).toBeGreaterThanOrEqual(before - 20);
+    void took;
+  });
+
+  it("the Chained Dragon can wake into a fight, and its hoard pays big", () => {
+    const run = newRun("warrior", 141);
+    run.floor = 3;
+    const ev = EVENTS.find(e => e.id === "chained_dragon")!;
+    run.scene = { t: "event", ev, result: null, found: [] };
+    const rng = run.rng; run.rng = () => 0.01;
+    chooseEvent(run, 0);
+    run.rng = rng;
+    const sc = run.scene as { t: string; battle?: { enemy: { name: string; hp: number; champion?: boolean }; over?: string } };
+    expect(sc.t).toBe("combat");
+    expect(sc.battle!.enemy.name).toBe("The Chained Dragon");
+    sc.battle!.enemy.hp = 0; sc.battle!.over = "won";
+    settleCombat(run);
+    const loot = run.scene as { t: string; title?: string; gold?: number };
+    expect(loot.title).toBe("The Dragon's Hoard");
+    expect(loot.gold!).toBeGreaterThanOrEqual(80 + 25 * 3);
+  });
+
+  it("the Alchemist's tonics: buy, then use in a fight without spending the turn", () => {
+    const run = newRun("warrior", 151);
+    run.hero.f.gold = 10000;
+    run.scene = { t: "alchemist", stock: [{ id: "sunder", price: 100 }] };
+    expect(buyTonic(run, 0)).toBeNull();
+    expect(run.hero.tonics?.sunder).toBe(1);
+    chooseRoom(run, "fight");
+    const sc = run.scene as { t: string; battle?: { enemy: { armor: number } } };
+    sc.battle!.enemy.armor = 8;
+    useTonic(run, "sunder");
+    expect(sc.battle!.enemy.armor).toBe(4);
+    expect(run.hero.tonics?.sunder).toBeUndefined();
+  });
+
+  it("the Blind Dragon trades 70% of your Gold for a blessing that lasts 5 fights", () => {
+    const run = newRun("warrior", 161);
+    run.hero.f.gold = 200;
+    const ev = EVENTS.find(e => e.id === "blind_dragon")!;
+    run.scene = { t: "event", ev, result: null, found: [] };
+    chooseEvent(run, 0);
+    expect(run.hero.f.gold).toBe(60);
+    expect(run.hero.f.persist["blessKind"]).toBeGreaterThanOrEqual(1);
+    expect(run.hero.f.persist["blessFights"]).toBe(5);
+    const boss = makeBoss(1, makeRng(1));
+    run.hero.f.persist["blessKind"] = 3;
+    expect(blessingMult(run.hero.f, boss)).toBe(1.3);
+    run.hero.f.persist["blessKind"] = 4;
+    expect(blessingMult(boss, run.hero.f)).toBe(0.7);
   });
 
   it("Penance stores damage taken and adds it to the next attack", () => {

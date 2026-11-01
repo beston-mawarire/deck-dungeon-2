@@ -23,6 +23,11 @@ export interface EventCtx {
   addPity: (n: number) => void;
   upgradeWeapon: () => string | null;
   potions: () => number;
+  floor: () => number;
+  /** The Chained Dragon wakes: a fight starts when the choice resolves. */
+  wakeDragon: () => void;
+  /** The Blind Dragon's blessing: one random blessing for 5 fights. Returns its text. */
+  dragonBlessing: () => string;
 }
 
 export interface EventOption {
@@ -36,6 +41,12 @@ export interface EventOption {
 
 export interface GameEvent {
   id: string;
+  /** How often it turns up compared with a normal event (1). */
+  weight?: number;
+  /** Only from this floor down. */
+  minFloor?: number;
+  /** Only if you carry at least this much Gold. */
+  minGold?: number;
   /** Unique encounters happen at most once per run. */
   unique?: boolean;
   title: string;
@@ -47,6 +58,28 @@ export interface GameEvent {
 const leave: EventOption = { label: "Walk away", run: () => "You leave it be." };
 
 export const EVENTS: GameEvent[] = [
+  { id: "chained_dragon", unique: true, weight: 0.35, title: "A Chained Dragon", icon: "🐉",
+    text: "You find a sleeping drake chained to the dungeon walls. It's guarding something.",
+    options: [
+      { label: "Try to steal what it's guarding", hint: "Quietly…",
+        run: c => {
+          const r = c.rng();
+          if (r < 0.06) { c.wakeDragon(); return "A chain rattles. One great eye opens…"; }
+          if (r < 0.18) { const g = 40 + 15 * c.floor(); c.addGold(g); return `You slip a heavy purse out from under its claw: ${g} Gold!`; }
+          const g = 5 * c.floor(); c.addGold(g); return `You pocket a few loose coins (${g} Gold) and back away.`;
+        } },
+      { label: "Leave it be", run: () => "Some things are better left sleeping." }
+    ] },
+  { id: "alchemist", unique: true, weight: 0.8, title: "The Alchemist", icon: "⚗️",
+    text: "A woman with stained gloves and a bandolier of glowing vials looks you up and down. \"Everything works on anything. Even the big ones. It isn't cheap.\"",
+    options: [{ label: "See her wares", run: () => "" }] },
+  { id: "blind_dragon", unique: true, weight: 0.35, minFloor: 3, minGold: 100, title: "A Dragon's Blessing", icon: "🐲",
+    text: "You find a blind, toothless dragon chained within a room. \"Hello… Is anyone there? Would you spare me some gold? I will grant you a blessing in return.\"",
+    options: [
+      { label: "Give it 70% of your Gold", hint: "A blessing for your next 5 fights",
+        run: c => { c.addGold(-Math.ceil(c.gold() * 0.7)); return `The old dragon smiles. "Thank you, friend." ${c.dragonBlessing()} (for your next 5 fights).`; } },
+      { label: "Leave", run: () => "\"…Hello?\" it calls after you." }
+    ] },
   { id: "golden_altar", unique: true, title: "The Golden Altar", icon: "🏺", text: "A golden altar hums in the dark. Coins left on it vanish; now and then, something is left in return. Each tribute costs a fifth of your Gold. Pay as often as you like.",
     options: [
       { label: "Pay tribute (20% of your Gold)", hint: "Usually nothing. Sometimes something.", repeat: true, can: c => c.gold() > 0,

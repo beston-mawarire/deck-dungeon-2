@@ -2,7 +2,7 @@
 import { BONUSES, CRIMSON, CURSES, KEEPSAKES, TRAITS, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
 import { FUSION_RECIPES } from "../data/fusions";
 import { ORIGINS } from "../data/origins";
-import { armorOf, armorReduction, beginRound, tollOf, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly, streakOf, hasStreak } from "../engine/combat";
+import { armorOf, armorReduction, beginRound, tollOf, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly, streakOf, hasStreak, BLESSINGS } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
@@ -17,7 +17,7 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  abandonRun, smithUpgrade,
+  abandonRun, smithUpgrade, TONICS, buyTonic, useTonic,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
@@ -275,7 +275,9 @@ function dieBox(who: "player" | "enemy", label: string) {
 function guardChips(f: Fighter, who: "player" | "enemy") {
   if (who === "player") {
     const n = streakOf(f);
-    return n >= 2 && hasStreak(f) ? `<span class="chip streak" title="Hits in a row this run. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it">🔗 Streak ${n}</span>` : "";
+    const bk = f.persist["blessKind"] ?? 0;
+    const bless = bk && (f.persist["blessFights"] ?? 0) > 0 ? `<span class="chip blessing" title="${esc(BLESSINGS[bk])}">🐲 ${esc(BLESSINGS[bk])} · ${f.persist["blessFights"]} fight${f.persist["blessFights"] === 1 ? "" : "s"}</span>` : "";
+    return bless + (n >= 2 && hasStreak(f) ? `<span class="chip streak" title="Hits in a row this run. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it">🔗 Streak ${n}</span>` : "");
   }
   if (f.flags["guarding"]) return `<span class="chip guardchip" title="Armor doubled this round. Crits, spells and statuses still get through">🧱 Guarding</span>`;
   if (f.flags["guardNext"]) return `<span class="chip guardchip" title="Next round its Armor doubles. Crits, spells and statuses still get through">🧱 Guards next round</span>`;
@@ -310,6 +312,7 @@ function combatScene(r: Run) {
     <div class="c-actions"><div class="row actions ${busy ? "busy" : ""}">
       ${availableActions(r).map(a => `<button class="${a === "attack" ? "primary" : a === "flee" ? "" : a === "guard" ? "" : "classact"}" data-act="${a}" title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(b.player)}</button>`).join("")}
     </div>
+    ${Object.keys(r.hero.tonics ?? {}).length ? `<div class="row tonics">${Object.entries(r.hero.tonics!).map(([id, n]) => `<button class="small tonic" data-tonic="${id}" ${busy ? "disabled" : ""} title="${esc(TONICS[id].text)}">${TONICS[id].icon} ${esc(TONICS[id].name)}${n > 1 ? ` ×${n}` : ""}</button>`).join("")}</div><p class="center sub" style="margin:2px 0">Tonics don't use your turn.</p>` : ""}
     <p class="center sub diefaces">Your die: ${b.player.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind}`).join(" · ")}</p></div>
     </div>
     <details><summary>Battle log</summary><div class="log">${b.log.slice().reverse().map(l => `<div class="${l.startsWith("—") ? "round" : ""}">${esc(l)}</div>`).join("")}</div></details>`;
@@ -466,6 +469,15 @@ function eventScene(r: Run) {
       : `<div class="cards" style="margin-top:10px">${s.ev.options.map((o, i) => `<button class="room" data-event="${i}" ${eventOptionAvailable(r, i) ? "" : "disabled"}><b>${esc(o.label)}</b>${o.hint ? `<span class="sub">${esc(o.hint)}</span>` : ""}</button>`).join("")}</div>`}`;
 }
 
+function alchemistScene(r: Run) {
+  if (r.scene.t !== "alchemist") return "";
+  const s = r.scene;
+  return `<h2>⚗️ The Alchemist</h2><div class="panel"><p>"Everything works on anything. Even the big ones. It isn't cheap."</p><p class="sub">Tonics are used in a fight, from the buttons under your actions. Using one doesn't take your turn. You have 🪙 <b>${r.hero.f.gold}</b>.</p></div>
+    <div class="cards">${s.stock.map((e, i) => `<div class="item r-epic"><div class="nm">${TONICS[e.id].icon} ${esc(TONICS[e.id].name)}</div><p>${esc(TONICS[e.id].text)}.</p>
+      <button class="small ${e.sold ? "" : "primary"}" data-tonicbuy="${i}" ${e.sold || r.hero.f.gold < e.price ? "disabled" : ""}>${e.sold ? "Sold" : `Buy · ${e.price} 🪙`}</button></div>`).join("")}</div>
+    <div class="row" style="margin-top:12px"><button data-leave>Leave</button></div>`;
+}
+
 function smithScene(r: Run) {
   if (r.scene.t !== "smith") return "";
   const s = r.scene;
@@ -571,6 +583,8 @@ function bag(r: Run) {
       : `<div class="item keepsake empty-slot"><div class="meta">Keepsake</div><div class="nm">🕯️ Empty</div><p class="sub">Something rare could rest here. Bosses deep below sometimes leave one behind…</p></div>`}
     <div class="bag-extras">
       <div class="stile extra-tile key-tile"><span>🗝️</span><span><b>${h.crimsonKeys}</b> Crimson Key${h.crimsonKeys === 1 ? "" : "s"}<span class="sub">${h.crimsonKeys ? "A Crimson Vault will be on your path." : "Dropped by Crimson Elites, deep below."}</span></span></div>
+      ${(h.f.persist["blessFights"] ?? 0) > 0 ? `<div class="stile extra-tile bless-tile"><span>🐲</span><span><b>Dragon's Blessing</b><span class="sub">${esc(BLESSINGS[h.f.persist["blessKind"] ?? 0])} · ${h.f.persist["blessFights"]} fight${h.f.persist["blessFights"] === 1 ? "" : "s"} left</span></span></div>` : ""}
+      ${Object.keys(h.tonics ?? {}).length ? `<div class="stile extra-tile"><span>⚗️</span><span><b>Tonics</b><span class="sub">${Object.entries(h.tonics!).map(([id, n]) => `${TONICS[id].icon} ${esc(TONICS[id].name)}${n > 1 ? ` ×${n}` : ""}`).join(", ")}</span></span></div>` : ""}
       <div class="stile extra-tile scroll-tile"><span>📜</span><span><b>${h.scrolls}</b> Scroll${h.scrolls === 1 ? "" : "s"} of Revelation<span class="sub">${h.scrolls ? "Use one on a hidden Legendary below." : "Reveals a hidden Legendary's true power."}</span></span></div>
     </div>
     <h2>Equipped</h2><div class="cards">${equipped}</div>
@@ -684,6 +698,9 @@ function helpGlossary() {
     row("✝️", "Holy", "Holy weapons deal +50% to Undead, vampires, Crimson foes and anything that curses or Dooms, and can Smite"),
     row("✨", "Purify", "A face that strips every negative status off the enemy and deals 2× your Damage for each one (ignores Armor)"),
     row("🔨", "Heavy weapons", "Rare two-handed swords and axes. Every hit builds Stagger on the enemy (2 on a Crit). At 3 (Elites 4, bosses 5) it's Staggered: it loses its next action and your next hit deals double. Then it can't build again for 2 rounds"),
+    row("🔥", "Sacrifice", "Holy Sacrifice weapons burn your current HP on each roll (a 1 burns 10%, a 6 burns 60%) and add it to the hit. Until your next roll, that same % of every hit you take heals you. Pair it with healing boosts"),
+    row("🔨", "War hammers", "Heavy two-handed hammers (Rare and up): they build Stagger, always come with a Bash chance, and feed you Might"),
+    row("🐲", "Dragon's Blessing", "From a blind old dragon, for 70% of your Gold: one blessing for your next 5 fights (more damage to, or less damage from, Elites, Champions or bosses)"),
     row("😤", "Reckless", "Some gear makes you deal more damage but also take more from every hit. It stacks, for better and worse"),
     row("⛓️", "Roll cap", "Some heavy gear stops your die rolling above 4 or 5; the Manacles do the same to the enemy's die"),
     row("🔗", "Hit streak", "Only counts while you have a streak relic, talent or trinket. Every Hit or Crit that gets through adds 1, and it carries across fights. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it. Some relics, talents and trinkets grow with it"),
@@ -931,6 +948,7 @@ function render() {
     : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r)
     : s.t === "cleared" ? clearedScene(r)
     : s.t === "smith" ? smithScene(r)
+    : s.t === "alchemist" ? alchemistScene(r)
     : s.t === "rest" ? restScene(r) : s.t === "confirm" ? confirmScene(r) : s.t === "event" ? eventScene(r) : overScene(r);
   celebrateScene(r);
   const msg = [r.message, note].filter(Boolean);
@@ -1156,6 +1174,8 @@ function bind() {
     endArmed = false; menuOpen = false; bagOpen = false;
     abandonRun(r);
   });
+  on("[data-tonicbuy]", el => { say(buyTonic(r, Number(el.dataset.tonicbuy))); });
+  on("[data-tonic]", el => { say(useTonic(r, el.dataset.tonic!)); sfx("status"); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-smith]", el => { smithUpgrade(r, Number(el.dataset.smith)); sfx("chest"); });
   on("[data-descend]", () => { r.message = ""; advance(r); });
   on("[data-help]", () => { helpOpen = true; });

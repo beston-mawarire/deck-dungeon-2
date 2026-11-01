@@ -85,7 +85,7 @@ export const isLocked = (id: string) => LOCKED.has(id);
 const BASH_RANGE: Partial<Record<Rarity, [number, number]>> = { rare: [4, 10], epic: [8, 16], legendary: [12, 22], crimson: [18, 30] };
 function rollBash(rarity: Rarity, base: GearBase, rng: () => number): number | undefined {
   const r = BASH_RANGE[rarity];
-  if (!r || base.kind !== "weapon" || rng() >= 0.45) return undefined;
+  if (!r || base.kind !== "weapon" || (!base.alwaysBash && rng() >= 0.45)) return undefined;
   return Math.round(r[0] + rng() * (r[1] - r[0]));
 }
 

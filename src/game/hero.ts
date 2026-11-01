@@ -24,6 +24,8 @@ export interface Hero {
   talents: Record<string, number>;
   curses: Record<string, number>;
   potions: number;
+  /** The Alchemist's combat tonics, by id. */
+  tonics?: Record<string, number>;
   scrolls: number;
   scrap: number;
   /** Starmetal: dropped only by Champions (and scrapped Legendaries); fuels the Transmuter. */

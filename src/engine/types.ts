@@ -254,6 +254,8 @@ export interface GearBase extends HookDef {
   dodge?: Partial<Record<Rarity, number>>;
   /** Deep finds: only drop past floor 5 — unless unlocked earlier with Renown. */
   deep?: boolean;
+  /** Always rolls a Bash chance (war hammers). */
+  alwaysBash?: boolean;
   /** Heavy (two-handed swords and axes): hits build Stagger on the enemy. */
   heavy?: boolean;
   /** Only drops on this floor or deeper (Endless). */

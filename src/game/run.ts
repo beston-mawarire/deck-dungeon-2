@@ -4,11 +4,11 @@ import { CURSES, EPIC_POWERS, KEEPSAKES, LEGENDARIES, RELICS, TALENTS } from "..
 import { CAMPAIGN_FLOORS, DEATH_FLOOR, END_FLOOR, EPIC_CRIMSON_FLOORS, makeBoss, makeCrimsonBoss, WALL_FLOOR } from "../data/bosses";
 import { EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
-import { makeGoblin, makeMonster, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
-import { type Action, actionToll, playRound, startBattle } from "../engine/combat";
+import { makeDragon, makeGoblin, makeMonster, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
+import { type Action, actionToll, BLESSINGS, playRound, startBattle } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
-import { heal as healF } from "../engine/statuses";
+import { applyStatus, heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { addToBackpack, canGuard, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
@@ -59,7 +59,7 @@ export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "reli
 
 export type Scene =
   | { t: "map" }
-  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" }
+  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent"; crimsonKey?: boolean }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
@@ -70,6 +70,7 @@ export type Scene =
   | { t: "confirm"; room: RoomType }
   | { t: "event"; ev: GameEvent; result: string | null; found: GearItem[]; note?: string }
   | { t: "smith"; uses: number }
+  | { t: "alchemist"; stock: { id: string; price: number; sold?: boolean }[] }
   | { t: "cleared"; floor: number; boss: string }
   | { t: "over"; won: boolean };
 
@@ -234,12 +235,14 @@ function enterRoom(run: Run, room: RoomType) {
     case "rest": run.scene = { t: "rest", done: false }; return;
     case "event": {
       // Unique encounters (the dragon, the mirror pool) happen at most once per run.
-      const pool = EVENTS.filter(e => !e.unique || !run.seenBosses.has(`e:${e.id}`));
-      const ev = pool[Math.floor(run.rng() * pool.length)];
-      if (ev.unique) run.seenBosses.add(`e:${ev.id}`);
-      // The Wandering Blacksmith: two free upgrades at his anvil.
-      if (ev.id === "blacksmith") { run.scene = { t: "smith", uses: 2 }; return; }
-      run.scene = { t: "event", ev, result: null, found: [] };
+      const pool = EVENTS.filter(e => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= (e.minGold ?? 0));
+      const ev = pickW(run.rng, Object.fromEntries(pool.map(e => [e.id, e.weight ?? 1])) as Record<string, number>);
+      const evDef = pool.find(e => e.id === ev)!;
+      if (evDef.unique) run.seenBosses.add(`e:${evDef.id}`);
+      // The Wandering Blacksmith: two free upgrades at his anvil. The Alchemist: a shop of combat tonics.
+      if (evDef.id === "blacksmith") { run.scene = { t: "smith", uses: 2 }; return; }
+      if (evDef.id === "alchemist") { run.scene = { t: "alchemist", stock: alchemistStock(run) }; return; }
+      run.scene = { t: "event", ev: evDef, result: null, found: [] };
       return;
     }
     case "unique": return fight(run, "elite", "unique");
@@ -259,7 +262,7 @@ function openResplendent(run: Run) {
 
 // ---------- Combat ----------
 
-function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin") {
+function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon") {
   run.hero.f.persist["floor"] = run.floor;
   // A Crimson Vault always holds a Crimson boss; in Endless, a floor boss is rarely Crimson too.
   // (Never on the floors with a special boss: the Horror, the Epic Crimson floors, DEATH and the End.)
@@ -267,7 +270,7 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && !special && run.rng() < 0.06));
   // A rare gold thief sometimes turns up in place of a normal monster.
   const thief = rank === "normal" && !then && run.rng() < 0.04;
-  const enemy = then === "goblin" ? makeGoblin(run.rng, run.floor) : then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank);
+  const enemy = then === "dragon" ? makeDragon(run.rng, run.floor) : then === "goblin" ? makeGoblin(run.rng, run.floor) : then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
@@ -354,6 +357,11 @@ function afterFight(run: Run) {
   const { battle: b, rank, then } = run.scene;
   const h = run.hero;
   const curseNote = applyQueuedCurses(run);
+  // A Dragon's Blessing lasts 5 fights.
+  if ((h.f.persist["blessFights"] ?? 0) > 0) {
+    h.f.persist["blessFights"]--;
+    if (h.f.persist["blessFights"] === 0) { delete h.f.persist["blessKind"]; run.message = "🐲 The Dragon's Blessing fades."; }
+  }
   if (b.over === "lost") {
     // Dying anywhere ends the run, Crimson Vaults included. Remember who did it.
     const e = b.enemy;
@@ -408,7 +416,15 @@ function afterFight(run: Run) {
     run.message = "You find a Mana Potion. 🔷";
   }
   let goblinGold = 0;
-  if (then === "goblin") {
+  if (then === "dragon") {
+    // The dragon's hoard: a big pile of Gold and Scrap; maybe a great relic, rarely an Epic or a Legendary.
+    goblinGold = 80 + 25 * run.floor;
+    h.scrap += 10 + 3 * run.floor;
+    if (run.rng() < 0.2) relic = randomRelic(run, 2);
+    if (run.rng() < 0.08) items.push(rollItem(h, "epic", run.floor, run.rng));
+    if (run.rng() < 0.03) items.push(rollItem(h, "legendary", run.floor, run.rng));
+    run.message = `🐉 The dragon's hoard: +${10 + 3 * run.floor} ⚙️ Scrap and a mountain of Gold.`;
+  } else if (then === "goblin") {
     // Treasure Goblin: a guaranteed Rare and a fat purse, maybe an Epic, a Legendary or a scroll. All of it is yours.
     goblinGold = 25 + 8 * run.floor;
     items.push(rollItem(h, "rare", run.floor, run.rng));
@@ -426,7 +442,7 @@ function afterFight(run: Run) {
     if (then === "mimic") items.push(roll(TABLES.elite));
     if (run.rng() < 0.35) relic = randomRelic(run);
   }
-  if (rank === "champion") {
+  if (rank === "champion" && then !== "dragon") {
     items.push(roll(TABLES.champion));
     if (run.rng() < 0.2) scrolls++;
     const metal = run.rng() < 0.65 ? 1 + (run.rng() < 0.25 ? 1 : 0) : 0;
@@ -486,7 +502,7 @@ function afterFight(run: Run) {
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (relic) grantRelic(run, relic);
   if (scrolls) grantScrolls(run, scrolls);
-  run.scene = { t: "loot", title: then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined };
+  run.scene = { t: "loot", title: then === "dragon" ? "The Dragon's Hoard" : then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined };
   const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean);
   run.message = notes.join(" ");
 }
@@ -751,6 +767,7 @@ export function chooseEvent(run: Run, i: number) {
   if (s.t !== "event" || s.result) return;
   const h = run.hero;
   const found: GearItem[] = [];
+  let dragonWakes = false;
   const ctx = {
     rng: run.rng,
     gold: () => h.f.gold,
@@ -771,11 +788,21 @@ export function chooseEvent(run: Run, i: number) {
     addScrap: (n: number) => { h.scrap += n; },
     addPity: (n: number) => { run.loot.pity += n; },
     potions: () => h.potions,
+    floor: () => run.floor,
+    wakeDragon: () => { dragonWakes = true; },
+    dragonBlessing: () => {
+      const k = 1 + Math.floor(run.rng() * 6);
+      h.f.persist["blessKind"] = k;
+      h.f.persist["blessFights"] = 5;
+      return `🐲 Dragon's Blessing: ${BLESSINGS[k]}`;
+    },
     upgradeWeapon: () => { const w = h.equip.main; if (!w) return "You have no weapon."; w.level++; for (const k of Object.keys(w.bonuses)) w.bonuses[k]++; recompute(h); return null; }
   };
   const opt = s.ev.options[i];
   if (!opt || (opt.can && !opt.can(ctx))) return;
   const result = opt.run(ctx);
+  // The Chained Dragon woke up: straight into a fight.
+  if (dragonWakes) { run.message = result; fight(run, "champion", "dragon"); return; }
   // Repeatable options (the Golden Altar): stay here; finds pile up until you leave.
   if (opt.repeat) {
     s.found.push(...found);
@@ -1055,5 +1082,50 @@ export function smithUpgrade(run: Run, uid: number): string | null {
   for (const k of Object.keys(found.item.bonuses)) found.item.bonuses[k]++;
   recompute(run.hero);
   s.uses--;
+  return null;
+}
+
+// ---------- The Alchemist: combat tonics ----------
+export const TONICS: Record<string, { name: string; icon: string; text: string; base: number }> = {
+  might: { name: "Tonic of Might", icon: "💪", text: "Your next 3 attacks deal +4", base: 70 },
+  weakness: { name: "Draught of Weakness", icon: "🥀", text: "The enemy is Weak for 3 rounds", base: 60 },
+  barrier: { name: "Shellskin Elixir", icon: "🛡️", text: "Gain Barrier equal to 30% of your Max HP (it fades by half each round)", base: 75 },
+  sunder: { name: "Armour-Rot Acid", icon: "🧪", text: "Halve the enemy's Armor for the rest of the fight", base: 90 },
+  poison: { name: "Vial of Venom", icon: "☠️", text: "Apply 6 Poison (more on deeper floors)", base: 65 },
+  blind: { name: "Flash Powder", icon: "🌫️", text: "Blind the enemy for 3 rounds", base: 70 }
+};
+export function alchemistStock(run: Run) {
+  const ids = Object.keys(TONICS).sort(() => run.rng() - 0.5).slice(0, 4);
+  return ids.map(id => ({ id, price: Math.round(TONICS[id].base * priceMult(run) * 1.5) }));
+}
+export function buyTonic(run: Run, i: number): string | null {
+  const s = run.scene;
+  if (s.t !== "alchemist") return null;
+  const e = s.stock[i];
+  if (!e || e.sold) return null;
+  if (run.hero.f.gold < e.price) return "Not enough Gold.";
+  run.hero.f.gold -= e.price;
+  e.sold = true;
+  const t = (run.hero.tonics ??= {});
+  t[e.id] = (t[e.id] ?? 0) + 1;
+  return null;
+}
+/** Drink or throw a tonic in a fight. Doesn't use your turn. Works on bosses too. */
+export function useTonic(run: Run, id: string): string | null {
+  const s = run.scene;
+  if (s.t !== "combat" || s.battle.over) return "Tonics only work in a fight.";
+  const t = run.hero.tonics ?? {};
+  if (!t[id]) return null;
+  const b = s.battle, p = b.player, e = b.enemy;
+  t[id]--;
+  if (!t[id]) delete t[id];
+  if (id === "might") p.flags["tonicMight"] = (p.flags["tonicMight"] ?? 0) + 3;
+  if (id === "weakness") e.statuses.weak = Math.max(e.statuses.weak ?? 0, 3);
+  if (id === "barrier") applyStatus(b, p, p, "barrier", Math.ceil(p.maxHp * 0.3));
+  if (id === "sunder") e.armor = Math.floor(e.armor / 2);
+  if (id === "poison") e.statuses.poison = (e.statuses.poison ?? 0) + 6 + run.floor;
+  if (id === "blind") e.statuses.blind = Math.max(e.statuses.blind ?? 0, 3);
+  b.log.push(`${TONICS[id].icon} ${TONICS[id].name}!`);
+  b.fx.push({ who: id === "might" || id === "barrier" ? "player" : "enemy", kind: "text", text: TONICS[id].name, icon: TONICS[id].icon });
   return null;
 }

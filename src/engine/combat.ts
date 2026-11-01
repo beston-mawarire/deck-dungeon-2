@@ -156,6 +156,27 @@ function addStreak(a: Fighter) {
   a.persist["bestStreak"] = Math.max(a.persist["bestStreak"] ?? 0, a.persist["streak"]);
 }
 
+/** Dragon's Blessings: 1–3 hit Elites / Champions / bosses 30% harder; 4–6 take 30% less from bosses / Champions / Elites. */
+export const BLESSINGS = [
+  "",
+  "You deal 30% more damage to Elites",
+  "You deal 30% more damage to Champions",
+  "You deal 30% more damage to bosses",
+  "Bosses deal 30% less damage to you",
+  "Champions deal 30% less damage to you",
+  "Elites deal 30% less damage to you"
+];
+const rankOf = (f: Fighter) => (f.boss ? "boss" : f.champion ? "champion" : f.elite ? "elite" : "");
+export function blessingMult(a: Fighter, d: Fighter): number {
+  const mine = a.id === "player" ? a : d;
+  const foe = a.id === "player" ? d : a;
+  const k = mine.persist["blessKind"] ?? 0;
+  if (!k || (mine.persist["blessFights"] ?? 0) <= 0) return 1;
+  const r = rankOf(foe);
+  if (a === mine) return (k === 1 && r === "elite") || (k === 2 && r === "champion") || (k === 3 && r === "boss") ? 1.3 : 1;
+  return (k === 4 && r === "boss") || (k === 5 && r === "champion") || (k === 6 && r === "elite") ? 0.7 : 1;
+}
+
 /** Heavy weapons build Stagger; when it fills, the foe is Staggered (loses its next action, next hit ×2). */
 export function buildStagger(b: Battle, a: Fighter, d: Fighter, crit: boolean) {
   if ((d.flags["staggerImmune"] ?? 0) >= b.round) return;
@@ -310,6 +331,10 @@ function strike(b: Battle, ctx: AttackCtx) {
     d.statuses.broken = 0;
     log(b, `💥 ${d.name} is Staggered: ×${m}!`);
   }
+  // Alchemist's Tonic of Might: +4 on your next 3 attacks.
+  if (!ctx.offhand && (a.flags["tonicMight"] ?? 0) > 0 && raw > 0) { raw += 4; a.flags["tonicMight"]--; }
+  // Dragon's Blessing (lasts 5 fights): more damage to one kind of foe, or less damage from one.
+  raw *= blessingMult(a, d);
   // Reinforced: a full block earlier pays off on your next attack (+2 per stack), then it's spent.
   if (!ctx.offhand && st(a, "reinforced") > 0) {
     const n = st(a, "reinforced");

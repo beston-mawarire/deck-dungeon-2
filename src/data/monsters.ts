@@ -143,6 +143,17 @@ const THIEVES = [
   { name: "Coin Wraith", family: "Undead" },
   { name: "Clockwork Pickpocket", family: "Construct" }
 ];
+/** The Chained Dragon, woken: a Champion from one floor deeper, with more HP and bite. */
+export function makeDragon(rng: () => number, floor: number): Fighter {
+  const f = makeMonster(rng, floor + 1, "champion");
+  f.name = "The Chained Dragon";
+  f.title = "Awake, and furious";
+  f.family = "Beast";
+  f.hp = f.maxHp = Math.round(f.maxHp * 1.3);
+  f.damage += 2;
+  return f;
+}
+
 /** Treasure Goblin: stuffed with loot, slippery, and gone after round 3. */
 export function makeGoblin(rng: () => number, floor: number): Fighter {
   const hp = Math.round(22 * monsterHpMult(floor));
