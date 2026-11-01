@@ -460,7 +460,16 @@ button.bounty-btn.done { background: linear-gradient(180deg, #e8c46a, #b98a2e); 
 .death-intro { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; pointer-events: none;
   background: radial-gradient(circle at 50% 45%, rgba(74,20,120,.92), rgba(20,4,36,.97) 65%, #050008);
   animation: deathveil 4.2s ease-in-out forwards; }
-.death-word { font-size: clamp(4rem, 22vw, 9rem); font-weight: 900; letter-spacing: .18em; color: #e0122f;
+.death-word { font-size: clamp(3.6rem, 19vw, 9rem); font-weight: 900; letter-spacing: .14em; color: #e0122f;
   text-shadow: 0 0 24px rgba(224,18,47,.9), 0 0 60px rgba(140,40,220,.8); animation: deathword 4.2s ease-in-out forwards; }
 @keyframes deathveil { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes deathword { 0% { opacity: 0; transform: scale(1.4); filter: blur(8px); } 30% { opacity: 1; transform: scale(1); filter: blur(0); } 70% { opacity: 1; transform: scale(1.03); } 100% { opacity: 0; transform: scale(.9); filter: blur(6px); } }
+/* Met early: black, silent, then "Floor 80" fills the screen */
+.floor80-intro { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; pointer-events: none; background: #000;
+  animation: f80veil 5.2s ease-in-out forwards; }
+.floor80-word { font-size: clamp(3.5rem, 20vw, 10rem); font-weight: 900; letter-spacing: .06em; color: #e9e1f2; white-space: nowrap;
+  text-shadow: 0 0 30px rgba(160,120,220,.6); opacity: 0; animation: f80word 5.2s ease-in-out forwards; }
+@keyframes f80veil { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 1; } }
+@keyframes f80word { 0%, 25% { opacity: 0; transform: scale(.94); } 50% { opacity: 1; transform: scale(1); } 72% { opacity: 1; } 92%, 100% { opacity: 0; transform: scale(1.04); } }
+.death-intro.after80 { animation-name: deathveil80; }
+@keyframes deathveil80 { 0% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }

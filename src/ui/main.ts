@@ -24,7 +24,7 @@ import { bountyProgress, bountyText, rewardText } from "../game/bounty";
 import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
-import { isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
+import { holdMusic, isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
 
 loadLibrary();
 
@@ -1017,16 +1017,26 @@ const celebrated = new Set<number>();
 let fanfareEl: HTMLElement | null = null;
 /** Fanfares waiting their turn: a level-up and a big drop play one after the other, never on top of each other. */
 const fanfareQueue: [string, string | undefined, boolean][] = [];
-/** DEATH arrives: a deep purple dark, and its name in red, fading in and out. */
-function deathIntro() {
-  const el = document.createElement("div");
-  el.className = "death-intro";
-  el.innerHTML = `<div class="death-word">DEATH</div>`;
-  document.body.appendChild(el);
-  sfx("crimson");
-  setTimeout(() => sfx("legendary"), 700);
-  navigator.vibrate?.([300, 120, 300, 120, 600]);
-  setTimeout(() => el.remove(), 4200);
+/** DEATH arrives: a deep purple dark, and its name in red, fading in and out.
+ *  Met early (the Crossroads' "future"), the screen first goes black and silent, and "Floor 80" fills it. */
+function deathIntro(early: boolean) {
+  const show = () => {
+    const el = document.createElement("div");
+    el.className = `death-intro${early ? " after80" : ""}`;
+    el.innerHTML = `<div class="death-word">DEATH</div>`;
+    document.body.appendChild(el);
+    sfx("crimson");
+    setTimeout(() => sfx("legendary"), 700);
+    navigator.vibrate?.([300, 120, 300, 120, 600]);
+    setTimeout(() => { el.remove(); holdMusic(false); }, 4200);
+  };
+  holdMusic(true);
+  if (!early) { show(); return; }
+  const dark = document.createElement("div");
+  dark.className = "floor80-intro";
+  dark.innerHTML = `<div class="floor80-word">Floor 80</div>`;
+  document.body.appendChild(dark);
+  setTimeout(() => { dark.remove(); show(); }, 5200);
 }
 
 function celebrate(rarity: string, label?: string, banner = true) {
@@ -1105,7 +1115,7 @@ function render2() {
   if (s.t === "combat" && s.battle !== currentBattle) {
     currentBattle = s.battle;
     lastRoll.player = lastRoll.enemy = null;
-    if ((s.battle.enemy.items["m_death"] ?? 0) > 0) deathIntro();
+    if ((s.battle.enemy.items["m_death"] ?? 0) > 0) deathIntro(r.floor !== DEATH_FLOOR);
     dispHp.player = dispHp.enemy = null;
   }
   if (s.t === "over" && !recorded) {

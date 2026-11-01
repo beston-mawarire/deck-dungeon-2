@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.6.1
+- Meeting DEATH early (the Crossroads' future): the music stops, the screen goes black, "Floor 80" fills it, fades, and then DEATH arrives. The music returns after.
+
 ## 1.6.0
 - **The Crossroads**: a very rare encounter, once per run, from floor 2. It hides among "Something Strange" events and, rarer still, appears as an extra path of its own. It never looks the same: it wears one of nine disguises (names, icons, text and choices). Choose the past (back to the first room of the previous floor, keeping everything), the future (a fight with DEATH), or walk away.
 - DEATH now arrives with a deep-purple dark and its name in red, fading in and out.

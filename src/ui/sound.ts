@@ -43,8 +43,17 @@ export const musicBlocked = () => blocked && !muted && !musicOff;
 /** Called when the music becomes blocked or starts after being blocked (to show/hide a "tap for music" hint). */
 export function onMusicBlockChange(fn: () => void) { onUnblock = fn; }
 
-function tryPlay() {
+/** Silence the music for a dramatic moment (DEATH's arrival); release to bring it back. */
+let held = false;
+export function holdMusic(on: boolean) {
+  held = on;
   if (!music) return;
+  if (on) music.pause();
+  else tryPlay();
+}
+
+function tryPlay() {
+  if (!music || held) return;
   const m = music;
   if (mctx && mctx.state === "suspended") void mctx.resume().catch(() => {});
   void m.play().then(() => {
