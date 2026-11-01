@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.1.2
+- The Talents tab is now **Aspects**, holding the Talents and Curses sub-tabs; removed the extra headings inside them.
+
 ## 1.1.1
 - Brighter section headings in the inventory (Blessings, Statuses & reactions, Relics, Talents…).
 

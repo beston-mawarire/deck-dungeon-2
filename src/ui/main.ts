@@ -631,7 +631,7 @@ function bag(r: Run) {
     ["gear", "⚔️ Gear", `${h.backpack.length ? `<i>${h.backpack.length}</i>` : ""}`],
     ["stats", "📊 Stats", ""],
     ["relics", "💎 Relics", `${nRelics ? `<i>${nRelics}</i>` : ""}`],
-    ["talents", "🌟 Talents", `${nTalents ? `<i>${nTalents}</i>` : ""}`],
+    ["talents", "🧿 Aspects", `${nTalents + nCurses ? `<i>${nTalents + nCurses}</i>` : ""}`],
     ["extras", "✨ Extras", `${blessCount + h.scrolls + h.crimsonKeys ? `<i>${blessCount + h.scrolls + h.crimsonKeys}</i>` : ""}`]
   ];
   const body =
@@ -642,8 +642,8 @@ function bag(r: Run) {
     : bagTab === "talents" ? `<div class="row subtabs">
         <button class="small ${talentSub === "talents" ? "primary" : ""}" data-talentsub="talents">🌟 Talents${nTalents ? ` (${nTalents})` : ""}</button>
         <button class="small curse-subtab ${talentSub === "curses" ? "primary" : ""}" data-talentsub="curses">🕯️ Curses${nCurses ? ` (${nCurses})` : ""}</button></div>
-      ${talentSub === "talents" ? `<h2>Talents</h2>${list(h.talents, "talent-line")}`
-        : `<h2>Active curses</h2>${nCurses ? list(h.curses, "curse-line") : `<p class="sub">You carry no curses. Shrines, Accursed foes and dark magic can lay them on you; a Campfire can cleanse one.</p>`}`}`
+      ${talentSub === "talents" ? list(h.talents, "talent-line")
+        : `${nCurses ? list(h.curses, "curse-line") : `<p class="sub">You carry no curses. Shrines, Accursed foes and dark magic can lay them on you; a Campfire can cleanse one.</p>`}`}`
     : `${extras}${reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`}`;
   return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}

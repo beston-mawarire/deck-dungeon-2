@@ -426,6 +426,6 @@ h2.bright { color: #e4d6f2; text-shadow: 0 1px 6px rgba(200,170,255,.25); }
 /* Talents name in Rare blue (description stays default); curses fully purple */
 .talent-line .nm { color: var(--rare); }
 .curse-line, .curse-line .nm, .curse-line .desc { color: #c08cff; }
-.subtabs { margin: 4px 0 2px; gap: 8px; }
+.subtabs { margin: 4px 0 12px; gap: 8px; }
 .relic-line .nm { color: var(--gold); }
 .bag-body h2 { color: #e4d6f2; text-shadow: 0 1px 6px rgba(200,170,255,.25); }
