@@ -1319,6 +1319,23 @@ describe("class actions and new stats", () => {
     expect(run.hero.f.persist["cloverChests"]).toBe(0);
   });
 
+  it("cursed Epics only drop once you've been cursed, and grow with each curse", () => {
+    const h = newHero("warrior");
+    const rng = makeRng(17);
+    for (let i = 0; i < 600; i++) expect(rollItem(h, "epic", 3, rng).base.startsWith("cu_")).toBe(false);
+    h.curses["c_rust"] = 1; recompute(h);
+    let seen = 0;
+    for (let i = 0; i < 1500; i++) if (rollItem(h, "epic", 3, rng).base.startsWith("cu_")) seen++;
+    expect(seen).toBeGreaterThan(0);
+    delete h.curses["c_rust"]; recompute(h);
+    for (let i = 0; i < 1500; i++) if (rollItem(h, "epic", 3, rng).base.startsWith("cu_")) { seen = -1; break; }
+    expect(seen).toBe(-1); // still drops after the curse is gone: you took one on
+    equipItem(h, { uid: 1201, base: "cu_many_sorrows", rarity: "epic", level: 1, bonuses: {}, revealed: true });
+    const base = h.f.maxHp;
+    h.curses["c_rust"] = 1; h.curses["c_dread"] = 1; recompute(h);
+    expect(h.f.maxHp).toBe(base + 12);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);

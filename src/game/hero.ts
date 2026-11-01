@@ -144,6 +144,10 @@ export function recompute(h: Hero) {
   for (const [id, n] of Object.entries(h.relics)) add(id, n);
   for (const [id, n] of Object.entries(h.talents)) add(id, n);
   for (const [id, n] of Object.entries(h.curses)) add(id, n);
+  // Curse-fed gear reads how many curses you carry; once cursed, the cursed gear can start to drop.
+  const curseCount = Object.values(h.curses).reduce((a, n) => a + n, 0);
+  f.persist["curseCount"] = curseCount;
+  if (curseCount > 0) f.persist["everCursed"] = 1;
   if (h.keepsake) add(h.keepsake);
   if (!hasThirdTrinket(h) && h.equip.trinket3) { h.backpack.push(h.equip.trinket3); delete h.equip.trinket3; }
 
@@ -202,7 +206,7 @@ export function recompute(h: Hero) {
     const it = h.equip[slot];
     if (it?.revealed && baseOf(it.base).legendary && baseOf(it.base).faces) f.faces = baseOf(it.base).faces!;
   }
-  eachHook(f, "stats", (hk, n) => hk(s, n));
+  eachHook(f, "stats", (hk, n) => hk(s, n, f));
   if (items["l_mountain"]) s.armor *= 2;
   // Hollow Vessel: Max HP can't go above 20, but the off-hand's effects fire twice.
   const vessel = (items["ep_hollow_vessel"] ?? 0) > 0;

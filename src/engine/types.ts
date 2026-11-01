@@ -187,7 +187,7 @@ export interface Hooks {
   onStatusReceived?: (b: Battle, self: Fighter, source: Fighter | null, status: StatusId, amount: number, stacks: number) => void;
   reactionMult?: (b: Battle, self: Fighter, stacks: number) => number;
   /** Change the hero's stats when gear is recalculated (Max HP, Armor, damage). */
-  stats?: (s: StatBlock, stacks: number) => void;
+  stats?: (s: StatBlock, stacks: number, self: Fighter) => void;
   /** Your Ward just blocked a negative status (the enemy's, or a curse's). */
   onWard?: (b: Battle, self: Fighter, status: StatusId, amount: number, stacks: number) => void;
   /** You dodged a hit (Dodge, not Evade). */
@@ -258,6 +258,8 @@ export interface GearBase extends HookDef {
   alwaysBash?: boolean;
   /** Heavy (two-handed swords and axes): hits build Stagger on the enemy. */
   heavy?: boolean;
+  /** Only drops once you've been cursed at least once this run. */
+  needsCurse?: boolean;
   /** Only drops on this floor or deeper (Endless). */
   floorMin?: number;
   /** Never rolls below this rarity (anything that grants Barrier is Uncommon or better). */
