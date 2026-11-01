@@ -10,7 +10,7 @@ import { applyStatus, endOfRound, st } from "../src/engine/statuses";
 import { TAGS } from "../src/engine/types";
 import { equipItem, itemName, newHero, recompute, reveal, salvage, slotsFor, weaponDamage } from "../src/game/hero";
 import { resetDropped, resplendentCards, rollItem } from "../src/game/loot";
-import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem, rerollShop } from "../src/game/run";
+import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem, rerollShop, drinkPotion } from "../src/game/run";
 
 beforeAll(() => loadLibrary());
 
@@ -987,6 +987,16 @@ describe("class actions and new stats", () => {
     const hollow = makeBoss(5, makeRng(3));
     expect(hollow.family).toBe("Construct");
     expect(isUnholy(hollow)).toBe(true); // Doombringer
+  });
+
+  it("you can't drink a potion once you're dead", () => {
+    const run = newRun("warrior", 81);
+    run.hero.potions = 2;
+    run.hero.f.hp = 0;
+    run.scene = { t: "over", won: false };
+    drinkPotion(run);
+    expect(run.hero.potions).toBe(2);
+    expect(run.hero.f.hp).toBe(0);
   });
 
   it("Penance stores damage taken and adds it to the next attack", () => {

@@ -306,7 +306,7 @@ export function settleCombat(run: Run) {
 /** Mana Potion: spells hit 50% harder, and statuses they apply get +1, for the rest of the fight. */
 export function drinkMana(run: Run): string | null {
   const h = run.hero;
-  if (run.scene.t !== "combat") return "Mana Potions only work in a fight.";
+  if (run.scene.t !== "combat" || run.scene.battle.over || h.f.hp <= 0) return "Mana Potions only work in a fight.";
   if (h.manaPotions <= 0) return null;
   if (h.f.flags["mana"]) return "You're already brimming with mana this fight.";
   h.manaPotions--;
@@ -332,7 +332,9 @@ export function takeKeepsake(run: Run): string | null {
 
 export function drinkPotion(run: Run) {
   const h = run.hero;
-  if (h.potions <= 0) return;
+  // The dead don't drink: no potions once you've fallen or the run is over.
+  if (h.potions <= 0 || h.f.hp <= 0 || run.scene.t === "over") return;
+  if (run.scene.t === "combat" && run.scene.battle.over) return;
   h.potions--;
   let amount = h.f.items["l_bottomless"] ? Math.ceil(h.f.maxHp / 2) : 12;
   if (h.f.items["c_famine"]) amount = Math.ceil(amount / 2);
