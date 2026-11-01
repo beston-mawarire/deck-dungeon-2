@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.9.3
+- How to play redesigned: a row of coloured section chips to jump around, each section in its own coloured card with a bright heading and one point per block, and the Reference as bright panels with one entry per row.
+
 ## 1.9.2
 - The floor boss no longer breaks the plain-fight streak.
 

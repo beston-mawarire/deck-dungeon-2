@@ -764,9 +764,21 @@ const STORIES: Record<Mode, { icon: string; title: string; text: string }> = {
 };
 
 function helpPopup() {
-  const sec = (t: string, items: string[]) => `<h2>${t}</h2><ul>${items.map(i => `<li>${i}</li>`).join("")}</ul>`;
+  // Each section is its own coloured card: an icon, a bright heading, and one point per line.
+  const SECTIONS: Record<string, [string, string]> = {
+    "The goal": ["🎯", "gold"], "Your weapon is your die": ["🎲", "blue"], "In a fight": ["⚔️", "red"],
+    "Statuses and reactions": ["✴️", "purple"], "Loot": ["💎", "green"], "Tips": ["💡", "orange"]
+  };
+  const anchor = (t: string) => `help-${t.toLowerCase().replace(/[^a-z]+/g, "-")}`;
+  const sec = (t: string, items: string[]) => {
+    const [icon, tone] = SECTIONS[t] ?? ["•", "gold"];
+    return `<section class="help-card tone-${tone}" id="${anchor(t)}"><h3><span class="hc-ic">${icon}</span>${t}</h3>${items.map(i => `<p class="hc-pt">${i}</p>`).join("")}</section>`;
+  };
+  const toc = Object.entries(SECTIONS).map(([t, [icon, tone]]) => `<a class="help-chip tone-${tone}" href="#${anchor(t)}">${icon} ${t}</a>`).join("")
+    + `<a class="help-chip tone-grey" href="#help-reference">📖 Reference</a>`;
   return `<div class="overlay"><div class="inner help">
     <div class="row"><h1 class="grow">❓ How to play</h1><button data-closehelp>Close</button></div>
+    <nav class="help-toc">${toc}</nav>
     ${sec("The goal", [
       "Pick a class, then go down through <b>5 floors</b>. Each floor is a few rooms you choose from, then a boss. Beat the fifth boss to win.",
       "After winning you can keep going in <b>Endless</b> for better loot and harder bosses. Your run saves automatically at every path choice."])}
@@ -799,10 +811,10 @@ function helpPopup() {
 function helpGlossary() {
   const neg = (Object.keys(STATUS_INFO) as StatusId[]).filter(x => (NEGATIVE_STATUSES as readonly string[]).includes(x));
   const pos = (Object.keys(STATUS_INFO) as StatusId[]).filter(x => !(NEGATIVE_STATUSES as readonly string[]).includes(x));
-  const row = (icon: string, name: string, text: string) => `<p class="gl"><span class="gi">${icon}</span><b>${esc(name)}</b> — ${esc(text)}</p>`;
+  const row = (icon: string, name: string, text: string) => `<div class="gl"><span class="gi">${icon}</span><span class="gt"><b>${esc(name)}</b><span>${esc(text)}</span></span></div>`;
   const group = (title: string, body: string, open = false) => `<details class="gloss" ${open ? "open" : ""}><summary>${title}</summary>${body}</details>`;
   const enemyTraits = TRAITS.filter(t => !t.id.startsWith("m_") || ["m_toll", "m_thief", "m_lifedrink", "m_forge", "m_crackle"].includes(t.id));
-  return `<h2>Reference</h2><p class="sub">Tap a heading to open it.</p>
+  return `<h2 class="help-ref-title" id="help-reference">📖 Reference</h2><p class="sub">Tap a heading to open it.</p>
   ${group("😖 Negative statuses (debuffs)", neg.map(x => row(STATUS_INFO[x].icon, STATUS_INFO[x].name, STATUS_INFO[x].text)).join(""))}
   ${group("💪 Positive statuses (buffs)", pos.map(x => row(STATUS_INFO[x].icon, STATUS_INFO[x].name, STATUS_INFO[x].text)).join(""))}
   ${group("✴️ Reactions — two statuses on the same fighter", REACTIONS.map(x => row(`${STATUS_INFO[x.a].icon}+${STATUS_INFO[x.b].icon}`, x.name, x.text)).join("") +

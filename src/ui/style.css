@@ -476,3 +476,27 @@ button.bounty-btn.done { background: linear-gradient(180deg, #e8c46a, #b98a2e); 
 /* Auto-battle */
 .auto-row { justify-content: center; gap: 10px; margin-top: 6px; align-items: center; }
 button.auto-btn { background: linear-gradient(180deg, #5ec8a0, #2f8f6c); border-color: #2f8f6c; color: #06140e; font-weight: 800; }
+
+/* ---------- How to play: coloured section cards ---------- */
+.help { --hc: var(--gold); }
+.help-toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px; }
+.help-chip { text-decoration: none; font-size: .8rem; font-weight: 700; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--hc); color: var(--hc); background: color-mix(in srgb, var(--hc) 12%, transparent); }
+.help-card { --hc: var(--gold); border: 1px solid color-mix(in srgb, var(--hc) 55%, transparent); border-left: 5px solid var(--hc); border-radius: 12px; padding: 10px 14px 6px; margin: 12px 0;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--hc) 14%, var(--panel)), var(--panel) 70%); scroll-margin-top: 12px; }
+.help-card h3 { margin: 2px 0 8px; font-size: 1.12rem; letter-spacing: .02em; color: var(--hc); display: flex; align-items: center; gap: 8px; }
+.help-card .hc-ic { font-size: 1.3rem; }
+.hc-pt { margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,.22); line-height: 1.5; color: #ece6f4; }
+.help-card b, .help-card strong { color: color-mix(in srgb, var(--hc) 70%, #fff); }
+.tone-gold { --hc: #e8b84a; } .tone-blue { --hc: #6fb6ff; } .tone-red { --hc: #ff6b6b; } .tone-purple { --hc: #c08cff; }
+.tone-green { --hc: #5fd38a; } .tone-orange { --hc: #ff9a4a; } .tone-grey { --hc: #cfc6dd; }
+.help-ref-title { color: #e4d6f2; font-size: 1.15rem; margin-top: 22px; scroll-margin-top: 12px; }
+/* Reference: bright headed panels, one entry per row */
+.help details.gloss { border: 1px solid #4a3d5c; border-left: 5px solid #a98be0; background: linear-gradient(160deg, #2a2238, var(--panel) 70%); padding: 4px 12px; margin: 8px 0; border-radius: 12px; }
+.help details.gloss summary { color: #efe6ff; font-size: 1.02rem; padding: 8px 0; cursor: pointer; }
+.help details.gloss[open] summary { border-bottom: 1px solid #4a3d5c; margin-bottom: 6px; }
+.help .gl { display: flex; gap: 10px; align-items: flex-start; padding: 7px 4px; margin: 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+.help .gl:last-child { border-bottom: none; }
+.help .gi { flex: 0 0 auto; min-width: 1.9em; font-size: 1.1rem; text-align: center; }
+.help .gt { display: flex; flex-direction: column; gap: 2px; }
+.help .gt b { color: #f1d38a; }
+.help .gt span { color: #d9d1e6; line-height: 1.45; }
