@@ -60,14 +60,14 @@ export interface GameEvent {
 const leave: EventOption = { label: "Walk away", run: () => "You leave it be." };
 
 export const EVENTS: GameEvent[] = [
-  { id: "angelic_statue", unique: true, weight: 0.35, minFloor: 2, title: "The Angelic Statue", icon: "👼",
+  { id: "angelic_statue", weight: 1, minFloor: 2, title: "The Angelic Statue", icon: "👼",
     text: "A marble angel stands untouched by the dark, wings spread. Its outstretched hands are cupped, as if waiting for something precious.",
     options: [
       { label: "Offer half your HP", hint: "Lifts every curse; for your next 2 fights you heal 2 at the start and nothing negative can touch you",
         run: c => { c.hurt(Math.floor(c.hp() / 2)); c.angelicBlessing(); return "Warm light pours over you. Your curses fall away like ash, and wings of light fold around you. 👼 Angelic Blessing: for your next 2 fights, you heal 2 at the start and you're immune to every negative status."; } },
       { label: "Leave", run: () => "You bow your head and move on." }
     ] },
-  { id: "chained_dragon", unique: true, weight: 0.35, title: "A Chained Dragon", icon: "🐉",
+  { id: "chained_dragon", weight: 1, title: "A Chained Dragon", icon: "🐉",
     text: "You find a sleeping drake chained to the dungeon walls. It's guarding something.",
     options: [
       { label: "Try to steal what it's guarding", hint: "Quietly…",
@@ -82,7 +82,7 @@ export const EVENTS: GameEvent[] = [
   { id: "alchemist", unique: true, weight: 0.8, title: "The Alchemist", icon: "⚗️",
     text: "A woman with stained gloves and a bandolier of glowing vials looks you up and down. \"Everything works on anything. Even the big ones. It isn't cheap.\"",
     options: [{ label: "See her wares", run: () => "" }] },
-  { id: "blind_dragon", unique: true, weight: 0.35, minFloor: 3, minGold: 100, title: "A Dragon's Blessing", icon: "🐲",
+  { id: "blind_dragon", weight: 1, minFloor: 3, minGold: 100, title: "A Dragon's Blessing", icon: "🐲",
     text: "You find a blind, toothless dragon chained within a room. \"Hello… Is anyone there? Would you spare me some gold? I will grant you a blessing in return.\"",
     options: [
       { label: "Give it 70% of your Gold", hint: "A blessing for your next 5 fights",
