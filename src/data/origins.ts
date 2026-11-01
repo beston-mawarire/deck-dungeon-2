@@ -13,8 +13,8 @@ export const AFFINITY: Record<OriginId, string[]> = {
 
 export const ORIGINS: Record<OriginId, { name: string; hp: number; kit: string[]; passive: string; blurb: string }> = {
   warrior: { name: "Warrior", hp: 36, kit: ["w_sword", "o_wooden_shield", "a_chain"], passive: "o_warrior", blurb: "Steel and shield. Hard to put down." },
-  rogue: { name: "Rogue", hp: 30, kit: ["w_dagger", "w_throwing_knife", "a_leather"], passive: "o_rogue", blurb: "Two blades, two dice, first strike." },
-  mage: { name: "Mage", hp: 30, kit: ["w_staff", "o_ember_charm", "a_cloth"], passive: "o_mage", blurb: "Weak blows, but every face can be a spell." },
+  rogue: { name: "Rogue", hp: 32, kit: ["w_dagger", "w_throwing_knife", "a_leather"], passive: "o_rogue", blurb: "Two blades, two dice, first strike." },
+  mage: { name: "Mage", hp: 32, kit: ["w_staff", "o_ember_charm", "a_cloth"], passive: "o_mage", blurb: "Weak blows, but every face can be a spell." },
   cleric: { name: "Cleric", hp: 34, kit: ["w_blessed_mace", "o_holy_symbol", "a_padded"], passive: "o_cleric", blurb: "Faith that heals what it fights for. A Holy weapon: when your Ward stops an enemy's status, your next hit Smites." }
 };
 

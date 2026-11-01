@@ -613,7 +613,7 @@ function helpPopup() {
       "An off-hand weapon gives you a <b>second die</b>. Daggers, throwing knives, kunai and shuriken are built for it; ordinary weapons are clumsy there (60%). Grenades are thrown from the off-hand every 3rd round."])}
     ${sec("In a fight", [
       "<b>Attack</b>: roll and strike. <b>Guard</b> (needs a shield; Warriors can also Guard with a two-hander): double your Armor this round.",
-      "Each class has its own move. <b>War Cry</b> (Warrior, once a fight): gain Might, Weaken the enemy. <b>Counter</b> (Rogue): +20% Dodge this round; dodge an attack and you strike back with a hit that can't miss. <b>Elemental Barrier</b> (Mage, needs an elemental off-hand): roll — 5–6 blocks the hit, 3–4 halves it, and attackers get your element. <b>Penance</b> (Cleric): store what you suffer this round and add it to your next attack. Used at the wrong moment, they waste your turn.",
+      "Each class has its own move. <b>War Cry</b> (Warrior, once a fight): gain Might, Weaken the enemy. <b>Counter</b> (Rogue): +20% Dodge this round; dodge an attack and you strike back with a hit that can't miss. <b>Elemental Barrier</b> (Mage, needs an elemental off-hand): roll — 5–6 blocks the hit, 3–4 halves it, 1–2 blocks nothing; every roll gives attackers your element. <b>Penance</b> (Cleric): store what you suffer this round and add it to your next attack. Used at the wrong moment, they waste your turn.",
       "<b>Armor</b> stops a percentage of each hit. <b>Dodge</b> is a chance to avoid a hit entirely. Bosses show their next move — plan around it.",
       "🧪 Potions heal. 🔷 Mana Potions make your spells stronger for the fight."])}
     ${sec("Statuses and reactions", [
@@ -669,7 +669,7 @@ function helpGlossary() {
     row("⛓️", "Roll cap", "Some heavy gear stops your die rolling above 4 or 5; the Manacles do the same to the enemy's die"),
     row("🔗", "Hit streak", "Only counts while you have a streak relic, talent or trinket. Every Hit or Crit that gets through adds 1, and it carries across fights. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it. Some relics, talents and trinkets grow with it"),
     row("🧱", "Guarding foes", "Some enemies and bosses raise their guard: Armor doubled plus a bit more for that round (you'll see it coming). Crits, spells and statuses ignore Armor, so they still get through"),
-    row("🔮", "Elemental Barrier", "Mage off-hands with an element let the Mage raise a barrier: roll 5–6 to block (attackers get 4 stacks of the element), 3–4 to halve (2 stacks)"),
+    row("🔮", "Elemental Barrier", "Mage off-hands with an element let the Mage raise a barrier: roll 5–6 to block (attackers get 4 stacks of the element), 3–4 to halve (2 stacks), 1–2 blocks nothing but still gives 2 stacks"),
     row("🕯️", "Keepsake", "One at a time, from bosses after floor 5. Each grants a powerful passive"),
     row("📜", "Legendaries", "Arrive hidden. Use a Scroll of Revelation to reveal them; until then they act like a plain item"),
     row("🩸", "Crimson", "Above Legendary. Only from Crimson bosses in Endless (Crimson Vaults need a Crimson Key from Crimson Elites)")
@@ -823,7 +823,7 @@ const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }
   attack: { label: () => "Attack", tip: "Roll your die and strike." },
   guard: { label: () => "Guard", tip: "Double your Armor this round; Armor can stop a whole hit. Needs a shield (a Warrior can Guard with a two-hander)." },
   counter: { label: () => "Counter", tip: "Uses your turn. +20% Dodge this round; if you Dodge an attack, strike back with a hit that can't miss. If you're hit, you're off-balance for your next attack." },
-  barrier: { label: () => "Elemental Barrier", tip: "Uses your turn. Roll: 5–6 blocks every hit this round and gives attackers 4 stacks of your off-hand's element; 3–4 halves them and gives 2; 1–2 fizzles." },
+  barrier: { label: () => "Elemental Barrier", tip: "Uses your turn. Roll: 5–6 blocks every hit this round and gives attackers 4 stacks of your off-hand's element; 3–4 halves them and gives 2; 1–2 blocks nothing but still gives 2." },
   penance: { label: p => `Penance${p.flags["penanceStore"] ? ` (${p.flags["penanceStore"]})` : ""}`, tip: "Uses your turn. Damage and negative statuses you take this round are stored; your next attack adds it all. A kill with it heals you." },
   warcry: { label: () => "War Cry", tip: "Once per fight. Uses your turn: gain Might and Weaken the enemy." },
   flee: { label: () => "Flee", tip: "Leave the fight (not Elites or bosses)." }

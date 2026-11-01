@@ -359,11 +359,12 @@ function strike(b: Battle, ctx: AttackCtx) {
   }
   // Elemental Barrier (Mage): 5–6 blocks it all, 3–4 halves it; the attacker takes 4 or 2 stacks of the element.
   const tier = d.flags["eBarrier"] === b.round ? d.flags["eBarrierTier"] ?? 0 : 0;
+  // Tier 2 (5–6) blocks it all, tier 1 (3–4) halves it, tier 0.5 (1–2) blocks nothing but still throws the element back.
   if (tier > 0 && raw > 0) {
-    raw = tier >= 2 ? 0 : Math.ceil(raw / 2);
+    raw = tier >= 2 ? 0 : tier >= 1 ? Math.ceil(raw / 2) : raw;
     ctx.raw = raw;
-    fx(b, { who: d.id, kind: "block", text: tier >= 2 ? "Barrier holds" : "Barrier bends", icon: "🔮" });
-    log(b, `${d.name}'s Elemental Barrier ${tier >= 2 ? "blocks the whole hit" : "takes half of it"}.`);
+    fx(b, { who: d.id, kind: "block", text: tier >= 2 ? "Barrier holds" : tier >= 1 ? "Barrier bends" : "Barrier sparks", icon: "🔮" });
+    log(b, `${d.name}'s Elemental Barrier ${tier >= 2 ? "blocks the whole hit" : tier >= 1 ? "takes half of it" : "can't stop the hit, but lashes back"}.`);
     if (d.barrierElement && a.hp > 0) for (const el of d.barrierElements ?? [d.barrierElement]) if (a.hp > 0) applyStatus(b, d, a, el, tier >= 2 ? 4 : 2);
   }
   const armor = ctx.ignoreArmor ? 0 : armorOf(d);
@@ -593,11 +594,11 @@ export function heroPhase(b: Battle, action: Action) {
   } else if (action === "barrier") {
     act(b, p, () => {
       const r = rollDie(b.rng, 6);
-      const tier = r >= 5 ? 2 : r >= 3 ? 1 : 0;
+      const tier = r >= 5 ? 2 : r >= 3 ? 1 : 0.5;
       p.flags["eBarrier"] = b.round;
       p.flags["eBarrierTier"] = tier;
-      fx(b, { who: "player", kind: "roll", face: r, faceName: tier === 2 ? "Full barrier" : tier === 1 ? "Partial barrier" : "Fizzled", faceKind: tier === 2 ? "crit" : tier === 1 ? "hit" : "miss", sides: 6 });
-      log(b, `${p.name} raises an Elemental Barrier: rolls ${r} — ${tier === 2 ? "a full block" : tier === 1 ? "it will take half" : "it fizzles"}.`);
+      fx(b, { who: "player", kind: "roll", face: r, faceName: tier === 2 ? "Full barrier" : tier === 1 ? "Partial barrier" : "Thin barrier", faceKind: tier === 2 ? "crit" : tier === 1 ? "hit" : "graze", sides: 6 });
+      log(b, `${p.name} raises an Elemental Barrier: rolls ${r} — ${tier === 2 ? "a full block" : tier === 1 ? "it will take half" : "it won't stop a hit, but attackers still get the element"}.`);
     });
   } else if (action === "penance") {
     act(b, p, () => {

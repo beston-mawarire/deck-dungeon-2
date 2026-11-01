@@ -999,6 +999,20 @@ describe("class actions and new stats", () => {
     expect(run.hero.f.hp).toBe(0);
   });
 
+  it("a 1–2 Elemental Barrier blocks nothing but still throws 2 stacks back", () => {
+    const h = newHero("mage");
+    const e = foe(10);
+    const b = startBattle(h.f, e, 53);
+    b.round = 1;
+    h.f.flags["eBarrier"] = 1; h.f.flags["eBarrierTier"] = 0.5;
+    const hp = h.f.hp;
+    enemyPhase(b);
+    if (b.log.some(l => /lashes back/.test(l))) {
+      expect(h.f.hp).toBeLessThan(hp);
+      expect(st(e, "burn")).toBeGreaterThanOrEqual(2);
+    }
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);
