@@ -7,7 +7,7 @@ export const TAGS = [
 export type Tag = (typeof TAGS)[number];
 
 export const NEGATIVE_STATUSES = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder", "dazzled", "fracture"] as const;
-export const POSITIVE_STATUSES = ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded", "smoulder_soul", "consecrated"] as const;
+export const POSITIVE_STATUSES = ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded", "smoulder_soul", "consecrated", "reinforced", "blessed"] as const;
 export type NegativeStatus = (typeof NEGATIVE_STATUSES)[number];
 export type PositiveStatus = (typeof POSITIVE_STATUSES)[number];
 export type StatusId = NegativeStatus | PositiveStatus;
@@ -179,6 +179,8 @@ export interface Hooks {
   onRoundEnd?: (b: Battle, self: Fighter, stacks: number) => void;
   incomingStatus?: (b: Battle, self: Fighter, status: StatusId, amount: number, stacks: number) => number;
   onStatusApplied?: (b: Battle, self: Fighter, target: Fighter, status: StatusId, amount: number, stacks: number) => void;
+  /** A status landed on you (after Ward and immunities). */
+  onStatusReceived?: (b: Battle, self: Fighter, source: Fighter | null, status: StatusId, amount: number, stacks: number) => void;
   reactionMult?: (b: Battle, self: Fighter, stacks: number) => number;
   /** Change the hero's stats when gear is recalculated (Max HP, Armor, damage). */
   stats?: (s: StatBlock, stacks: number) => void;

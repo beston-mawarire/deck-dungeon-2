@@ -275,6 +275,23 @@ function strike(b: Battle, ctx: AttackCtx) {
     if (st(a, "consecrated") > 0) raw *= 1.3;
   }
   if (st(d, "exposed") > 0) raw += 2;
+  // Overpower (reaction): you have Might and the enemy is Weak — +2 per Might, and it shakes off 1 Weak.
+  if (st(a, "might") > 0 && st(d, "weak") > 0 && raw > 0) {
+    const extra = 2 * st(a, "might");
+    raw += extra;
+    d.statuses.weak = st(d, "weak") - 1;
+    log(b, `💥 Overpower! +${extra}.`);
+    fx(b, { who: d.id, kind: "reaction", text: "Overpower!" });
+    const key = `rx:${d.id === "player" ? "you" : "foe"}:overpower`;
+    b.player.persist[key] = (b.player.persist[key] ?? 0) + 1;
+  }
+  // Reinforced: a full block earlier pays off on your next attack (+2 per stack), then it's spent.
+  if (!ctx.offhand && st(a, "reinforced") > 0) {
+    const n = st(a, "reinforced");
+    raw += 2 * n;
+    a.statuses.reinforced = 0;
+    log(b, `🧱 Reinforced: +${2 * n}.`);
+  }
   // Lightning: Storm weapons hit Constructs 30% harder.
   if (d.family === "Construct" && wieldsTag(a, "Storm")) raw *= 1.3;
   // Charged: +2 per stack on this hit (spent when it lands).
@@ -357,6 +374,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     log(b, `${d.name}'s Counter fails: off-balance for the next attack.`);
     fx(b, { who: d.id, kind: "text", text: "Off-balance", icon: "🥀" });
   }
+  const rawIn = raw;
   // Elemental Barrier (Mage): 5–6 blocks it all, 3–4 halves it; the attacker takes 4 or 2 stacks of the element.
   const tier = d.flags["eBarrier"] === b.round ? d.flags["eBarrierTier"] ?? 0 : 0;
   // Tier 2 (5–6) blocks it all, tier 1 (3–4) halves it, tier 0.5 (1–2) blocks nothing but still throws the element back.
@@ -372,6 +390,11 @@ function strike(b: Battle, ctx: AttackCtx) {
   const cut = armorReduction(armor, !!d.flags["guarding"] || stacksOf(d, "lr_anvil_heart") > 0);
   // Without Guarding, a hit that lands always does at least 1.
   const after = d.flags["guarding"] ? Math.max(0, Math.floor(raw * (1 - cut))) : raw > 0 ? Math.max(1, Math.round(raw * (1 - cut))) : 0;
+  // Full blocks (a Guard or a full Elemental Barrier that stops everything) feed Reinforcing gear;
+  // a Guard or barrier that lets damage through loses any Reinforced you were holding.
+  const shielded = !!d.flags["guarding"] || tier > 0;
+  if (shielded && rawIn > 0 && after === 0) d.flags["fullBlockNow"] = 1;
+  else if (shielded && after > 0 && st(d, "reinforced") > 0) { d.statuses.reinforced = 0; log(b, `${d.name}'s Reinforced crumbles.`); }
   // DEATH drinks the whole blow, even one your Armor stopped, and can heal past its Max HP.
   if ((a.items["m_death"] ?? 0) > 0 && raw > 0) {
     a.hp += raw;
@@ -383,6 +406,15 @@ function strike(b: Battle, ctx: AttackCtx) {
   if ((ctx.kind === "hit" || ctx.kind === "crit") && after > 0) addStreak(a);
   else breakStreak(b, a);
   ctx.dealt = loseHp(b, d, after);
+  if (ctx.dealt > 0) a.flags["dealtRound"] = 1;
+  // Blessed: your patience pays out — 10% of the enemy's Max HP per stack, then it resets.
+  if (ctx.dealt > 0 && st(a, "blessed") > 0 && d.hp > 0) {
+    const n = st(a, "blessed");
+    a.statuses.blessed = 0;
+    const lost = loseHp(b, d, Math.ceil(d.maxHp * 0.1 * n));
+    log(b, `🌟 Blessed ×${n}: ${lost} more.`);
+    fx(b, { who: d.id, kind: "reaction", text: `Blessed ×${n}` });
+  }
   const label = ctx.kind === "crit" ? "Crit! " : ctx.kind === "graze" ? "Graze. " : "";
   log(b, `${label}${a.name} hits ${d.name} for ${ctx.dealt}${armor && raw > 0 ? ` (${raw}, ${Math.round(cut * 100)}% stopped by Armor)` : ""}.`);
   if (shatter) applyStatus(b, a, d, "stun", 1);
@@ -429,6 +461,7 @@ function afterStrike(b: Battle, ctx: AttackCtx) {
     }
   }
   d.flags["blockedNow"] = 0;
+  d.flags["fullBlockNow"] = 0;
   if (d.hp <= 0 && !d.flags["dead"]) {
     d.flags["dead"] = 1;
     if (ctx.spec.cleave && d.hp < 0) {
@@ -545,7 +578,7 @@ export function beginRound(b: Battle): boolean {
   b.round++;
   log(b, `— Round ${b.round} —`);
   roundStart.set(b, { p: snap(p), e: snap(e) });
-  for (const f of [p, e]) eachHook(f, "onRoundStart", (h, s) => h(b, f, s));
+  for (const f of [p, e]) { f.flags["dealtRound"] = 0; eachHook(f, "onRoundStart", (h, s) => h(b, f, s)); }
   // Guarding foes: a boss whose shown move guards, or a foe that said last round it would.
   const mv = e.moves?.[e.intent ?? 0];
   if (mv?.guard) enemyGuard(b, e, mv.guard);
@@ -652,6 +685,8 @@ export function endRound(b: Battle) {
   for (const f of [b.player, b.enemy]) {
     endOfRound(b, f);
     eachHook(f, "onRoundEnd", (h, s) => h(b, f, s));
+    // Blessing gear: a round without dealing damage adds Blessed.
+    if (f.hp > 0 && (f.flags["blessGain"] ?? 0) > 0 && !f.flags["dealtRound"]) applyStatus(b, f, f, "blessed", f.flags["blessGain"]);
     f.flags["guarding"] = 0;
   }
   if (tryRewind(b)) return;

@@ -37,6 +37,8 @@ export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: s
   smoulder: { name: "Smouldering", icon: "🌋", text: "Each round it burns from within: an enemy takes 4 Burn (you'd take 5), and its foe takes 1 Burn; lasts its stacks in rounds" },
   fracture: { name: "Fracture", icon: "🪨", text: "Does nothing at first. At 3 stacks it shatters: 4 damage per stack (ignores Armor), then clears" },
   dazzled: { name: "Dazzled", icon: "😵", text: "Its attacks miss completely; lasts its stacks in rounds (at most 4)" },
+  reinforced: { name: "Reinforced", icon: "🧱", text: "From full blocks (Guard or a full Elemental Barrier) with Reinforcing gear: your next attack deals +2 per stack. Lost if your next Guard or barrier lets damage through" },
+  blessed: { name: "Blessed", icon: "🌟", text: "Grows each round you deal no damage (with Blessing gear). Your next hit that lands deals 10% of the enemy's Max HP per stack, then it resets" },
   consecrated: { name: "Consecrated", icon: "🕊️", text: "Holy ground. On an enemy: it takes 30% more from Holy weapons. On you: your Holy weapons deal 30% more. Lasts its stacks in rounds (∞ = the whole fight)" },
   smoulder_soul: { name: "Smouldering Soul", icon: "♨️", text: "A fire you carry: you take 1 Burn each round, but every action you take deals 5 Burn to the enemy; lasts its stacks in rounds" }
 };
@@ -206,6 +208,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
     }
   }
   if (source) eachHook(source, "onStatusApplied", (h, s) => h(b, source, target, id, amount, s));
+  if (target.hp > 0) eachHook(target, "onStatusReceived", (h, s) => h(b, target, source, id, amount, s));
 }
 
 /** Reactions that hurt whoever has them: the ones a "random extra reaction" may pick. */

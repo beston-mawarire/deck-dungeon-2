@@ -1013,6 +1013,63 @@ describe("class actions and new stats", () => {
     }
   });
 
+  it("Overpower: hitting a Weak foe with Might adds +2 per Might", () => {
+    const h = newHero("warrior");
+    const b = startBattle(h.f, dummy(), 91);
+    resolveFace(b, b.player, b.enemy, 6, false);
+    const base = 200 - b.enemy.hp;
+    const h2 = newHero("warrior");
+    const b2 = startBattle(h2.f, dummy(), 91);
+    h2.f.statuses.might = 2; b2.enemy.statuses.weak = 2;
+    resolveFace(b2, b2.player, b2.enemy, 6, false);
+    // Might adds +1 Damage per stack (doubled by the Crit); Overpower adds +2 per Might on top.
+    expect(200 - b2.enemy.hp).toBe(base + 2 * 2 + 2 * 2);
+    expect(b2.log.some(l => /Overpower/.test(l))).toBe(true);
+    expect(st(b2.enemy, "weak")).toBe(1);
+  });
+
+  it("Reinforced builds from full blocks and pays out on the next attack; Blessed grows while you hold back", () => {
+    const h = newHero("warrior");
+    equipItem(h, { uid: 980, base: "rf_rampart", rarity: "uncommon", level: 1, bonuses: {}, revealed: true });
+    const b = startBattle(h.f, dummy(), 92);
+    h.f.flags["guarding"] = 1; h.f.flags["guardArmor"] = 1000;
+    resolveFace(b, b.enemy, h.f, 2, false); // the dummy hits; nothing gets through
+    expect(st(h.f, "reinforced")).toBe(1);
+    h.f.flags["guarding"] = 0; h.f.flags["guardArmor"] = 0;
+    const hp = b.enemy.hp;
+    resolveFace(b, b.player, b.enemy, 6, false);
+    expect(st(h.f, "reinforced")).toBe(0);
+    expect(hp - b.enemy.hp).toBeGreaterThan(0);
+    const c = newHero("cleric");
+    equipItem(c, { uid: 981, base: "bl_prayer_rope", rarity: "uncommon", level: 1, bonuses: {}, revealed: true });
+    const e = dummy(1000);
+    const b2 = startBattle(c.f, e, 93);
+    b2.round = 1;
+    endRound(b2); endRound(b2);
+    expect(st(c.f, "blessed")).toBe(2);
+    resolveFace(b2, b2.player, e, 3, false);
+    expect(st(c.f, "blessed")).toBe(0);
+    expect(1000 - e.hp).toBeGreaterThanOrEqual(200);
+  });
+
+  it("Holy Forgiveness heals per stack; Guardian gives Barrier per kind of negative status", () => {
+    const h = newHero("cleric");
+    equipItem(h, { uid: 982, base: "hf_mercy_rosary", rarity: "rare", level: 1, bonuses: {}, revealed: true });
+    const b = startBattle(h.f, dummy(), 94);
+    h.f.statuses.ward = 0;
+    h.f.hp = 10;
+    applyStatus(b, b.enemy, h.f, "bleed", 3);
+    expect(h.f.hp).toBe(13);
+    const g = newHero("cleric");
+    equipItem(g, { uid: 983, base: "gd_templar_plate", rarity: "rare", level: 1, bonuses: {}, revealed: true });
+    const b2 = startBattle(g.f, dummy(), 95);
+    g.f.statuses.ward = 0;
+    applyStatus(b2, b2.enemy, g.f, "bleed", 2);
+    expect(st(g.f, "barrier")).toBe(2);
+    applyStatus(b2, b2.enemy, g.f, "weak", 1);
+    expect(st(g.f, "barrier")).toBe(2 + 4);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);

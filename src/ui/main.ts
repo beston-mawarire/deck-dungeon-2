@@ -646,6 +646,7 @@ function helpGlossary() {
   ${group("😖 Negative statuses (debuffs)", neg.map(x => row(STATUS_INFO[x].icon, STATUS_INFO[x].name, STATUS_INFO[x].text)).join(""))}
   ${group("💪 Positive statuses (buffs)", pos.map(x => row(STATUS_INFO[x].icon, STATUS_INFO[x].name, STATUS_INFO[x].text)).join(""))}
   ${group("✴️ Reactions — two statuses on the same fighter", REACTIONS.map(x => row(`${STATUS_INFO[x.a].icon}+${STATUS_INFO[x.b].icon}`, x.name, x.text)).join("") +
+    row("💥", "Overpower", "Hit a Weak enemy while you have Might: +2 damage per Might, and it shakes off 1 Weak") +
     row("✝️", "Smite", "When your Ward blocks a status an enemy tried to put on you, your next hit with a Holy weapon also deals 20% of its Max HP (once per fight)"))}
   ${group("💥 Bursts — pile one status high enough", THRESHOLDS.map(t => row(t.icon, t.name, t.text)).join(""))}
   ${group("📊 Your stats", [
