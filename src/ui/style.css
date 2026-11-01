@@ -367,3 +367,21 @@ details.gloss summary { font-weight: 700; color: var(--ink); padding: 4px 0; }
 .goblin-room { border-color: var(--legendary); background: linear-gradient(160deg, #3a2a10, #2a2233); box-shadow: 0 0 16px rgba(240,138,42,.45); animation: goblinglow 1.8s infinite; }
 .goblin-room b { color: #ffc46b; }
 @keyframes goblinglow { 50% { box-shadow: 0 0 26px rgba(240,138,42,.75); } }
+
+/* Interactive things should look pressable: a fill a little lighter than the background,
+   a soft top-to-bottom gradient, a highlight on the top edge and a small shadow underneath. */
+button, .modebtn {
+  background: linear-gradient(180deg, #3b3049 0%, #2c2438 100%);
+  border: 1px solid #55476b;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 2px 0 rgba(0,0,0,.35), 0 4px 10px rgba(0,0,0,.22);
+  transition: transform .08s ease, filter .15s ease, box-shadow .08s ease;
+}
+button:hover:not(:disabled), .modebtn:hover { filter: brightness(1.12); }
+button:active:not(:disabled), .modebtn:active { transform: translateY(1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 1px 0 rgba(0,0,0,.35); }
+button:disabled { background: #241e2e; box-shadow: none; }
+button.primary { background: linear-gradient(180deg, #f3ca63 0%, #dba73a 100%); border-color: #f0c15a; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 2px 0 rgba(90,60,10,.6), 0 4px 12px rgba(0,0,0,.3); }
+button.danger { background: linear-gradient(180deg, #ec6d80, #cf4459); }
+button.crimson-btn { background: linear-gradient(180deg, #ef4359, #c21c33); }
+/* The class picks and map paths are big cards: give them a touch more lift. */
+.room { background: linear-gradient(170deg, #3a2f49 0%, #2a2236 70%); border-color: #5a4b70; }
+.room .ic { filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
