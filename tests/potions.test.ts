@@ -1,6 +1,6 @@
 import { beforeAll, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
-import { POTION_GEAR, POTION_LEGENDARIES, POTION_RELICS } from "../src/data/potions";
+import { POTION_GEAR, POTION_LEGENDARIES, POTION_RELICS, POTION_SLOTS } from "../src/data/potions";
 import { LEGENDARIES } from "../src/data";
 import { gainPotions, potionCap, recompute } from "../src/game/hero";
 import { type Run, buy, chooseRoom, combatAction, drinkPotion, newRun } from "../src/game/run";
@@ -24,18 +24,30 @@ it("you drink at most 3 per fight", () => {
   const sc = S(run);
   if (sc.t !== "combat") throw new Error("no fight");
   sc.battle.enemy.hp = sc.battle.enemy.maxHp = 99999;
-  h.potions = 3; h.relics = { pc_potion_belt: 1 }; recompute(h);
-  h.potions = 4;
+  h.potions = 3;
   for (let i = 0; i < 3; i++) { h.f.hp = 1; expect(drinkPotion(run)).toBeNull(); }
-  h.f.hp = 1;
+  h.potions = 2; h.f.hp = 1;
   expect(drinkPotion(run)).toMatch(/3 potions/);
-  expect(h.potions).toBe(1);
+  expect(h.potions).toBe(2);
+  // A Rare potion relic: two more slots, so two more drinks this fight.
+  h.relics = { pc_spare_vial: 1 }; recompute(h);
+  for (let i = 0; i < 2; i++) { h.f.hp = 1; expect(drinkPotion(run)).toBeNull(); }
+  h.potions = 1; h.f.hp = 1;
+  expect(drinkPotion(run)).toMatch(/5 potions/);
 });
 
-it("each piece of potion gear and each potion relic carries one more", () => {
+it("potion slots scale with rarity: Uncommon +1, Rare +2, Epic +3, Legendary +4", () => {
+  for (const g of POTION_GEAR) expect(POTION_SLOTS[g.id]).toBe({ uncommon: 1, rare: 2, epic: 3 }[g.onlyRarity as "rare"]);
+  for (const g of POTION_LEGENDARIES) expect(POTION_SLOTS[g.id]).toBe(4);
+  expect(POTION_SLOTS["pc_potion_belt"]).toBe(1);
+  expect(POTION_SLOTS["pc_spare_vial"]).toBe(2);
+  expect(POTION_SLOTS["pc_grail"]).toBe(4);
+});
+
+it("each piece of potion gear and each potion relic adds its slots", () => {
   const run = newRun("warrior", 3);
   const h = run.hero;
-  for (const r of POTION_RELICS) { h.relics = { [r.id]: 1 }; recompute(h); expect(potionCap(h)).toBe(4); }
+  for (const r of POTION_RELICS) { h.relics = { [r.id]: 1 }; recompute(h); expect(potionCap(h)).toBe(3 + POTION_SLOTS[r.id]); }
   h.relics = {}; recompute(h);
   for (const g of POTION_GEAR) {
     const it = rollItem(h, g.onlyRarity ?? "uncommon", 3, Math.random);
@@ -43,7 +55,7 @@ it("each piece of potion gear and each potion relic carries one more", () => {
     const slot = g.slot === "trinket" ? "trinket1" : g.slot;
     const prev = h.equip[slot as "main"];
     h.equip[slot as "main"] = it; recompute(h);
-    expect(potionCap(h)).toBe(4);
+    expect(potionCap(h)).toBe(3 + POTION_SLOTS[g.id]);
     h.equip[slot as "main"] = prev; recompute(h);
   }
 });

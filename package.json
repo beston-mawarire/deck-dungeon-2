@@ -1,6 +1,6 @@
 {
   "name": "deck-dungeon-2",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Deck Dungeon 2 — a dice-and-cards roguelike with a deep item library",
   "scripts": {
     "dev": "vite",

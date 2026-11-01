@@ -473,3 +473,6 @@ button.bounty-btn.done { background: linear-gradient(180deg, #e8c46a, #b98a2e); 
 @keyframes f80word { 0%, 25% { opacity: 0; transform: scale(.94); } 50% { opacity: 1; transform: scale(1); } 72% { opacity: 1; } 92%, 100% { opacity: 0; transform: scale(1.04); } }
 .death-intro.after80 { animation-name: deathveil80; }
 @keyframes deathveil80 { 0% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+/* Auto-battle */
+.auto-row { justify-content: center; gap: 10px; margin-top: 6px; align-items: center; }
+button.auto-btn { background: linear-gradient(180deg, #5ec8a0, #2f8f6c); border-color: #2f8f6c; color: #06140e; font-weight: 800; }

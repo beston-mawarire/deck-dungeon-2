@@ -17,10 +17,10 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  abandonRun, smithUpgrade, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
+  abandonRun, smithUpgrade, autoBattle, canAutoBattle, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
-import { potionCap, POTIONS_PER_FIGHT } from "../game/hero";
+import { potionCap, potionsPerFight } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
 import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
@@ -228,10 +228,10 @@ function hud(r: Run) {
   // In a fight the HUD shrinks to one line: your HP lives in your panel at the bottom.
   if (r.scene.t === "combat") {
     const drunk = f.flags["potionsDrunk"] ?? 0;
-    const canDrink = h.potions > 0 && drunk < POTIONS_PER_FIGHT && f.hp > 0 && f.hp < f.maxHp && !busy && !(r.scene.t === "combat" && r.scene.battle.over);
+    const canDrink = h.potions > 0 && drunk < potionsPerFight(h) && f.hp > 0 && f.hp < f.maxHp && !busy && !(r.scene.t === "combat" && r.scene.battle.over);
     return `<div class="hud compact"><div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">${floorLabel(r)}</span><span class="grow"></span>
       <span class="stat">🪙 <b>${f.gold}</b></span>
-      <button class="small" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (${POTIONS_PER_FIGHT - drunk} more this fight)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${f.flags["mana"] || busy ? "disabled" : ""} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${h.manaPotions}</button>` : ""}${bountyBtn(r)}<button class="small" data-bag title="Inventory">🎒</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu" ${busy ? "disabled" : ""}>☰</button></div></div>`;
+      <button class="small" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (${potionsPerFight(h) - drunk} more this fight)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${f.flags["mana"] || busy ? "disabled" : ""} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${h.manaPotions}</button>` : ""}${bountyBtn(r)}<button class="small" data-bag title="Inventory">🎒</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu" ${busy ? "disabled" : ""}>☰</button></div></div>`;
   }
   return `<div class="hud">
     <div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">Lv ${h.level}</span><span class="grow"></span><span class="stat">${floorLabel(r)}</span></div>
@@ -352,6 +352,7 @@ function combatScene(r: Run) {
     <div class="c-actions"><div class="row actions ${busy ? "busy" : ""}">
       ${availableActions(r).map(a => `<button class="${a === "attack" ? "primary" : a === "flee" ? "" : a === "guard" ? "" : "classact"}" data-act="${a}" title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(b.player)}</button>`).join("")}
     </div>
+    ${!busy && canAutoBattle(r) ? `<div class="row auto-row"><button class="auto-btn" data-auto title="This foe can't win against plain attacks. Skip to the end.">⚡ Auto-battle</button><span class="sub">You've got this one: attack until it falls.</span></div>` : ""}
     ${Object.keys(r.hero.tonics ?? {}).length ? `<div class="row tonics">${Object.entries(r.hero.tonics!).map(([id, n]) => `<button class="small tonic" data-tonic="${id}" ${busy ? "disabled" : ""} title="${esc(TONICS[id].text)}">${TONICS[id].icon} ${esc(TONICS[id].name)}${n > 1 ? ` ×${n}` : ""}</button>`).join("")}</div><p class="center sub" style="margin:2px 0">Tonics don't use your turn.</p>` : ""}
     <p class="center sub diefaces">Your die: ${b.player.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind}`).join(" · ")}</p></div>
     </div>
@@ -856,7 +857,7 @@ function helpGlossary() {
     row("🕯️", "Curses", "Lasting penalties from shrines, idols and cursing foes. Only something holy can lift them"),
     row("🔨", "Forge", "Upgrade or reroll gear with Scrap; sacrifice items in an Offering; Combine two of the same item"),
     row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell one item per visit"),
-    row("🧪", "Healing Potions", "Heal 12. You can carry 3 (some gear and relics let you carry more), and drink at most 3 in one fight")
+    row("🧪", "Healing Potions", "Heal 12. You start with 3 potion slots: carry up to 3, and drink up to 3 in one fight. Potion gear and relics add slots (more at higher rarity)")
   ].join(""))}`;
 }
 
@@ -1370,6 +1371,7 @@ function bind() {
     abandonRun(r);
   });
   on("[data-unify]", () => { say(unifyHeart(r)); celebrate("legendary_crimson", "Unified with the Dragon Heart", false); });
+  on("[data-auto]", () => { const note = autoBattle(r); sfx("crit"); if (note) say(note, false); });
   on("[data-takebounty]", el => { takeBounty(r, Number(el.dataset.takebounty)); sfx("chest"); });
   on("[data-bounty]", () => { bountyOpen = true; });
   on("[data-closebounty]", () => { bountyOpen = false; });

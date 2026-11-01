@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.8.0
+- Potion gear now adds **potion slots** by rarity — Uncommon +1, Rare +2, Epic +3, Legendary +4 — and each slot lets you both carry and drink one more Healing Potion per fight.
+- **Auto-battle**: against normal foes, Elites and Champions, a ⚡ Auto-battle button appears when plain attacks are sure to win (checked against the real dice and two dozen other rolls, with a safety margin). It plays the fight out instantly, attacking only, and tells you the result. Never offered for bosses, dragons, Treasure Goblins, named foes or DEATH.
+
 ## 1.7.0
 - Healing Potions: carry at most 3, and drink at most 3 per fight. The top bar shows potions carried / capacity; the Merchant won't sell you one you can't carry.
 - 15 new potion items, each letting you carry 1 more:

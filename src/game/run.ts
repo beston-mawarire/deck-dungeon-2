@@ -11,8 +11,9 @@ import { makeRng } from "../engine/rng";
 import { applyStatus, heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
+import { autoBattleWins } from "./auto";
 import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
-import { gainPotions, potionCap, POTIONS_PER_FIGHT, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { gainPotions, potionCap, potionsPerFight, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -357,6 +358,28 @@ export function combatAction(run: Run, action: Action) {
   if (b.over) afterFight(run);
 }
 
+/** Auto-battle is offered against normal foes, Elites and Champions (not bosses, dragons, goblins or named foes)
+ *  once plain attacks are sure to win. */
+export function canAutoBattle(run: Run): boolean {
+  const s = run.scene;
+  if (s.t !== "combat" || s.battle.over) return false;
+  if (!["normal", "elite", "champion"].includes(s.rank)) return false;
+  if (s.then && ["dragon", "death", "goblin", "unique"].includes(s.then)) return false;
+  return autoBattleWins(s.battle);
+}
+
+/** Play the rest of the fight out, attacking every turn. Returns a one-line summary. */
+export function autoBattle(run: Run): string | null {
+  if (!canAutoBattle(run) || run.scene.t !== "combat") return null;
+  const b = run.scene.battle;
+  const hp = b.player.hp, start = b.round;
+  let n = 0;
+  while (run.scene.t === "combat" && !b.over && n++ < 100) combatAction(run, "attack");
+  b.fx.length = 0;
+  const lost = Math.max(0, hp - run.hero.f.hp);
+  return `⚡ Auto-battle: ${b.over === "won" ? "won" : "over"} in ${b.round - start} round${b.round - start === 1 ? "" : "s"}${lost ? `, −${lost} HP` : ", untouched"}.`;
+}
+
 /** After the UI has played a phase, finish the fight if it's over. */
 export function settleCombat(run: Run) {
   if (run.scene.t === "combat" && run.scene.battle.over) afterFight(run);
@@ -400,7 +423,7 @@ export function drinkPotion(run: Run): string | null {
   if (isParched(h)) return "🏜️ Parched: the potion turns to dust on your tongue. You can't drink potions.";
   const inFight = run.scene.t === "combat";
   const drunk = h.f.flags["potionsDrunk"] ?? 0;
-  if (inFight && drunk >= POTIONS_PER_FIGHT) return `You've already drunk ${POTIONS_PER_FIGHT} potions this fight.`;
+  if (inFight && drunk >= potionsPerFight(h)) return `You've already drunk ${potionsPerFight(h)} potions this fight.`;
   // Chalice of Plenty: the first potion each fight isn't used up.
   const free = inFight && drunk === 0 && (h.f.items["lo_chalice_plenty"] ?? 0) > 0;
   if (!free) h.potions--;
