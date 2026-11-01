@@ -28,6 +28,8 @@ export interface EventCtx {
   wakeDragon: () => void;
   /** The Blind Dragon's blessing: one random blessing for 5 fights. Returns its text. */
   dragonBlessing: () => string;
+  /** The Angelic Statue: clears curses, and for 2 fights heals 2 at the start and blocks every negative status. */
+  angelicBlessing: () => void;
 }
 
 export interface EventOption {
@@ -58,6 +60,13 @@ export interface GameEvent {
 const leave: EventOption = { label: "Walk away", run: () => "You leave it be." };
 
 export const EVENTS: GameEvent[] = [
+  { id: "angelic_statue", unique: true, weight: 0.35, minFloor: 2, title: "The Angelic Statue", icon: "👼",
+    text: "A marble angel stands untouched by the dark, wings spread. Its outstretched hands are cupped, as if waiting for something precious.",
+    options: [
+      { label: "Offer half your HP", hint: "Lifts every curse; for your next 2 fights you heal 2 at the start and nothing negative can touch you",
+        run: c => { c.hurt(Math.floor(c.hp() / 2)); c.angelicBlessing(); return "Warm light pours over you. Your curses fall away like ash, and wings of light fold around you. 👼 Angelic Blessing: for your next 2 fights, you heal 2 at the start and you're immune to every negative status."; } },
+      { label: "Leave", run: () => "You bow your head and move on." }
+    ] },
   { id: "chained_dragon", unique: true, weight: 0.35, title: "A Chained Dragon", icon: "🐉",
     text: "You find a sleeping drake chained to the dungeon walls. It's guarding something.",
     options: [

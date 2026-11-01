@@ -149,6 +149,11 @@ function reactionMult(b: Battle, source: Fighter | null) {
  */
 export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, id: StatusId, amount: number, depth = 0) {
   if (amount <= 0 || target.hp <= 0) return;
+  // Angelic Blessing: no negative status can touch you.
+  if (isNegative(id) && (target.persist["angelFights"] ?? 0) > 0) {
+    log(b, `👼 The Angelic Blessing turns ${STATUS_INFO[id].name} aside.`);
+    return;
+  }
   if (isNegative(id) && st(target, "ward") > 0) {
     target.statuses.ward = st(target, "ward") - 1;
     log(b, `${target.name}'s Ward blocks ${STATUS_INFO[id].name}.`);

@@ -277,7 +277,8 @@ function guardChips(f: Fighter, who: "player" | "enemy") {
     const n = streakOf(f);
     const bk = f.persist["blessKind"] ?? 0;
     const bless = bk && (f.persist["blessFights"] ?? 0) > 0 ? `<span class="chip blessing" title="${esc(BLESSINGS[bk])}">🐲 ${esc(BLESSINGS[bk])} · ${f.persist["blessFights"]} fight${f.persist["blessFights"] === 1 ? "" : "s"}</span>` : "";
-    return bless + (n >= 2 && hasStreak(f) ? `<span class="chip streak" title="Hits in a row this run. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it">🔗 Streak ${n}</span>` : "");
+    const angel = (f.persist["angelFights"] ?? 0) > 0 ? `<span class="chip angel" title="Immune to negative statuses; heal 2 at the start of each fight">👼 Angelic Blessing · ${f.persist["angelFights"]} fight${f.persist["angelFights"] === 1 ? "" : "s"}</span>` : "";
+    return angel + bless + (n >= 2 && hasStreak(f) ? `<span class="chip streak" title="Hits in a row this run. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it">🔗 Streak ${n}</span>` : "");
   }
   if (f.flags["guarding"]) return `<span class="chip guardchip" title="Armor doubled this round. Crits, spells and statuses still get through">🧱 Guarding</span>`;
   if (f.flags["guardNext"]) return `<span class="chip guardchip" title="Next round its Armor doubles. Crits, spells and statuses still get through">🧱 Guards next round</span>`;
@@ -583,9 +584,14 @@ function bag(r: Run) {
       : `<div class="item keepsake empty-slot"><div class="meta">Keepsake</div><div class="nm">🕯️ Empty</div><p class="sub">Something rare could rest here. Bosses deep below sometimes leave one behind…</p></div>`}
     <div class="bag-extras">
       <div class="stile extra-tile key-tile"><span>🗝️</span><span><b>${h.crimsonKeys}</b> Crimson Key${h.crimsonKeys === 1 ? "" : "s"}<span class="sub">${h.crimsonKeys ? "A Crimson Vault will be on your path." : "Dropped by Crimson Elites, deep below."}</span></span></div>
-      ${(h.f.persist["blessFights"] ?? 0) > 0 ? `<div class="stile extra-tile bless-tile"><span>🐲</span><span><b>Dragon's Blessing</b><span class="sub">${esc(BLESSINGS[h.f.persist["blessKind"] ?? 0])} · ${h.f.persist["blessFights"]} fight${h.f.persist["blessFights"] === 1 ? "" : "s"} left</span></span></div>` : ""}
       ${Object.keys(h.tonics ?? {}).length ? `<div class="stile extra-tile"><span>⚗️</span><span><b>Tonics</b><span class="sub">${Object.entries(h.tonics!).map(([id, n]) => `${TONICS[id].icon} ${esc(TONICS[id].name)}${n > 1 ? ` ×${n}` : ""}`).join(", ")}</span></span></div>` : ""}
       <div class="stile extra-tile scroll-tile"><span>📜</span><span><b>${h.scrolls}</b> Scroll${h.scrolls === 1 ? "" : "s"} of Revelation<span class="sub">${h.scrolls ? "Use one on a hidden Legendary below." : "Reveals a hidden Legendary's true power."}</span></span></div>
+    </div>
+    <h2>Blessings</h2>
+    <div class="bag-extras">
+      ${(h.f.persist["angelFights"] ?? 0) > 0 ? `<div class="stile extra-tile angel-tile"><span>👼</span><span><b>Angelic Blessing</b><span class="sub">Immune to negative statuses; heal 2 at the start of each fight · ${h.f.persist["angelFights"]} fight${h.f.persist["angelFights"] === 1 ? "" : "s"} left</span></span></div>` : ""}
+      ${(h.f.persist["blessFights"] ?? 0) > 0 ? `<div class="stile extra-tile bless-tile"><span>🐲</span><span><b>Dragon's Blessing</b><span class="sub">${esc(BLESSINGS[h.f.persist["blessKind"] ?? 0])} · ${h.f.persist["blessFights"]} fight${h.f.persist["blessFights"] === 1 ? "" : "s"} left</span></span></div>` : ""}
+      ${(h.f.persist["angelFights"] ?? 0) <= 0 && (h.f.persist["blessFights"] ?? 0) <= 0 ? `<div class="stile extra-tile empty-slot" style="grid-column: 1 / -1"><span>✨</span><span><b>None</b><span class="sub">Shrines and strange creatures in the dark sometimes grant blessings…</span></span></div>` : ""}
     </div>
     <h2>Equipped</h2><div class="cards">${equipped}</div>
     <h2>Backpack ${h.backpack.length}/${BACKPACK_SIZE}</h2><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div>
@@ -700,6 +706,7 @@ function helpGlossary() {
     row("🔨", "Heavy weapons", "Rare two-handed swords and axes. Every hit builds Stagger on the enemy (2 on a Crit). At 3 (Elites 4, bosses 5) it's Staggered: it loses its next action and your next hit deals double. Then it can't build again for 2 rounds"),
     row("🔥", "Sacrifice", "Holy Sacrifice weapons burn your current HP on each roll (a 1 burns 10%, a 6 burns 60%) and add it to the hit. Until your next roll, that same % of every hit you take heals you. Pair it with healing boosts"),
     row("🔨", "War hammers", "Heavy two-handed hammers (Rare and up): they build Stagger, always come with a Bash chance, and feed you Might"),
+    row("👼", "Angelic Blessing", "From the Angelic Statue, for half your HP: lifts all curses, and for your next 2 fights you heal 2 at the start and no negative status can touch you"),
     row("🐲", "Dragon's Blessing", "From a blind old dragon, for 70% of your Gold: one blessing for your next 5 fights (more damage to, or less damage from, Elites, Champions or bosses)"),
     row("😤", "Reckless", "Some gear makes you deal more damage but also take more from every hit. It stacks, for better and worse"),
     row("⛓️", "Roll cap", "Some heavy gear stops your die rolling above 4 or 5; the Manacles do the same to the enemy's die"),

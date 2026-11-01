@@ -276,6 +276,8 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
     enemy.items["m_ambush"] = 1;
   }
   const battle = startBattle(run.hero.f, enemy, Math.floor(run.rng() * 1e9), run.carry);
+  // Angelic Blessing: heal 2 as the fight begins.
+  if ((run.hero.f.persist["angelFights"] ?? 0) > 0) healF(battle, run.hero.f, 2, "Angelic Blessing");
   run.carry = 0;
   run.scene = { t: "combat", battle, rank, then };
   if (battle.over) afterFight(run);
@@ -357,6 +359,11 @@ function afterFight(run: Run) {
   const { battle: b, rank, then } = run.scene;
   const h = run.hero;
   const curseNote = applyQueuedCurses(run);
+  // The Angelic Blessing lasts 2 fights.
+  if ((h.f.persist["angelFights"] ?? 0) > 0) {
+    h.f.persist["angelFights"]--;
+    if (h.f.persist["angelFights"] === 0) run.message = "👼 The Angelic Blessing fades.";
+  }
   // A Dragon's Blessing lasts 5 fights.
   if ((h.f.persist["blessFights"] ?? 0) > 0) {
     h.f.persist["blessFights"]--;
@@ -796,6 +803,7 @@ export function chooseEvent(run: Run, i: number) {
       h.f.persist["blessFights"] = 5;
       return `🐲 Dragon's Blessing: ${BLESSINGS[k]}`;
     },
+    angelicBlessing: () => { h.curses = {}; h.f.persist["angelFights"] = 2; recompute(h); },
     upgradeWeapon: () => { const w = h.equip.main; if (!w) return "You have no weapon."; w.level++; for (const k of Object.keys(w.bonuses)) w.bonuses[k]++; recompute(h); return null; }
   };
   const opt = s.ev.options[i];

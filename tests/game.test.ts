@@ -1266,6 +1266,24 @@ describe("class actions and new stats", () => {
     expect(blessingMult(boss, run.hero.f)).toBe(0.7);
   });
 
+  it("the Angelic Statue: half your HP for no curses, 2 fights of immunity and a small heal", () => {
+    const run = newRun("warrior", 171);
+    run.hero.curses["c_rust"] = 1; recompute(run.hero);
+    const hp = run.hero.f.hp;
+    const ev = EVENTS.find(e => e.id === "angelic_statue")!;
+    run.scene = { t: "event", ev, result: null, found: [] };
+    chooseEvent(run, 0);
+    expect(run.hero.f.hp).toBe(hp - Math.floor(hp / 2));
+    expect(Object.keys(run.hero.curses).length).toBe(0);
+    expect(run.hero.f.persist["angelFights"]).toBe(2);
+    advance(run);
+    chooseRoom(run, "fight");
+    const sc = run.scene as { t: string; battle?: Parameters<typeof applyStatus>[0] };
+    expect(run.hero.f.hp).toBe(hp - Math.floor(hp / 2) + 2);
+    applyStatus(sc.battle!, sc.battle!.enemy, run.hero.f, "bleed", 5);
+    expect(st(run.hero.f, "bleed")).toBe(0);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);
