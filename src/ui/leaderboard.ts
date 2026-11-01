@@ -3,7 +3,7 @@
 import { runSummary, type Run } from "../game/run";
 
 /** The Worker's address, e.g. "https://deck-dungeon-leaderboard.<you>.workers.dev". Empty: leaderboards off. */
-export const LEADERBOARD_URL = "";
+export const LEADERBOARD_URL = "https://deck-dungeon-leaderboard.bestondeveloper.workers.dev";
 
 export type Board = "floor" | "elites" | "champions" | "damage" | "besthit" | "gold";
 export const BOARDS: { id: Board; label: string; icon: string; unit: string }[] = [

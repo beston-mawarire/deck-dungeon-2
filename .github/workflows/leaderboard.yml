@@ -36,7 +36,11 @@ jobs:
         run: wrangler d1 execute deck-dungeon-lb --remote --file schema.sql -y
       - name: Deploy the Worker
         run: wrangler deploy
-      - name: Leaderboard address
+      - name: Check it's answering
         run: |
-          echo "Your leaderboard lives at the workers.dev address printed by 'Deploy the Worker' above."
-          echo "Open <address>/health in a browser: you should see {\"ok\":true}."
+          URL="https://deck-dungeon-leaderboard.bestondeveloper.workers.dev"
+          for i in 1 2 3 4 5 6; do curl -fsS "$URL/health" && break; sleep 5; done
+          echo
+          curl -fsS "$URL/leaderboard?board=floor&limit=3"
+          echo
+          curl -fsS -o /dev/null -w "CORS preflight: %{http_code}\n" -X OPTIONS -H "Origin: https://beston-mawarire.github.io" "$URL/runs"
