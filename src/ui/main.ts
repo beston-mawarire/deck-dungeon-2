@@ -906,7 +906,7 @@ function helpPopup() {
       "Burn, Poison, Bleed, Chill, Shock, Static and more pile up on enemies (and on you). Two statuses on the same fighter can <b>react</b> — Burn + Poison is Combustion, Static + Shock sets off all the Static at once.",
       "Pile up enough Chill, Bleed or Poison and it <b>bursts</b>. Open 🎒 mid-fight to see what's active and what your build can set off."])}
     ${sec("Loot", [
-      "Rarities: Common, Uncommon, <span style='color:var(--rare)'>Rare</span>, <span style='color:var(--epic)'>Epic</span>, <span style='color:var(--legendary)'>Legendary</span> and <span style='color:var(--crimson)'>Crimson</span>. Legendaries arrive hidden — use a 📜 Scroll of Revelation to reveal them.",
+      "Rarities: Common, <span style='color:var(--uncommon)'>Uncommon</span>, <span style='color:var(--rare)'>Rare</span>, <span style='color:var(--epic)'>Epic</span>, <span style='color:var(--legendary)'>Legendary</span> and <span style='color:var(--crimson)'>Crimson</span>. Legendaries arrive hidden — use a 📜 Scroll of Revelation to reveal them.",
       "<b>Resplendent chests</b> show face-down cards: pick one, lose the rest. The <b>Forge</b> upgrades, rerolls, combines and sacrifices gear. Merchants buy one item per visit.",
       "Relics are passive and stack. Each level-up offers a talent. <b>Fortune</b> ✦ grows every floor: deeper means better loot."])}
     ${sec("Tips", [
