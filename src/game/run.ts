@@ -29,7 +29,7 @@ const FLOOR_LINES = [
   "The walls pulse faintly, as if the dungeon were breathing."
 ];
 
-/** The campaign is five floors (five bosses). Endless keeps going; a Horror waits on floor 30. */
+/** The campaign is five floors (five bosses). Endless keeps going; a Horror waits on floor 20, DEATH on 25 and THE END on 26. */
 export const FLOORS = CAMPAIGN_FLOORS;
 export const STEPS_PER_FLOOR = 7;
 export { DEATH_FLOOR, END_FLOOR, WALL_FLOOR };
@@ -126,7 +126,7 @@ export interface Run {
   lastBoss?: string;
   /** A story popup waiting to be shown (e.g. arriving on the last floor). */
   popup?: { title: string; text: string; icon: string; list?: string[]; fanfare?: string };
-  /** Beat THE END on floor 90: the whole game is won. */
+  /** Beat THE END on floor 26: the whole game is won. */
   finale?: boolean;
 }
 
@@ -623,7 +623,7 @@ function afterFight(run: Run) {
       run.message = `+${gold} Gold`;
       return;
     }
-    // Crimson bosses offer a Crimson item alongside two boss finds; the bosses of floors 30–70 offer an Epic Crimson.
+    // Crimson bosses offer a Crimson item alongside two boss finds; the bosses of floors 20–24 offer an Epic Crimson.
     const offer = b.enemy.crimson ? [rollItem(h, "crimson", run.floor, run.rng), roll(TABLES.boss), roll(TABLES.boss)]
       : EPIC_CRIMSON_FLOORS.includes(run.floor) ? [rollEpicCrimson(h, run.floor, run.rng), roll(TABLES.boss), roll(TABLES.boss)]
       : [roll(TABLES.boss), roll(TABLES.boss), roll(TABLES.boss)];

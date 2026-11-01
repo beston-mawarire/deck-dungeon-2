@@ -238,7 +238,7 @@ describe("a whole run", () => {
 });
 
 describe("bosses, endless, events, fusions", () => {
-  it("five campaign bosses (Hollow King last), Endless bosses after, and the wall on floor 30", async () => {
+  it("five campaign bosses (Hollow King last), Endless bosses after, and the wall on floor 20", async () => {
     const { makeBoss, WALL_FLOOR, bossStats } = await import("../src/data/bosses");
     const rng = makeRng(5);
     const seen = new Set<string>();
@@ -246,7 +246,7 @@ describe("bosses, endless, events, fusions", () => {
     for (let f = 1; f <= 5; f++) names.add(makeBoss(f, rng, seen).name);
     expect(names.size).toBe(5);
     expect(makeBoss(5, rng).name).toBe("The Hollow King");
-    for (let f = 11; f <= 40; f++) {
+    for (let f = 11; f <= 24; f++) {
       const b = makeBoss(f, rng);
       expect(b.moves!.length).toBeGreaterThanOrEqual(3);
       expect(b.hp).toBeGreaterThan(0);
@@ -862,7 +862,7 @@ describe("class actions and new stats", () => {
 
   it("DEATH: its first hit kills you unless you Guard, and it heals past its Max HP", () => {
     const h = newHero("warrior");
-    const death = makeBoss(80, makeRng(1));
+    const death = makeBoss(25, makeRng(1));
     expect(death.name).toBe("DEATH");
     const b = startBattle(h.f, death, 21);
     b.round = 1;
@@ -878,10 +878,10 @@ describe("class actions and new stats", () => {
     expect(b2.log.some(l => /DEATH reaps you/.test(l))).toBe(false);
   });
 
-  it("floor 30–70 bosses offer an Epic Crimson; DEATH drops Abaddon; beating the End wins with a cookie", () => {
+  it("floor 20–24 bosses offer an Epic Crimson; DEATH drops Abaddon; beating the End wins with a cookie", () => {
     const run = newRun("warrior", 31);
     run.mode = "endless";
-    for (const [floor, check] of [[40, "epic_crimson"], [80, "lc_abaddon"]] as const) {
+    for (const [floor, check] of [[22, "epic_crimson"], [25, "lc_abaddon"]] as const) {
       run.floor = floor; run.step = STEPS_PER_FLOOR; run.scene = { t: "map" } as typeof run.scene; run.choices = ["boss"];
       chooseRoom(run, "boss");
       const sc = run.scene as { t: string; battle?: { enemy: { hp: number }; over?: string } };
@@ -897,11 +897,11 @@ describe("class actions and new stats", () => {
     // Abaddon one-shots
     const h = newHero("warrior");
     equipItem(h, { uid: 990, base: "lc_abaddon", rarity: "legendary_crimson", level: 80, bonuses: {}, revealed: true });
-    const end = makeBoss(90, makeRng(2));
+    const end = makeBoss(26, makeRng(2));
     const b = startBattle(h.f, end, 3);
     resolveFace(b, b.player, b.enemy, 3, false);
     expect(b.enemy.hp).toBeLessThanOrEqual(0);
-    run.floor = 90; run.step = STEPS_PER_FLOOR; run.scene = { t: "map" } as typeof run.scene; run.choices = ["boss"];
+    run.floor = 26; run.step = STEPS_PER_FLOOR; run.scene = { t: "map" } as typeof run.scene; run.choices = ["boss"];
     chooseRoom(run, "boss");
     const sc = run.scene as { t: string; battle?: { enemy: { hp: number }; over?: string } };
     if (sc.t !== "combat" || !sc.battle) throw new Error("no fight");

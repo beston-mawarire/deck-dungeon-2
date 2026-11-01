@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.9.0
+- **The endgame is now floors 20–26** (it was 30–90): the Horror on floor 20 (also the first Epic Crimson boss), Epic Crimson bosses on 21–24, DEATH on 25, THE END on 26.
+- From floor 20, every floor scales up hard (monster HP ×1.3 and boss HP ×1.4 per floor, with power to match).
+- DEATH is still built as its old floor-80 self. The Crossroads' black-screen card now reads "Floor 25".
+
 ## 1.8.1
 - Auto-battle only from floor 3.
 - Transformation odds raised: 10% at 14 plain fights in a row, +6% per fight after (up to 90%).

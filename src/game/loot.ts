@@ -171,7 +171,7 @@ export function resplendentCards(h: Hero, floor: number, loot: LootState, rng: (
   return cards;
 }
 
-/** Epic Crimson: one of the Abyss items you haven't had this run, with three rolled bonuses. Only the bosses of floors 30–70 drop them. */
+/** Epic Crimson: one of the Abyss items you haven't had this run, with three rolled bonuses. Only the bosses of floors 20–24 drop them. */
 export function rollEpicCrimson(h: Hero, floor: number, rng: () => number): GearItem {
   const pool = EPIC_CRIMSON.filter(e => !DROPPED.has(e.id));
   const base = (pool.length ? pool : EPIC_CRIMSON)[Math.floor(rng() * (pool.length || EPIC_CRIMSON.length))];

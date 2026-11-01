@@ -1,5 +1,5 @@
 // Bosses: a move library, the ten campaign bosses, and generated bosses for Endless mode
-// (names, titles and moves mixed from libraries, with a Horror on floor 30, DEATH on 80 and the End on 90).
+// (names, titles and moves mixed from libraries, with a Horror on floor 20, DEATH on 25 and the End on 26).
 import { attack, PLAIN_FACES } from "../engine/combat";
 import type { Battle, FaceSpec, Fighter, Move } from "../engine/types";
 import { applyStatus, CRIT, GRAZE, heal, hex, HIT, log, parch } from "./helpers";
@@ -94,13 +94,16 @@ const FAMILIES = ["Beast", "Undead", "Cultist", "Construct"];
 
 const pick = <T>(rng: () => number, arr: T[]) => arr[Math.floor(rng() * arr.length)];
 
-/** Floor 30: the Horror. Only a truly broken build gets through. */
-export const WALL_FLOOR = 30;
-/** Floor 80: DEATH. Floor 90: the End. */
-export const DEATH_FLOOR = 80;
-export const END_FLOOR = 90;
-/** Floors whose bosses drop an Epic Crimson item. */
-export const EPIC_CRIMSON_FLOORS = [30, 40, 50, 60, 70];
+/** The endgame, from floor 20: the Horror, four more Epic Crimson bosses, DEATH, and THE END.
+ *  Floor 20: the Horror. Only a truly broken build gets through. It's the first Epic Crimson boss. */
+export const WALL_FLOOR = 20;
+/** Floor 25: DEATH. Floor 26: the End (beat it and the game is won). */
+export const DEATH_FLOOR = 25;
+export const END_FLOOR = 26;
+/** Floors whose bosses drop an Epic Crimson item: the Horror and the four after it. */
+export const EPIC_CRIMSON_FLOORS = [20, 21, 22, 23, 24];
+/** DEATH is always built as it was on its old floor 80: absurd on purpose. */
+const DEATH_POWER_FLOOR = 80;
 const WALL: BossDef = { name: "Ur-Thane", title: "the Horror Beneath", family: "Construct", moves: ["bulwark", "heavy", "thorns", "charge", "smash", "regrow"], armor: 20, hpMult: 6 };
 
 /** HP and Power for a boss on a floor. Past the Horror, everything grows much faster. */
@@ -112,9 +115,10 @@ export function bossStats(floor: number) {
     hp *= 1 + 0.08 * (floor - 5);
     power *= 1 + 0.04 * (floor - 5);
   }
+  // The endgame: past the Horror every floor is far deadlier than the last.
   if (floor > WALL_FLOOR) {
-    hp *= Math.pow(1.25, floor - WALL_FLOOR);
-    power *= Math.pow(1.12, floor - WALL_FLOOR);
+    hp *= Math.pow(1.4, floor - WALL_FLOOR);
+    power *= Math.pow(1.15, floor - WALL_FLOOR);
   }
   return { hp: Math.round(hp), power: Math.round(power) };
 }
@@ -182,7 +186,7 @@ export function makeBoss(floor: number, rng: () => number, seen: Set<string> = n
   return f;
 }
 
-// ---------- DEATH (floor 80) and the End (floor 90) ----------
+// ---------- DEATH (floor 25) and the End (floor 26) ----------
 TRAITS.push(
   { kind: "trait", id: "m_death", name: "DEATH", tags: ["Kill", "Hex"],
     text: "Its first hit that lands kills you unless you Guard. Its hits ignore Armor unless you Guard, Doom you, and heal it for the whole blow, even a blocked one (it can heal past its Max HP)",
@@ -200,7 +204,7 @@ TRAITS.push(
 );
 
 export function makeDeath(): Fighter {
-  const f = build({ name: "DEATH", title: "", family: "Undead", moves: ["reap"], traits: ["m_death", "x_warded"], armor: 300, hpMult: 12 }, DEATH_FLOOR);
+  const f = build({ name: "DEATH", title: "", family: "Undead", moves: ["reap"], traits: ["m_death", "x_warded"], armor: 300, hpMult: 12 }, DEATH_POWER_FLOOR);
   f.faces = [HIT, HIT, HIT, HIT, CRIT, CRIT];
   return f;
 }

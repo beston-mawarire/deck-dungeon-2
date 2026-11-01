@@ -1023,7 +1023,7 @@ let fanfareEl: HTMLElement | null = null;
 /** Fanfares waiting their turn: a level-up and a big drop play one after the other, never on top of each other. */
 const fanfareQueue: [string, string | undefined, boolean][] = [];
 /** DEATH arrives: a deep purple dark, and its name in red, fading in and out.
- *  Met early (the Crossroads' "future"), the screen first goes black and silent, and "Floor 80" fills it. */
+ *  Met early (the Crossroads' "future"), the screen first goes black and silent, and DEATH's floor fills it. */
 function deathIntro(early: boolean) {
   const show = () => {
     const el = document.createElement("div");
@@ -1039,7 +1039,7 @@ function deathIntro(early: boolean) {
   if (!early) { show(); return; }
   const dark = document.createElement("div");
   dark.className = "floor80-intro";
-  dark.innerHTML = `<div class="floor80-word">Floor 80</div>`;
+  dark.innerHTML = `<div class="floor80-word">Floor ${DEATH_FLOOR}</div>`;
   document.body.appendChild(dark);
   setTimeout(() => { dark.remove(); show(); }, 5200);
 }

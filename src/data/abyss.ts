@@ -1,4 +1,4 @@
-// The Abyss: Epic Crimson items (only from the bosses of floors 30, 40, 50, 60 and 70),
+// The Abyss: Epic Crimson items (only from the bosses of floors 20, 21, 22, 23 and 24),
 // and the Legendary Crimson rewards for the impossible: Abaddon (beat DEATH) and the Cookie (beat the End).
 import type { GearBase } from "../engine/types";
 import { applyStatus, cast, CRIT, GRAZE, heal, hex, HIT, log, other } from "./helpers";

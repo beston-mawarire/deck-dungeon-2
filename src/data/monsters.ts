@@ -112,10 +112,11 @@ export function monsterHpMult(floor: number) {
   // From floor 3 the dungeon turns hard: only a lucky, well-built run gets through floors 3 and 4.
   let m = 1 + 0.55 * (floor - 1) + 0.2 * Math.max(0, floor - 2);
   if (floor > 5) m *= 1 + 0.06 * (floor - 5);
-  if (floor > 30) m *= Math.pow(1.2, floor - 30);
+  // The endgame (floor 20+): monsters grow fast.
+  if (floor > 20) m *= Math.pow(1.3, floor - 20);
   return m;
 }
-export const monsterPowerAdd = (floor: number) => Math.round((1.5 * (floor - 1) + 0.8 * Math.max(0, floor - 2)) * (floor > 30 ? Math.pow(1.1, floor - 30) : 1));
+export const monsterPowerAdd = (floor: number) => Math.round((1.5 * (floor - 1) + 0.8 * Math.max(0, floor - 2)) * (floor > 20 ? Math.pow(1.15, floor - 20) : 1));
 
 /** Unique foes: named, once per run, far tougher than an Elite, and each with a signature set of traits. */
 export const UNIQUES: { id: string; name: string; title: string; family: string; traits: string[]; armor?: number; faces?: FaceSpec[] }[] = [
