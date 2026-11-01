@@ -17,7 +17,7 @@ import { lockedIds, loadMeta, type Meta, recordRun, UNLOCK_TIERS } from "../game
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
+  combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   abandonRun, smithUpgrade, runSummary, trackGold, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
@@ -470,6 +470,8 @@ function allGear(r: Run): GearItem[] {
 let forgeTab: "upgrade" | "offer" | "combine" | "transmute" = "upgrade";
 const offerSel = new Set<number>();
 
+/** Odds in words (no numbers shown to players). p is a 0–100 share of non-failing outcomes. */
+const oddsWord = (p: number) => p >= 50 ? "likely" : p >= 25 ? "possible" : p >= 8 ? "unlikely" : "a slim chance";
 function forgeScene(r: Run) {
   const h = r.hero;
   const fusions = availableFusions(r);
@@ -481,13 +483,13 @@ function forgeScene(r: Run) {
   } else if (forgeTab === "offer") {
     const chosen = h.backpack.filter(i => offerSel.has(i.uid));
     const odds = offeringOdds(offeringValue(chosen));
-    body = `<p class="sub">Sacrifice two or more items from your bag for one new item. More items and rarer items mean better odds — but ${OFFERING_FAIL}% of the time the Forge takes everything and gives nothing.</p>
-      ${chosen.length >= 2 ? `<div class="panel">Odds: <span class="chip">nothing ${OFFERING_FAIL}%</span> ${(["common", "uncommon", "rare", "epic", "legendary"] as const).filter(x => odds[x]).map(x => `<span class="chip">${x} ${Math.round((odds[x] ?? 0) * (100 - OFFERING_FAIL) / 100)}%</span>`).join(" ")}</div>` : ""}
+    body = `<p class="sub">Sacrifice two or more items from your bag for one new item. More items and rarer items mean better odds — but sometimes the Forge takes everything and gives nothing.</p>
+      ${chosen.length >= 2 ? `<div class="panel">What the Forge might give: ${(["common", "uncommon", "rare", "epic", "legendary"] as const).filter(x => odds[x]).map(x => `<span class="chip odds-${x}">${x[0].toUpperCase() + x.slice(1)} · ${oddsWord(odds[x] ?? 0)}</span>`).join(" ")}</div>` : ""}
       <div class="cards" style="margin-top:8px">${h.backpack.map(it => itemCard(it, `<button class="small ${offerSel.has(it.uid) ? "primary" : ""}" data-offersel="${it.uid}">${offerSel.has(it.uid) ? "✓ Offered" : "Offer"}</button>`)).join("") || `<p class="sub">Your bag is empty.</p>`}</div>
       <div class="row" style="margin-top:8px"><button class="primary" data-offer ${chosen.length >= 2 ? "" : "disabled"}>Sacrifice ${chosen.length} item${chosen.length === 1 ? "" : "s"}</button></div>`;
   } else if (forgeTab === "combine") {
     const pairs = combinablePairs(r);
-    body = `<p class="sub">Combine two of the same item into one: a level higher, the best bonuses of both, and a 30% chance to rise a rarity (up to Epic).</p>
+    body = `<p class="sub">Combine two of the same item into one: a level higher, the best bonuses of both, and a chance to rise a rarity (up to Epic).</p>
       ${pairs.length ? pairs.map(([a, b]) => `<div class="panel" style="margin-top:8px"><div class="cards">${itemCard(a, "", false, equippedSlot(r, a))}${itemCard(b, "", false, equippedSlot(r, b))}</div><button class="primary small" data-combine="${a.uid},${b.uid}">Combine</button></div>`).join("") : `<p class="sub">You don't have two of the same item.</p>`}`;
   } else if (!h.crucible) {
     body = `<div class="panel locked-tool"><p><b>🔒 You're missing a key item.</b></p>

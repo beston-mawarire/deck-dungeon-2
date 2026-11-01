@@ -602,3 +602,6 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .item.key-item.empty-slot .nm { color: #c99a5e; }
 .key-found.crucible-found { color: #ffc46b; border-color: #e8a04a; background: linear-gradient(160deg, #3a2410, #1c120a); text-shadow: 0 0 14px rgba(232,160,74,.7); }
 .locked-tool { border-color: #6b5a3a; }
+.chip[class*="odds-"] { white-space: nowrap; } .chip.odds-common { color: #d6d6dc; } .chip.odds-uncommon { color: var(--uncommon); border-color: var(--uncommon); }
+.chip.odds-rare { color: var(--rare); border-color: var(--rare); } .chip.odds-epic { color: var(--epic); border-color: var(--epic); }
+.chip.odds-legendary { color: var(--legendary); border-color: var(--legendary); }

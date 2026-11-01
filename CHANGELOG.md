@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.14.2
+- The Forge no longer shows percentages. Offering odds are now described in words (likely, possible, unlikely, a slim chance) for each rarity it might give, and the Offering and Combine descriptions no longer give exact chances.
+
 ## 1.14.1
 - The Transmuter's Crucible is now a key item instead of a relic. It still drops from Champions at the same rate and has its own slot in the Extras tab, which shows as empty until you find it. Saves that already have the Crucible relic are converted automatically.
 - The Forge's Transmute tab is always shown. Without the Crucible it's locked and says you're missing a key item.
