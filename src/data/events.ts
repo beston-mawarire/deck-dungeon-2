@@ -75,7 +75,7 @@ const leave: EventOption = { label: "Walk away", run: () => "You leave it be." }
 const blood = (pct: number) => (c: EventCtx) => Math.ceil(c.maxHp() * pct);
 const bleedFor = (pct: number) => (c: EventCtx) => c.hp() > blood(pct)(c);
 const sanguine = (pct: number, label: string, hint: string, run: (c: EventCtx) => string): EventOption => ({
-  label: `${label} · ${Math.round(pct * 100)}% Max HP`, hint, can: bleedFor(pct),
+  label: `${label} · ${Math.round(pct * 100)}% Max HP`, hint: hint || undefined, can: bleedFor(pct),
   run: c => { const n = blood(pct)(c); c.hurt(n); return `🩸 You bleed ${n} into the basin. ${run(c)}`; }
 });
 
@@ -84,10 +84,10 @@ export const EVENTS: GameEvent[] = [
     text: "A basin of black stone, stained to the rim. Carved hands reach up from its sides, palms open. It does not want gold.",
     options: [
       sanguine(0.1, "A trickle for Gold", "A good purse of Gold", c => { const g = 25 + 10 * c.floor(); c.addGold(g); return `Coins well up from the stain: +${g} Gold.`; }),
-      sanguine(0.2, "Blood for blood", "Raise your Max HP", c => { const n = 4 + Math.floor(c.floor() / 2); c.addMaxHp(n); return `Your heart beats harder: +${n} Max HP.`; }),
-      sanguine(0.3, "Temper your gear", "A random equipped item gains 2 levels", c => { const nm = c.upgradeRandom(2); return nm ? `${nm} drinks deep and grows stronger (+2 levels).` : "You carry nothing for it to temper. The altar keeps your blood anyway."; }),
+      sanguine(0.2, "Blood for blood", "Raise your Max HP", c => { const n = 8 + Math.floor(c.floor() / 2); c.addMaxHp(n); return `Your heart beats harder: +${n} Max HP.`; }),
+      sanguine(0.3, "Temper your gear", "A random equipped item gains 3 levels", c => { const nm = c.upgradeRandom(3); return nm ? `${nm} drinks deep and grows stronger (+3 levels).` : "You carry nothing for it to temper. The altar keeps your blood anyway."; }),
       sanguine(0.4, "Wash away your curses", "Lifts every curse you carry", c => { const n = c.clearCurses(); return n ? `${n} curse${n === 1 ? "" : "s"} dissolve in the red.` : "You had no curses. The altar keeps your blood anyway."; }),
-      sanguine(0.5, "Take on a curse", "A random curse (some builds feed on them)", c => `A whisper settles in your bones. You are cursed: ${c.addCurse()}.`),
+      sanguine(0.5, "Take on a random curse", "", c => `A whisper settles in your bones. You are cursed: ${c.addCurse()}.`),
       sanguine(0.6, "An offering for a relic", "A random Common relic", c => `Something small and warm rises from the basin: ${c.gainCommonRelic()}.`),
       sanguine(0.7, "Pray for a Crimson Key", "A slim chance. Most likely nothing at all", c => {
         if (c.rng() < 0.12) { c.addCrimsonKey(); return "The basin boils and spits out a key, red as a wound. 🗝️ A Crimson Key!"; }
