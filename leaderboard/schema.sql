@@ -17,6 +17,24 @@ CREATE TABLE IF NOT EXISTS runs (
   gold INTEGER NOT NULL DEFAULT 0,
   version TEXT,
   created_at INTEGER NOT NULL,
+  sid TEXT,
+  suspect INTEGER NOT NULL DEFAULT 0,
+  reason TEXT,
   UNIQUE (pid, seed)
 );
 CREATE INDEX IF NOT EXISTS runs_pid_time ON runs (pid, created_at);
+
+-- The server's own record of each run: when it began and which floors it was seen to reach.
+CREATE TABLE IF NOT EXISTS sessions (
+  sid TEXT PRIMARY KEY,
+  pid TEXT NOT NULL,
+  seed INTEGER NOT NULL,
+  started_at INTEGER NOT NULL,
+  floor INTEGER NOT NULL DEFAULT 1,
+  max_floor INTEGER NOT NULL DEFAULT 1,
+  floor_at INTEGER NOT NULL,
+  flagged TEXT,
+  ended INTEGER NOT NULL DEFAULT 0,
+  posted_floor INTEGER
+);
+CREATE INDEX IF NOT EXISTS sessions_pid_time ON sessions (pid, started_at);

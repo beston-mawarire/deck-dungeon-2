@@ -24,7 +24,7 @@ import {
 import { fortunePips } from "../game/loot";
 import { potionCap, potionsPerFight } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
-import { BOARDS, type Board, fetchBoard, flushQueue, leaderboardOn, playerName, type Row, setPlayerName, submitRun } from "./leaderboard";
+import { BOARDS, type Board, fetchBoard, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun } from "./leaderboard";
 import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
@@ -61,7 +61,7 @@ let lbBoard: Board = "floor";
 let lbRows: Row[] | null = null;
 let lbMe: { rank: number; value: number } | null = null;
 let lbError = "";
-let lbResult: { ranks?: Partial<Record<Board, number>> } | null | "sending" = null;
+let lbResult: { ranks?: Partial<Record<Board, number>>; verified?: boolean } | null | "sending" = null;
 let lbNaming = false;
 /** The in-run menu (main menu / end run). */
 let menuOpen = false;
@@ -685,6 +685,7 @@ function runStatsPanel(r: Run) {
       <div class="row"><input id="lb-name" maxlength="16" placeholder="Your name" value="${esc(name)}" autocomplete="nickname"><button class="primary small" data-lbsubmit>${r.submitted ? "Save name" : "Submit"}</button></div>
       <p class="sub">Up to 16 letters. It's remembered: your next runs go up by themselves.</p></div>`;
   } else if (lbResult === "sending") box = `<p class="lb-placed">🏆 Sending to the leaderboards…</p>`;
+  else if (lbResult && lbResult.verified === false) box = `<p class="lb-placed">🏆 This run couldn't be verified (it may have been played offline), so it isn't on the leaderboards.</p>`;
   else if (lbResult && lbResult.ranks) {
     const rk = lbResult.ranks;
     const best = BOARDS.filter(b => (rk[b.id] ?? 99) <= 10).map(b => `${b.icon} #${rk[b.id]} ${b.label}`);
@@ -1251,6 +1252,8 @@ function render2() {
     dispHp.player = dispHp.enemy = null;
   }
   trackGold(r);
+  // The leaderboard server keeps its own record of how far this run has got.
+  if (r.sid && r.floor !== r.reportedFloor && s.t !== "over") void reportFloor(r);
   if (s.t === "over" && !recorded) {
     recorded = recordRun(meta, r, banked);
     banked += recorded.earned;
@@ -1474,7 +1477,7 @@ function bind() {
     on("[data-help]", () => { helpOpen = true; });
     on("[data-closehelp]", () => { helpOpen = false; });
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode; });
-    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; run = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
+    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); run = nr; void startSession(nr); });
     return;
   }
   const r = run;

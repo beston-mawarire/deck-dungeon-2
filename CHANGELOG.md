@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.14.0
+- Leaderboard anti-cheat: the server now keeps its own record of every run (start time and each floor reached, one at a time, at a believable pace). Finished runs are checked against it (floor, time, kills, Elites/Champions, Gold, level); anything that doesn't add up is kept but hidden from the boards, with the reason recorded. Runs started offline can't be verified.
+
 ## 1.13.7
 - Inventory and Potion buttons use the carved-stone look of the class cards, with dark text.
 

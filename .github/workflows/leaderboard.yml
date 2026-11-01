@@ -34,6 +34,11 @@ jobs:
           sed -i "s/__DB_ID__/$ID/" wrangler.toml
       - name: Create the tables (safe to re-run)
         run: wrangler d1 execute deck-dungeon-lb --remote --file schema.sql -y
+      - name: Add newer columns to an older database (skips any that already exist)
+        run: |
+          for col in "sid TEXT" "suspect INTEGER NOT NULL DEFAULT 0" "reason TEXT"; do
+            wrangler d1 execute deck-dungeon-lb --remote -y --command "ALTER TABLE runs ADD COLUMN $col" || true
+          done
       - name: Deploy the Worker
         run: wrangler deploy
       - name: Check it's answering

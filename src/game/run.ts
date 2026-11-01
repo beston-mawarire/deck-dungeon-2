@@ -109,6 +109,9 @@ export interface Run {
   goldSeen?: number;
   /** This run's result has been sent to the leaderboard. */
   submitted?: boolean;
+  /** The leaderboard server's own record of this run, and the last floor it was told about. */
+  sid?: string;
+  reportedFloor?: number;
   /** Ids found this run (for the Codex between runs). */
   found: Set<string>;
   /** Ids allowed in loot this run (unlocked by Renown); empty = everything. */

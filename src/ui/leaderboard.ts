@@ -43,17 +43,41 @@ export function setPlayerName(name: string): string {
 const QUEUE = "dd2-lb-queue";
 const queued = (): unknown[] => { try { return JSON.parse(store.get(QUEUE) ?? "[]"); } catch { return []; } };
 
-async function post(body: unknown): Promise<{ ranks?: Partial<Record<Board, number>> } | null> {
+async function post(body: unknown): Promise<{ ranks?: Partial<Record<Board, number>>; verified?: boolean } | null> {
   const res = await fetch(`${LEADERBOARD_URL}/runs`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
+/** A run begins: ask the server to open its own record of it. Scores are only believed for runs it watched. */
+export async function startSession(run: Run) {
+  if (!leaderboardOn() || run.sid) return;
+  try {
+    const res = await fetch(`${LEADERBOARD_URL}/session`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pid: playerId(), seed: run.seed }) });
+    if (!res.ok) return;
+    const d = (await res.json()) as { sid?: string };
+    if (d.sid) { run.sid = d.sid; run.reportedFloor = 1; }
+  } catch { /* offline: this run can't go on the boards */ }
+}
+
+let floorInFlight = false;
+/** Tell the server each new floor as you reach it (it checks the pace). Retried on the next screen if it fails. */
+export async function reportFloor(run: Run) {
+  if (!leaderboardOn() || !run.sid || floorInFlight || run.reportedFloor === run.floor) return;
+  floorInFlight = true;
+  const floor = run.floor;
+  try {
+    const res = await fetch(`${LEADERBOARD_URL}/session/floor`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sid: run.sid, pid: playerId(), floor }) });
+    if (res.ok) run.reportedFloor = floor;
+  } catch { /* try again later */ }
+  floorInFlight = false;
+}
+
 /** Send a finished run. Returns where it placed you (on each board), or null if it couldn't be sent yet. */
-export async function submitRun(run: Run, version: string): Promise<{ ranks?: Partial<Record<Board, number>> } | null> {
+export async function submitRun(run: Run, version: string): Promise<{ ranks?: Partial<Record<Board, number>>; verified?: boolean } | null> {
   if (!leaderboardOn() || run.submitted || !playerName()) return null;
   run.submitted = true;
-  const body = { pid: playerId(), name: playerName(), version, ...runSummary(run) };
+  const body = { pid: playerId(), sid: run.sid, name: playerName(), version, ...runSummary(run) };
   try {
     return await post(body);
   } catch {
