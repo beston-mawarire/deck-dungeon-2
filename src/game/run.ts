@@ -68,7 +68,8 @@ export type Scene =
   | { t: "forge" }
   | { t: "rest"; done: boolean }
   | { t: "confirm"; room: RoomType }
-  | { t: "event"; ev: GameEvent; result: string | null; found: GearItem[] }
+  | { t: "event"; ev: GameEvent; result: string | null; found: GearItem[]; note?: string }
+  | { t: "smith"; uses: number }
   | { t: "cleared"; floor: number; boss: string }
   | { t: "over"; won: boolean };
 
@@ -236,6 +237,8 @@ function enterRoom(run: Run, room: RoomType) {
       const pool = EVENTS.filter(e => !e.unique || !run.seenBosses.has(`e:${e.id}`));
       const ev = pool[Math.floor(run.rng() * pool.length)];
       if (ev.unique) run.seenBosses.add(`e:${ev.id}`);
+      // The Wandering Blacksmith: two free upgrades at his anvil.
+      if (ev.id === "blacksmith") { run.scene = { t: "smith", uses: 2 }; return; }
       run.scene = { t: "event", ev, result: null, found: [] };
       return;
     }
@@ -772,8 +775,16 @@ export function chooseEvent(run: Run, i: number) {
   const opt = s.ev.options[i];
   if (!opt || (opt.can && !opt.can(ctx))) return;
   const result = opt.run(ctx);
-  if (found.length) {
-    run.scene = { t: "loot", title: s.ev.title, items: found, gold: 0, scrolls: 0, potions: 0 };
+  // Repeatable options (the Golden Altar): stay here; finds pile up until you leave.
+  if (opt.repeat) {
+    s.found.push(...found);
+    s.note = result;
+    lockGold(run);
+    return;
+  }
+  const all = [...s.found, ...found];
+  if (all.length) {
+    run.scene = { t: "loot", title: s.ev.title, items: all, gold: 0, scrolls: 0, potions: 0 };
     run.message = result;
   } else s.result = result;
   lockGold(run);
@@ -1031,4 +1042,17 @@ export function lockGold(run: Run) {
   const lock = f.persist["goldLock"] ?? f.gold;
   f.gold = Math.min(f.gold, lock);
   f.persist["goldLock"] = f.gold;
+}
+
+/** The Wandering Blacksmith: upgrade an item for free (twice per visit). */
+export function smithUpgrade(run: Run, uid: number): string | null {
+  const s = run.scene;
+  if (s.t !== "smith" || s.uses <= 0) return null;
+  const found = findItem(run.hero, uid);
+  if (!found) return null;
+  found.item.level++;
+  for (const k of Object.keys(found.item.bonuses)) found.item.bonuses[k]++;
+  recompute(run.hero);
+  s.uses--;
+  return null;
 }

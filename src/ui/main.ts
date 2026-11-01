@@ -17,7 +17,7 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  abandonRun,
+  abandonRun, smithUpgrade,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
@@ -460,9 +460,18 @@ function restScene(r: Run) {
 function eventScene(r: Run) {
   if (r.scene.t !== "event") return "";
   const s = r.scene;
-  return `<h2>${s.ev.icon} ${esc(s.ev.title)}</h2><div class="panel"><p>${esc(s.ev.text)}</p></div>
+  return `<h2>${s.ev.icon} ${esc(s.ev.title)}</h2><div class="panel"><p>${esc(s.ev.text)}</p>${s.found.length ? `<p class="sub">Waiting for you when you leave: <b>${s.found.length}</b> item${s.found.length > 1 ? "s" : ""}.</p>` : ""}</div>
+    ${!s.result && s.note ? `<div class="toast">${esc(s.note)}</div>` : ""}
     ${s.result ? `<div class="toast">${esc(s.result)}</div><div class="row"><button class="primary" data-leave>Continue</button></div>`
       : `<div class="cards" style="margin-top:10px">${s.ev.options.map((o, i) => `<button class="room" data-event="${i}" ${eventOptionAvailable(r, i) ? "" : "disabled"}><b>${esc(o.label)}</b>${o.hint ? `<span class="sub">${esc(o.hint)}</span>` : ""}</button>`).join("")}</div>`}`;
+}
+
+function smithScene(r: Run) {
+  if (r.scene.t !== "smith") return "";
+  const s = r.scene;
+  return `<h2>⚒️ The Wandering Blacksmith</h2><div class="panel"><p>"Two jobs, free of charge. Pick your pieces."</p><p class="sub"><b>${s.uses}</b> free upgrade${s.uses === 1 ? "" : "s"} left. Each one raises an item's level by 1, like the Forge.</p></div>
+    ${s.uses > 0 ? `<div class="cards">${allGear(r).map(it => itemCard(it, `<button class="small primary" data-smith="${it.uid}">Upgrade free · to level ${it.level + 1}</button>`)).join("")}</div>` : ""}
+    <div class="row" style="margin-top:12px"><button class="${s.uses ? "" : "primary"}" data-leave>${s.uses ? "Leave the rest" : "Thank him and move on"}</button></div>`;
 }
 
 function confirmScene(r: Run) {
@@ -915,6 +924,7 @@ function render() {
     s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r)
     : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r)
     : s.t === "cleared" ? clearedScene(r)
+    : s.t === "smith" ? smithScene(r)
     : s.t === "rest" ? restScene(r) : s.t === "confirm" ? confirmScene(r) : s.t === "event" ? eventScene(r) : overScene(r);
   celebrateScene(r);
   const msg = [r.message, note].filter(Boolean);
@@ -1140,6 +1150,7 @@ function bind() {
     endArmed = false; menuOpen = false; bagOpen = false;
     abandonRun(r);
   });
+  on("[data-smith]", el => { smithUpgrade(r, Number(el.dataset.smith)); sfx("chest"); });
   on("[data-descend]", () => { r.message = ""; advance(r); });
   on("[data-help]", () => { helpOpen = true; });
   on("[data-closehelp]", () => { helpOpen = false; });

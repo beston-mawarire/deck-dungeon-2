@@ -3,6 +3,7 @@ import { LEGENDARIES, loadLibrary } from "../src/data";
 import { makeMonster, makeThief } from "../src/data/monsters";
 import { makeBoss } from "../src/data/bosses";
 import { EPIC_CRIMSON } from "../src/data/abyss";
+import { EVENTS } from "../src/data/events";
 import { beginRound, endRound, enemyPhase, heroPhase, isUnholy, playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
@@ -10,7 +11,7 @@ import { applyStatus, endOfRound, st } from "../src/engine/statuses";
 import { TAGS } from "../src/engine/types";
 import { equipItem, itemName, newHero, recompute, reveal, salvage, slotsFor, weaponDamage } from "../src/game/hero";
 import { resetDropped, resplendentCards, rollItem } from "../src/game/loot";
-import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem, rerollShop, drinkPotion, lockGold, restore } from "../src/game/run";
+import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem, rerollShop, drinkPotion, lockGold, restore, chooseEvent, smithUpgrade } from "../src/game/run";
 
 beforeAll(() => loadLibrary());
 
@@ -1116,6 +1117,32 @@ describe("class actions and new stats", () => {
     let seen = 0;
     for (let i = 0; i < 2000; i++) if (rollItem(h, "epic", 20, rng).base.startsWith("dp_")) seen++;
     expect(seen).toBeGreaterThan(0);
+  });
+
+  it("Golden Altar: tribute 20% at a time until you're broke; finds wait until you leave", () => {
+    const run = newRun("warrior", 111);
+    run.hero.f.gold = 100;
+    const ev = EVENTS.find(e => e.id === "golden_altar")!;
+    run.scene = { t: "event", ev, result: null, found: [] };
+    chooseEvent(run, 0);
+    expect(run.hero.f.gold).toBe(80);
+    let n = 0;
+    while (run.hero.f.gold > 0 && n++ < 200) chooseEvent(run, 0);
+    expect(run.hero.f.gold).toBe(0);
+    expect(run.scene.t).toBe("event");
+    const found = (run.scene as { found: unknown[] }).found.length;
+    chooseEvent(run, 1);
+    expect(run.scene.t).toBe(found ? "loot" : "event");
+  });
+
+  it("the Wandering Blacksmith upgrades two items for free", () => {
+    const run = newRun("warrior", 112);
+    run.scene = { t: "smith", uses: 2 };
+    const w = run.hero.equip.main!;
+    const scrap = run.hero.scrap;
+    smithUpgrade(run, w.uid); smithUpgrade(run, w.uid); smithUpgrade(run, w.uid);
+    expect(w.level).toBe(3);
+    expect(run.hero.scrap).toBe(scrap);
   });
 
   it("Penance stores damage taken and adds it to the next attack", () => {

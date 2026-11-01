@@ -30,6 +30,8 @@ export interface EventOption {
   hint?: string;
   can?: (c: EventCtx) => boolean;
   run: (c: EventCtx) => string;
+  /** The event stays open after this option (e.g. tribute again); what it finds is handed over when you leave. */
+  repeat?: boolean;
 }
 
 export interface GameEvent {
@@ -45,6 +47,23 @@ export interface GameEvent {
 const leave: EventOption = { label: "Walk away", run: () => "You leave it be." };
 
 export const EVENTS: GameEvent[] = [
+  { id: "golden_altar", unique: true, title: "The Golden Altar", icon: "🏺", text: "A golden altar hums in the dark. Coins left on it vanish; now and then, something is left in return. Each tribute costs a fifth of your Gold. Pay as often as you like.",
+    options: [
+      { label: "Pay tribute (20% of your Gold)", hint: "Usually nothing. Sometimes something.", repeat: true, can: c => c.gold() > 0,
+        run: c => {
+          const cost = Math.max(1, Math.ceil(c.gold() * 0.2));
+          c.addGold(-cost);
+          const r = c.rng();
+          if (r < 0.005) { c.gainItem("legendary"); return `You lay down ${cost} Gold. The altar blazes gold: a Legendary!`; }
+          if (r < 0.02) { c.gainItem("epic"); return `You lay down ${cost} Gold. The altar glows violet: an Epic item!`; }
+          if (r < 0.05) { c.gainItem("rare"); return `You lay down ${cost} Gold. The altar glows blue: a Rare item.`; }
+          if (r < 0.13) { c.gainItem("uncommon"); return `You lay down ${cost} Gold. Something clinks onto the altar: an Uncommon item.`; }
+          return `You lay down ${cost} Gold. It vanishes. Nothing happens.`;
+        } },
+      { label: "Leave the altar", run: () => "You step away from the altar." }
+    ] },
+  { id: "blacksmith", unique: true, title: "The Wandering Blacksmith", icon: "⚒️", text: "A blacksmith has set up a portable anvil in a side passage. \"Two jobs, free of charge. I like your face.\"",
+    options: [{ label: "Visit the anvil", run: () => "" }] },
   { id: "dealer", title: "The Crossroads Dealer", icon: "🎩", text: "A smiling figure offers a trade: one of your relics for two of theirs, sight unseen.",
     options: [{ label: "Trade a random relic for two", can: c => c.relicCount() > 0, run: c => { const lost = c.loseRelic(); const a = c.gainRelic(); const b = c.gainRelic(); return `You gave up ${lost} and received ${a} and ${b}.`; } }, leave] },
   { id: "fountain", title: "Blood Fountain", icon: "⛲", text: "Red water bubbles from cracked stone. It whispers of treasure for those who bleed.",
