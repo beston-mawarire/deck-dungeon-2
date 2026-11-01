@@ -51,6 +51,8 @@ let storyOpen: Mode | null = null;
 let helpOpen = false;
 /** The in-run menu (main menu / end run). */
 let menuOpen = false;
+/** Shown when the device loses its connection. */
+let offlineOpen = false;
 let endArmed = false;
 /** The talent scene whose "You have levelled up!" popup has been seen. */
 let ackedTalentScene: unknown = null;
@@ -788,6 +790,20 @@ function storyPopup(m: Mode) {
 
 let winSeen = false;
 /** A story moment: a centered popup with an icon, a title and a little text. */
+function offlinePopup() {
+  return `<div class="overlay popup-wrap"><div class="popup offline-pop">
+    <div class="center bigicon">📡</div>
+    <h1 class="center bigname">You're offline</h1>
+    <p class="center">No worries: the game runs on your device, so you can keep playing.</p>
+    <ul class="beat-list">
+      <li>💾 Your run still saves on this device at every path choice.</li>
+      <li>🎵 Music that hasn't loaded yet may stay quiet until you're back online.</li>
+      <li>✨ New updates will wait until you reconnect.</li>
+    </ul>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-closeoffline>Keep playing</button></div>
+  </div></div>`;
+}
+
 function runMenu(r: Run) {
   const atMap = r.scene.t === "map";
   const over = r.scene.t === "over";
@@ -932,6 +948,15 @@ function celebrateScene(r: Run) {
 
 function render() {
   app.classList.toggle("with-side", !!run);
+  render2();
+  // The offline notice sits on top of everything, wherever you are.
+  if (offlineOpen) {
+    app.insertAdjacentHTML("beforeend", offlinePopup());
+    app.querySelectorAll<HTMLElement>("[data-closeoffline]").forEach(el => (el.onclick = () => { offlineOpen = false; render(); }));
+  }
+}
+
+function render2() {
   // Not in a run: a new build can load straight away.
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
@@ -1226,3 +1251,8 @@ onMusicBlockChange(() => render());
 
 // Check for new builds; reload at the next safe moment, and say so if that has to wait.
 watchForUpdates(() => { if (run && run.scene.t !== "map" && run.scene.t !== "over") say("✨ An update is ready. It will load at your next path choice (your run is saved).", false); render(); });
+
+// Going offline: tell the player what that means. Coming back: a quick note.
+window.addEventListener("offline", () => { offlineOpen = true; render(); });
+window.addEventListener("online", () => { offlineOpen = false; say("📶 You're back online.", false); render(); });
+if (typeof navigator !== "undefined" && navigator.onLine === false) { offlineOpen = true; render(); }

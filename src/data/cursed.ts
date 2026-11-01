@@ -3,7 +3,7 @@ import type { Fighter, GearBase, StatBlock } from "../engine/types";
 import { damageOf } from "../engine/combat";
 import { getItem } from "../engine/registry";
 import type { AttackCtx, Battle } from "../engine/types";
-import { CRIT, GRAZE, heal, HIT, log, MISS } from "./helpers";
+import { applyStatus, cast, CRIT, GRAZE, heal, hex, HIT, log, MISS, st } from "./helpers";
 
 const ep = (d: Omit<GearBase, "onlyRarity">): GearBase => ({ ...d, onlyRarity: "epic" });
 const curses = (f: Fighter) => f.persist["curseCount"] ?? 0;
@@ -54,4 +54,30 @@ export const CURSE_EATERS: GearBase[] = [
   ep({ kind: "weapon", slot: "main", id: "ce_sin_devourer", name: "Sin-Devourer", tags: ["Hex", "Holy", "Blood"], damage: 8, faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT],
     text: "Holy Curse-Eater. Each Hit or Crit devours one of your curses (gone for good), deals +250% damage and heals you 10% of your Max HP. No curses, no bonus.",
     hooks: { modifyAttack: (b, c) => { if (eatCurse(b, c, 2.5)) heal(b, c.attacker, Math.ceil(c.attacker.maxHp * 0.1), "Sin-Devourer"); } } })
+];
+
+// ---------- Cursed wands, one-handed weapons and staffs ----------
+export const CURSED_CASTERS: GearBase[] = [
+  ep({ kind: "weapon", slot: "main", id: "cu_hexwood_wand", name: "Hexwood Wand", tags: ["Hex", "Arcane"], damage: 3, offDamage: 3,
+    faces: [GRAZE, cast("Hex", "hit", hex("weak", 1)), HIT, cast("Curse Bolt", "hit", hex("exposed", 2)), HIT, cast("Malediction", "crit", hex("doom", 3))],
+    text: "Wand; works in the off-hand. Statuses you apply get +1 stack for every curse you carry.",
+    hooks: { onStatusApplied: (_b, self, t, s) => { const c = self.persist["curseCount"] ?? 0; if (c && t !== self && st(t, s) > 0) t.statuses[s] = st(t, s) + c; } } }),
+  ep({ kind: "weapon", slot: "main", id: "cu_wand_woe", name: "Wand of Woe", tags: ["Hex", "Arcane"], damage: 3, offDamage: 3,
+    faces: [GRAZE, cast("Woe", "hit", hex("weak", 2)), HIT, cast("Woe", "hit", hex("weak", 2)), cast("Sorrow", "crit", hex("exposed", 2)), CRIT],
+    text: "Wand; works in the off-hand. Spell Amp +20% for every curse you carry.", hooks: { stats: stat((s, c) => { s.spellAmp += 20 * c; }) } }),
+  ep({ kind: "weapon", slot: "main", id: "cu_accursed_falchion", name: "Accursed Falchion", tags: ["Hex", "Crit", "Strike"], damage: 7, faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT],
+    text: "One-handed. Crits on 5 and 6. +6% Crit chance for every curse you carry.", hooks: { stats: stat((s, c) => { s.critChance += 6 * c; }) } }),
+  ep({ kind: "weapon", slot: "main", id: "cu_hexbite_hatchet", name: "Hexbite Hatchet", tags: ["Hex", "Strike"], damage: 7, faces: PLAIN,
+    text: "One-handed axe. Its hits apply 1 Weak for every curse you carry.",
+    hooks: { onHit: (b: Battle, c: AttackCtx) => { const n = c.attacker.persist["curseCount"] ?? 0; if (!c.offhand && n) applyStatus(b, c.attacker, c.defender, "weak", n); } } }),
+  ep({ kind: "weapon", slot: "main", id: "cu_staff_ill_omen", name: "Staff of Ill Omen", tags: ["Hex", "Arcane"], damage: 5,
+    faces: [cast("Omen", "graze", hex("weak", 2)), cast("Hex Bolt", "hit", hex("exposed", 2)), HIT, cast("Hex Bolt", "hit", hex("exposed", 2)), cast("Doom Bolt", "crit", hex("doom", 3)), cast("Ruin", "crit", hex("doom", 5))],
+    text: "Staff. Hex spells. Spell Amp +15% for every curse you carry.", hooks: { stats: stat((s, c) => { s.spellAmp += 15 * c; }) } }),
+  // Curse-Eaters
+  ep({ kind: "weapon", slot: "main", id: "ce_malison_greatstaff", name: "Malison Greatstaff", tags: ["Hex", "Arcane"], damage: 7, twoHanded: true,
+    faces: [cast("Hex", "graze", hex("weak", 2)), cast("Devour", "hit", hex("exposed", 2)), HIT, cast("Devour", "hit", hex("exposed", 2)), cast("Unbind", "crit", hex("doom", 4)), cast("Unmake", "crit", hex("doom", 6))],
+    text: "Curse-Eater greatstaff. Two-handed. Each Hit or Crit devours one of your curses (gone for good) and deals +350% damage. No curses, no bonus.", hooks: { modifyAttack: (b, c) => { eatCurse(b, c, 3.5); } } }),
+  ep({ kind: "weapon", slot: "main", id: "ce_wand_unbinding", name: "Wand of Unbinding", tags: ["Hex", "Arcane", "Crit"], damage: 4, offDamage: 4,
+    faces: [GRAZE, cast("Unbind", "hit", hex("weak", 1)), HIT, cast("Unbind", "hit", hex("weak", 1)), CRIT, cast("Release", "crit", hex("exposed", 3))],
+    text: "Curse-Eater wand; works in the off-hand. Each Crit devours one of your curses (gone for good) and deals +300% damage. No curses, no bonus.", hooks: { modifyAttack: (b, c) => { eatCurse(b, c, 3, true); } } })
 ];
