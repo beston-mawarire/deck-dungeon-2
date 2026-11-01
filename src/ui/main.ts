@@ -28,6 +28,8 @@ loadLibrary();
 const app = document.getElementById("app")!;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 /** Combat speed (Options): 1 = normal, 0.5 = fast, 0.2 = very fast. */
+/** Shown on the title screens. */
+const VERSION = `v${__APP_VERSION__} · build ${__APP_BUILD__}`;
 let speed = (() => { try { return Number(localStorage.getItem("dd2-speed") ?? "1") || 1; } catch { return 1; } })();
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms * speed));
 
@@ -226,7 +228,8 @@ function titleScreen() {
     const p = getItem(og.passive);
     return `<button class="room" data-origin="${o}"><span class="ic">${{ warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" }[o]}</span><b>${og.name}</b>
       <span class="sub">${esc(og.blurb)}</span><p>${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p><p><b style="display:inline">${esc(p.name)}:</b> ${esc(p.text)}.</p></button>`;
-  }).join("")}</div>`;
+  }).join("")}</div>
+  <p class="version">${VERSION}</p>`;
 }
 
 function codexScreen() {
@@ -703,6 +706,7 @@ function splashScreen() {
       <button class="big" data-options>⚙️ Options</button>
     </div>
     <p class="sub splash-foot">🏅 ${meta.renown} Renown · ${meta.runs} runs · ${meta.wins} wins</p>
+    <p class="version">${VERSION}</p>
   </div>`;
 }
 
