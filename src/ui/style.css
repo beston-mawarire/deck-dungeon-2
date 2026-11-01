@@ -653,3 +653,6 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .backup-panel input { background: #120e18; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-family: ui-monospace, monospace; min-width: 0; }
 .lb-plates { font-size: .78rem; color: #c9d1e0; margin-left: 4px; }
 .ruin-line { color: #d9c8ff; font-weight: 700; }
+.menu-btns.two { grid-template-columns: 1fr 1fr; margin: 0 0 12px; }
+.menu-btns button.info-btn { color: #d6f0ff; border-color: #5a8fb8; background: linear-gradient(180deg, #2c4a66, #1c2f44); }
+.info-pop .menu-btns.two { margin: 12px 0 0; }

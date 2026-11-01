@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.18.2
+- Title screen: Renown, unlocks, the Codex and How to play now live behind an ℹ️ Info button, beside 🏆 Leaderboards (on both the Campaign and Abyss Run tabs).
+
 ## 1.18.1
 - Abyss chests are much richer: Wooden chests give Uncommon to Epic, Iron chests Rare to Legendary.
 - Trinket slots are labelled Trinket 1, Trinket 2 (and Trinket 3 ★) everywhere.

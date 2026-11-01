@@ -56,6 +56,7 @@ let menuTab: "campaign" | "abyss" = "campaign";
 /** Adding a Vanadium Plate is for good: the first tap arms it, the second applies it. */
 let plateArmed = false;
 let restoreOpen = false;
+let infoOpen = false;
 let restoreMsg = "";
 const vaultOf = (m: Meta) => ({ shards: m.ruinShards ?? 0, plates: m.plates ?? 0, classPlates: m.classPlates ?? {} });
 /** Which mode's story popup is open on the title screen. */
@@ -271,8 +272,6 @@ function hud(r: Run) {
 // ---------- Title, Codex ----------
 
 function titleScreen() {
-  const locked = lockedIds(meta);
-  const next = UNLOCK_TIERS.find(t => meta.renown < t.at);
   const sv = savedSummary();
   const cont = sv ? `<button class="primary continue" data-continue>▶ Continue your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run · ${sv.mode === "abyss" ? `Abyss depth ${sv.floor}` : `${sv.mode === "endless" ? "Endless " : ""}floor ${sv.floor}`} · level ${sv.level}</button>` : "";
   const tabs = `<div class="menu-tabs" role="tablist">
@@ -286,6 +285,7 @@ function titleScreen() {
       ${abyss ? `<span class="plate-line">⬛ ${pl} Vanadium Plate${pl === 1 ? "" : "s"}${pl ? ` · +${Math.round(PLATE_BONUS * pl * 100)}% HP, Armor, Damage` : ""}</span>` : ""}
       <span class="sub">${esc(og.blurb)}</span><p>${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p><p><b style="display:inline">${esc(p.name)}:</b> ${esc(p.text)}.</p></button>`;
   }).join("")}</div>`;
+  const infoRow = `<div class="menu-btns two"><button class="info-btn" data-info>ℹ️ Info</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>`;
   const head = `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>`;
   if (menuTab === "abyss") {
     const shards = meta.ruinShards ?? 0;
@@ -303,18 +303,28 @@ function titleScreen() {
         <p class="sub">Vanadium Plates make a hero stronger in the Abyss only. Once given, a plate stays with that hero for good.</p>
         ${originCards(true)}
         ${backupPanel()}`;
-    return `${head}${tabs}${cont}${body}<p class="version">${VERSION}</p>`;
+    return `${head}${tabs}${infoRow}${cont}${body}<p class="version">${VERSION}</p>`;
   }
-  return `${head}${tabs}
+  return `${head}${tabs}${infoRow}
   <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
-  <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span></div>
-    <div class="menu-btns"><button data-codex>📖 Codex</button><button data-help>❓ How to play</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>
-    ${next ? `<p class="sub">Next unlock at ${next.at} Renown: <b>${esc(next.name)}</b> (${locked.size} items still locked)</p>` : `<p class="sub">Everything is unlocked.</p>`}</div>
   ${cont}
   <div class="story-row"><span>🏰 ${FLOORS} floors, ${FLOORS} bosses. The Hollow King waits at the bottom, and beyond him, deeper still.</span><button class="story-btn" data-story="campaign">📖 Click to read story</button></div>
   <h2 class="bright">Choose an origin</h2>
   ${originCards(false)}
   <p class="version">${VERSION}</p>`;
+}
+
+/** Info: Renown and unlocks, the Codex and How to play. */
+function infoPopup() {
+  const locked = lockedIds(meta);
+  const next = UNLOCK_TIERS.find(t => meta.renown < t.at);
+  return `<div class="overlay popup-wrap"><div class="popup info-pop">
+    <button class="small closex closebtn" data-closeinfo aria-label="Close">✕</button>
+    <h1 class="center bigname">ℹ️ Info</h1>
+    <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span></div>
+      ${next ? `<p class="sub">Next unlock at ${next.at} Renown: <b>${esc(next.name)}</b> (${locked.size} items still locked)</p>` : `<p class="sub">Everything is unlocked.</p>`}</div>
+    <div class="menu-btns two" style="margin-top:12px"><button data-codex>📖 Codex</button><button data-help>❓ How to play</button></div>
+  </div></div>`;
 }
 
 /** Ruin Shards and Vanadium Plates are backed up to the server; the backup code restores them on another device. */
@@ -1375,7 +1385,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${infoOpen && !helpOpen ? infoPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -1600,7 +1610,9 @@ function bind() {
     on("[data-mode]", el => { mode = el.dataset.mode as Mode; });
     on("[data-story]", el => { storyOpen = el.dataset.story as Mode; });
     on("[data-closestory]", () => { storyOpen = null; });
-    on("[data-codex]", () => { view = "codex"; });
+    on("[data-codex]", () => { view = "codex"; infoOpen = false; });
+    on("[data-info]", () => { infoOpen = true; });
+    on("[data-closeinfo]", () => { infoOpen = false; });
     on("[data-back]", () => { view = "title"; });
     on("[data-play]", () => { view = "title"; });
     on("[data-home]", () => { view = "splash"; });
