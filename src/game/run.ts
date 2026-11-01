@@ -358,12 +358,14 @@ export function combatAction(run: Run, action: Action) {
   if (b.over) afterFight(run);
 }
 
+export const AUTO_BATTLE_FLOOR = 3;
 /** Auto-battle is offered against normal foes, Elites and Champions (not bosses, dragons, goblins or named foes)
  *  once plain attacks are sure to win. */
 export function canAutoBattle(run: Run): boolean {
   const s = run.scene;
   if (s.t !== "combat" || s.battle.over) return false;
   if (!["normal", "elite", "champion"].includes(s.rank)) return false;
+  if (run.floor < AUTO_BATTLE_FLOOR) return false;
   if (s.then && ["dragon", "death", "goblin", "unique"].includes(s.then)) return false;
   return autoBattleWins(s.battle);
 }
@@ -838,9 +840,10 @@ export function sellItem(run: Run, uid: number): string | null {
 }
 
 /** Shop prices grow with the floor: +12% per floor below the first. */
-/** Odds that a beaten normal monster transforms into a Champion: 0 until 14 plain fights in a row, then 3% rising 2% per fight. */
+/** Odds that a beaten normal monster transforms into a Champion: 0 until 14 plain fights in a row,
+ *  then 10%, rising 6% with every plain fight after that (a long enough streak all but guarantees it). */
 export function transformationChance(streak: number): number {
-  return streak < TRANSFORM_STREAK ? 0 : 0.03 + 0.02 * (streak - TRANSFORM_STREAK);
+  return streak < TRANSFORM_STREAK ? 0 : Math.min(0.9, 0.1 + 0.06 * (streak - TRANSFORM_STREAK));
 }
 export const TRANSFORM_STREAK = 14;
 const STREAK_NEUTRAL: RoomType[] = ["shop", "rest", "forge", "shrine", "wooden", "iron", "boss"];
