@@ -603,6 +603,7 @@ function bag(r: Run) {
     <h2>Talents</h2>${list(h.talents)}
     ${Object.keys(h.curses).length ? `<h2>Curses</h2>${list(h.curses)}` : ""}
     ${inCombat ? "" : reactionsPanel(r)}
+    <p class="version">${VERSION}</p>
   </div></div>`;
 }
 
@@ -670,6 +671,7 @@ function helpPopup() {
       "Read the enemy's chips (Unholy, Conductive, Thief…) — they tell you what works."])}
     ${helpGlossary()}
     <div class="row" style="justify-content:center;margin-top:14px"><button class="primary" data-closehelp>Got it</button></div>
+    <p class="version">${VERSION}</p>
   </div></div>`;
 }
 
@@ -1007,7 +1009,7 @@ function render2() {
       else celebrate(["rare", "epic", "legendary"].includes(getItem(relicNow).rarity ?? "") ? (getItem(relicNow).rarity as string) : "rare", "NEW RELIC", false);
     }
   }
-  app.innerHTML = `${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${menuOpen ? runMenu(r) : ""}`;
+  app.innerHTML = `${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${menuOpen ? runMenu(r) : ""}`;
   bind();
 }
 
