@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.11.5
+- The Endless mode button reads "Endless · how far?".
+
 ## 1.11.4
 - Story buttons are lavender. The chosen mode now has a ✓, a bright edge and a gold glow; the other mode is greyed back.
 
