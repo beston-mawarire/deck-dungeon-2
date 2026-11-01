@@ -402,3 +402,4 @@ button.tonic { border-color: #b06cf0; }
 .chip.angel { border-color: #f3e3a2; color: #fff4c8; font-weight: 700; box-shadow: 0 0 10px rgba(255,240,180,.35); }
 .angel-tile { border-color: rgba(243,227,162,.7); }
 .clover-tile { border-color: rgba(95,208,138,.6); }
+h2.bright { color: #e4d6f2; text-shadow: 0 1px 6px rgba(200,170,255,.25); }
