@@ -615,7 +615,7 @@ function bountyPopup(r: Run) {
     <p><b>${n}/${q.target}</b> done · <b>${q.roomsLeft}</b> room${q.roomsLeft === 1 ? "" : "s"} left</p>
     <p>Reward: <b>${esc(rewardText(q.reward))}</b></p>
     ${bountyDone(r) ? `<p class="crimson-ink">Done! You'll be paid when you're back on the path.</p>` : ""}
-    <div class="row" style="justify-content:center"><button class="primary" data-closebounty>✕ Close</button></div></div></div>`;
+    <div class="row" style="justify-content:center"><button class="closebtn" data-closebounty>✕ Close</button></div></div></div>`;
 }
 
 function tributeScene(r: Run) {
@@ -707,7 +707,7 @@ function leaderboardPopup() {
   else body = `<ol class="lb-list">${lbRows.map(row => `<li class="${row.you ? "you" : ""} ${row.rank <= 3 ? `top${row.rank}` : ""}"><span class="lb-rank">${row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}</span><span class="lb-nm">${ORIGIN_IC[row.origin] ?? ""} ${esc(row.name)}${row.you ? " <i>(you)</i>" : ""}</span><b class="lb-val">${fmtN(row.value)}</b></li>`).join("")}</ol>
     ${lbMe ? `<p class="lb-me">You: #${lbMe.rank} · ${fmtN(lbMe.value)}</p>` : ""}`;
   return `<div class="overlay"><div class="inner lb-pop">
-    <div class="row"><h1 class="grow">🏆 Leaderboards</h1><button data-lbclose>✕ Close</button></div>
+    <div class="row"><h1 class="grow">🏆 Leaderboards</h1><button class="closebtn" data-lbclose>✕ Close</button></div>
     <div class="row lb-tabs">${tabs}</div>
     <p class="sub">Each player's best run · ${esc(unit.unit)}</p>
     ${body}
@@ -832,7 +832,7 @@ function bag(r: Run) {
     : `${extras}${reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`}`;
   return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
-    <div class="row"><h1 class="grow">Inventory</h1><button data-closebag>✕ Close</button></div>
+    <div class="row"><h1 class="grow">Inventory</h1><button class="closebtn" data-closebag>✕ Close</button></div>
     <div class="bag-tabs" role="tablist">${tabs.map(([id, label, badge]) => `<button class="bag-tab ${bagTab === id ? "active" : ""}" data-bagtab="${id}" role="tab" aria-selected="${bagTab === id}"><span class="bt-ic">${label.split(" ")[0]}${badge}</span><span class="bt-lb">${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
     <div class="bag-body">${body}</div>
     <p class="version">${VERSION}</p>
@@ -889,7 +889,7 @@ function helpPopup() {
   const toc = Object.entries(SECTIONS).map(([t, [icon, tone]]) => `<a class="help-chip tone-${tone}" href="#${anchor(t)}">${icon} ${t}</a>`).join("")
     + `<a class="help-chip tone-grey" href="#help-reference">📖 Reference</a>`;
   return `<div class="overlay"><div class="inner help">
-    <div class="row"><h1 class="grow">❓ How to play</h1><button data-closehelp>✕ Close</button></div>
+    <div class="row"><h1 class="grow">❓ How to play</h1><button class="closebtn" data-closehelp>✕ Close</button></div>
     <nav class="help-toc">${toc}</nav>
     ${sec("The goal", [
       "Pick a class, then go down through <b>5 floors</b>. Each floor is a few rooms you choose from, then a boss. Beat the fifth boss to win.",
@@ -1012,7 +1012,7 @@ function musicSliders(only?: Track) {
 function optionsPopup() {
   const sp = (v: number, label: string) => `<button class="${speed === v ? "primary" : ""}" data-speed="${v}">${label}</button>`;
   return `<div class="overlay popup-wrap"><div class="popup">
-    <button class="small closex" data-closeoptions aria-label="Close">✕</button>
+    <button class="small closex closebtn" data-closeoptions aria-label="Close">✕</button>
     <h1 class="center bigname">⚙️ Options</h1>
     <h2>Sound</h2>
     <div class="row"><button data-mute class="${isMuted() ? "" : "primary"}">${isMuted() ? "🔇 Sound off" : "🔊 Sound on"}</button></div>
@@ -1029,11 +1029,11 @@ function optionsPopup() {
 function storyPopup(m: Mode) {
   const st = STORIES[m];
   return `<div class="overlay popup-wrap"><div class="popup story-pop">
-    <button class="small closex" data-closestory aria-label="Close">✕</button>
+    <button class="small closex closebtn" data-closestory aria-label="Close">✕</button>
     <div class="center bigicon">${st.icon}</div>
     <h1 class="center bigname">${st.title}</h1>
     <p class="story-text">${esc(st.text)}</p>
-    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-closestory>✕ Close</button></div>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="closebtn" data-closestory>✕ Close</button></div>
   </div></div>`;
 }
 
@@ -1082,7 +1082,7 @@ function originPopup(o: OriginId) {
   const og = ORIGINS[o];
   const p = getItem(og.passive);
   return `<div class="overlay popup-wrap"><div class="popup">
-    <button class="small closex" data-closeorigin aria-label="Close">✕</button>
+    <button class="small closex closebtn" data-closeorigin aria-label="Close">✕</button>
     <h1 class="center bigname">${og.name}</h1>
     <div class="center bigicon">${ORIGIN_ICON[o]}</div>
     <p>${esc(ORIGIN_PITCH[o])}</p>
