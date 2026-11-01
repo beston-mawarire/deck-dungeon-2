@@ -572,3 +572,16 @@ button.lb-btn { border-color: #e8b84a; color: #f1d38a; }
 .lb-nm i { color: #a68ae6; font-style: normal; font-size: .85rem; }
 .lb-val { color: #f1d38a; font-size: 1.05rem; }
 .lb-me { text-align: center; color: #c9b3ff; font-weight: 700; }
+
+/* Menu: Codex, How to play and Leaderboards — bright, roomy, one per row on phones */
+.menu-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+.menu-btns button { font-size: 1.05rem; font-weight: 700; padding: 13px 12px; color: #f3ecff; border: 1px solid #7a68a0;
+  background: linear-gradient(180deg, #4a3c63, #33284a); box-shadow: 0 3px 0 #1d1629, 0 4px 10px rgba(0,0,0,.35); }
+.menu-btns button.lb-btn { color: #ffe39a; border-color: #c9a25a; background: linear-gradient(180deg, #5a4626, #3a2d18); }
+@media (max-width: 520px) { .menu-btns { grid-template-columns: 1fr; } }
+/* The story, now that there's one mode */
+.story-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; margin: 14px 0 6px; padding: 10px 12px; border: 1px solid #5a4b70; border-radius: 12px; background: #221c2b; }
+.story-row span { color: #d9d1e6; line-height: 1.4; }
+button.story-btn { flex: 0 0 auto; font-size: .95rem; padding: 10px 14px; font-weight: 700; background: linear-gradient(180deg, #d4c2ff, #a68ae6); border: 1px solid #6e56b0; color: #1c1236; box-shadow: 0 3px 0 #54408f; }
+.splash-buttons .lb-btn { color: #ffe39a; border-color: #c9a25a; }
+@media (max-width: 520px) { .story-row { flex-direction: column; align-items: stretch; text-align: left; } button.story-btn { width: 100%; } }

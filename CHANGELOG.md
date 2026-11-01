@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.13.0
+- One mode: the Campaign (you can still keep delving after the fifth boss). The mode picker and Endless option are gone; the story has its own button.
+- 🏆 Leaderboards button on the title page.
+- Menu: Codex, How to play and Leaderboards are bigger, brighter buttons, each on its own row on phones.
+
 ## 1.12.1
 - Leaderboards are live (deck-dungeon-leaderboard.bestondeveloper.workers.dev).
 

@@ -264,15 +264,11 @@ function titleScreen() {
   const next = UNLOCK_TIERS.find(t => meta.renown < t.at);
   return `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>
   <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
-  <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span><span class="grow"></span><button class="small" data-codex>📖 Codex</button><button class="small lb-btn" data-lb>🏆 Leaderboards</button><button class="small" data-help>❓ How to play</button></div>
+  <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span></div>
+    <div class="menu-btns"><button data-codex>📖 Codex</button><button data-help>❓ How to play</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>
     ${next ? `<p class="sub">Next unlock at ${next.at} Renown: <b>${esc(next.name)}</b> (${locked.size} items still locked)</p>` : `<p class="sub">Everything is unlocked.</p>`}</div>
   ${(() => { const sv = savedSummary(); return sv ? `<button class="primary continue" data-continue>▶ Continue your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run · ${sv.mode === "endless" ? "Endless " : ""}floor ${sv.floor} · level ${sv.level}</button>` : ""; })()}
-  <h2 class="bright">Mode</h2>
-  <div class="modes">
-    <div class="modebtn ${mode === "campaign" ? "active" : ""}" data-mode="campaign" role="button" tabindex="0"><span>🏰 Campaign · ${FLOORS} floors</span><span class="story-chip" data-story="campaign" role="button">📖 Click to read story</span></div>
-    <div class="modebtn ${mode === "endless" ? "active" : ""}" data-mode="endless" role="button" tabindex="0"><span>♾️ Endless · how far?</span><span class="story-chip" data-story="endless" role="button">📖 Click to read story</span></div>
-  </div>
-  <p class="sub">${mode === "campaign" ? `${FLOORS} floors, ${FLOORS} bosses — the Hollow King waits at the bottom.` : `Past floor ${FLOORS}, better rewards. The bosses you didn't meet return, and new ones are forged from the depths.`}</p>
+  <div class="story-row"><span>🏰 ${FLOORS} floors, ${FLOORS} bosses. The Hollow King waits at the bottom, and beyond him, deeper still.</span><button class="story-btn" data-story="campaign">📖 Click to read story</button></div>
   <h2 class="bright">Choose an origin</h2>
   <div class="cards origin-cards">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
     const og = ORIGINS[o];
@@ -1000,6 +996,7 @@ function splashScreen() {
       ${musicBlocked() ? `<button class="small music-hint" data-startmusic>🎵 Tap for music</button>` : ""}
       <button class="primary big" data-play>${sv ? "▶ Play (continue available)" : "▶ Play"}</button>
       <button class="big" data-help>❓ How to play</button>
+      <button class="big lb-btn" data-lb>🏆 Leaderboards</button>
       <button class="big" data-options>⚙️ Options</button>
     </div>
     <p class="sub splash-foot">🏅 ${meta.renown} Renown · ${meta.runs} runs · ${meta.wins} wins</p>
@@ -1092,7 +1089,7 @@ function originPopup(o: OriginId) {
     <p class="sub"><b>${esc(p.name)}:</b> ${esc(p.text)}.</p>
     <p class="sub">Starts with ${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p>
     ${savedSummary() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
-    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>${mode === "endless" ? "♾️ Start Endless" : "🏰 Start Campaign"}</button><button data-closeorigin>Back</button></div>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>🏰 Start Campaign</button><button data-closeorigin>Back</button></div>
   </div></div>`;
 }
 
@@ -1236,7 +1233,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -1477,7 +1474,7 @@ function bind() {
     on("[data-help]", () => { helpOpen = true; });
     on("[data-closehelp]", () => { helpOpen = false; });
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode; });
-    on("[data-start]", () => { lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; run = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
+    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; run = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
     return;
   }
   const r = run;
