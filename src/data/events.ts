@@ -24,6 +24,8 @@ export interface EventCtx {
   upgradeWeapon: () => string | null;
   potions: () => number;
   floor: () => number;
+  /** The Gold this event asks for at the current floor (its minGold, scaled like shop prices). */
+  needGold: () => number;
   /** The Chained Dragon wakes: a fight starts when the choice resolves. */
   wakeDragon: () => void;
   /** The Blind Dragon's blessing: one random blessing for 5 fights. Returns its text. */
@@ -49,7 +51,7 @@ export interface GameEvent {
   weight?: number;
   /** Only from this floor down. */
   minFloor?: number;
-  /** Only if you carry at least this much Gold. */
+  /** Only if you carry at least this much Gold (scaled up each floor, like shop prices). */
   minGold?: number;
   /** Unique encounters happen at most once per run. */
   unique?: boolean;
@@ -65,7 +67,7 @@ export const EVENTS: GameEvent[] = [
   { id: "lucky_pot", weight: 0.35, minFloor: 6, minGold: 100, title: "The Lucky Pot", icon: "🍀",
     text: "A battered iron pot sits in a shaft of light that has no business being down here. It hums. It smells faintly of clover.",
     options: [
-      { label: "Throw all your Gold into the pot", hint: "Every coin you carry (the pot wants at least 100)", can: c => c.gold() >= 100,
+      { label: "Throw all your Gold into the pot", hint: "Every coin you carry (the pot wants a minimum, more on deeper floors)", can: c => c.gold() >= c.needGold(),
         run: c => { const g = c.gold(); c.addGold(-g); c.cloverBlessing(); return `${g} Gold clatters into the pot and vanishes. A tiny green leaf drifts down into your palm. 🍀 Four-Leaf Clover: your next 4 chests are a little luckier (slightly better odds of Rare, Epic and Legendary).`; } },
       { label: "Leave", run: () => "You keep your coin. The humming stops." }
     ] },
@@ -94,7 +96,7 @@ export const EVENTS: GameEvent[] = [
   { id: "blind_dragon", weight: 1, minFloor: 3, minGold: 100, title: "A Dragon's Blessing", icon: "🐲",
     text: "You find a blind, toothless dragon chained within a room. \"Hello… Is anyone there? Would you spare me some gold? I will grant you a blessing in return.\"",
     options: [
-      { label: "Give it 70% of your Gold", hint: "A blessing for your next 5 fights",
+      { label: "Give it 70% of your Gold", hint: "A blessing for your next 5 fights", can: c => c.gold() >= c.needGold(),
         run: c => { c.addGold(-Math.ceil(c.gold() * 0.7)); return `The old dragon smiles. "Thank you, friend." ${c.dragonBlessing()} (for your next 5 fights).`; } },
       { label: "Leave", run: () => "\"…Hello?\" it calls after you." }
     ] },

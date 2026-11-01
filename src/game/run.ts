@@ -237,7 +237,7 @@ function enterRoom(run: Run, room: RoomType) {
     case "rest": run.scene = { t: "rest", done: false }; return;
     case "event": {
       // Unique encounters (the dragon, the mirror pool) happen at most once per run.
-      const pool = EVENTS.filter(e => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= (e.minGold ?? 0));
+      const pool = EVENTS.filter(e => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e));
       const ev = pickW(run.rng, Object.fromEntries(pool.map(e => [e.id, e.weight ?? 1])) as Record<string, number>);
       const evDef = pool.find(e => e.id === ev)!;
       if (evDef.unique) run.seenBosses.add(`e:${evDef.id}`);
@@ -800,6 +800,7 @@ export function chooseEvent(run: Run, i: number) {
     addPity: (n: number) => { run.loot.pity += n; },
     potions: () => h.potions,
     floor: () => run.floor,
+    needGold: () => eventGold(run, s.ev),
     wakeDragon: () => { dragonWakes = true; },
     dragonBlessing: () => {
       const k = 1 + Math.floor(run.rng() * 6);
@@ -838,7 +839,7 @@ export function eventOptionAvailable(run: Run, i: number): boolean {
   const opt = s.ev.options[i];
   if (!opt.can) return true;
   // Only read-only helpers are used by `can`.
-  return opt.can({ gold: () => h.f.gold, hp: () => h.f.hp, relicCount: () => Object.keys(h.relics).length, potions: () => h.potions } as never);
+  return opt.can({ gold: () => h.f.gold, hp: () => h.f.hp, relicCount: () => Object.keys(h.relics).length, potions: () => h.potions, floor: () => run.floor, needGold: () => eventGold(run, s.ev) } as never);
 }
 
 // ---------- Fusions ----------
@@ -1157,4 +1158,9 @@ function useClover(run: Run): boolean {
   f.persist["cloverChests"]--;
   if (f.persist["cloverChests"] === 0) run.message = "🍀 The Four-Leaf Clover wilts.";
   return true;
+}
+
+/** Gold an event asks for here: its minimum, scaled up each floor like shop prices. */
+export function eventGold(run: Run, e: GameEvent): number {
+  return e.minGold ? Math.round(e.minGold * priceMult(run)) : 0;
 }
