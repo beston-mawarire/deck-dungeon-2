@@ -1,0 +1,17 @@
+# Changelog
+
+Versions follow MAJOR.MINOR.PATCH:
+- **MINOR** (1.x.0) for new content or features: items, events, mechanics, screens.
+- **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
+- The build number (git commit count) still goes up with every deploy.
+
+## 1.1.0
+- Inventory: Gear · Stats · Relics · Talents · Extras tabs; reactions live at the bottom of Extras.
+- Talents tab has Talents and Curses sub-tabs; talent names in Rare blue, curses in purple, relic names in gold.
+- Equipped and Backpack gear shown in bordered groups (inventory, shop, forge, blacksmith); brighter slot labels.
+- Backpack holds 6 items.
+- Haste stacks (one extra action per turn); enemies cap at 4.
+- Dice take the colour of the status or reaction their roll caused.
+
+## 1.0.0
+- The full game up to build 101.

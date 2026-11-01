@@ -638,7 +638,7 @@ function bag(r: Run) {
     bagTab === "gear" ? `${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}<div class="gear-group equipped-group"><div class="group-label">🛡️ Equipped</div><div class="cards">${equipped}</div></div>
       <div class="gear-group backpack-group"><div class="group-label">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</div><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div></div>`
     : bagTab === "stats" ? `${stats}<p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>`
-    : bagTab === "relics" ? `<h2>Relics</h2>${list(h.relics)}`
+    : bagTab === "relics" ? `<h2>Relics</h2>${list(h.relics, "relic-line")}`
     : bagTab === "talents" ? `<div class="row subtabs">
         <button class="small ${talentSub === "talents" ? "primary" : ""}" data-talentsub="talents">🌟 Talents${nTalents ? ` (${nTalents})` : ""}</button>
         <button class="small curse-subtab ${talentSub === "curses" ? "primary" : ""}" data-talentsub="curses">🕯️ Curses${nCurses ? ` (${nCurses})` : ""}</button></div>

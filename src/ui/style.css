@@ -413,8 +413,8 @@ h2.bright { color: #e4d6f2; text-shadow: 0 1px 6px rgba(200,170,255,.25); }
 .bag-tab.active i { background: rgba(0,0,0,.18); }
 
 /* Equipped vs backpack groups (inventory, shop, forge, smith) */
-.gear-group { border: 2px solid #3a3146; border-radius: 12px; padding: 22px 10px 10px; margin: 18px 0 10px; position: relative; background: rgba(255,255,255,.02); }
-.gear-group .group-label { position: absolute; top: -12px; left: 12px; padding: 2px 10px; border-radius: 8px; font-weight: 700; font-size: .85rem; letter-spacing: .04em; background: #08060c; border: 2px solid currentColor; }
+.gear-group { border: 2px solid #3a3146; border-radius: 12px; padding: 26px 10px 10px; margin: 24px 0 10px; position: relative; background: rgba(255,255,255,.02); }
+.gear-group .group-label { position: absolute; top: -15px; left: 12px; padding: 3px 12px; border-radius: 8px; font-weight: 800; font-size: 1.05rem; letter-spacing: .04em; background: #08060c; border: 2px solid currentColor; }
 .equipped-group { border-color: rgba(230,180,80,.65); background: rgba(230,180,80,.05); }
 .equipped-group .group-label { color: var(--gold); }
 .backpack-group { border-color: rgba(120,170,230,.55); background: rgba(120,170,230,.04); }
@@ -427,3 +427,4 @@ h2.bright { color: #e4d6f2; text-shadow: 0 1px 6px rgba(200,170,255,.25); }
 .talent-line .nm { color: var(--rare); }
 .curse-line, .curse-line .nm, .curse-line .desc { color: #c08cff; }
 .subtabs { margin: 4px 0 2px; gap: 8px; }
+.relic-line .nm { color: var(--gold); }
