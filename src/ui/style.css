@@ -628,3 +628,5 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .forge-side .side-n { white-space: nowrap; font-style: normal; font-size: .72rem; color: #1a1208; background: var(--gold); border-radius: 8px; padding: 1px 6px; margin-left: 4px; }
 .forge-side-body { border: 1px solid #c08a42; border-top: none; border-radius: 0 0 12px 12px; padding: 10px; background: rgba(42,32,24,.35); }
 .forge-pick { margin-top: 8px; border-color: #8a6534; }
+.gear-group.solo { padding-top: 10px; margin-top: 4px; }
+.backpack-group.solo { border-color: #3a4a66; }

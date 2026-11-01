@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.17.0
+- The Forge now asks before you scrap or offer gear you're wearing ("Keep it" backs out).
+- Spoils → Artefacts now shows your Starmetal.
+- Inventory → Gear has Equipped and Backpack sub-tabs.
+
 ## 1.16.0
 - Every Forge tab now has Equipped and Backpack sub-tabs. Scrap, Upgrade and Transmute work on either.
 - Offering and Combine keep what you've picked across both sub-tabs, so you can offer worn and carried items together, or combine an equipped item with its twin in your bag (the result stays equipped). The number picked shows on each sub-tab.

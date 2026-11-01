@@ -72,6 +72,9 @@ type BagTab = "gear" | "stats" | "relics" | "talents" | "extras";
 let bagTab: BagTab = "gear";
 let talentSub: "talents" | "curses" = "talents";
 let spoilsSub: "relics" | "artefacts" = "relics";
+let gearSub: "equipped" | "backpack" = "equipped";
+/** Forge: waiting for the player to confirm destroying gear they're wearing. */
+let forgeAsk: { kind: "scrap"; uid: number } | { kind: "offer" } | null = null;
 /** Shown when the device loses its connection. */
 let offlineOpen = false;
 let endArmed = false;
@@ -640,6 +643,18 @@ function bountyScene(r: Run) {
     <div class="row" style="margin-top:12px"><button data-leave>Leave the board</button></div>`;
 }
 
+function forgeAskPopup(r: Run) {
+  const a = forgeAsk!;
+  const uids = a.kind === "scrap" ? [a.uid] : [...offerSel];
+  const wornItems = uids.map(u => findItem(r.hero, u)).filter(f => f && f.where !== "backpack").map(f => f!.item);
+  const verb = a.kind === "scrap" ? "Scrap" : "Sacrifice";
+  return `<div class="overlay popup-wrap"><div class="popup ask-pop">
+    <div class="beat-icon">⚠️</div><h2 class="bright">${a.kind === "scrap" ? "Scrap gear you're wearing?" : "Offer gear you're wearing?"}</h2>
+    <p>You're wearing ${wornItems.map(i => `<b>${esc(itemName(i))}</b>`).join(", ")}. ${a.kind === "scrap" ? "It will be broken down for good." : "It goes into the Forge with the rest, and may come back as nothing."}</p>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="danger" data-askyes>${verb}</button><button data-askno>Keep it</button></div>
+  </div></div>`;
+}
+
 function bountyPopup(r: Run) {
   const q = r.bounty;
   if (!q) return "";
@@ -840,7 +855,8 @@ function bag(r: Run) {
     h.crucible
       ? artTile(true, "⚗️", "Transmuter's Crucible", "At a Forge: Common → Legendary", `At any Forge (Transmute tab): turn a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} Starmetal.`)
       : artTile(false, "⚗️", "Empty", "Some Champions carry one…", "A strange tool some Champions carry. With it, a Forge can do something remarkable…")
-  }${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}</div></div>`;
+  }${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}</div>
+    <div class="stile extra-tile star-tile" style="margin-top:10px"><span>✴️</span><span><b>${h.starmetal}</b> Starmetal<span class="sub">${h.crucible ? "Feeds the Crucible at the Forge. Jewellers want it too." : "A rare metal from the finest gear. Scrap Legendaries and Crimson gear for it."}</span></span></div></div>`;
   const extras = `${keepsakeHtml}${heartHtml}
     <div class="bag-extras">
       <div class="stile extra-tile key-tile"><span>🗝️</span><span><b>${h.crimsonKeys}</b> Crimson Key${h.crimsonKeys === 1 ? "" : "s"}<span class="sub">${h.crimsonKeys ? "A Crimson Vault will be on your path." : "Dropped by Crimson Elites, deep below."}</span></span></div>
@@ -865,8 +881,11 @@ function bag(r: Run) {
     ["extras", "✨ Extras", `${blessCount + h.scrolls + h.crimsonKeys ? `<i>${blessCount + h.scrolls + h.crimsonKeys}</i>` : ""}`]
   ];
   const body =
-    bagTab === "gear" ? `${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}<div class="gear-group equipped-group"><div class="group-label">🛡️ Equipped</div><div class="cards">${equipped}</div></div>
-      <div class="gear-group backpack-group"><div class="group-label">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</div><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div></div>`
+    bagTab === "gear" ? `${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}<div class="row subtabs">
+        <button class="small ${gearSub === "equipped" ? "primary" : ""}" data-gearsub="equipped">🛡️ Equipped</button>
+        <button class="small ${gearSub === "backpack" ? "primary" : ""}" data-gearsub="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</button></div>
+      ${gearSub === "equipped" ? `<div class="gear-group equipped-group solo"><div class="cards">${equipped}</div></div>`
+        : `<div class="gear-group backpack-group solo"><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div></div>`}`
     : bagTab === "stats" ? `${stats}<p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>`
     : bagTab === "relics" ? `<div class="row subtabs">
         <button class="small ${spoilsSub === "relics" ? "primary" : ""}" data-spoilsub="relics">💎 Relics${nRelics ? ` (${nRelics})` : ""}</button>
@@ -1336,7 +1355,7 @@ function render2() {
       else celebrate(["rare", "epic", "legendary"].includes(getItem(relicNow).rarity ?? "") ? (getItem(relicNow).rarity as string) : "rare", "NEW RELIC", false);
     }
   }
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
   bind();
 }
 
@@ -1535,9 +1554,10 @@ function bind() {
   });
   app.querySelectorAll<HTMLElement>("[data-act]").forEach(el => (el.onclick = () => { if (!busy) void playTurn(el.dataset.act as Action); }));
   on("[data-potion]", () => { say(drinkPotion(r)); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
-  on("[data-bag]", () => { bagOpen = true; bagTab = "gear"; });
+  on("[data-bag]", () => { bagOpen = true; bagTab = "gear"; gearSub = "equipped"; });
   on("[data-closebag]", () => { bagOpen = false; });
   on("[data-bagtab]", el => { bagTab = el.dataset.bagtab as BagTab; talentSub = "talents"; spoilsSub = "relics"; });
+  on("[data-gearsub]", el => { gearSub = el.dataset.gearsub as typeof gearSub; });
   on("[data-spoilsub]", el => { spoilsSub = el.dataset.spoilsub as typeof spoilsSub; });
   on("[data-talentsub]", el => { talentSub = el.dataset.talentsub as "talents" | "curses"; });
   on("[data-take]", el => say(takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack")));
@@ -1589,11 +1609,16 @@ function bind() {
   on("[data-leave]", () => { r.message = ""; forgeTab = "upgrade"; offerSel.clear(); advance(r); });
   on("[data-up]", el => say(forgeUpgrade(r, Number(el.dataset.up))));
   on("[data-rr]", el => say(forgeReroll(r, Number(el.dataset.rr))));
-  on("[data-forgetab]", el => { forgeTab = el.dataset.forgetab as typeof forgeTab; offerSel.clear(); combineSel = []; });
+  on("[data-forgetab]", el => { forgeTab = el.dataset.forgetab as typeof forgeTab; offerSel.clear(); combineSel = []; forgeAsk = null; });
   on("[data-forgeside]", el => { forgeSide = el.dataset.forgeside as typeof forgeSide; });
   on("[data-combinesel]", el => { const u = Number(el.dataset.combinesel); combineSel = combineSel.includes(u) ? combineSel.filter(x => x !== u) : [...combineSel, u].slice(0, 2); });
   on("[data-offersel]", el => { const u = Number(el.dataset.offersel); if (offerSel.has(u)) offerSel.delete(u); else offerSel.add(u); });
-  on("[data-offer]", () => { const out = forgeOffer(r, [...offerSel]); offerSel.clear(); if (typeof out === "string") { say(out); sfx("lose"); } else { say(`The Forge gives you: ${itemName(out)} (${out.rarity})`, false); if (RANK[out.rarity]) { celebrated.add(out.uid); celebrate(out.rarity); } else sfx("chest"); } });
+  const doOffer = () => { const out = forgeOffer(r, [...offerSel]); offerSel.clear(); if (typeof out === "string") { say(out); sfx("lose"); } else { say(`The Forge gives you: ${itemName(out)} (${out.rarity})`, false); if (RANK[out.rarity]) { celebrated.add(out.uid); celebrate(out.rarity); } else sfx("chest"); } };
+  const doScrap = (uid: number) => { const n = salvage(r.hero, uid); say(`+${n} Scrap`, false); sfx("hit"); };
+  const worn = (uid: number) => { const w = findItem(r.hero, uid)?.where; return !!w && w !== "backpack"; };
+  on("[data-offer]", () => { if ([...offerSel].some(worn)) forgeAsk = { kind: "offer" }; else doOffer(); });
+  on("[data-askyes]", () => { const a = forgeAsk; forgeAsk = null; if (a?.kind === "offer") doOffer(); else if (a) doScrap(a.uid); });
+  on("[data-askno]", () => { forgeAsk = null; });
   on("[data-combine]", el => { const [a, b] = el.dataset.combine!.split(",").map(Number); combineSel = []; const out = forgeCombine(r, a, b); if (typeof out === "string") say(out); else { say(`Combined into ${itemName(out)} (${out.rarity}, lv ${out.level})`, false); if (RANK[out.rarity]) { celebrated.add(out.uid); celebrate(out.rarity, out.rarity === "epic" ? "EPIC FORGED" : undefined); } else sfx("chest"); } });
   on("[data-transmute]", el => { const out = forgeTransmute(r, Number(el.dataset.transmute)); if (typeof out === "string") say(out); else { say("The Crucible roars. A Legendary takes shape…", false); celebrate("legendary", "TRANSMUTED"); } });
   on("[data-fuse]", el => { const err = fuse(r, el.dataset.fuse!); say(err ?? `Fused: ${getItem(el.dataset.fuse!).name}!`, !!err); if (!err) sfx("legendary"); });
@@ -1604,7 +1629,7 @@ function bind() {
   on("[data-endless]", () => { if (run) run.submitted = false; lbResult = null; continueEndless(r); recorded = null; });
   on("[data-unequip]", el => say(unequip(r.hero, el.dataset.unequip as EquipSlot)));
   on("[data-equip]", el => { const it = r.hero.backpack.find(i => i.uid === Number(el.dataset.equip)); if (it) say(equipItem(r.hero, it, el.dataset.slot as EquipSlot)); });
-  on("[data-forgescrap]", el => { const n = salvage(r.hero, Number(el.dataset.forgescrap)); say(`+${n} Scrap`, false); sfx("hit"); });
+  on("[data-forgescrap]", el => { const u = Number(el.dataset.forgescrap); if (worn(u)) forgeAsk = { kind: "scrap", uid: u }; else doScrap(u); });
   on("[data-salvage]", el => { const n = salvage(r.hero, Number(el.dataset.salvage)); say(`+${n} Scrap`, false); });
   on("[data-reveal]", el => { const err = reveal(r.hero, Number(el.dataset.reveal)); say(err ?? "The Legendary reveals its true power!", !!err); if (!err) celebrate("legendary", "REVEALED"); });
 }
