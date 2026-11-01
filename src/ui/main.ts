@@ -52,7 +52,7 @@ let helpOpen = false;
 /** The in-run menu (main menu / end run). */
 let menuOpen = false;
 /** Which Inventory tab is open. */
-type BagTab = "gear" | "stats" | "extras" | "relics" | "reactions";
+type BagTab = "gear" | "stats" | "relics" | "talents" | "extras";
 let bagTab: BagTab = "gear";
 /** Shown when the device loses its connection. */
 let offlineOpen = false;
@@ -397,7 +397,7 @@ function shopScene(r: Run) {
   <p class="sub">Bought gear goes to your bag; equip it from 🎒.</p>
   <h2>Sell</h2>
   ${r.scene.soldItem ? `<p class="sub">You sold ${esc(r.scene.soldItem)}. The Merchant won't buy anything else this visit.</p>`
-    : `<p class="sub">The Merchant will buy one item per visit, for 40% of its price.</p><div class="cards">${allGear(r).map(it => itemCard(it, `<button class="small" data-sell="${it.uid}">Sell · ${sellPrice(it)} 🪙</button>`, false, equippedSlot(r, it))).join("")}</div>`}
+    : `<p class="sub">The Merchant will buy one item per visit, for 40% of its price.</p>${gearGroups(r, it => itemCard(it, `<button class="small" data-sell="${it.uid}">Sell · ${sellPrice(it)} 🪙</button>`, false, equippedSlot(r, it)))}`}
   <div class="row" style="margin-top:12px">${r.shopRerolls >= MAX_SHOP_REROLLS ? `<button disabled>No rerolls left</button>` : `<button data-reroll>Reroll stock · ${shopRerollCost(r)} 🪙 (${MAX_SHOP_REROLLS - r.shopRerolls} left)</button>`}<button class="primary" data-leave>Leave</button></div>`;
 }
 
@@ -406,6 +406,15 @@ const SLOT_LABEL: Record<EquipSlot, string> = { main: "Main hand", off: "Off-han
 function equippedSlot(r: Run, it: GearItem): string {
   const s = EQUIP_SLOTS.find(k => r.hero.equip[k]?.uid === it.uid);
   return s ? SLOT_LABEL[s] : "";
+}
+
+/** Equipped items and backpack items in two bordered, labelled groups. */
+function gearGroups(r: Run, card: (it: GearItem) => string, filter: (it: GearItem) => boolean = () => true): string {
+  const eq = EQUIP_SLOTS.map(s => r.hero.equip[s]).filter((x): x is GearItem => !!x && filter(x));
+  const bp = r.hero.backpack.filter(filter);
+  const grp = (cls: string, label: string, items: GearItem[]) =>
+    `<div class="gear-group ${cls}"><div class="group-label">${label}</div>${items.length ? `<div class="cards">${items.map(card).join("")}</div>` : `<p class="sub">Nothing here.</p>`}</div>`;
+  return grp("equipped-group", "🛡️ Equipped", eq) + grp("backpack-group", `🎒 Backpack ${r.hero.backpack.length}/${BACKPACK_SIZE}`, bp);
 }
 
 function allGear(r: Run): GearItem[] {
@@ -422,7 +431,7 @@ function forgeScene(r: Run) {
   let body = "";
   if (forgeTab === "upgrade") {
     body = `<p class="sub">Upgrading raises an item's level (more damage, stronger bonuses). Each reroll of the same item costs more.</p>
-    <div class="cards">${allGear(r).map(it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small" data-rr="${it.uid}" ${rerollsLeft(it) ? "" : "disabled"}>${rerollsLeft(it) ? `Reroll · ${rerollCost(it, r.hero)} ⚙️ (${rerollsLeft(it)} left)` : "No rerolls left"}</button>` : ""}`, false, equippedSlot(r, it))).join("")}</div>`;
+    ${gearGroups(r, it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small" data-rr="${it.uid}" ${rerollsLeft(it) ? "" : "disabled"}>${rerollsLeft(it) ? `Reroll · ${rerollCost(it, r.hero)} ⚙️ (${rerollsLeft(it)} left)` : "No rerolls left"}</button>` : ""}`, false, equippedSlot(r, it)))}`;
   } else if (forgeTab === "offer") {
     const chosen = h.backpack.filter(i => offerSel.has(i.uid));
     const odds = offeringOdds(offeringValue(chosen));
@@ -489,7 +498,7 @@ function smithScene(r: Run) {
   if (r.scene.t !== "smith") return "";
   const s = r.scene;
   return `<h2>⚒️ The Wandering Blacksmith</h2><div class="panel"><p>"Two jobs, free of charge. Pick your pieces."</p><p class="sub"><b>${s.uses}</b> free upgrade${s.uses === 1 ? "" : "s"} left. Each one raises an item's level by 1, like the Forge.</p></div>
-    ${s.uses > 0 ? `<div class="cards">${allGear(r).map(it => itemCard(it, `<button class="small primary" data-smith="${it.uid}">Upgrade free · to level ${it.level + 1}</button>`)).join("")}</div>` : ""}
+    ${s.uses > 0 ? `${gearGroups(r, it => itemCard(it, `<button class="small primary" data-smith="${it.uid}">Upgrade free · to level ${it.level + 1}</button>`, false, equippedSlot(r, it)))}` : ""}
     <div class="row" style="margin-top:12px"><button class="${s.uses ? "" : "primary"}" data-leave>${s.uses ? "Leave the rest" : "Thank him and move on"}</button></div>`;
 }
 
@@ -534,7 +543,7 @@ function bag(r: Run) {
   const slotName: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket", trinket3: "Trinket ★" };
   const equipped = openSlots(h).map(s => {
     const it = h.equip[s];
-    return `<div><div class="sub">${slotName[s]}</div>${it ? itemCard(it, inCombat ? "" : `<button class="small" data-unequip="${s}">Unequip</button>${revealBtn(r, it)}`) : `<div class="item"><span class="sub">Empty</span></div>`}</div>`;
+    return `<div><div class="slot-label">${slotName[s]}</div>${it ? itemCard(it, inCombat ? "" : `<button class="small" data-unequip="${s}">Unequip</button>${revealBtn(r, it)}`) : `<div class="item"><span class="sub">Empty</span></div>`}</div>`;
   }).join("");
   const pack = h.backpack.map(it => itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(s => `<button class="small primary" data-equip="${it.uid}" data-slot="${s}">Equip${slotsFor(it, h).length > 1 ? ` (${slotName[s].toLowerCase()}${s === "trinket2" ? " 2" : ""})` : ""}</button>`).join("")}<button class="small" data-salvage="${it.uid}">Scrap</button>${revealBtn(r, it)}`, !inCombat)).join("");
   const list = (o: Record<string, number>) => Object.entries(o).map(([id, n]) => { const d = getItem(id); return `<p><b>${esc(d.name)}</b>${n > 1 ? ` ×${n}` : ""} — ${esc(fillText(d.text, n))}</p>`; }).join("") || `<p class="sub">None yet.</p>`;
@@ -597,21 +606,22 @@ function bag(r: Run) {
       ${dragon > 0 ? `<div class="stile extra-tile bless-tile"><span>🐲</span><span><b>Dragon's Blessing</b><span class="sub">${esc(BLESSINGS[h.f.persist["blessKind"] ?? 0])} · ${dragon} fight${dragon === 1 ? "" : "s"} left</span></span></div>` : ""}
       ${blessCount === 0 ? `<div class="stile extra-tile empty-slot" style="grid-column: 1 / -1"><span>✨</span><span><b>None</b><span class="sub">Shrines and strange creatures in the dark sometimes grant blessings…</span></span></div>` : ""}
     </div>`;
-  const nRelics = Object.keys(h.relics).length + Object.keys(h.talents).length + Object.keys(h.curses).length;
+  const nRelics = Object.keys(h.relics).length + Object.keys(h.curses).length;
+  const nTalents = Object.keys(h.talents).length;
   const tabs: [BagTab, string, string][] = [
     ["gear", "⚔️ Gear", `${h.backpack.length ? `<i>${h.backpack.length}</i>` : ""}`],
     ["stats", "📊 Stats", ""],
-    ["extras", "✨ Extras", `${blessCount + h.scrolls + h.crimsonKeys ? `<i>${blessCount + h.scrolls + h.crimsonKeys}</i>` : ""}`],
     ["relics", "💎 Relics", `${nRelics ? `<i>${nRelics}</i>` : ""}`],
-    ["reactions", "✴️ Reactions", ""]
+    ["talents", "🌟 Talents", `${nTalents ? `<i>${nTalents}</i>` : ""}`],
+    ["extras", "✨ Extras", `${blessCount + h.scrolls + h.crimsonKeys ? `<i>${blessCount + h.scrolls + h.crimsonKeys}</i>` : ""}`]
   ];
   const body =
-    bagTab === "gear" ? `${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}<h2>Equipped</h2><div class="cards">${equipped}</div>
-      <h2>Backpack ${h.backpack.length}/${BACKPACK_SIZE}</h2><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div>`
+    bagTab === "gear" ? `${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}<div class="gear-group equipped-group"><div class="group-label">🛡️ Equipped</div><div class="cards">${equipped}</div></div>
+      <div class="gear-group backpack-group"><div class="group-label">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</div><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div></div>`
     : bagTab === "stats" ? `${stats}<p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>`
-    : bagTab === "extras" ? extras
-    : bagTab === "relics" ? `<h2>Relics</h2>${list(h.relics)}<h2>Talents</h2>${list(h.talents)}${Object.keys(h.curses).length ? `<h2>Curses</h2>${list(h.curses)}` : ""}`
-    : reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`;
+    : bagTab === "relics" ? `<h2>Relics</h2>${list(h.relics)}${Object.keys(h.curses).length ? `<h2>Curses</h2>${list(h.curses)}` : ""}`
+    : bagTab === "talents" ? `<h2>Talents</h2>${list(h.talents)}`
+    : `${extras}${reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`}`;
   return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
     <div class="row"><h1 class="grow">Inventory</h1><button data-closebag>Close</button></div>
@@ -1202,7 +1212,7 @@ function bind() {
   });
   app.querySelectorAll<HTMLElement>("[data-act]").forEach(el => (el.onclick = () => { if (!busy) void playTurn(el.dataset.act as Action); }));
   on("[data-potion]", () => { drinkPotion(r); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
-  on("[data-bag]", () => { bagOpen = true; bagTab = r.scene.t === "combat" ? "reactions" : "gear"; });
+  on("[data-bag]", () => { bagOpen = true; bagTab = r.scene.t === "combat" ? "extras" : "gear"; });
   on("[data-closebag]", () => { bagOpen = false; });
   on("[data-bagtab]", el => { bagTab = el.dataset.bagtab as BagTab; });
   on("[data-take]", el => say(takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack")));

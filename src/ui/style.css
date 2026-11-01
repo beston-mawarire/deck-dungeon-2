@@ -33,7 +33,7 @@ button:disabled { opacity: .4; cursor: default; }
 .item { background: var(--panel2); border: 2px solid var(--line); border-radius: 12px; padding: 10px; }
 .item .nm { font-weight: 700; }
 .item ul { margin: 6px 0; padding-left: 18px; font-size: .86rem; color: #d9cfe4; }
-.item .meta { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.item .meta { font-size: .78rem; color: #cbbfa6; text-transform: uppercase; letter-spacing: .06em; }
 .r-common { border-color: var(--common); } .r-common .nm { color: #d6d6dc; }
 .r-uncommon { border-color: var(--uncommon); } .r-uncommon .nm { color: var(--uncommon); }
 .r-rare { border-color: var(--rare); } .r-rare .nm { color: var(--rare); }
@@ -411,3 +411,13 @@ h2.bright { color: #e4d6f2; text-shadow: 0 1px 6px rgba(200,170,255,.25); }
 .bag-tab.active { background: linear-gradient(180deg, #f3ca63, #dba73a); color: #1a1408; border-color: #f0c15a; font-weight: 700; }
 .bag-tab i { font-style: normal; display: inline-block; margin-left: 3px; vertical-align: top; min-width: 18px; padding: 0 5px; border-radius: 999px; background: rgba(255,255,255,.14); font-size: .75rem; line-height: 18px; text-align: center; }
 .bag-tab.active i { background: rgba(0,0,0,.18); }
+
+/* Equipped vs backpack groups (inventory, shop, forge, smith) */
+.gear-group { border: 2px solid #3a3146; border-radius: 12px; padding: 22px 10px 10px; margin: 18px 0 10px; position: relative; background: rgba(255,255,255,.02); }
+.gear-group .group-label { position: absolute; top: -12px; left: 12px; padding: 2px 10px; border-radius: 8px; font-weight: 700; font-size: .85rem; letter-spacing: .04em; background: #08060c; border: 2px solid currentColor; }
+.equipped-group { border-color: rgba(230,180,80,.65); background: rgba(230,180,80,.05); }
+.equipped-group .group-label { color: var(--gold); }
+.backpack-group { border-color: rgba(120,170,230,.55); background: rgba(120,170,230,.04); }
+.backpack-group .group-label { color: #9cc4f0; }
+.gear-group > .cards { margin-top: 0; }
+.slot-label { color: #f0e2c0; font-weight: 700; font-size: .85rem; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 4px; }
