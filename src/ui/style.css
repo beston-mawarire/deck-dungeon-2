@@ -519,3 +519,7 @@ button.jfuse:disabled { opacity: .5; }
 .jpick { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 8px 10px; border-width: 2px; }
 .jpick .sub { font-size: .75rem; }
 .fusable-hint { color: #9cf0d8; }
+.item .infused { margin: 6px 0; padding: 6px 8px; border-radius: 8px; border: 1px solid #5fc8e8; background: rgba(95,200,232,.1); color: #bfeeff; font-size: .85rem; }
+.upgraded-note { font-size: .75rem; margin: 2px 0 4px; }
+.jtabs { gap: 8px; margin: 6px 0 8px; }
+.jwarn { color: #ffb08a; font-size: .88rem; margin: 0 0 8px; }

@@ -80,7 +80,7 @@ export type Scene =
   /** The Dragon Sanctum: unify with your Dragon Heart. */
   | { t: "sanctum"; done?: boolean }
   /** The Jeweller's bench: two slots, then pay to fuse. */
-  | { t: "jeweller"; left?: JewelSlot; right?: JewelSlot }
+  | { t: "jeweller"; mode: "fuse" | "infuse"; left?: JewelSlot; right?: JewelSlot; tries: number }
   /** The Bounty Board: three contracts to choose from. */
   | { t: "bounty"; offers: Bounty[] }
   | { t: "alchemist"; stock: { id: string; price: number; sold?: boolean }[] }
@@ -277,7 +277,7 @@ function enterRoom(run: Run, room: RoomType) {
     }
     case "shop": run.shopRerolls = 0; run.scene = { t: "shop", stock: shopStock(run), markup: Math.round((wealthMult(run) - 1) * 100) }; return;
     case "forge": run.scene = { t: "forge" }; return;
-    case "jeweller": run.scene = { t: "jeweller" }; return;
+    case "jeweller": run.scene = { t: "jeweller", mode: "fuse", tries: 0 }; return;
     case "rest": run.scene = { t: "rest", done: false }; return;
     case "event": {
       // Unique encounters (the dragon, the mirror pool) happen at most once per run.
@@ -894,6 +894,7 @@ export function forgeUpgrade(run: Run, uid: number): string | null {
   if (h.scrap < cost) return `Needs ${cost} Scrap.`;
   h.scrap -= cost;
   found.item.level++;
+  found.item.upgrades = (found.item.upgrades ?? 0) + 1;
   for (const k of Object.keys(found.item.bonuses)) found.item.bonuses[k]++;
   recompute(h);
   return null;
@@ -977,6 +978,7 @@ export function chooseEvent(run: Run, i: number) {
       if (!eq.length) return null;
       const it = eq[Math.floor(run.rng() * eq.length)];
       it.level += n;
+      it.upgrades = (it.upgrades ?? 0) + n;
       for (const k of Object.keys(it.bonuses)) it.bonuses[k] += n;
       recompute(h);
       return itemName(it);
@@ -990,7 +992,7 @@ export function chooseEvent(run: Run, i: number) {
     addCrimsonKey: () => { h.crimsonKeys++; },
     seePast: () => { toPast = true; },
     seeFuture: () => { toFuture = true; },
-    upgradeWeapon: () => { const w = h.equip.main; if (!w) return "You have no weapon."; w.level++; for (const k of Object.keys(w.bonuses)) w.bonuses[k]++; recompute(h); return null; }
+    upgradeWeapon: () => { const w = h.equip.main; if (!w) return "You have no weapon."; w.level++; w.upgrades = (w.upgrades ?? 0) + 1; for (const k of Object.keys(w.bonuses)) w.bonuses[k]++; recompute(h); return null; }
   };
   const opt = s.ev.options[i];
   if (!opt || (opt.can && !opt.can(ctx))) return;
@@ -1100,6 +1102,8 @@ export function forgeCombine(run: Run, a: number, b: number): GearItem | string 
   if (!A || !B || a === b) return "Pick two items.";
   if (A.base !== B.base) return "Only two of the same item can be combined.";
   if (A.rarity === "legendary" || B.rarity === "legendary" || A.rarity === "crimson" || B.rarity === "crimson") return "Legendary and Crimson items can't be combined.";
+  if (baseOf(A.base).noJewel) return `The ${baseOf(A.base).name} can't be combined.`;
+  if (A.infused || B.infused) return "Infused items can't be combined.";
   const top = RARITIES.indexOf(A.rarity) >= RARITIES.indexOf(B.rarity) ? A : B;
   let r = RARITIES.indexOf(top.rarity);
   // Greater kit items are fixed to their rarity, so they never get promoted.
@@ -1120,7 +1124,7 @@ export function forgeCombine(run: Run, a: number, b: number): GearItem | string 
   const wasEquipped = findItem(h, top.uid)?.where;
   removeGear(h, A.uid);
   removeGear(h, B.uid);
-  const out: GearItem = { uid: h.nextUid++, base: top.base, rarity, level, bonuses, epic, revealed: true };
+  const out: GearItem = { uid: h.nextUid++, base: top.base, rarity, level, bonuses, epic, revealed: true, upgrades: 1 + Math.max(A.upgrades ?? 0, B.upgrades ?? 0) };
   if (wasEquipped && wasEquipped !== "backpack") equipItem(h, out, wasEquipped);
   else h.backpack.push(out);
   markFound(run, out);
@@ -1131,7 +1135,7 @@ export function forgeCombine(run: Run, a: number, b: number): GearItem | string 
 /** Pairs of identical items the hero could combine. */
 export function combinablePairs(run: Run): [GearItem, GearItem][] {
   const h = run.hero;
-  const all = [...Object.values(h.equip).filter((x): x is GearItem => !!x), ...h.backpack].filter(i => i.rarity !== "legendary" && i.rarity !== "crimson");
+  const all = [...Object.values(h.equip).filter((x): x is GearItem => !!x), ...h.backpack].filter(i => i.rarity !== "legendary" && i.rarity !== "crimson" && !baseOf(i.base).noJewel && !i.infused);
   const pairs: [GearItem, GearItem][] = [];
   for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) if (all[i].base === all[j].base) pairs.push([all[i], all[j]]);
   return pairs;
@@ -1270,25 +1274,58 @@ function settleBounty(run: Run): boolean {
 // ---------- The Jeweller ----------
 
 export type JewelSlot = { kind: "relic"; id: string } | { kind: "item"; uid: number };
+export const JEWEL_TRIES = 2;
+const TIER: Partial<Record<Rarity, number>> = { rare: 1, epic: 2, legendary: 3 };
+const JEWEL_RARITIES = ["rare", "epic", "legendary"];
 
-/** What one attempt at the bench costs: Gold (scaled like shop prices) and Scrap. Paid even if nothing happens. */
-export function jewelCost(run: Run): { gold: number; scrap: number } {
-  return { gold: Math.round(25 * shopMult(run)), scrap: 6 + 2 * run.floor };
+const slotItem = (run: Run, s?: JewelSlot) => (s && s.kind === "item" ? findItem(run.hero, s.uid) : null);
+const isTrinket = (it: GearItem) => baseOf(it.base).slot === "trinket";
+const isInfusable = (it: GearItem) => ["weapon", "off", "armour"].includes(baseOf(it.base).kind);
+
+/** What the next try costs, once both slots are filled. Rare, Epic and Legendary work costs Starmetal, and much more. */
+export function jewelCost(run: Run): { gold: number; scrap: number; starmetal: number } | null {
+  const s = run.scene;
+  if (s.t !== "jeweller" || !s.left || !s.right) return null;
+  const m = shopMult(run), f = run.floor;
+  if (s.mode === "fuse" && s.left.kind === "relic" && s.right.kind === "relic") return { gold: Math.round(25 * m), scrap: 6 + 2 * f, starmetal: 0 };
+  const A = slotItem(run, s.left)?.item, B = slotItem(run, s.right)?.item;
+  if (!A || !B) return null;
+  if (s.mode === "infuse") {
+    const t = TIER[A.rarity] ?? 1;
+    return { gold: Math.round([80, 160, 300][t - 1] * m), scrap: 0, starmetal: [2, 4, 6][t - 1] };
+  }
+  const t = Math.max(TIER[A.rarity] ?? 1, TIER[B.rarity] ?? 1);
+  return { gold: Math.round([60, 120, 200][t - 1] * m), scrap: [15 + 3 * f, 25 + 4 * f, 40 + 5 * f][t - 1], starmetal: t };
 }
 
 const sameSlot = (a?: JewelSlot, b?: JewelSlot) => !!a && !!b && a.kind === b.kind && (a.kind === "relic" ? a.id === (b as { id: string }).id : a.uid === (b as { uid: number }).uid);
 
-/** Put something on the bench (left first, then right). Only trinkets and relics. */
+export function jewelMode(run: Run, mode: "fuse" | "infuse") {
+  const s = run.scene;
+  if (s.t !== "jeweller" || s.mode === mode) return;
+  s.mode = mode;
+  s.left = s.right = undefined;
+}
+
+/** Put something on the bench. Fuse: two trinkets or two relics. Infuse: a weapon, off-hand or armour (left) and a trinket (right). */
 export function jewelPlace(run: Run, slot: JewelSlot): string | null {
   const s = run.scene;
   if (s.t !== "jeweller") return null;
-  if (slot.kind === "item") {
-    const it = findItem(run.hero, slot.uid)?.item;
-    if (!it || baseOf(it.base).slot !== "trinket") return "Only trinkets and relics go on the bench.";
-  } else if (!run.hero.relics[slot.id]) return null;
   if (sameSlot(s.left, slot) || sameSlot(s.right, slot)) return "That's already on the bench.";
+  if (slot.kind === "relic") {
+    if (s.mode === "infuse") return "Only gear can be infused.";
+    if (!run.hero.relics[slot.id]) return null;
+  } else {
+    const it = findItem(run.hero, slot.uid)?.item;
+    if (!it) return null;
+    if (s.mode === "infuse") {
+      if (isTrinket(it)) { s.right = slot; return null; }
+      if (isInfusable(it)) { s.left = slot; return null; }
+      return "Only weapons, off-hands, armour and trinkets.";
+    }
+    if (!isTrinket(it)) return "Only trinkets and relics can be fused.";
+  }
   if (!s.left) s.left = slot;
-  else if (!s.right) s.right = slot;
   else s.right = slot;
   return null;
 }
@@ -1297,16 +1334,45 @@ export function jewelClear(run: Run, side: "left" | "right") {
   if (run.scene.t === "jeweller") run.scene[side] = undefined;
 }
 
-/** Pay and try. Returns what happened, and the name of anything made. */
+/** The Jeweller's rules. Breaking one costs nothing: he just won't do it. */
+export function jewelCheck(run: Run): string | null {
+  const s = run.scene;
+  const h = run.hero;
+  if (s.t !== "jeweller") return "";
+  if (s.tries >= JEWEL_TRIES) return "\"That's enough for one visit.\" The Jeweller is already packing up.";
+  if (!s.left || !s.right) return "Put something in both slots first.";
+  if (s.mode === "fuse" && s.left.kind === "relic" && s.right.kind === "relic") return null;
+  if (s.left.kind !== "item" || s.right.kind !== "item") return "Relics only fuse with relics, and trinkets with trinkets.";
+  const A = slotItem(run, s.left)?.item, B = slotItem(run, s.right)?.item;
+  if (!A || !B) return "Put something in both slots first.";
+  for (const it of [A, B]) {
+    if (!JEWEL_RARITIES.includes(it.rarity)) return "Only Rare, Epic and Legendary pieces can go on this bench.";
+    if ((it.upgrades ?? 0) > 0) return `"Someone's already worked on this ${baseOf(it.base).name}. I won't touch it." (Upgraded items can't be fused or infused.)`;
+    if (baseOf(it.base).noJewel) return `The ${baseOf(it.base).name} resists. It can't be fused or infused.`;
+    if (it.rarity === "legendary" && !it.revealed) return "Reveal that Legendary first.";
+  }
+  if (s.mode === "infuse") {
+    if (A.rarity !== B.rarity) return `The rarities must match (a ${A.rarity} needs a ${A.rarity} trinket).`;
+    if (A.infused) return `The ${itemName(A)} already holds an infusion.`;
+  }
+  const c = jewelCost(run)!;
+  if (h.f.gold < c.gold || h.scrap < c.scrap || h.starmetal < c.starmetal) return `The Jeweller wants ${c.gold} Gold${c.scrap ? `, ${c.scrap} Scrap` : ""}${c.starmetal ? ` and ${c.starmetal} Starmetal` : ""}.`;
+  return null;
+}
+
+/** Pay and try. A fusion that doesn't take still costs the fee. Two tries per visit. */
 export function jewelFuse(run: Run): { ok: boolean; msg: string; made?: string } {
   const s = run.scene;
   const h = run.hero;
-  if (s.t !== "jeweller" || !s.left || !s.right) return { ok: false, msg: "Put something in both slots first." };
-  const cost = jewelCost(run);
-  if (h.f.gold < cost.gold || h.scrap < cost.scrap) return { ok: false, msg: `The Jeweller wants ${cost.gold} Gold and ${cost.scrap} Scrap.` };
-  h.f.gold -= cost.gold;
-  h.scrap -= cost.scrap;
-  const L = s.left, R = s.right;
+  if (s.t !== "jeweller") return { ok: false, msg: "" };
+  const err = jewelCheck(run);
+  if (err !== null) return { ok: false, msg: err };
+  const c = jewelCost(run)!;
+  h.f.gold -= c.gold;
+  h.scrap -= c.scrap;
+  h.starmetal -= c.starmetal;
+  s.tries++;
+  const L = s.left!, R = s.right!;
   s.left = s.right = undefined;
   const nothing = { ok: false, msg: "The stones grind together, spark… and come apart. Nothing. The Jeweller pockets the fee anyway." };
   // Two relics: a fusion recipe.
@@ -1318,26 +1384,34 @@ export function jewelFuse(run: Run): { ok: boolean; msg: string; made?: string }
     grantRelic(run, rec.out);
     return { ok: true, msg: `The two melt into one: ${getItem(rec.out).name}!`, made: getItem(rec.out).name };
   }
-  // Two trinkets: a secret recipe.
-  if (L.kind === "item" && R.kind === "item") {
-    const A = findItem(h, L.uid), B = findItem(h, R.uid);
-    if (!A || !B) return nothing;
-    const rec = findRecipe(TRINKET_RECIPES, A.item.base, B.item.base);
-    if (!rec) return nothing;
-    const bonuses: Record<string, number> = { ...A.item.bonuses };
-    for (const [k, v] of Object.entries(B.item.bonuses)) bonuses[k] = Math.max(bonuses[k] ?? 0, v);
-    const out: GearItem = { uid: h.nextUid++, base: rec.out, rarity: "epic", level: Math.max(A.item.level, B.item.level), bonuses, epic: A.item.epic ?? B.item.epic, revealed: true };
-    const slot = A.where !== "backpack" ? A.where : B.where !== "backpack" ? B.where : null;
-    removeItem(h, A.item.uid);
-    removeItem(h, B.item.uid);
-    if (slot) h.equip[slot] = out;
-    else h.backpack.push(out);
-    markFound(run, out);
+  const A = findItem(h, (L as { uid: number }).uid)!, B = findItem(h, (R as { uid: number }).uid)!;
+  // Infusion: the trinket's effects and bonuses go into the gear, and the trinket is gone.
+  if (s.mode === "infuse") {
+    const t = B.item;
+    const tb = baseOf(t.base);
+    A.item.infused = tb.legendary && t.revealed ? tb.id : effectiveBase(t).id;
+    for (const [k, v] of Object.entries(t.bonuses)) A.item.bonuses[k] = Math.max(A.item.bonuses[k] ?? 0, v);
+    if (!A.item.epic && t.epic) A.item.epic = t.epic;
+    removeItem(h, t.uid);
     recompute(h);
-    run.stats.fusions++;
-    return { ok: true, msg: `The Jeweller holds it up to the light: ${baseOf(rec.out).name}!`, made: baseOf(rec.out).name };
+    return { ok: true, msg: `The ${tb.name} sinks into the ${itemName(A.item)} and is gone. Its power stays.`, made: itemName(A.item) };
   }
-  return nothing;
+  // Two trinkets: a secret recipe.
+  const rec = findRecipe(TRINKET_RECIPES, A.item.base, B.item.base);
+  if (!rec) return nothing;
+  const bonuses: Record<string, number> = { ...A.item.bonuses };
+  for (const [k, v] of Object.entries(B.item.bonuses)) bonuses[k] = Math.max(bonuses[k] ?? 0, v);
+  const rarity: Rarity = A.item.rarity === "legendary" || B.item.rarity === "legendary" ? "legendary" : "epic";
+  const out: GearItem = { uid: h.nextUid++, base: rec.out, rarity, level: Math.max(A.item.level, B.item.level), bonuses, epic: A.item.epic ?? B.item.epic, revealed: true };
+  const slot = A.where !== "backpack" ? A.where : B.where !== "backpack" ? B.where : null;
+  removeItem(h, A.item.uid);
+  removeItem(h, B.item.uid);
+  if (slot) h.equip[slot] = out;
+  else h.backpack.push(out);
+  markFound(run, out);
+  recompute(h);
+  run.stats.fusions++;
+  return { ok: true, msg: `The Jeweller holds it up to the light: ${baseOf(rec.out).name}!`, made: baseOf(rec.out).name };
 }
 
 // ---------- The Crossroads ----------
@@ -1387,9 +1461,11 @@ export function abandonRun(run: Run) {
 /** Give the hero a relic and queue its "New relic!" popup. */
 export function grantRelic(run: Run, id: string) {
   const h = run.hero;
+  const isNew = !h.relics[id];
   h.relics[id] = (h.relics[id] ?? 0) + 1;
   run.found.add(id);
-  (run.relicNews ??= []).push(id);
+  // A relic you already have just merges in (×2, stronger), silently.
+  if (isNew) (run.relicNews ??= []).push(id);
   recompute(h);
 }
 
@@ -1423,6 +1499,7 @@ export function smithUpgrade(run: Run, uid: number): string | null {
   const found = findItem(run.hero, uid);
   if (!found) return null;
   found.item.level++;
+  found.item.upgrades = (found.item.upgrades ?? 0) + 1;
   for (const k of Object.keys(found.item.bonuses)) found.item.bonuses[k]++;
   recompute(run.hero);
   s.uses--;

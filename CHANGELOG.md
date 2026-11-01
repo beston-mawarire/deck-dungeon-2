@@ -5,6 +5,13 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.11.0
+- Duplicate relics merge silently again (no popup).
+- Jeweller: **two tries per visit**. Trinket fusion now needs **Rare, Epic or Legendary** trinkets that haven't been upgraded, and costs ✴️ Starmetal plus much more Gold and Scrap (more for Epic and Legendary). Relic fusion keeps its smaller fee.
+- **Infuse** (new Jeweller tab): put a trinket into a weapon, off-hand or armour of the same rarity (Rare+, neither upgraded). The trinket's effects and bonuses move into the gear and the trinket is gone. Costs Gold and Starmetal, rising with rarity. Item cards show "💠 Infused".
+- Items now remember being upgraded (Forge, Blacksmith, altar, Combine); cards show it.
+- The plain fusing trinkets are now Rare and Epic. New Epic trinkets: War Totem, Sunstone, Serpent Ring, Gilded Thimble (each fuses with something) and three that can never be fused, infused or combined: Heartseeker Brooch, Pilgrim's Token, Stormcaller Torc. 15 secret trinket recipes in all.
+
 ## 1.10.0
 - **The Jeweller**: a new path that takes turns with the Forge. Put two things on the bench (left, right), press Combine, and pay Gold and Scrap — even if nothing happens. Relic fusions now happen here (the Forge just tells you a Jeweller could do it).
 - **6 new relic fusions** (Windwalker, Reaper's Toll, Thunderhead, Warlord's Banner, Undying Pack, Witch's Altar) from 10 new relics plus War Drum and Battle Standard. Relics that can fuse are labelled 🔗 Fusable in your inventory.

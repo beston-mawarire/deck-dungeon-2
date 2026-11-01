@@ -192,6 +192,8 @@ export function recompute(h: Hero) {
     add(real.legendary && it.revealed ? real.id : eb.id);
     for (const [id, n] of Object.entries(it.bonuses)) add(id, n);
     if (it.epic) add(it.epic);
+    // Infused at the Jeweller: the trinket's effects (and its Armor / Max HP) ride along.
+    if (it.infused) { add(it.infused); const tb = baseOf(it.infused); s.armor += tb.armor ?? 0; s.maxHp += tb.maxHp ?? 0; }
     s.armor += (eb.armor ?? 0) + (eb.armor ? Math.floor((it.level - 1) / 2) : 0);
     s.maxHp += eb.maxHp ?? 0;
     s.dodge += itemDodge(it);

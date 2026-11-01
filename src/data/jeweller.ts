@@ -55,15 +55,26 @@ const F = (d: Omit<GearBase, "onlyRarity" | "kind" | "slot">): GearBase => ({ ..
 
 /** Plain trinkets. Little or nothing on their own. */
 export const JEWEL_TRINKETS: GearBase[] = [
-  only("uncommon", { ...T, id: "tj_copper_band", name: "Copper Band", tags: ["Blood"], maxHp: 2, text: "+2 Max HP.", hooks: {} }),
-  only("uncommon", { ...T, id: "tj_glass_bead", name: "Glass Bead", tags: ["Luck"], text: "It catches the light.", hooks: {} }),
-  only("uncommon", { ...T, id: "tj_bone_charm", name: "Bone Charm", tags: ["Guard"], armor: 1, text: "+1 Armor.", hooks: {} }),
-  only("uncommon", { ...T, id: "tj_iron_ring", name: "Plain Iron Ring", tags: ["Strike"], text: "Heavy, and nothing more.", hooks: {} }),
+  only("rare", { ...T, id: "tj_copper_band", name: "Copper Band", tags: ["Blood"], maxHp: 2, text: "+2 Max HP.", hooks: {} }),
+  only("rare", { ...T, id: "tj_glass_bead", name: "Glass Bead", tags: ["Luck"], text: "It catches the light.", hooks: {} }),
+  only("rare", { ...T, id: "tj_bone_charm", name: "Bone Charm", tags: ["Guard"], armor: 1, text: "+1 Armor.", hooks: {} }),
+  only("rare", { ...T, id: "tj_iron_ring", name: "Plain Iron Ring", tags: ["Strike"], text: "Heavy, and nothing more.", hooks: {} }),
   only("rare", { ...T, id: "tj_silver_locket", name: "Silver Locket", tags: ["Blood"], maxHp: 5, text: "+5 Max HP. It won't open.", hooks: {} }),
   only("rare", { ...T, id: "tj_cats_eye", name: "Cat's Eye Stone", tags: ["Crit"], text: "+3% Crit chance.", hooks: { stats: s => { s.critChance += 3; } } }),
   only("rare", { ...T, id: "tj_obsidian_shard", name: "Obsidian Shard", tags: ["Strike"], text: "+1 Damage.", hooks: { stats: s => { s.damage += 1; } } }),
   only("epic", { ...T, id: "tj_moonstone", name: "Moonstone", tags: ["Tempo"], text: "+5% Dodge.", hooks: { stats: s => { s.dodge += 5; } } }),
-  only("epic", { ...T, id: "tj_amber_drop", name: "Amber Drop", tags: ["Luck"], text: "Something tiny is trapped inside.", hooks: {} })
+  only("epic", { ...T, id: "tj_amber_drop", name: "Amber Drop", tags: ["Luck"], text: "Something tiny is trapped inside.", hooks: {} }),
+  only("epic", { ...T, id: "tj_war_totem", name: "War Totem", tags: ["Strike"], text: "Start every fight with 1 Might.", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "might", 1) } }),
+  only("epic", { ...T, id: "tj_sunstone", name: "Sunstone", tags: ["Blood"], maxHp: 3, text: "+3 Max HP. Warm to the touch.", hooks: {} }),
+  only("epic", { ...T, id: "tj_serpent_ring", name: "Serpent Ring", tags: ["Poison"], text: "+1 Damage.", hooks: { stats: s => { s.damage += 1; } } }),
+  only("epic", { ...T, id: "tj_gilded_thimble", name: "Gilded Thimble", tags: ["Gold"], text: "Tiny, golden, useless.", hooks: {} }),
+  // Epic trinkets that can't be fused, infused or combined: good as they are.
+  only("epic", { ...T, id: "tj_heartseeker", name: "Heartseeker Brooch", tags: ["Crit"], noJewel: true, text: "Your first hit each fight is a Crit.",
+    hooks: { modifyAttack: (_b, c) => { if (!c.attacker.flags["heartseeker"] && (c.kind === "hit" || c.kind === "graze")) { c.attacker.flags["heartseeker"] = 1; c.kind = "crit"; c.mult = 2; c.ignoreArmor = true; } } } }),
+  only("epic", { ...T, id: "tj_pilgrim_token", name: "Pilgrim's Token", tags: ["Blood", "Holy"], noJewel: true, maxHp: 12, text: "+12 Max HP. Heal 3 as every fight begins.",
+    hooks: { onFightStart: (b, f) => { heal(b, f, 3, "Pilgrim's Token"); } } }),
+  only("epic", { ...T, id: "tj_stormcaller", name: "Stormcaller Torc", tags: ["Storm"], noJewel: true, text: "Your 6s Shock the enemy.",
+    hooks: { modifyAttack: (b, c) => { if (c.face === 6 && !c.offhand) applyStatus(b, c.attacker, c.defender, "shock", 1); } } })
 ];
 
 export const FUSED_TRINKETS: GearBase[] = [
@@ -89,6 +100,12 @@ export const FUSED_TRINKETS: GearBase[] = [
     hooks: { stats: s => { s.critChance += 10; s.critDmg = (s.critDmg ?? 0) + 50; } } }),
   F({ id: "tf_bone_drum", name: "Bone Drum", tags: ["Strike", "Hex"], armor: 1, text: "+1 Armor. Start every fight with 3 Might; the enemy starts with 2 Weak.",
     hooks: { onFightStart: (b, f) => { applyStatus(b, f, f, "might", 3); applyStatus(b, f, other(b, f), "weak", 2); } } }),
+  F({ id: "tf_eclipse", name: "Eclipse Pendant", tags: ["Tempo", "Crit"], text: "+8% Dodge, +8% Crit chance. Every attack you dodge gives you 1 Might.",
+    hooks: { stats: s => { s.dodge += 8; s.critChance += 8; }, onDodge: (b, c) => applyStatus(b, c.defender, c.defender, "might", 1) } }),
+  F({ id: "tf_vipers_gaze", name: "Viper's Gaze", tags: ["Poison", "Crit"], text: "+6% Crit chance. Every hit applies 1 Poison; Crits apply 3 more.",
+    hooks: { stats: s => { s.critChance += 6; }, onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "poison", c.kind === "crit" ? 4 : 1) } }),
+  F({ id: "tf_golden_thimble", name: "Golden Thimble", tags: ["Gold", "Kill"], text: "Every kill gives you 8 Gold.",
+    hooks: { onKill: (_b, c) => { c.attacker.gold += 8; } } }),
   F({ id: "tf_silver_hearth", name: "Hearth of Silver", tags: ["Blood"], maxHp: 25, text: "+25 Max HP. Heal 5% of your Max HP at the start of every fight.",
     hooks: { onFightStart: (b, f) => { heal(b, f, Math.ceil(f.maxHp * 0.05), "Hearth of Silver"); } } })
 ];
@@ -102,11 +119,14 @@ export const TRINKET_RECIPES: { a: string; b: string; out: string }[] = [
   { a: "tj_amber_drop", b: "tj_glass_bead", out: "tf_amber_hourglass" },
   { a: "tj_amber_drop", b: "t_lucky_coin", out: "tf_fortunes_amber" },
   { a: "tj_iron_ring", b: "t_ring_might", out: "tf_titans_ring" },
-  { a: "tj_copper_band", b: "tk_leech_ring", out: "tf_vampires_coil" },
+  { a: "tj_copper_band", b: "tk_old_wolf", out: "tf_vampires_coil" },
   { a: "tj_moonstone", b: "tk_quickstep", out: "tf_moonstep" },
-  { a: "tj_cats_eye", b: "tk_whetstone", out: "tf_executioners_eye" },
-  { a: "tj_bone_charm", b: "tk_tin_whistle", out: "tf_bone_drum" },
-  { a: "tj_silver_locket", b: "tk_hearthstone", out: "tf_silver_hearth" }
+  { a: "tj_cats_eye", b: "tk_exec_signet", out: "tf_executioners_eye" },
+  { a: "tj_bone_charm", b: "tj_war_totem", out: "tf_bone_drum" },
+  { a: "tj_silver_locket", b: "tk_mountain_heart", out: "tf_silver_hearth" },
+  { a: "tj_sunstone", b: "tj_moonstone", out: "tf_eclipse" },
+  { a: "tj_serpent_ring", b: "tj_cats_eye", out: "tf_vipers_gaze" },
+  { a: "tj_gilded_thimble", b: "tk_ferryman", out: "tf_golden_thimble" }
 ];
 
 export const findRecipe = <R extends { a: string; b: string }>(list: R[], x: string, y: string) =>

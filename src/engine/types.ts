@@ -278,6 +278,8 @@ export interface GearBase extends HookDef {
   weight?: number;
   /** Bases never rolled as loot (starting kits). */
   starter?: boolean;
+  /** Can't be fused, infused or combined. */
+  noJewel?: boolean;
 }
 
 /** A rolled piece of gear in the hero's inventory. */
@@ -295,4 +297,8 @@ export interface GearItem {
   rerolls?: number;
   /** Weapons, Rare and up: % chance to Bash (Stun and +50% damage). */
   bash?: number;
+  /** Times this item has been raised a level (Forge, Blacksmith, altars, combining). Upgraded items can't be fused or infused. */
+  upgrades?: number;
+  /** A trinket infused into this weapon, off-hand or armour at the Jeweller (its id: its effects come along). */
+  infused?: string;
 }

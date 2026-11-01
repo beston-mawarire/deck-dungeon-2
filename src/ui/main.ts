@@ -19,7 +19,7 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  abandonRun, smithUpgrade, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
+  abandonRun, smithUpgrade, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { potionCap, potionsPerFight } from "../game/hero";
@@ -207,6 +207,8 @@ function itemCard(it: GearItem, buttons = "", compare = false, equippedAs = "") 
     <div class="meta">${rarityLabel(it.rarity)} · ${b.slot === "main" ? "weapon" : b.slot === "off" ? "off-hand" : b.slot} · level ${it.level}</div>
     <div class="nm">${esc(itemName(it))}</div>
     <ul>${itemLines(it).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+    ${it.infused ? (() => { const t = baseOf(it.infused!); return `<div class="infused">💠 Infused: <b>${esc(t.name)}</b> — ${esc(t.legendary?.reveal ?? t.text)}</div>`; })() : ""}
+    ${(it.upgrades ?? 0) > 0 ? `<div class="sub upgraded-note">⬆️ Upgraded ${it.upgrades}×</div>` : ""}
     ${compare && run ? compareHtml(run.hero, it) : ""}
     <div class="row">${buttons}</div>
   </div>`;
@@ -531,8 +533,8 @@ function alchemistScene(r: Run) {
     <div class="row" style="margin-top:12px"><button data-leave>Leave</button></div>`;
 }
 
-function jewelSlotHtml(r: Run, side: "left" | "right", slot?: JewelSlot) {
-  if (!slot) return `<div class="jslot empty"><span class="jslot-ic">${side === "left" ? "◐" : "◑"}</span><span class="sub">Empty</span></div>`;
+function jewelSlotHtml(r: Run, side: "left" | "right", slot?: JewelSlot, label = "Empty") {
+  if (!slot) return `<div class="jslot empty"><span class="jslot-ic">${side === "left" ? "◐" : "◑"}</span><span class="sub">${label}</span></div>`;
   let name = "", rar = "common", icon = "💎";
   if (slot.kind === "relic") { const d = getItem(slot.id); name = d.name; rar = d.rarity ?? "common"; }
   else { const it = r.hero.backpack.find(i => i.uid === slot.uid) ?? Object.values(r.hero.equip).find(i => i?.uid === slot.uid); if (it) { name = itemName(it); rar = it.rarity; icon = "💍"; } }
@@ -544,18 +546,32 @@ function jewellerScene(r: Run) {
   const s = r.scene;
   const h = r.hero;
   const cost = jewelCost(r);
-  const can = !!s.left && !!s.right && h.f.gold >= cost.gold && h.scrap >= cost.scrap;
+  const left = JEWEL_TRIES - s.tries;
+  const problem = s.left && s.right ? jewelCheck(r) : null;
+  const can = left > 0 && !!s.left && !!s.right && problem === null;
   const onBench = (x: JewelSlot) => [s.left, s.right].some(y => y && y.kind === x.kind && (x.kind === "relic" ? (y as { id: string }).id === x.id : (y as { uid: number }).uid === x.uid));
-  const trinkets = [...EQUIP_SLOTS.map(sl => h.equip[sl]).filter((x): x is GearItem => !!x), ...h.backpack].filter(it => baseOf(it.base).slot === "trinket");
+  const gear = [...EQUIP_SLOTS.map(sl => h.equip[sl]).filter((x): x is GearItem => !!x), ...h.backpack];
+  const trinkets = gear.filter(it => baseOf(it.base).slot === "trinket");
+  const infusable = gear.filter(it => ["weapon", "off", "armour"].includes(baseOf(it.base).kind));
+  const pick = (it: GearItem) => { const x: JewelSlot = { kind: "item", uid: it.uid }; return `<button class="jpick r-${it.rarity}" data-jpick="item:${it.uid}" ${onBench(x) ? "disabled" : ""}><b class="nm">${esc(itemName(it))}</b><span class="sub">${rarityLabel(it.rarity)}${equippedSlot(r, it) ? " · worn" : ""}${it.upgrades ? " · upgraded" : ""}${it.infused ? " · infused" : ""}</span></button>`; };
   const relics = Object.entries(h.relics);
-  return `<h2>💍 The Jeweller</h2><div class="panel"><p>"Put two things on my bench. Some of them belong together. Most of them don't. Either way, I get paid."</p>
-    <p class="sub">Each try costs 🪙 <b>${cost.gold}</b> Gold and ⚙️ <b>${cost.scrap}</b> Scrap, whether it works or not. You have 🪙 ${h.f.gold} · ⚙️ ${h.scrap}.</p></div>
-    <div class="jbench">${jewelSlotHtml(r, "left", s.left)}<div class="jplus">＋</div>${jewelSlotHtml(r, "right", s.right)}</div>
-    <div class="row" style="justify-content:center"><button class="primary jfuse" data-jfuse ${can ? "" : "disabled"}>💎 Combine · ${cost.gold} 🪙 + ${cost.scrap} ⚙️</button></div>
+  const costTxt = cost ? `${cost.gold} 🪙${cost.scrap ? ` + ${cost.scrap} ⚙️` : ""}${cost.starmetal ? ` + ${cost.starmetal} ✴️` : ""}` : "";
+  const tabs = `<div class="row jtabs"><button class="small ${s.mode === "fuse" ? "primary" : ""}" data-jmode="fuse">💎 Fuse</button><button class="small ${s.mode === "infuse" ? "primary" : ""}" data-jmode="infuse">💠 Infuse</button></div>`;
+  const intro = s.mode === "fuse"
+    ? `<p>"Put two things on my bench. Some of them belong together. Most of them don't. Either way, I get paid."</p>
+       <p class="sub">Two relics, or two Rare-or-better trinkets that haven't been upgraded. Relics cost Gold and Scrap; trinkets also cost ✴️ Starmetal, more for higher rarities. A fusion that doesn't take still costs the fee.</p>`
+    : `<p>"Give me a trinket and something to wear. I'll put the one inside the other. The trinket won't survive it."</p>
+       <p class="sub">A weapon, off-hand or armour on the left, a trinket of the <b>same rarity</b> on the right (Rare or better, neither upgraded). The trinket's effects and bonuses move into the gear, and the trinket is gone. Costs Gold and ✴️ Starmetal, more for higher rarities.</p>`;
+  return `<h2>💍 The Jeweller</h2>${tabs}<div class="panel">${intro}
+    <p class="sub">Tries left this visit: <b>${left}</b>/${JEWEL_TRIES} · You have 🪙 ${h.f.gold} · ⚙️ ${h.scrap} · ✴️ ${h.starmetal}</p></div>
+    <div class="jbench">${jewelSlotHtml(r, "left", s.left, s.mode === "infuse" ? "Gear" : "Empty")}<div class="jplus">${s.mode === "infuse" ? "⇐" : "＋"}</div>${jewelSlotHtml(r, "right", s.right, s.mode === "infuse" ? "Trinket" : "Empty")}</div>
+    ${problem ? `<p class="center jwarn">${esc(problem)}</p>` : ""}
+    <div class="row" style="justify-content:center"><button class="primary jfuse" data-jfuse ${can ? "" : "disabled"}>${left <= 0 ? "No tries left" : s.mode === "fuse" ? `💎 Combine${cost ? ` · ${costTxt}` : ""}` : `💠 Infuse${cost ? ` · ${costTxt}` : ""}`}</button></div>
+    ${s.mode === "infuse" ? `<h3 class="jhead">Weapons, off-hands and armour</h3><div class="jpicks">${infusable.map(pick).join("") || `<p class="sub">Nothing to infuse.</p>`}</div>` : ""}
     <h3 class="jhead">Your trinkets</h3>
-    <div class="jpicks">${trinkets.length ? trinkets.map(it => { const x: JewelSlot = { kind: "item", uid: it.uid }; return `<button class="jpick r-${it.rarity}" data-jpick="item:${it.uid}" ${onBench(x) ? "disabled" : ""}><b class="nm">${esc(itemName(it))}</b><span class="sub">${rarityLabel(it.rarity)}${equippedSlot(r, it) ? " · worn" : ""}</span></button>`; }).join("") : `<p class="sub">No trinkets.</p>`}</div>
-    <h3 class="jhead">Your relics</h3>
-    <div class="jpicks">${relics.length ? relics.map(([id, n]) => { const d = getItem(id); const x: JewelSlot = { kind: "relic", id }; return `<button class="jpick r-${d.rarity ?? "common"}" data-jpick="relic:${id}" ${onBench(x) ? "disabled" : ""}><b class="nm">${esc(d.name)}${n > 1 ? ` ×${n}` : ""}</b><span class="sub">Relic${FUSABLE_RELICS.has(id) ? ` · <span class="fusable-tag">🔗 Fusable</span>` : ""}</span></button>`; }).join("") : `<p class="sub">No relics.</p>`}</div>
+    <div class="jpicks">${trinkets.map(pick).join("") || `<p class="sub">No trinkets.</p>`}</div>
+    ${s.mode === "fuse" ? `<h3 class="jhead">Your relics</h3>
+    <div class="jpicks">${relics.length ? relics.map(([id, n]) => { const d = getItem(id); const x: JewelSlot = { kind: "relic", id }; return `<button class="jpick r-${d.rarity ?? "common"}" data-jpick="relic:${id}" ${onBench(x) ? "disabled" : ""}><b class="nm">${esc(d.name)}${n > 1 ? ` ×${n}` : ""}</b><span class="sub">Relic${FUSABLE_RELICS.has(id) ? ` · <span class="fusable-tag">🔗 Fusable</span>` : ""}</span></button>`; }).join("") : `<p class="sub">No relics.</p>`}</div>` : ""}
     <div class="row" style="margin-top:14px"><button data-leave>Leave the Jeweller</button></div>`;
 }
 
@@ -900,7 +916,7 @@ function helpGlossary() {
     row("🕯️", "Curses", "Lasting penalties from shrines, idols and cursing foes. Only something holy can lift them"),
     row("🔨", "Forge", "Upgrade or reroll gear with Scrap; sacrifice items in an Offering; Combine two of the same item"),
     row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell one item per visit"),
-    row("💍", "Jeweller", "Takes turns with the Forge. Put two trinkets or two relics on the bench and pay Gold and Scrap to try to fuse them. Relics that can fuse are marked 🔗; trinkets are for you to discover. A failed try still costs the fee"),
+    row("💍", "Jeweller", "Takes turns with the Forge; two tries per visit. Fuse: two relics (marked 🔗), or two Rare-or-better trinkets (yours to discover; costs Starmetal). A fusion that doesn't take still costs the fee. Infuse: put a same-rarity trinket into a weapon, off-hand or armour; the trinket is used up. Upgraded items can't be fused or infused"),
     row("🧪", "Healing Potions", "Heal 12. You start with 3 potion slots: carry up to 3, and drink up to 3 in one fight. Potion gear and relics add slots (more at higher rarity)")
   ].join(""))}`;
 }
@@ -1030,10 +1046,9 @@ function relicPopup(id: string, more: number) {
   const n = run?.hero.relics[id] ?? 1;
   return `<div class="overlay popup-wrap"><div class="popup relic-pop r-${rar}">
     <div class="center relic-gem">💎</div>
-    <div class="center relic-kicker">${n > 1 ? "RELICS COMBINED" : "NEW RELIC"}</div>
+    <div class="center relic-kicker">NEW RELIC</div>
     <h1 class="center bigname nm">${esc(it.name)}${n > 1 ? ` ×${n}` : ""}</h1>
     <p class="center sub" style="text-transform:capitalize">${esc(rar)} relic · always active</p>
-    ${n > 1 ? `<p class="center relic-merged">✨ It merged with the one you already had: now ×${n}, and stronger.</p>` : ""}
     <p class="center">${esc(fillText(it.text, n))}</p>
     ${FUSABLE_RELICS.has(id) ? `<p class="center fusable-tag">🔗 Can be fused with another relic at a Jeweller</p>` : ""}
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-relicok>${more ? `Next relic (${more} more)` : "Got it"}</button></div>
@@ -1419,6 +1434,7 @@ function bind() {
   });
   on("[data-unify]", () => { say(unifyHeart(r)); celebrate("legendary_crimson", "Unified with the Dragon Heart", false); });
   on("[data-jpick]", el => { const [k, v] = el.dataset.jpick!.split(":"); say(jewelPlace(r, k === "relic" ? { kind: "relic", id: v } : { kind: "item", uid: Number(v) })); sfx("status"); });
+  on("[data-jmode]", el => { jewelMode(r, el.dataset.jmode as "fuse" | "infuse"); });
   on("[data-jclear]", el => { jewelClear(r, el.dataset.jclear as "left" | "right"); });
   on("[data-jfuse]", () => { const res = jewelFuse(r); say(res.msg, !res.ok); if (res.ok) celebrate("epic", res.made, true); else sfx("miss"); });
   on("[data-auto]", () => { const note = autoBattle(r); sfx("crit"); if (note) say(note, false); });
