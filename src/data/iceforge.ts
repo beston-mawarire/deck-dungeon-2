@@ -3,7 +3,7 @@
 import type { AttackCtx, Battle, GearBase } from "../engine/types";
 import { applyStatus, cast, CRIT, GRAZE, heal, hex, HIT, on, other, st } from "./helpers";
 
-const only = (onlyRarity: GearBase["onlyRarity"], d: Omit<GearBase, "onlyRarity">): GearBase => ({ ...d, onlyRarity, weight: 2 });
+const only = (onlyRarity: GearBase["onlyRarity"], d: Omit<GearBase, "onlyRarity">): GearBase => ({ ...d, onlyRarity });
 const leg = (asBase: string, reveal: string, d: Omit<GearBase, "rarity" | "legendary">): GearBase => ({ ...d, rarity: "legendary", legendary: { minFloor: 3, asBase, reveal } });
 const W = { kind: "weapon" as const, slot: "main" as const };
 const PLAIN = [GRAZE, HIT, HIT, HIT, HIT, CRIT];
