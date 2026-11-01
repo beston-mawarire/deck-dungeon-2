@@ -138,7 +138,10 @@ export function continueEndless(run: Run) {
       "👑 The bosses you didn't meet return, and new ones are forged from the depths, each with its own tricks.",
       "🩸 Crimson Elites: harder than any Champion. Some carry a Crimson Key.",
       "🗝️ Crimson Vaults: spend a key to face a Crimson boss for a Crimson item. Die in there and your run ends.",
-      "💎 Fallen bosses sometimes leave a Keepsake, a rare charm that sits beside your trinkets.",
+      "🗡️ New gear waits below: Epics and Legendaries that never surface on the early floors, and darker things still for those who carry curses.",
+      "🍀 New encounters stir in the deep: stranger shrines, treasures that glint only for a full purse, and creatures that bargain rather than bite.",
+      "💎 Keepsakes: fallen bosses sometimes leave one behind. A rare charm with its own slot beside your trinkets, it stays with you for the rest of the run.",
+      "✨ Blessings: dragons, angels and lucky finds may bless you for a few fights or a few chests. Your active Blessings are listed under Extras in your Inventory.",
       "⚠️ Every floor hits harder than the last, and somewhere far below waits a Horror.",
       "🎲 There's no last floor to win. Go as deep as you dare."
     ]

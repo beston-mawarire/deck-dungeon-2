@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.2.2
+- The "Deeper Still" popup now mentions the new gear and encounters below floor 5, Keepsakes and Blessings.
+
 ## 1.2.1
 - Shop rerolls also cost more the more Gold you carry.
 - The Forge's reroll button is red.
