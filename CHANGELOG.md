@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.11.3
+- More space between the origin cards; the story buttons have their own teal fill.
+
 ## 1.11.2
 - Origin cards: softer carved-stone look (dusky lavender with a faint grain) instead of bright white; still pressable.
 - Story buttons are larger and read "Click to read story".

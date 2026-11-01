@@ -265,7 +265,7 @@ function titleScreen() {
   </div>
   <p class="sub">${mode === "campaign" ? `${FLOORS} floors, ${FLOORS} bosses — the Hollow King waits at the bottom.` : `Past floor ${FLOORS}, better rewards. The bosses you didn't meet return, and new ones are forged from the depths.`}</p>
   <h2 class="bright">Choose an origin</h2>
-  <div class="cards">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
+  <div class="cards origin-cards">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
     const og = ORIGINS[o];
     const p = getItem(og.passive);
     return `<button class="room origin-card" data-origin="${o}"><span class="ic">${{ warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" }[o]}</span><b>${og.name}</b>
