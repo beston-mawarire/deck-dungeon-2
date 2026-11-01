@@ -1145,6 +1145,50 @@ describe("class actions and new stats", () => {
     expect(run.hero.scrap).toBe(scrap);
   });
 
+  it("Heavy weapons build Stagger; a full meter Staggers the foe (stun, next hit ×2), then it's immune for 2 rounds", () => {
+    const h = newHero("warrior");
+    equipItem(h, { uid: 1001, base: "bk_breaker_greatsword", rarity: "rare", level: 1, bonuses: {}, revealed: true });
+    expect(h.f.heavy).toBe(true);
+    const e = dummy(1000);
+    const b = startBattle(h.f, e, 121);
+    b.round = 1;
+    resolveFace(b, b.player, e, 2, false);
+    resolveFace(b, b.player, e, 3, false);
+    expect(st(e, "stagger")).toBe(2);
+    resolveFace(b, b.player, e, 4, false);
+    expect(st(e, "broken")).toBe(1);
+    expect(st(e, "stun")).toBe(1);
+    const before = e.hp;
+    resolveFace(b, b.player, e, 2, false);
+    const big = before - e.hp;
+    const before2 = e.hp;
+    resolveFace(b, b.player, e, 2, false);
+    expect(big).toBeGreaterThan(1.8 * (before2 - e.hp));
+    expect(st(e, "stagger")).toBe(0); // immune right after
+  });
+
+  it("Ice Forge gear makes Frostbitten easy to reach", () => {
+    const m = newHero("mage");
+    equipItem(m, { uid: 1002, base: "if_blizzard_pillar", rarity: "epic", level: 1, bonuses: {}, revealed: true });
+    const e = dummy(1000);
+    const b = startBattle(m.f, e, 122);
+    resolveFace(b, b.player, e, 2, false);
+    resolveFace(b, b.player, e, 3, false);
+    expect(b.log.some(l => /Frostbitten/.test(l))).toBe(true);
+  });
+
+  it("the Red Tithe makes Bleed tick twice and never fade", () => {
+    const h = newHero("rogue");
+    equipItem(h, { uid: 1003, base: "lx_red_tithe", rarity: "legendary", level: 1, bonuses: {}, revealed: true });
+    const e = dummy(1000);
+    const b = startBattle(h.f, e, 123);
+    beginRound(b);
+    e.statuses.bleed = 4;
+    endRound(b);
+    expect(1000 - e.hp).toBe(8);
+    expect(st(e, "bleed")).toBe(4);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);

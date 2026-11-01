@@ -156,6 +156,24 @@ function addStreak(a: Fighter) {
   a.persist["bestStreak"] = Math.max(a.persist["bestStreak"] ?? 0, a.persist["streak"]);
 }
 
+/** Heavy weapons build Stagger; when it fills, the foe is Staggered (loses its next action, next hit ×2). */
+export function buildStagger(b: Battle, a: Fighter, d: Fighter, crit: boolean) {
+  if ((d.flags["staggerImmune"] ?? 0) >= b.round) return;
+  let n = crit ? 2 : 1;
+  n += stacksOf(a, "bk_anvil_pendant");
+  if (crit) n += stacksOf(a, "bk_breaker_harness") + Math.min(3, stacksOf(a, "t_crushing_blows"));
+  const need = Math.max(1, (d.boss ? 5 : d.elite || d.champion ? 4 : 3) - stacksOf(a, "r_unstoppable") - 2 * stacksOf(a, "lx_mountainbreaker"));
+  const now = st(d, "stagger") + n;
+  if (now < need) { d.statuses.stagger = now; return; }
+  d.statuses.stagger = 0;
+  d.statuses.broken = 1;
+  d.statuses.stun = Math.max(st(d, "stun"), 1);
+  d.flags["staggerImmune"] = b.round + 2;
+  log(b, `🔨 ${d.name} is STAGGERED!`);
+  fx(b, { who: d.id, kind: "reaction", text: "STAGGERED!" });
+  eachHook(a, "onStagger", (h, s) => h(b, a, d, s));
+}
+
 /** An enemy raises its guard for this round: Armor doubled plus `extra`. Crits, spells and statuses still get through. */
 export function enemyGuard(b: Battle, e: Fighter, extra: number) {
   e.flags["guarding"] = 1;
@@ -285,6 +303,13 @@ function strike(b: Battle, ctx: AttackCtx) {
     const key = `rx:${d.id === "player" ? "you" : "foe"}:overpower`;
     b.player.persist[key] = (b.player.persist[key] ?? 0) + 1;
   }
+  // Staggered: the foe is reeling, so this hit lands double (Breaker's Seal and Exploit the Opening add more).
+  if (st(d, "broken") > 0 && raw > 0) {
+    const m = 2 + 0.5 * stacksOf(a, "bk_breaker_seal") + 0.25 * stacksOf(a, "t_exploit_opening");
+    raw *= m;
+    d.statuses.broken = 0;
+    log(b, `💥 ${d.name} is Staggered: ×${m}!`);
+  }
   // Reinforced: a full block earlier pays off on your next attack (+2 per stack), then it's spent.
   if (!ctx.offhand && st(a, "reinforced") > 0) {
     const n = st(a, "reinforced");
@@ -407,6 +432,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   else breakStreak(b, a);
   ctx.dealt = loseHp(b, d, after);
   if (ctx.dealt > 0) a.flags["dealtRound"] = 1;
+  if (ctx.dealt > 0 && !ctx.offhand && a.heavy && d.hp > 0) buildStagger(b, a, d, ctx.kind === "crit");
   // Blessed: your patience pays out — 10% of the enemy's Max HP per stack, then it resets.
   if (ctx.dealt > 0 && st(a, "blessed") > 0 && d.hp > 0) {
     const n = st(a, "blessed");

@@ -477,7 +477,8 @@ function afterFight(run: Run) {
       : EPIC_CRIMSON_FLOORS.includes(run.floor) ? [rollEpicCrimson(h, run.floor, run.rng), roll(TABLES.boss), roll(TABLES.boss)]
       : [roll(TABLES.boss), roll(TABLES.boss), roll(TABLES.boss)];
     // After the fifth boss, bosses sometimes leave a Keepsake behind.
-    const keepsake = run.floor > FLOORS && run.rng() < 0.4 ? KEEPSAKES.filter(k => k.id !== h.keepsake)[Math.floor(run.rng() * (KEEPSAKES.length - (h.keepsake ? 1 : 0)))]?.id : undefined;
+    // Keepsakes are a rare find: about one boss in ten after floor 5 leaves one behind.
+    const keepsake = run.floor > FLOORS && run.rng() < 0.1 ? KEEPSAKES.filter(k => k.id !== h.keepsake)[Math.floor(run.rng() * (KEEPSAKES.length - (h.keepsake ? 1 : 0)))]?.id : undefined;
     run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: offer, keepsake };
     run.message = `+${gold} Gold${relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""} · healed 30%${curseNote ? ` ${curseNote}` : ""}`;
     return;

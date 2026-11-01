@@ -385,3 +385,13 @@ button.crimson-btn { background: linear-gradient(180deg, #ef4359, #c21c33); }
 /* The class picks and map paths are big cards: give them a touch more lift. */
 .room { background: linear-gradient(170deg, #3a2f49 0%, #2a2236 70%); border-color: #5a4b70; }
 .room .ic { filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
+.empty-slot { opacity: .75; border-style: dashed; background: linear-gradient(160deg, #241d30, var(--panel2)); }
+.empty-slot .nm { color: var(--muted); }
+.bag-extras { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+.extra-tile { font-size: .9rem; }
+.extra-tile > span:first-child { font-size: 1.4rem; }
+.extra-tile .sub { display: block; font-size: .78rem; }
+.key-tile { border-color: rgba(224,40,63,.55); }
+.key-tile b { color: #ff5468; }
+.scroll-tile { border-color: rgba(240,138,42,.5); }
+.scroll-tile b { color: var(--legendary); }

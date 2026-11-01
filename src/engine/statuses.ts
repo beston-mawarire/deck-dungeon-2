@@ -36,6 +36,8 @@ export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: s
   grounded: { name: "Grounded", icon: "🪨", text: "Shock and Static can't land on you; lasts its stacks in rounds" },
   smoulder: { name: "Smouldering", icon: "🌋", text: "Each round it burns from within: an enemy takes 4 Burn (you'd take 5), and its foe takes 1 Burn; lasts its stacks in rounds" },
   fracture: { name: "Fracture", icon: "🪨", text: "Does nothing at first. At 3 stacks it shatters: 4 damage per stack (ignores Armor), then clears" },
+  stagger: { name: "Stagger", icon: "🔨", text: "Built up by Heavy weapons (1 per hit, 2 per Crit). At 3 (Elites 4, bosses 5) the foe is Staggered: it loses its next action and your next hit deals double. It can't build again for 2 rounds after" },
+  broken: { name: "Staggered", icon: "💥", text: "Reeling: your next hit on it deals double" },
   dazzled: { name: "Dazzled", icon: "😵", text: "Its attacks miss completely; lasts its stacks in rounds (at most 4)" },
   reinforced: { name: "Reinforced", icon: "🧱", text: "From full blocks (Guard or a full Elemental Barrier) with Reinforcing gear: your next attack deals +2 per stack. Lost if your next Guard or barrier lets damage through" },
   blessed: { name: "Blessed", icon: "🌟", text: "Grows each round you deal no damage (with Blessing gear). Your next hit that lands deals 10% of the enemy's Max HP per stack, then it resets" },
@@ -376,6 +378,7 @@ export function endOfRound(b: Battle, f: Fighter) {
   if (st(f, "consecrated") > 0 && st(f, "consecrated") < CONSECRATE_FIGHT) f.statuses.consecrated = st(f, "consecrated") - 1;
   for (const s of ["spikes", "chill", "weak", "exposed", "blind", "soaked", "kindled", "grounded", "dazzled"] as StatusId[]) {
     if (s === "spikes" && (f.items["lr_crown_thorns"] ?? 0) > 0) continue;
+    if (s === "chill" && f.flags["chillNoFade"]) continue;
     if (st(f, s) > 0) f.statuses[s] = st(f, s) - 1;
   }
   if (st(f, "doom") > 0) {

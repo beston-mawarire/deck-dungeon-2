@@ -567,7 +567,12 @@ function bag(r: Run) {
     ${stats}
     ${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>${reactionsPanel(r)}` : ""}
     <p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>
-    ${h.keepsake ? `<div class="item keepsake"><div class="meta">Keepsake</div><div class="nm">🕯️ ${esc(getItem(h.keepsake).name)}</div><p>${esc(getItem(h.keepsake).text)}.</p></div>` : ""}
+    ${h.keepsake ? `<div class="item keepsake"><div class="meta">Keepsake</div><div class="nm">🕯️ ${esc(getItem(h.keepsake).name)}</div><p>${esc(getItem(h.keepsake).text)}.</p></div>`
+      : `<div class="item keepsake empty-slot"><div class="meta">Keepsake</div><div class="nm">🕯️ Empty</div><p class="sub">Something rare could rest here. Bosses deep below sometimes leave one behind…</p></div>`}
+    <div class="bag-extras">
+      <div class="stile extra-tile key-tile"><span>🗝️</span><span><b>${h.crimsonKeys}</b> Crimson Key${h.crimsonKeys === 1 ? "" : "s"}<span class="sub">${h.crimsonKeys ? "A Crimson Vault will be on your path." : "Dropped by Crimson Elites, deep below."}</span></span></div>
+      <div class="stile extra-tile scroll-tile"><span>📜</span><span><b>${h.scrolls}</b> Scroll${h.scrolls === 1 ? "" : "s"} of Revelation<span class="sub">${h.scrolls ? "Use one on a hidden Legendary below." : "Reveals a hidden Legendary's true power."}</span></span></div>
+    </div>
     <h2>Equipped</h2><div class="cards">${equipped}</div>
     <h2>Backpack ${h.backpack.length}/${BACKPACK_SIZE}</h2><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div>
     <h2>Relics</h2>${list(h.relics)}
@@ -678,6 +683,7 @@ function helpGlossary() {
     row("💣", "Grenades", "Off-hand only. No damage — they apply a status, and are thrown on round 1 and every 3rd round after"),
     row("✝️", "Holy", "Holy weapons deal +50% to Undead, vampires, Crimson foes and anything that curses or Dooms, and can Smite"),
     row("✨", "Purify", "A face that strips every negative status off the enemy and deals 2× your Damage for each one (ignores Armor)"),
+    row("🔨", "Heavy weapons", "Rare two-handed swords and axes. Every hit builds Stagger on the enemy (2 on a Crit). At 3 (Elites 4, bosses 5) it's Staggered: it loses its next action and your next hit deals double. Then it can't build again for 2 rounds"),
     row("😤", "Reckless", "Some gear makes you deal more damage but also take more from every hit. It stacks, for better and worse"),
     row("⛓️", "Roll cap", "Some heavy gear stops your die rolling above 4 or 5; the Manacles do the same to the enemy's die"),
     row("🔗", "Hit streak", "Only counts while you have a streak relic, talent or trinket. Every Hit or Crit that gets through adds 1, and it carries across fights. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it. Some relics, talents and trinkets grow with it"),

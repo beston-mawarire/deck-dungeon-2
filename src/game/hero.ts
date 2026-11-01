@@ -103,6 +103,7 @@ export function itemLines(item: GearItem): string[] {
   if (eb.kind === "weapon" && eb.tags.includes("Holy")) lines.push("✝️ Holy: +50% to Undead, vampires, Crimson foes and anything that curses or Dooms. When your Ward stops an enemy's status, your next hit Smites (20% of its Max HP, once per fight).");
   if (eb.faces?.some(f => f.cleanse)) lines.push("✨ Purify: strips every negative status from the enemy and deals 2× Damage for each one (ignores Armor). Nothing on them, no damage.");
   if (eb.shield) lines.push("🛡️ Shield: lets you Guard.");
+  if (eb.heavy) lines.push("🔨 Heavy: every hit builds Stagger (2 on a Crit). Fill it and the enemy loses its next action and takes double from your next hit.");
   if (eb.barrierElement) lines.push(`🔮 Mage: lets you raise an Elemental Barrier (${(eb.barrierElements ?? [eb.barrierElement]).join(", ")}).`);
   if (itemDodge(item)) lines.push(`💨 ${itemDodge(item)}% Dodge`);
   if (item.bash) lines.push(`💥 ${item.bash}% Bash (Stuns and deals +50%)`);
@@ -146,6 +147,7 @@ export function recompute(h: Hero) {
 
   const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0, spellAmp: 0, critChance: 0, critDmg: 0, dotAmp: 0, dmgDealt: 0, dmgTaken: 0 };
   f.barrierElement = undefined;
+  f.heavy = false;
   f.barrierElements = undefined;
   f.twoHanded = false;
   f.offTwoHanded = false;
@@ -177,6 +179,7 @@ export function recompute(h: Hero) {
     if (slot === "off" && eb.twoHanded) f.offTwoHanded = true;
     if (slot === "off" && eb.barrierElement) { f.barrierElement = eb.barrierElement; f.barrierElements = eb.barrierElements; }
     if (slot === "main" && eb.kind === "weapon") {
+      f.heavy = !!eb.heavy;
       s.damage = weaponDamage(it);
       f.faces = eb.faces ?? PLAIN_FACES;
     }

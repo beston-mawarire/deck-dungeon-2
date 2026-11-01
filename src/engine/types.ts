@@ -6,7 +6,7 @@ export const TAGS = [
 ] as const;
 export type Tag = (typeof TAGS)[number];
 
-export const NEGATIVE_STATUSES = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder", "dazzled", "fracture"] as const;
+export const NEGATIVE_STATUSES = ["bleed", "burn", "poison", "chill", "shock", "weak", "exposed", "blind", "stun", "doom", "static", "soaked", "smoulder", "dazzled", "fracture", "stagger", "broken"] as const;
 export const POSITIVE_STATUSES = ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded", "smoulder_soul", "consecrated", "reinforced", "blessed"] as const;
 export type NegativeStatus = (typeof NEGATIVE_STATUSES)[number];
 export type PositiveStatus = (typeof POSITIVE_STATUSES)[number];
@@ -77,6 +77,8 @@ export interface Fighter {
   critChance?: number;
   /** Crit damage (%): your Crits deal this much more. */
   critDmg?: number;
+  /** Holding a Heavy weapon (two-handed swords and axes that build Stagger). */
+  heavy?: boolean;
   /** Hollow Vessel: this off-hand item's hooks fire twice. */
   offEcho?: string;
   /** Hero: the weapon type in each hand (dagger, throwing, kunai, shuriken, grenade). */
@@ -179,6 +181,8 @@ export interface Hooks {
   onRoundEnd?: (b: Battle, self: Fighter, stacks: number) => void;
   incomingStatus?: (b: Battle, self: Fighter, status: StatusId, amount: number, stacks: number) => number;
   onStatusApplied?: (b: Battle, self: Fighter, target: Fighter, status: StatusId, amount: number, stacks: number) => void;
+  /** You Staggered the enemy with a Heavy weapon. */
+  onStagger?: (b: Battle, self: Fighter, foe: Fighter, stacks: number) => void;
   /** A status landed on you (after Ward and immunities). */
   onStatusReceived?: (b: Battle, self: Fighter, source: Fighter | null, status: StatusId, amount: number, stacks: number) => void;
   reactionMult?: (b: Battle, self: Fighter, stacks: number) => number;
@@ -250,6 +254,8 @@ export interface GearBase extends HookDef {
   dodge?: Partial<Record<Rarity, number>>;
   /** Deep finds: only drop past floor 5 — unless unlocked earlier with Renown. */
   deep?: boolean;
+  /** Heavy (two-handed swords and axes): hits build Stagger on the enemy. */
+  heavy?: boolean;
   /** Only drops on this floor or deeper (Endless). */
   floorMin?: number;
   /** Never rolls below this rarity (anything that grants Barrier is Uncommon or better). */
