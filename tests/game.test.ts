@@ -1284,6 +1284,20 @@ describe("class actions and new stats", () => {
     expect(st(run.hero.f, "bleed")).toBe(0);
   });
 
+  it("status tonics fail on a foe that's immune to statuses", () => {
+    const run = newRun("warrior", 181);
+    run.hero.tonics = { weakness: 1, poison: 1 };
+    chooseRoom(run, "fight");
+    const sc = run.scene as { t: string; battle?: { round: number; enemy: { items: Record<string, number>; statuses: Record<string, number> } } };
+    sc.battle!.enemy.items["x_warded"] = 1; // immune to statuses in rounds 1–2
+    sc.battle!.round = 1;
+    expect(useTonic(run, "weakness")).toMatch(/shrugs it off/);
+    expect(sc.battle!.enemy.statuses.weak ?? 0).toBe(0);
+    sc.battle!.round = 3;
+    expect(useTonic(run, "poison")).toBeNull();
+    expect(sc.battle!.enemy.statuses.poison).toBeGreaterThan(0);
+  });
+
   it("Penance stores damage taken and adds it to the next attack", () => {
     const h = newHero("cleric");
     const e = foe(6);

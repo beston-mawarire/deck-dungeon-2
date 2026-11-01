@@ -473,7 +473,7 @@ function eventScene(r: Run) {
 function alchemistScene(r: Run) {
   if (r.scene.t !== "alchemist") return "";
   const s = r.scene;
-  return `<h2>⚗️ The Alchemist</h2><div class="panel"><p>"Everything works on anything. Even the big ones. It isn't cheap."</p><p class="sub">Tonics are used in a fight, from the buttons under your actions. Using one doesn't take your turn. You have 🪙 <b>${r.hero.f.gold}</b>.</p></div>
+  return `<h2>⚗️ The Alchemist</h2><div class="panel"><p>"Works on almost anything. It isn't cheap."</p><p class="sub">Tonics are used in a fight, from the buttons under your actions. Using one doesn't take your turn. Status tonics (Weakness, Venom, Flash Powder) don't work on foes that are immune to statuses or Warded. You have 🪙 <b>${r.hero.f.gold}</b>.</p></div>
     <div class="cards">${s.stock.map((e, i) => `<div class="item r-epic"><div class="nm">${TONICS[e.id].icon} ${esc(TONICS[e.id].name)}</div><p>${esc(TONICS[e.id].text)}.</p>
       <button class="small ${e.sold ? "" : "primary"}" data-tonicbuy="${i}" ${e.sold || r.hero.f.gold < e.price ? "disabled" : ""}>${e.sold ? "Sold" : `Buy · ${e.price} 🪙`}</button></div>`).join("")}</div>
     <div class="row" style="margin-top:12px"><button data-leave>Leave</button></div>`;

@@ -80,7 +80,7 @@ export const EVENTS: GameEvent[] = [
       { label: "Leave it be", run: () => "Some things are better left sleeping." }
     ] },
   { id: "alchemist", unique: true, weight: 0.8, title: "The Alchemist", icon: "⚗️",
-    text: "A woman with stained gloves and a bandolier of glowing vials looks you up and down. \"Everything works on anything. Even the big ones. It isn't cheap.\"",
+    text: "A woman with stained gloves and a bandolier of glowing vials looks you up and down. \"Works on almost anything. It isn't cheap.\"",
     options: [{ label: "See her wares", run: () => "" }] },
   { id: "blind_dragon", unique: true, weight: 0.35, minFloor: 3, minGold: 100, title: "A Dragon's Blessing", icon: "🐲",
     text: "You find a blind, toothless dragon chained within a room. \"Hello… Is anyone there? Would you spare me some gold? I will grant you a blessing in return.\"",

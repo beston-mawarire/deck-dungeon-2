@@ -1096,11 +1096,11 @@ export function smithUpgrade(run: Run, uid: number): string | null {
 // ---------- The Alchemist: combat tonics ----------
 export const TONICS: Record<string, { name: string; icon: string; text: string; base: number }> = {
   might: { name: "Tonic of Might", icon: "💪", text: "Your next 3 attacks deal +4", base: 70 },
-  weakness: { name: "Draught of Weakness", icon: "🥀", text: "The enemy is Weak for 3 rounds", base: 60 },
+  weakness: { name: "Draught of Weakness", icon: "🥀", text: "The enemy is Weak for 3 rounds (unless it's immune to statuses)", base: 60 },
   barrier: { name: "Shellskin Elixir", icon: "🛡️", text: "Gain Barrier equal to 30% of your Max HP (it fades by half each round)", base: 75 },
   sunder: { name: "Armour-Rot Acid", icon: "🧪", text: "Halve the enemy's Armor for the rest of the fight", base: 90 },
-  poison: { name: "Vial of Venom", icon: "☠️", text: "Apply 6 Poison (more on deeper floors)", base: 65 },
-  blind: { name: "Flash Powder", icon: "🌫️", text: "Blind the enemy for 3 rounds", base: 70 }
+  poison: { name: "Vial of Venom", icon: "☠️", text: "Apply 6 Poison, more on deeper floors (unless it's immune to statuses)", base: 65 },
+  blind: { name: "Flash Powder", icon: "🌫️", text: "Blind the enemy for 3 rounds (unless it's immune to statuses)", base: 70 }
 };
 export function alchemistStock(run: Run) {
   const ids = Object.keys(TONICS).sort(() => run.rng() - 0.5).slice(0, 4);
@@ -1118,7 +1118,7 @@ export function buyTonic(run: Run, i: number): string | null {
   t[e.id] = (t[e.id] ?? 0) + 1;
   return null;
 }
-/** Drink or throw a tonic in a fight. Doesn't use your turn. Works on bosses too. */
+/** Drink or throw a tonic in a fight. Doesn't use your turn. Status tonics fail on foes immune to statuses. */
 export function useTonic(run: Run, id: string): string | null {
   const s = run.scene;
   if (s.t !== "combat" || s.battle.over) return "Tonics only work in a fight.";
@@ -1128,12 +1128,19 @@ export function useTonic(run: Run, id: string): string | null {
   t[id]--;
   if (!t[id]) delete t[id];
   if (id === "might") p.flags["tonicMight"] = (p.flags["tonicMight"] ?? 0) + 3;
-  if (id === "weakness") e.statuses.weak = Math.max(e.statuses.weak ?? 0, 3);
+  // Status tonics go through the normal rules: Ward, and foes that are immune to statuses, shrug them off.
+  const tryStatus = (s: "weak" | "poison" | "blind", n: number) => {
+    const before = e.statuses[s] ?? 0;
+    applyStatus(b, p, e, s, n);
+    if ((e.statuses[s] ?? 0) <= before) note = `${e.name} shrugs it off: it can't be affected right now.`;
+  };
+  let note: string | null = null;
+  if (id === "weakness") tryStatus("weak", 3);
   if (id === "barrier") applyStatus(b, p, p, "barrier", Math.ceil(p.maxHp * 0.3));
   if (id === "sunder") e.armor = Math.floor(e.armor / 2);
-  if (id === "poison") e.statuses.poison = (e.statuses.poison ?? 0) + 6 + run.floor;
-  if (id === "blind") e.statuses.blind = Math.max(e.statuses.blind ?? 0, 3);
+  if (id === "poison") tryStatus("poison", 6 + run.floor);
+  if (id === "blind") tryStatus("blind", 3);
   b.log.push(`${TONICS[id].icon} ${TONICS[id].name}!`);
   b.fx.push({ who: id === "might" || id === "barrier" ? "player" : "enemy", kind: "text", text: TONICS[id].name, icon: TONICS[id].icon });
-  return null;
+  return note;
 }
