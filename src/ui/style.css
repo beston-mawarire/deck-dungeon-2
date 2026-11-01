@@ -543,6 +543,11 @@ button.jfuse:disabled { opacity: .5; }
 .modebtn .story-chip { font-size: .95rem; padding: 9px 14px; border-radius: 10px; font-weight: 700; }
 .cards.origin-cards { gap: 18px; }
 /* Story buttons: their own teal fill */
-.modebtn .story-chip, .modebtn:not(.active) .story-chip { background: linear-gradient(180deg, #43c2ae, #2a8a7c); border: 1px solid #1f6b60; color: #06201c;
-  box-shadow: 0 3px 0 #1a5a51, 0 4px 10px rgba(0,0,0,.35); }
-.modebtn .story-chip:active { transform: translateY(2px); box-shadow: 0 1px 0 #1a5a51; }
+.modebtn .story-chip, .modebtn:not(.active) .story-chip { background: linear-gradient(180deg, #d4c2ff, #a68ae6); border: 1px solid #6e56b0; color: #1c1236;
+  box-shadow: 0 3px 0 #54408f, 0 4px 10px rgba(0,0,0,.35); }
+.modebtn .story-chip:active { transform: translateY(2px); box-shadow: 0 1px 0 #54408f; }
+/* The chosen mode: a bright gold bar with a glow and a tick; the other one steps back */
+.modebtn.active { box-shadow: 0 0 0 2px #fff3c4, 0 0 18px rgba(232,184,74,.7); }
+.modebtn.active > span:first-child::before { content: "✓ "; font-weight: 900; }
+.modebtn:not(.active) { background: #1e1927; color: #8f86a0; border-color: #3a3146; }
+.modebtn:not(.active):hover { color: #c9c0d8; }
