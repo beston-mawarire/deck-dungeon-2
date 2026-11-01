@@ -1319,21 +1319,54 @@ describe("class actions and new stats", () => {
     expect(run.hero.f.persist["cloverChests"]).toBe(0);
   });
 
-  it("cursed Epics only drop once you've been cursed, and grow with each curse", () => {
+  it("cursed Epics drop for anyone, and grow with each curse", () => {
     const h = newHero("warrior");
     const rng = makeRng(17);
-    for (let i = 0; i < 600; i++) expect(rollItem(h, "epic", 3, rng).base.startsWith("cu_")).toBe(false);
-    h.curses["c_rust"] = 1; recompute(h);
     let seen = 0;
     for (let i = 0; i < 1500; i++) if (rollItem(h, "epic", 3, rng).base.startsWith("cu_")) seen++;
-    expect(seen).toBeGreaterThan(0);
-    delete h.curses["c_rust"]; recompute(h);
-    for (let i = 0; i < 1500; i++) if (rollItem(h, "epic", 3, rng).base.startsWith("cu_")) { seen = -1; break; }
-    expect(seen).toBe(-1); // still drops after the curse is gone: you took one on
+    expect(seen).toBeGreaterThan(0); // in the pool from the start, cursed or not
     equipItem(h, { uid: 1201, base: "cu_many_sorrows", rarity: "epic", level: 1, bonuses: {}, revealed: true });
     const base = h.f.maxHp;
     h.curses["c_rust"] = 1; h.curses["c_dread"] = 1; recompute(h);
     expect(h.f.maxHp).toBe(base + 12);
+  });
+
+  it("Curse-Eaters devour a curse per hit for a huge bonus; no curses, no bonus", () => {
+    const run = newRun("warrior", 201);
+    const h = run.hero;
+    equipItem(h, { uid: 1301, base: "ce_cursebreaker", rarity: "epic", level: 1, bonuses: {}, revealed: true });
+    h.curses["c_rust"] = 1; h.curses["c_dread"] = 1; recompute(h);
+    chooseRoom(run, "fight");
+    const sc = run.scene as { t: string; battle?: Parameters<typeof resolveFace>[0] };
+    const b = sc.battle!;
+    b.enemy.hp = b.enemy.maxHp = 5000;
+    resolveFace(b, b.player, b.enemy, 2, false);
+    const first = 5000 - b.enemy.hp;
+    resolveFace(b, b.player, b.enemy, 2, false);
+    const second = 5000 - first - b.enemy.hp;
+    resolveFace(b, b.player, b.enemy, 2, false);
+    const third = 5000 - first - second - b.enemy.hp;
+    expect(first).toBeGreaterThan(third * 2);
+    expect(second).toBeGreaterThan(third * 2);
+    b.enemy.hp = 0; b.over = "won";
+    settleCombat(run);
+    expect(Object.keys(h.curses).length).toBe(0);
+  });
+
+  it("Ill Fortune knocks some Rare+ finds down a rarity; Wasting and Enfeebled grow with the floor", () => {
+    const h = newHero("warrior");
+    h.curses["c_ill_fortune"] = 1; recompute(h);
+    const rng = makeRng(3);
+    let down = 0;
+    for (let i = 0; i < 1000; i++) if (rollItem(h, "epic", 3, rng).rarity === "rare") down++;
+    expect(down).toBeGreaterThan(200);
+    expect(down).toBeLessThan(400);
+    const w = newHero("warrior");
+    const base = w.f.maxHp;
+    w.curses["c_wasting"] = 1; w.f.persist["floor"] = 10; recompute(w);
+    expect(w.f.maxHp).toBe(Math.round(base * 0.86));
+    w.curses["c_enfeebled"] = 1; recompute(w);
+    expect(w.f.dmgDealt).toBe(-15);
   });
 
   it("Penance stores damage taken and adds it to the next attack", () => {

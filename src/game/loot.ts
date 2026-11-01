@@ -101,6 +101,9 @@ const ELEMENTAL_WEIGHT = 0.5;
 const elementalW = (tags: readonly string[]) => (tags.some(t => ELEMENTAL_TAGS.includes(t)) ? ELEMENTAL_WEIGHT : 1);
 
 export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => number): GearItem {
+  // Ill Fortune (curse): about a third of Rare, Epic and Legendary finds come out one rarity lower.
+  if ((h.curses["c_ill_fortune"] ?? 0) > 0 && (rarity === "rare" || rarity === "epic" || rarity === "legendary") && rng() < 0.3)
+    rarity = rarity === "legendary" ? "epic" : rarity === "epic" ? "rare" : "uncommon";
   const tags = heroTags(h);
   if (rarity === "crimson") {
     const pool = CRIMSON.filter(c => !DROPPED.has(c.id));

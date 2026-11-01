@@ -54,6 +54,11 @@ export const CURSES: HookDef[] = [
   curse({ id: "c_gouged", name: "Price Gouged", tags: ["Gold"], text: "Shop purchases, rerolls and Forge upgrades cost 25% more", hooks: {} }),
   curse({ id: "c_dim_luck", name: "Dim Luck", tags: ["Luck", "Crit"], text: "−5% Crit chance", hooks: { stats: s => { s.critChance -= 5; } } }),
   curse({ id: "c_slow_wits", name: "Slow Wits", tags: ["Tempo"], text: "−5% Dodge", hooks: { stats: s => { s.dodge -= 5; } } }),
+  curse({ id: "c_wasting", name: "Wasting", tags: ["Blood"], text: "Lose 4% of your Max HP, plus 1% more for each floor you're on (up to 25%)",
+    hooks: { stats: (s, _n, f) => { const fl = f.persist["floor"] ?? 1; s.maxHp = Math.round(s.maxHp * (1 - Math.min(0.25, 0.04 + 0.01 * fl))); } } }),
+  curse({ id: "c_enfeebled", name: "Enfeebled", tags: ["Strike"], text: "Deal 5% less damage, plus 1% less for each floor you're on (up to 25%)",
+    hooks: { stats: (s, _n, f) => { const fl = f.persist["floor"] ?? 1; s.dmgDealt = (s.dmgDealt ?? 0) - Math.min(25, 5 + fl); } } }),
+  curse({ id: "c_ill_fortune", name: "Ill Fortune", tags: ["Luck"], text: "Rare, Epic and Legendary finds are a little less likely: some come out one rarity lower", hooks: {} }),
   curse({ id: "c_feeble", name: "Feeble", tags: ["Strike"], text: "−1 Damage", hooks: { stats: s => { s.damage -= 1; s.offDamage -= 1; } } })
 ];
 CURSES.push(...BRUTE_CURSES);

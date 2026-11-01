@@ -362,6 +362,16 @@ function afterFight(run: Run) {
   if (run.scene.t !== "combat") return;
   const { battle: b, rank, then } = run.scene;
   const h = run.hero;
+  // Curse-Eaters: curses devoured mid-fight are gone for good.
+  let eaten = 0;
+  for (const k of Object.keys(h.f.persist)) {
+    if (!k.startsWith("eat_")) continue;
+    const id = k.slice(4);
+    const n = h.f.persist[k];
+    delete h.f.persist[k];
+    if (h.curses[id]) { h.curses[id] = Math.max(0, h.curses[id] - n); if (!h.curses[id]) delete h.curses[id]; eaten += n; }
+  }
+  if (eaten) recompute(h);
   const curseNote = applyQueuedCurses(run);
   // The Angelic Blessing lasts 2 fights.
   if ((h.f.persist["angelFights"] ?? 0) > 0) {
@@ -1025,6 +1035,9 @@ export function advance(run: Run, fromTalent = false) {
         return;
       }
       run.floor++;
+      // Floor-scaled effects (some curses) update as you go deeper.
+      run.hero.f.persist["floor"] = run.floor;
+      recompute(run.hero);
       run.step = 0;
       run.message = `Floor ${run.floor}. The air is colder, and the hoards are richer: your Fortune grows.`;
       if (run.floor !== FLOORS) run.popup = { icon: "⬇️", title: `Floor ${run.floor} — ${floorName(run.floor)}`, text: `${FLOOR_LINES[(run.floor - 2) % FLOOR_LINES.length]} The deeper you go, the deadlier it gets — and the richer the loot.` };
