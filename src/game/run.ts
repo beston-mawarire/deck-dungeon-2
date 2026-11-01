@@ -59,12 +59,12 @@ export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "reli
 
 export type Scene =
   | { t: "map" }
-  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" }
+  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent"; crimsonKey?: boolean }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
   | { t: "talent"; options: string[] }
-  | { t: "shop"; stock: ShopEntry[]; /** One item may be sold per Merchant visit. */ soldItem?: string }
+  | { t: "shop"; stock: ShopEntry[]; /** One item may be sold per Merchant visit. */ soldItem?: string; /** % markup from the Gold you carried when this stock was priced. */ markup?: number }
   | { t: "forge" }
   | { t: "rest"; done: boolean }
   | { t: "confirm"; room: RoomType }
@@ -97,6 +97,8 @@ export interface Run {
   seenBosses: Set<string>;
   /** Shop rerolls used at the current Merchant (each costs more). */
   shopRerolls: number;
+  /** Normal monster fights chosen in a row (anything else resets it). Long streaks can spawn a Transformation. */
+  normalStreak?: number;
   /** The floor whose "Floor cleared" screen has been shown (you continue from it to go deeper). */
   clearedFloor?: number;
   /** Relics (by id) and scrolls ("scroll:N") just gained, waiting for their popup. */
@@ -193,6 +195,7 @@ export function chooseRoom(run: Run, room: RoomType) {
 
 function enterRoom(run: Run, room: RoomType) {
   const h = run.hero;
+  run.normalStreak = room === "fight" ? (run.normalStreak ?? 0) + 1 : 0;
   switch (room) {
     case "fight": return fight(run, "normal");
     case "elite": return fight(run, "elite");
@@ -232,7 +235,7 @@ function enterRoom(run: Run, room: RoomType) {
       run.message = `You are cursed: ${c.name} — ${c.text}.`;
       return openResplendent(run);
     }
-    case "shop": run.shopRerolls = 0; run.scene = { t: "shop", stock: shopStock(run) }; return;
+    case "shop": run.shopRerolls = 0; run.scene = { t: "shop", stock: shopStock(run), markup: Math.round((wealthMult(run) - 1) * 100) }; return;
     case "forge": run.scene = { t: "forge" }; return;
     case "rest": run.scene = { t: "rest", done: false }; return;
     case "event": {
@@ -266,7 +269,7 @@ function openResplendent(run: Run) {
 
 // ---------- Combat ----------
 
-function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon") {
+function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed", defName?: string) {
   run.hero.f.persist["floor"] = run.floor;
   // A Crimson Vault always holds a Crimson boss; in Endless, a floor boss is rarely Crimson too.
   // (Never on the floors with a special boss: the Horror, the Epic Crimson floors, DEATH and the End.)
@@ -274,7 +277,7 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && !special && run.rng() < 0.06));
   // A rare gold thief sometimes turns up in place of a normal monster.
   const thief = rank === "normal" && !then && run.rng() < 0.04;
-  const enemy = then === "dragon" ? makeDragon(run.rng, run.floor) : then === "goblin" ? makeGoblin(run.rng, run.floor) : then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank);
+  const enemy = then === "dragon" ? makeDragon(run.rng, run.floor) : then === "goblin" ? makeGoblin(run.rng, run.floor) : then === "unique" ? makeUnique(run.rng, run.floor, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(run.floor, run.rng) : rank === "boss" ? makeBoss(run.floor, run.rng, run.seenBosses) : thief ? makeThief(run.rng, run.floor) : makeMonster(run.rng, run.floor, rank, defName);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
@@ -396,6 +399,13 @@ function afterFight(run: Run) {
     return;
   }
   if (b.over === "fled") { run.message = curseNote; return advance(run); }
+  // Transformation: after a long run of plain monster fights, a beaten monster can rise again as a Champion.
+  if (b.over === "won" && rank === "normal" && !then && !b.enemy.items["m_thief"] && rollTransformation(run)) {
+    const base = b.enemy.name;
+    run.popup = { icon: "🧬", title: "It's not over…", text: `The ${base}'s corpse convulses. Bones crack and flesh splits as it rises again, bigger and angrier — a Champion! There's no time to catch your breath.` + (curseNote ? ` ${curseNote}` : "") };
+    run.stats.kills++;
+    return fight(run, "champion", "transformed", base);
+  }
   if (b.over === "escaped") {
     run.message = (then === "goblin" ? "💨 The Treasure Goblin cackles and vanishes, hoard and all." : `${b.enemy.name} got away with your Gold.`) + (curseNote ? ` ${curseNote}` : "");
     return advance(run);
@@ -666,13 +676,13 @@ function shopStock(run: Run): ShopEntry[] {
   const stock: ShopEntry[] = [];
   for (let i = 0; i < 3; i++) {
     const item = rollItem(h, rollRarity(run.rng, TABLES.shop, run.floor), run.floor, run.rng);
-    stock.push({ kind: "item", item, price: Math.round(PRICE[item.rarity] * priceMult(run)) });
+    stock.push({ kind: "item", item, price: Math.round(PRICE[item.rarity] * shopMult(run)) });
   }
   const shopRelic = randomRelic(run);
-  stock.push({ kind: "relic", relic: shopRelic, price: Math.round((({ common: 40, uncommon: 55, rare: 85, legendary: 160 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 50) * priceMult(run)) });
-  stock.push({ kind: "potion", price: Math.round(15 * priceMult(run)) });
-  if (run.rng() < 0.5) stock.push({ kind: "mana", price: Math.round(25 * priceMult(run)) });
-  if (run.rng() < 0.12) stock.push({ kind: "scroll", price: Math.round(100 * priceMult(run)) });
+  stock.push({ kind: "relic", relic: shopRelic, price: Math.round((({ common: 40, uncommon: 55, rare: 85, legendary: 160 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 50) * shopMult(run)) });
+  stock.push({ kind: "potion", price: Math.round(15 * shopMult(run)) });
+  if (run.rng() < 0.5) stock.push({ kind: "mana", price: Math.round(25 * shopMult(run)) });
+  if (run.rng() < 0.12) stock.push({ kind: "scroll", price: Math.round(100 * shopMult(run)) });
   return stock;
 }
 
@@ -717,6 +727,22 @@ export function sellItem(run: Run, uid: number): string | null {
 }
 
 /** Shop prices grow with the floor: +12% per floor below the first. */
+/** Odds that a beaten normal monster transforms into a Champion: 0 until 14 plain fights in a row, then 3% rising 2% per fight. */
+export function transformationChance(streak: number): number {
+  return streak < TRANSFORM_STREAK ? 0 : 0.03 + 0.02 * (streak - TRANSFORM_STREAK);
+}
+export const TRANSFORM_STREAK = 14;
+function rollTransformation(run: Run): boolean {
+  if (run.rng() >= transformationChance(run.normalStreak ?? 0)) return false;
+  run.normalStreak = 0;
+  return true;
+}
+
+/** The Merchant sizes up your purse: +1% per 5 Gold you carry, up to +75%. */
+export const wealthMult = (run: Run) => 1 + Math.min(0.75, Math.max(0, run.hero.f.gold) / 500);
+/** Shop prices: floor and curses (priceMult) times what the Merchant thinks you can afford. */
+export const shopMult = (run: Run) => priceMult(run) * wealthMult(run);
+
 export const priceMult = (run: Run) => (1 + 0.12 * (run.floor - 1)) * gouge(run.hero);
 /** Each reroll at the same Merchant costs double the last (from 10 Gold, scaled by the floor), up to 5 rerolls per visit. */
 export const MAX_SHOP_REROLLS = 5;
@@ -729,7 +755,7 @@ export function rerollShop(run: Run): string | null {
   if (run.hero.f.gold < cost) return "Not enough Gold.";
   run.hero.f.gold -= cost;
   run.shopRerolls++;
-  run.scene = { ...run.scene, stock: shopStock(run) };
+  run.scene = { ...run.scene, stock: shopStock(run), markup: Math.round((wealthMult(run) - 1) * 100) };
   return null;
 }
 

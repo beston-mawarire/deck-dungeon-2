@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.2.0
+- Shop prices now also rise with the Gold you carry (+1% per 5 Gold, up to +75%), on top of the floor. The Merchant tells you when he's marking up.
+- Transformation: after 14 plain monster fights in a row, a beaten monster may rise again as a Champion of its kind that you must fight at once (3% chance, +2% per further fight; resets when it happens or when you pick any other room).
+
 ## 1.1.2
 - The Talents tab is now **Aspects**, holding the Talents and Curses sub-tabs; removed the extra headings inside them.
 

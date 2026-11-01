@@ -175,10 +175,11 @@ export function makeThief(rng: () => number, floor: number): Fighter {
   };
 }
 
-export function makeMonster(rng: () => number, floor: number, rank: MonsterRank): Fighter {
+export function makeMonster(rng: () => number, floor: number, rank: MonsterRank, defName?: string): Fighter {
   // A quarter of Elites and Champions are one of the elite-only Tormentors.
   const pool = (rank === "elite" || rank === "champion") && rng() < 0.25 ? ELITE_ONLY : MONSTERS;
-  const def = pool[Math.floor(rng() * pool.length)];
+  const forced = defName ? [...MONSTERS, ...ELITE_ONLY].find(d => d.name === defName) : undefined;
+  const def = forced ?? pool[Math.floor(rng() * pool.length)];
   let hp = Math.round(def.hp * monsterHpMult(floor));
   let power = def.power + monsterPowerAdd(floor);
   const items: Record<string, number> = {};
