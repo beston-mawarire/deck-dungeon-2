@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.13.4
+- Close buttons show an ✕ (Inventory, How to play, Leaderboards, Bounty, Story).
+
 ## 1.13.3
 - How to play → Loot: "Uncommon" is shown in Uncommon green.
 
