@@ -13,7 +13,7 @@ export const EQUIP_SLOTS: EquipSlot[] = ["main", "off", "armour", "trinket1", "t
 export const hasThirdTrinket = (h: Hero) => h.keepsake === "ks_collector";
 /** The slots this hero can actually use right now. */
 export const openSlots = (h: Hero) => EQUIP_SLOTS.filter(s => s !== "trinket3" || hasThirdTrinket(h));
-export const BACKPACK_SIZE = 5;
+export const BACKPACK_SIZE = 6;
 
 export interface Hero {
   origin: OriginId;

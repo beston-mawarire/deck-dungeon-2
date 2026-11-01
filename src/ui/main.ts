@@ -1212,7 +1212,7 @@ function bind() {
   });
   app.querySelectorAll<HTMLElement>("[data-act]").forEach(el => (el.onclick = () => { if (!busy) void playTurn(el.dataset.act as Action); }));
   on("[data-potion]", () => { drinkPotion(r); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
-  on("[data-bag]", () => { bagOpen = true; bagTab = r.scene.t === "combat" ? "extras" : "gear"; });
+  on("[data-bag]", () => { bagOpen = true; bagTab = "gear"; });
   on("[data-closebag]", () => { bagOpen = false; });
   on("[data-bagtab]", el => { bagTab = el.dataset.bagtab as BagTab; });
   on("[data-take]", el => say(takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack")));
