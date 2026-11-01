@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.11.6
+- After choosing a class, the start button says "Start Campaign" or "Start Endless" to match the chosen mode.
+
 ## 1.11.5
 - The Endless mode button reads "Endless · how far?".
 

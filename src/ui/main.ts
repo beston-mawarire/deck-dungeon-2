@@ -1023,7 +1023,7 @@ function originPopup(o: OriginId) {
     <p class="sub"><b>${esc(p.name)}:</b> ${esc(p.text)}.</p>
     <p class="sub">Starts with ${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p>
     ${savedSummary() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
-    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>Start run</button><button data-closeorigin>Back</button></div>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>${mode === "endless" ? "♾️ Start Endless" : "🏰 Start Campaign"}</button><button data-closeorigin>Back</button></div>
   </div></div>`;
 }
 
