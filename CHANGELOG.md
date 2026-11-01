@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.4.2
+- Event descriptions no longer show odds or heal percentages; they use words ("a chance to…", "heals a fair share…").
+
 ## 1.4.1
 - Sanguine Altar: tempering now gives +3 levels, the Max HP offer starts at +8, and the curse offer simply reads "Take on a random curse".
 
