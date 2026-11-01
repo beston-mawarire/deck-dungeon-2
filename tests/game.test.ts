@@ -59,6 +59,8 @@ describe("origins and gear", () => {
     expect(st(b.player, "haste")).toBe(2);
     applyStatus(b, b.player, b.player, "haste", 5);
     expect(st(b.player, "haste")).toBe(7);
+    applyStatus(b, b.enemy, b.enemy, "haste", 9);
+    expect(st(b.enemy, "haste")).toBe(4);
     b.player.statuses.haste = 2;
     heroPhase(b, "attack");
     expect(st(b.player, "haste")).toBe(1);

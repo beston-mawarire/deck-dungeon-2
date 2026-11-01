@@ -9,6 +9,8 @@ export const other = (b: Battle, f: Fighter) => (f === b.player ? b.enemy : b.pl
 
 /** Statuses that never stack above 1 (Shock can go to 2 with Conductor, set by the item). */
 const SINGLE: StatusId[] = ["stun", "evade", "focus", "ward"];
+/** The hero's Haste stacks without limit; enemies can bank at most this many. */
+export const ENEMY_HASTE_CAP = 4;
 
 export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: string }> = {
   bleed: { name: "Bleed", icon: "🩸", text: "Lose 1 HP per stack at end of round; stacks fall by 1" },
@@ -189,6 +191,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   else if (id === "shock") target.statuses.shock = Math.max(st(target, "shock"), amount);
   else if (id === "static") target.statuses.static = Math.min(staticCap(source), st(target, "static") + amount);
   else if (id === "dazzled") target.statuses.dazzled = Math.min(4, Math.max(st(target, "dazzled"), amount));
+  else if (id === "haste" && target !== b.player) target.statuses.haste = Math.min(ENEMY_HASTE_CAP, st(target, "haste") + amount);
   else if (id === "consecrated") target.statuses.consecrated = Math.max(st(target, "consecrated"), amount);
   else target.statuses[id] = st(target, id) + amount;
   log(b, `${target.name} gains ${STATUS_INFO[id].icon} ${STATUS_INFO[id].name}${SINGLE.includes(id) || id === "shock" ? "" : ` ${amount}`}.`);
