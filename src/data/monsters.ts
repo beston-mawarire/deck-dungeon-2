@@ -38,6 +38,7 @@ export const TRAITS: HookDef[] = [
   trait({ id: "x_smouldering", name: "Smouldering", tags: ["Burn"], text: "Its hits leave you Smouldering (you take 5 Burn a round, it takes 1)", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "smoulder", 1) } }),
   trait({ id: "x_accursed", name: "Accursed", tags: ["Hex"], text: "If it lands 3 hits on you in one fight, you're cursed for the rest of the run",
     hooks: { onHit: (b, c) => { const n = (c.attacker.flags["accursed"] ?? 0) + 1; c.attacker.flags["accursed"] = n; if (n === 3) { c.defender.persist["curseQueue"] = (c.defender.persist["curseQueue"] ?? 0) + 1; log(b, "🕯️ The Accursed marks you: a curse will follow you out of this fight."); b.fx.push({ who: c.defender.id, kind: "text", text: "Cursed!", icon: "🕯️" }); } } } }),
+  trait({ id: "m_dragon", name: "Dragon", tags: ["Burn", "Strike"], text: "Its claws rend, and a 6 breathes Dragonfire (Burn)", hooks: {} }),
   trait({ id: "m_goblin", name: "Treasure Goblin", tags: ["Gold", "Tempo"], text: "Flees with its hoard at the end of round 3. Kill it first and everything it carries is yours",
     hooks: {
       onFightStart: (b, f) => { log(b, `💰 ${f.name} clutches its sack. Kill it within 3 rounds!`); },
@@ -143,15 +144,16 @@ const THIEVES = [
   { name: "Coin Wraith", family: "Undead" },
   { name: "Clockwork Pickpocket", family: "Construct" }
 ];
-/** The Chained Dragon, woken: a Champion from one floor deeper, with more HP and bite. */
-export function makeDragon(rng: () => number, floor: number): Fighter {
-  const f = makeMonster(rng, floor + 1, "champion");
-  f.name = "The Chained Dragon";
-  f.title = "Awake, and furious";
-  f.family = "Beast";
-  f.hp = f.maxHp = Math.round(f.maxHp * 1.3);
-  f.damage += 2;
-  return f;
+/** The Chained Dragon itself, woken: its own stats scaled to the next floor, with a Champion's toughness (and it counts as one). */
+export function makeDragon(_rng: () => number, floor: number): Fighter {
+  const f2 = floor + 1;
+  const hp = Math.round(12 * monsterHpMult(f2) * (2.75 + 0.16 * f2) * 1.3);
+  const power = 3 + monsterPowerAdd(f2) + 4 + Math.floor(f2 / 2) + 2;
+  return {
+    id: "enemy", name: "The Chained Dragon", title: "Awake, and furious", hp, maxHp: hp, armor: 3 + Math.floor(f2 / 3), damage: power,
+    faces: [GRAZE, HIT, HIT, HIT, { kind: "crit", name: "Rending Claws" }, spell("Dragonfire", "hit", hex("burn", 3 + f2))],
+    statuses: {}, flags: {}, persist: {}, items: { m_dragon: 1 }, gold: 0, elite: true, champion: true, family: "Beast"
+  };
 }
 
 /** Treasure Goblin: stuffed with loot, slippery, and gone after round 3. */
