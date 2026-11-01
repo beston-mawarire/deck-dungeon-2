@@ -11,13 +11,13 @@ import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engin
 import { NEGATIVE_STATUSES, rarityLabel } from "../engine/types";
 import {
   BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost, rerollsLeft,
-  keepsOffHand, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
+  keepsOffHand, findItem, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
 } from "../game/hero";
 import { lockedIds, loadMeta, type Meta, recordRun, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
+  sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   abandonRun, smithUpgrade, runSummary, trackGold, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
@@ -71,6 +71,7 @@ let bountyOpen = false;
 type BagTab = "gear" | "stats" | "relics" | "talents" | "extras";
 let bagTab: BagTab = "gear";
 let talentSub: "talents" | "curses" = "talents";
+let spoilsSub: "relics" | "artefacts" = "relics";
 /** Shown when the device loses its connection. */
 let offlineOpen = false;
 let endArmed = false;
@@ -469,6 +470,9 @@ function allGear(r: Run): GearItem[] {
 
 let forgeTab: "upgrade" | "scrap" | "offer" | "combine" | "transmute" = "upgrade";
 const offerSel = new Set<number>();
+/** Forge: which half of your gear is shown, and the two items picked to Combine. */
+let forgeSide: "equipped" | "backpack" = "equipped";
+let combineSel: number[] = [];
 
 /** Odds in words (no numbers shown to players). p is a 0–100 share of non-failing outcomes. */
 const oddsWord = (p: number) => p >= 50 ? "likely" : p >= 25 ? "possible" : p >= 8 ? "unlikely" : "a slim chance";
@@ -476,32 +480,54 @@ function forgeScene(r: Run) {
   const h = r.hero;
   const fusions = availableFusions(r);
   const tabs = [["upgrade", "Upgrade & reroll"], ["scrap", "Scrap"], ["offer", "Offering"], ["combine", "Combine"], ["transmute", h.crucible ? "Transmute" : "🔒 Transmute"]];
+  const eq = EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x);
+  const exists = (u: number) => !!findItem(h, u);
+  for (const u of [...offerSel]) if (!exists(u)) offerSel.delete(u);
+  combineSel = combineSel.filter(exists);
+  // Equipped / Backpack sub-tabs. Picks (Offering, Combine) carry across both, so a worn item can go with one from the bag.
+  const sides = (filter: (it: GearItem) => boolean, card: (it: GearItem) => string, picked: (it: GearItem) => boolean = () => false, empty = "Nothing here.") => {
+    const lists = { equipped: eq.filter(filter), backpack: h.backpack.filter(filter) };
+    const n = (k: "equipped" | "backpack") => { const c = lists[k].filter(picked).length; return c ? ` <i class="side-n" title="${c} picked">✓${c}</i>` : ""; };
+    const items = lists[forgeSide];
+    return `<div class="forge-sides">
+        <button class="forge-side ${forgeSide === "equipped" ? "active" : ""}" data-forgeside="equipped">🛡️ Equipped${n("equipped")}</button>
+        <button class="forge-side ${forgeSide === "backpack" ? "active" : ""}" data-forgeside="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}${n("backpack")}</button></div>
+      <div class="forge-side-body">${items.length ? `<div class="cards">${items.map(card).join("")}</div>` : `<p class="sub">${empty}</p>`}</div>`;
+  };
+  const slotOf = (it: GearItem) => equippedSlot(r, it);
   let body = "";
   if (forgeTab === "upgrade") {
     body = `<p class="sub">Upgrading raises an item's level (more damage, stronger bonuses). Each reroll of the same item costs more.</p>
-    ${gearGroups(r, it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small danger" data-rr="${it.uid}" ${rerollsLeft(it) ? "" : "disabled"}>${rerollsLeft(it) ? `Reroll · ${rerollCost(it, r.hero)} ⚙️ (${rerollsLeft(it)} left)` : "No rerolls left"}</button>` : ""}`, false, equippedSlot(r, it)))}`;
+    ${sides(() => true, it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small danger" data-rr="${it.uid}" ${rerollsLeft(it) ? "" : "disabled"}>${rerollsLeft(it) ? `Reroll · ${rerollCost(it, r.hero)} ⚙️ (${rerollsLeft(it)} left)` : "No rerolls left"}</button>` : ""}`, false, slotOf(it)))}`;
   } else if (forgeTab === "scrap") {
     const star: Partial<Record<string, number>> = { legendary: 2, crimson: 4, epic_crimson: 10, legendary_crimson: 25 };
-    body = `<p class="sub">Break down items from your bag for Scrap. Rarer and higher-level items give more, and the rarest also give Starmetal. Gear you're wearing stays safe.</p>
-      <div class="cards" style="margin-top:8px">${h.backpack.map(it => itemCard(it, `<button class="small danger" data-forgescrap="${it.uid}">Scrap · +${scrapValue(h, it)} ⚙️${star[it.rarity] ? ` +${star[it.rarity]} ✴️` : ""}</button>`)).join("") || `<p class="sub">Your bag is empty.</p>`}</div>`;
+    body = `<p class="sub">Break down items for Scrap. Rarer and higher-level items give more, and the rarest also give Starmetal.</p>
+      ${sides(() => true, it => itemCard(it, `<button class="small danger" data-forgescrap="${it.uid}">Scrap · +${scrapValue(h, it)} ⚙️${star[it.rarity] ? ` +${star[it.rarity]} ✴️` : ""}</button>`, false, slotOf(it)))}`;
   } else if (forgeTab === "offer") {
-    const chosen = h.backpack.filter(i => offerSel.has(i.uid));
+    const chosen = allGear(r).filter(i => offerSel.has(i.uid));
     const odds = offeringOdds(offeringValue(chosen));
-    body = `<p class="sub">Sacrifice two or more items from your bag for one new item. More items and rarer items mean better odds — but sometimes the Forge takes everything and gives nothing.</p>
-      ${chosen.length >= 2 ? `<div class="panel">What the Forge might give: ${(["common", "uncommon", "rare", "epic", "legendary"] as const).filter(x => odds[x]).map(x => `<span class="chip odds-${x}">${x[0].toUpperCase() + x.slice(1)} · ${oddsWord(odds[x] ?? 0)}</span>`).join(" ")}</div>` : ""}
-      <div class="cards" style="margin-top:8px">${h.backpack.map(it => itemCard(it, `<button class="small ${offerSel.has(it.uid) ? "primary" : ""}" data-offersel="${it.uid}">${offerSel.has(it.uid) ? "✓ Offered" : "Offer"}</button>`)).join("") || `<p class="sub">Your bag is empty.</p>`}</div>
-      <div class="row" style="margin-top:8px"><button class="primary" data-offer ${chosen.length >= 2 ? "" : "disabled"}>Sacrifice ${chosen.length} item${chosen.length === 1 ? "" : "s"}</button></div>`;
+    body = `<p class="sub">Sacrifice two or more items for one new item. Pick from your equipped gear, your bag, or both. More items and rarer items mean better odds — but sometimes the Forge takes everything and gives nothing.</p>
+      <div class="panel forge-pick">${chosen.length ? `<div>Offering: ${chosen.map(i => `<b>${esc(itemName(i))}</b>`).join(", ")}</div>` : `<div class="sub">Nothing picked yet.</div>`}
+        ${chosen.length >= 2 ? `<div style="margin-top:6px">What the Forge might give: ${(["common", "uncommon", "rare", "epic", "legendary"] as const).filter(x => odds[x]).map(x => `<span class="chip odds-${x}">${x[0].toUpperCase() + x.slice(1)} · ${oddsWord(odds[x] ?? 0)}</span>`).join(" ")}</div>` : ""}
+        <div class="row" style="margin-top:8px"><button class="primary" data-offer ${chosen.length >= 2 ? "" : "disabled"}>Sacrifice ${chosen.length} item${chosen.length === 1 ? "" : "s"}</button></div></div>
+      ${sides(() => true, it => itemCard(it, `<button class="small ${offerSel.has(it.uid) ? "primary" : ""}" data-offersel="${it.uid}">${offerSel.has(it.uid) ? "✓ Offered" : "Offer"}</button>`, false, slotOf(it)), it => offerSel.has(it.uid))}`;
   } else if (forgeTab === "combine") {
-    const pairs = combinablePairs(r);
-    body = `<p class="sub">Combine two of the same item into one: a level higher, the best bonuses of both, and a chance to rise a rarity (up to Epic).</p>
-      ${pairs.length ? pairs.map(([a, b]) => `<div class="panel" style="margin-top:8px"><div class="cards">${itemCard(a, "", false, equippedSlot(r, a))}${itemCard(b, "", false, equippedSlot(r, b))}</div><button class="primary small" data-combine="${a.uid},${b.uid}">Combine</button></div>`).join("") : `<p class="sub">You don't have two of the same item.</p>`}`;
+    const all = allGear(r);
+    const can = (i: GearItem) => i.rarity !== "legendary" && i.rarity !== "crimson" && !baseOf(i.base).noJewel && !i.infused;
+    const hasTwin = (i: GearItem) => can(i) && all.some(o => o.uid !== i.uid && o.base === i.base && can(o));
+    const picked = combineSel.map(u => findItem(h, u)!.item);
+    const first = picked[0];
+    const fits = (i: GearItem) => combineSel.includes(i.uid) || (!first || (combineSel.length < 2 && i.base === first.base));
+    body = `<p class="sub">Combine two of the same item into one: a level higher, the best bonuses of both, and a chance to rise a rarity (up to Epic). The pair can come from your equipped gear, your bag, or one of each.</p>
+      <div class="panel forge-pick">${picked.length ? `<div>Combining: ${picked.map(i => `<b>${esc(itemName(i))}</b>`).join(" + ")}${picked.length === 1 ? ` <span class="sub">— pick its twin</span>` : ""}</div>` : `<div class="sub">Pick an item, then its twin.</div>`}
+        <div class="row" style="margin-top:8px"><button class="primary" ${picked.length === 2 ? `data-combine="${picked[0].uid},${picked[1].uid}"` : "disabled"}>Combine</button></div></div>
+      ${all.some(hasTwin) ? sides(hasTwin, it => itemCard(it, `<button class="small ${combineSel.includes(it.uid) ? "primary" : ""}" data-combinesel="${it.uid}" ${fits(it) ? "" : "disabled"}>${combineSel.includes(it.uid) ? "✓ Picked" : "Pick"}</button>`, false, slotOf(it)), it => combineSel.includes(it.uid), "No items here have a twin.") : `<p class="sub">You don't have two of the same item.</p>`}`;
   } else if (!h.crucible) {
     body = `<div class="panel locked-tool"><p><b>🔒 You're missing an artefact.</b></p>
-      <p class="sub">Transmuting needs a special tool you don't have yet. Strong foes have been known to carry strange things… Check the Extras tab of your Inventory to see what you're missing.</p></div>`;
+      <p class="sub">Transmuting needs a special tool you don't have yet. Strong foes have been known to carry strange things… Check Spoils in your Inventory to see what you're missing.</p></div>`;
   } else {
-    const commons = allGear(r).filter(i => i.rarity === "common");
     body = `<p class="sub">The Transmuter's Crucible turns a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} ✴️ Starmetal (you have ${h.starmetal}). It arrives unrevealed.</p>
-      <div class="cards">${commons.map(it => itemCard(it, `<button class="small primary" data-transmute="${it.uid}" ${h.starmetal >= TRANSMUTE_COST ? "" : "disabled"}>Transmute · ${TRANSMUTE_COST} ✴️</button>`, false, equippedSlot(r, it))).join("") || `<p class="sub">No Common items.</p>`}</div>`;
+      ${sides(i => i.rarity === "common", it => itemCard(it, `<button class="small primary" data-transmute="${it.uid}" ${h.starmetal >= TRANSMUTE_COST ? "" : "disabled"}>Transmute · ${TRANSMUTE_COST} ✴️</button>`, false, slotOf(it)), () => false, "No Common items here.")}`;
   }
   return `<h2>Forge</h2><p class="sub">⚙️ ${h.scrap} Scrap${h.starmetal ? ` · ✴️ ${h.starmetal} Starmetal` : ""}</p>
   ${fusions.length ? `<p class="sub fusable-hint">🔗 Two of your relics could be fused. The Forge can't do it — look for a Jeweller.</p>` : ""}
@@ -810,12 +836,12 @@ function bag(r: Run) {
   // Three Artefact slots. Only the first (the Transmuter's Crucible) exists so far; the other two are still a mystery.
   const artTile = (filled: boolean, icon: string, name: string, text: string, tip: string) =>
     `<div class="art-tile ${filled ? "filled" : "empty-slot"}" title="${esc(tip)}"><div class="art-ic">${icon}</div><div class="nm">${name}</div><p>${text}</p></div>`;
-  const crucibleHtml = `<div class="art-group"><div class="meta">Artefacts</div><div class="art-grid">${
+  const artefactsHtml = `<div class="art-group"><div class="art-grid">${
     h.crucible
       ? artTile(true, "⚗️", "Transmuter's Crucible", "At a Forge: Common → Legendary", `At any Forge (Transmute tab): turn a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} Starmetal.`)
       : artTile(false, "⚗️", "Empty", "Some Champions carry one…", "A strange tool some Champions carry. With it, a Forge can do something remarkable…")
   }${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}</div></div>`;
-  const extras = `${keepsakeHtml}${heartHtml}${crucibleHtml}
+  const extras = `${keepsakeHtml}${heartHtml}
     <div class="bag-extras">
       <div class="stile extra-tile key-tile"><span>🗝️</span><span><b>${h.crimsonKeys}</b> Crimson Key${h.crimsonKeys === 1 ? "" : "s"}<span class="sub">${h.crimsonKeys ? "A Crimson Vault will be on your path." : "Dropped by Crimson Elites, deep below."}</span></span></div>
       <div class="stile extra-tile scroll-tile"><span>📜</span><span><b>${h.scrolls}</b> Scroll${h.scrolls === 1 ? "" : "s"} of Revelation<span class="sub">${h.scrolls ? "Use one on a hidden Legendary in the Gear tab." : "Reveals a hidden Legendary's true power."}</span></span></div>
@@ -834,7 +860,7 @@ function bag(r: Run) {
   const tabs: [BagTab, string, string][] = [
     ["gear", "⚔️ Gear", `${h.backpack.length ? `<i>${h.backpack.length}</i>` : ""}`],
     ["stats", "📊 Stats", ""],
-    ["relics", "💎 Relics", `${nRelics ? `<i>${nRelics}</i>` : ""}`],
+    ["relics", "💎 Spoils", `${nRelics + (h.crucible ? 1 : 0) ? `<i>${nRelics + (h.crucible ? 1 : 0)}</i>` : ""}`],
     ["talents", "🧿 Aspects", `${nTalents + nCurses ? `<i>${nTalents + nCurses}</i>` : ""}`],
     ["extras", "✨ Extras", `${blessCount + h.scrolls + h.crimsonKeys ? `<i>${blessCount + h.scrolls + h.crimsonKeys}</i>` : ""}`]
   ];
@@ -842,7 +868,10 @@ function bag(r: Run) {
     bagTab === "gear" ? `${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}<div class="gear-group equipped-group"><div class="group-label">🛡️ Equipped</div><div class="cards">${equipped}</div></div>
       <div class="gear-group backpack-group"><div class="group-label">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</div><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div></div>`
     : bagTab === "stats" ? `${stats}<p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>`
-    : bagTab === "relics" ? `<h2>Relics</h2>${list(h.relics, "relic-line")}`
+    : bagTab === "relics" ? `<div class="row subtabs">
+        <button class="small ${spoilsSub === "relics" ? "primary" : ""}" data-spoilsub="relics">💎 Relics${nRelics ? ` (${nRelics})` : ""}</button>
+        <button class="small ${spoilsSub === "artefacts" ? "primary" : ""}" data-spoilsub="artefacts">⚗️ Artefacts${h.crucible ? " (1)" : ""}</button></div>
+      ${spoilsSub === "relics" ? (nRelics ? list(h.relics, "relic-line") : `<p class="sub">No relics yet.</p>`) : artefactsHtml}`
     : bagTab === "talents" ? `<div class="row subtabs">
         <button class="small ${talentSub === "talents" ? "primary" : ""}" data-talentsub="talents">🌟 Talents${nTalents ? ` (${nTalents})` : ""}</button>
         <button class="small curse-subtab ${talentSub === "curses" ? "primary" : ""}" data-talentsub="curses">🕯️ Curses${nCurses ? ` (${nCurses})` : ""}</button></div>
@@ -1508,7 +1537,8 @@ function bind() {
   on("[data-potion]", () => { say(drinkPotion(r)); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-bag]", () => { bagOpen = true; bagTab = "gear"; });
   on("[data-closebag]", () => { bagOpen = false; });
-  on("[data-bagtab]", el => { bagTab = el.dataset.bagtab as BagTab; talentSub = "talents"; });
+  on("[data-bagtab]", el => { bagTab = el.dataset.bagtab as BagTab; talentSub = "talents"; spoilsSub = "relics"; });
+  on("[data-spoilsub]", el => { spoilsSub = el.dataset.spoilsub as typeof spoilsSub; });
   on("[data-talentsub]", el => { talentSub = el.dataset.talentsub as "talents" | "curses"; });
   on("[data-take]", el => say(takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack")));
   on("[data-scrapfound]", el => scrapFound(r, Number(el.dataset.scrapfound)));
@@ -1559,10 +1589,12 @@ function bind() {
   on("[data-leave]", () => { r.message = ""; forgeTab = "upgrade"; offerSel.clear(); advance(r); });
   on("[data-up]", el => say(forgeUpgrade(r, Number(el.dataset.up))));
   on("[data-rr]", el => say(forgeReroll(r, Number(el.dataset.rr))));
-  on("[data-forgetab]", el => { forgeTab = el.dataset.forgetab as typeof forgeTab; offerSel.clear(); });
+  on("[data-forgetab]", el => { forgeTab = el.dataset.forgetab as typeof forgeTab; offerSel.clear(); combineSel = []; });
+  on("[data-forgeside]", el => { forgeSide = el.dataset.forgeside as typeof forgeSide; });
+  on("[data-combinesel]", el => { const u = Number(el.dataset.combinesel); combineSel = combineSel.includes(u) ? combineSel.filter(x => x !== u) : [...combineSel, u].slice(0, 2); });
   on("[data-offersel]", el => { const u = Number(el.dataset.offersel); if (offerSel.has(u)) offerSel.delete(u); else offerSel.add(u); });
   on("[data-offer]", () => { const out = forgeOffer(r, [...offerSel]); offerSel.clear(); if (typeof out === "string") { say(out); sfx("lose"); } else { say(`The Forge gives you: ${itemName(out)} (${out.rarity})`, false); if (RANK[out.rarity]) { celebrated.add(out.uid); celebrate(out.rarity); } else sfx("chest"); } });
-  on("[data-combine]", el => { const [a, b] = el.dataset.combine!.split(",").map(Number); const out = forgeCombine(r, a, b); if (typeof out === "string") say(out); else { say(`Combined into ${itemName(out)} (${out.rarity}, lv ${out.level})`, false); if (RANK[out.rarity]) { celebrated.add(out.uid); celebrate(out.rarity, out.rarity === "epic" ? "EPIC FORGED" : undefined); } else sfx("chest"); } });
+  on("[data-combine]", el => { const [a, b] = el.dataset.combine!.split(",").map(Number); combineSel = []; const out = forgeCombine(r, a, b); if (typeof out === "string") say(out); else { say(`Combined into ${itemName(out)} (${out.rarity}, lv ${out.level})`, false); if (RANK[out.rarity]) { celebrated.add(out.uid); celebrate(out.rarity, out.rarity === "epic" ? "EPIC FORGED" : undefined); } else sfx("chest"); } });
   on("[data-transmute]", el => { const out = forgeTransmute(r, Number(el.dataset.transmute)); if (typeof out === "string") say(out); else { say("The Crucible roars. A Legendary takes shape…", false); celebrate("legendary", "TRANSMUTED"); } });
   on("[data-fuse]", el => { const err = fuse(r, el.dataset.fuse!); say(err ?? `Fused: ${getItem(el.dataset.fuse!).name}!`, !!err); if (!err) sfx("legendary"); });
   on("[data-rest]", () => say(rest(r, "heal")));

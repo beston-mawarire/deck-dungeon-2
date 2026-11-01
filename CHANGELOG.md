@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.16.0
+- Every Forge tab now has Equipped and Backpack sub-tabs. Scrap, Upgrade and Transmute work on either.
+- Offering and Combine keep what you've picked across both sub-tabs, so you can offer worn and carried items together, or combine an equipped item with its twin in your bag (the result stays equipped). The number picked shows on each sub-tab.
+- Inventory: the Relics tab is now Spoils, with Relics and Artefacts sub-tabs. Artefacts moved there from Extras.
+
 ## 1.15.1
 - Key items are now called Artefacts. The Extras tab has an Artefacts group with three slots: the Transmuter's Crucible, plus two still-unknown ones. The Forge's locked Transmute tab now says you're missing an artefact.
 

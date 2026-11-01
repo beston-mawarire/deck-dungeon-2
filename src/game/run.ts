@@ -1088,8 +1088,8 @@ export const OFFERING_FAIL = 20;
 /** Sacrifice two or more backpack items for one new item (or, sometimes, nothing). */
 export function forgeOffer(run: Run, uids: number[]): GearItem | string {
   const h = run.hero;
-  const items = uids.map(u => h.backpack.find(i => i.uid === u)).filter((x): x is GearItem => !!x);
-  if (items.length < 2) return "Offer at least two items from your bag.";
+  const items = uids.map(u => findItem(h, u)?.item).filter((x): x is GearItem => !!x);
+  if (items.length < 2) return "Offer at least two items.";
   for (const it of items) removeGear(h, it.uid);
   // The Forge doesn't always answer: sometimes the offering is simply lost.
   if (run.rng() * 100 < OFFERING_FAIL) {

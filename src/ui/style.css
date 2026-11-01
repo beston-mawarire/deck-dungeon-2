@@ -620,3 +620,11 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .art-tile p { margin: 0; font-size: .74rem; color: #d8c9b4; line-height: 1.25; }
 .art-tile.empty-slot { border-style: dashed; border-color: #8a6534; background: rgba(0,0,0,.18); }
 .art-tile.empty-slot .nm { color: #c99a5e; } .art-tile.empty-slot p { color: var(--muted); } .art-tile.empty-slot .art-ic { opacity: .55; }
+
+/* Forge: Equipped / Backpack sub-tabs inside each Forge tab */
+.forge-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: 10px; }
+.forge-side { border: 1px solid #6a5238; background: rgba(0,0,0,.25); color: #cbbfd8; padding: 9px 6px; font-weight: 600; border-radius: 10px 10px 0 0; border-bottom-color: #6a5238; }
+.forge-side.active { background: linear-gradient(180deg, #4a3620, #2a2018); color: #ffd58a; border-color: #c08a42; border-bottom-color: transparent; }
+.forge-side .side-n { white-space: nowrap; font-style: normal; font-size: .72rem; color: #1a1208; background: var(--gold); border-radius: 8px; padding: 1px 6px; margin-left: 4px; }
+.forge-side-body { border: 1px solid #c08a42; border-top: none; border-radius: 0 0 12px 12px; padding: 10px; background: rgba(42,32,24,.35); }
+.forge-pick { margin-top: 8px; border-color: #8a6534; }
