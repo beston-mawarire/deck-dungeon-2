@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.4.0
+- Withering Breath (Parched) is now only used by bosses below floor 5.
+- 8 new curses, from light to heavy: Butterfingers, Tarnished, Scrap Rot, Leaky Purse, Restless, Stripped, Dulled Edge, Overburdened.
+- New event, **The Sanguine Altar**: pay a share of your Max HP in blood for Gold (10%), Max HP (20%), +2 levels on a random equipped item (30%), cleansing every curse (40%), a curse (50%), a Common relic (60%), a slim chance at a Crimson Key (70%), a Rare-or-better item (80%) or an Epic-or-better item (90%). You can't pay what would kill you.
+
 ## 1.3.0
 - New curse, **Parched**: you can't drink Healing or Mana Potions. It bites the moment it lands and lasts the run.
   - Normal foes: the new Dust Leech and Ash Wight (Parching Touch: their 3rd hit in a fight parches you).

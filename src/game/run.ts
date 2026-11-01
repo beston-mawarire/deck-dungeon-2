@@ -11,7 +11,7 @@ import { makeRng } from "../engine/rng";
 import { applyStatus, heal as healF } from "../engine/statuses";
 import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
-import { addToBackpack, canGuard, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -724,7 +724,10 @@ export function buy(run: Run, i: number): string | null {
 }
 
 /** What a Merchant pays for an item: 40% of its shop price, plus a little per level. */
-export const sellPrice = (item: GearItem) => Math.round(PRICE[item.rarity] * 0.4) + 2 * (item.level - 1);
+export const sellPrice = (item: GearItem, h?: Hero) => {
+  const n = Math.round(PRICE[item.rarity] * 0.4) + 2 * (item.level - 1);
+  return (h?.curses["c_tarnished"] ?? 0) > 0 ? Math.ceil(n / 2) : n;
+};
 
 /** Sell one item (equipped or in the bag) — once per Merchant visit. */
 export function sellItem(run: Run, uid: number): string | null {
@@ -734,7 +737,7 @@ export function sellItem(run: Run, uid: number): string | null {
   const h = run.hero;
   const found = findItem(h, uid);
   if (!found) return null;
-  const price = sellPrice(found.item);
+  const price = sellPrice(found.item, h);
   removeGear(h, uid);
   recompute(h);
   h.f.gold += price;
@@ -811,10 +814,12 @@ export function forgeReroll(run: Run, uid: number): string | null {
   return null;
 }
 
+/** Campfire heal: 40% of Max HP (half that while Restless). */
+export const restPct = (h: Hero) => ((h.curses["c_restless"] ?? 0) > 0 ? 0.2 : 0.4);
 export function rest(run: Run, _choice: "heal" = "heal"): string | null {
   const h = run.hero;
   if (run.scene.t !== "rest" || run.scene.done) return null;
-  restore(h, Math.round(h.f.maxHp * 0.4));
+  restore(h, Math.round(h.f.maxHp * restPct(h)));
   run.scene.done = true;
   return null;
 }
@@ -858,6 +863,23 @@ export function chooseEvent(run: Run, i: number) {
     },
     cloverBlessing: () => { h.f.persist["cloverChests"] = 4; },
     angelicBlessing: () => { h.curses = {}; h.f.persist["angelFights"] = 2; recompute(h); },
+    maxHp: () => h.f.maxHp,
+    upgradeRandom: (n: number) => {
+      const eq = EQUIP_SLOTS.map(sl => h.equip[sl]).filter((x): x is GearItem => !!x);
+      if (!eq.length) return null;
+      const it = eq[Math.floor(run.rng() * eq.length)];
+      it.level += n;
+      for (const k of Object.keys(it.bonuses)) it.bonuses[k] += n;
+      recompute(h);
+      return itemName(it);
+    },
+    gainCommonRelic: () => {
+      const pool = RELICS.filter(r => (r.rarity ?? "common") === "common" && !isLocked(r.id) && r.id !== "transmuter");
+      const id = pool[Math.floor(run.rng() * pool.length)].id;
+      grantRelic(run, id);
+      return getItem(id).name;
+    },
+    addCrimsonKey: () => { h.crimsonKeys++; },
     upgradeWeapon: () => { const w = h.equip.main; if (!w) return "You have no weapon."; w.level++; for (const k of Object.keys(w.bonuses)) w.bonuses[k]++; recompute(h); return null; }
   };
   const opt = s.ev.options[i];
@@ -887,7 +909,7 @@ export function eventOptionAvailable(run: Run, i: number): boolean {
   const opt = s.ev.options[i];
   if (!opt.can) return true;
   // Only read-only helpers are used by `can`.
-  return opt.can({ gold: () => h.f.gold, hp: () => h.f.hp, relicCount: () => Object.keys(h.relics).length, potions: () => h.potions, floor: () => run.floor, needGold: () => eventGold(run, s.ev) } as never);
+  return opt.can({ gold: () => h.f.gold, hp: () => h.f.hp, maxHp: () => h.f.maxHp, relicCount: () => Object.keys(h.relics).length, potions: () => h.potions, floor: () => run.floor, needGold: () => eventGold(run, s.ev) } as never);
 }
 
 // ---------- Fusions ----------

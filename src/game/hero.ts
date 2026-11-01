@@ -230,7 +230,7 @@ export function recompute(h: Hero) {
   if (items["w_mirage_sabre"]) s.critChance += Math.floor((f.dodge ?? 0) / 2);
   if (f.dualWield && items["t_duellist_ring"]) s.critChance += 6;
   f.critChance = Math.min(50, Math.max(0, s.critChance));
-  f.critDmg = Math.max(0, s.critDmg ?? 0);
+  f.critDmg = Math.max(-50, s.critDmg ?? 0);
   // Twin Souls: a second die with your main weapon's faces at 60% damage.
   if (items["lr_twin_souls"]) {
     f.offFaces = f.faces;
@@ -313,6 +313,7 @@ export function unequip(h: Hero, slot: EquipSlot): string | null {
 }
 
 export function addToBackpack(h: Hero, item: GearItem): string | null {
+  if ((h.curses["c_overburdened"] ?? 0) > 0) return "🎒 Overburdened: your backpack won't take anything new. Equip it instead.";
   if (h.backpack.length >= BACKPACK_SIZE) return "Your backpack is full. Salvage something first.";
   h.backpack.push(item);
   return null;
@@ -322,7 +323,8 @@ export const SCRAP_VALUE: Record<Rarity, number> = { common: 1, uncommon: 2, rar
 
 /** What an item scraps for (rarity + level, plus Scrap relics). */
 export function scrapValue(h: Hero, item: GearItem): number {
-  return SCRAP_VALUE[item.rarity] + (item.level - 1) + relicBonus(h.relics, "scrap");
+  const n = SCRAP_VALUE[item.rarity] + (item.level - 1) + relicBonus(h.relics, "scrap");
+  return (h.curses["c_scrap_rot"] ?? 0) > 0 ? Math.ceil(n / 2) : n;
 }
 
 /** Salvage into Scrap. Legendaries also give 2 Starmetal. */

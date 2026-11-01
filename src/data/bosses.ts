@@ -60,7 +60,7 @@ interface BossDef { name: string; title: string; family: string; moves: string[]
 /** Named bosses. The campaign draws five (Hollow King last); the rest return in Endless. */
 export const NAMED_BOSSES: Record<string, BossDef> = {
   gnasher: { name: "Gnasher", title: "the Pack Lord", family: "Beast", moves: ["strike", "flurry", "rend"], traits: ["m_ambush"] },
-  rot: { name: "The Mother of Rot", title: "Queen of the Sewers", family: "Undead", moves: ["venom", "strike", "regrow", "parch"] },
+  rot: { name: "The Mother of Rot", title: "Queen of the Sewers", family: "Undead", moves: ["venom", "strike", "regrow"] },
   cinder: { name: "Brother Cinder", title: "the Ashen Zealot", family: "Cultist", moves: ["fire", "strike", "brand", "enrage"] },
   galen: { name: "Ser Galen", title: "the Unbroken", family: "Cultist", moves: ["shieldwall", "heavy", "guardstrike", "strike"], armor: 3 },
   varkas: { name: "Varkas", title: "the Iron Warden", family: "Construct", moves: ["bulwark", "concuss", "heavy", "strike"], armor: 2, hpMult: 0.9 },
@@ -137,7 +137,8 @@ export const CRIMSON_NAMES = ["The Red Abbess", "Sanguinor", "The Crimson Choir"
 const CRIMSON_TITLES = ["Keeper of the Red Vault", "Who Drinks the Dark", "the Unquenched", "Lord of the Red Tithe", "the Bleeding Crown", "Voice of the Red Moon"];
 
 export function makeCrimsonBoss(floor: number, rng: () => number): Fighter {
-  const moves = Object.keys(MOVE_LIBRARY).filter(m => m !== "crimson");
+  // Withering Breath (Parched) only below the campaign floors.
+  const moves = Object.keys(MOVE_LIBRARY).filter(m => m !== "crimson" && (m !== "parch" || floor > CAMPAIGN_POOLS.length));
   const chosen = new Set<string>(["strike", "crimson"]);
   while (chosen.size < 5) chosen.add(pick(rng, moves));
   if (chosen.has("charge")) chosen.add("smash");

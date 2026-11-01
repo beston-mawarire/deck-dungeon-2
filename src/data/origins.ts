@@ -1,5 +1,5 @@
 // Origins (starting kit + one small passive) and curses.
-import type { HookDef, OriginId } from "../engine/types";
+import { POSITIVE_STATUSES, type HookDef, type OriginId, type StatusId } from "../engine/types";
 import { BRUTE_CURSES } from "./brutes";
 import { applyStatus, heal, log, other, ping, st } from "./helpers";
 
@@ -31,6 +31,29 @@ export const ORIGIN_PASSIVES: HookDef[] = [
 const curse = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "curse", ...d });
 export const CURSES: HookDef[] = [
   curse({ id: "c_parched", name: "Parched", tags: ["Blood"], text: "You can't drink Healing or Mana Potions", hooks: {} }),
+  // Light → heavy: curses that events and foes can lay on you.
+  curse({ id: "c_butterfingers", name: "Butterfingers", tags: ["Luck"], text: "Your first attack in every fight deals no damage",
+    hooks: { modifyAttack: (b, c) => { if (!c.offhand && !c.attacker.flags["butter"]) { c.attacker.flags["butter"] = 1; c.noDamage = true; log(b, "🧈 Butterfingers: your first swing slips."); } } } }),
+  curse({ id: "c_tarnished", name: "Tarnished", tags: ["Gold"], text: "The Merchant pays half for anything you sell", hooks: {} }),
+  curse({ id: "c_scrap_rot", name: "Scrap Rot", tags: ["Gold"], text: "Scrapping gear gives half the Scrap", hooks: {} }),
+  curse({ id: "c_leaky_purse", name: "Leaky Purse", tags: ["Gold"], text: "Lose 2 Gold at the end of every round in a fight",
+    hooks: { onRoundEnd: (b, f) => { if (f.id === "player" && f.gold > 0) { const n = Math.min(2, f.gold); f.gold -= n; log(b, `🪙 Leaky Purse: ${n} Gold trickles away.`); } } } }),
+  curse({ id: "c_restless", name: "Restless", tags: ["Blood"], text: "Campfires heal only half as much", hooks: {} }),
+  curse({ id: "c_stripped", name: "Stripped", tags: ["Hex"], text: "Your buffs and positive statuses are suppressed for the first round of every fight (they return after it)",
+    hooks: {
+      onRoundStart: (b, f) => {
+        if (b.round !== 1 || f.id !== "player") return;
+        let any = false;
+        for (const s of POSITIVE_STATUSES as readonly StatusId[]) { const n = f.statuses[s] ?? 0; if (n > 0) { f.flags[`strip_${s}`] = n; f.statuses[s] = 0; any = true; } }
+        if (any) log(b, "🫥 Stripped: your blessings fall silent for this round.");
+      },
+      onRoundEnd: (b, f) => {
+        if (b.round !== 1 || f.id !== "player") return;
+        for (const s of POSITIVE_STATUSES as readonly StatusId[]) { const n = f.flags[`strip_${s}`] ?? 0; if (n > 0) { f.statuses[s] = (f.statuses[s] ?? 0) + n; f.flags[`strip_${s}`] = 0; } }
+      }
+    } }),
+  curse({ id: "c_dulled_edge", name: "Dulled Edge", tags: ["Crit"], text: "Your Crits deal 25% less damage", hooks: { stats: s => { s.critDmg = (s.critDmg ?? 0) - 25; } } }),
+  curse({ id: "c_overburdened", name: "Overburdened", tags: ["Guard"], text: "Your backpack won't take anything new: loot and purchases must be equipped straight away", hooks: {} }),
   curse({ id: "c_rust", name: "Rust", tags: ["Guard"], text: "−1 Armor", hooks: { stats: s => { s.armor -= 1; } } }),
   curse({ id: "c_withered", name: "Withered", tags: ["Blood"], text: "Healing is halved", hooks: { healMult: () => 0.5 } }),
   curse({ id: "c_haunted", name: "Haunted", tags: ["Poison"], text: "Every fight starts with 2 Poison on you", hooks: { onFightStart: (b, f) => applyStatus(b, null, f, "poison", 2) } }),

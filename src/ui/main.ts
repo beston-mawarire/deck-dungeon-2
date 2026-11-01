@@ -17,7 +17,7 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  abandonRun, smithUpgrade, TONICS, buyTonic, useTonic, tributeCost, payTribute,
+  abandonRun, smithUpgrade, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
@@ -415,7 +415,7 @@ function shopScene(r: Run) {
   <p class="sub">Bought gear goes to your bag; equip it from 🎒.</p>
   <h2>Sell</h2>
   ${r.scene.soldItem ? `<p class="sub">You sold ${esc(r.scene.soldItem)}. The Merchant won't buy anything else this visit.</p>`
-    : `<p class="sub">The Merchant will buy one item per visit, for 40% of its price.</p>${gearGroups(r, it => itemCard(it, `<button class="small" data-sell="${it.uid}">Sell · ${sellPrice(it)} 🪙</button>`, false, equippedSlot(r, it)))}`}
+    : `<p class="sub">The Merchant will buy one item per visit, for 40% of its price.</p>${gearGroups(r, it => itemCard(it, `<button class="small" data-sell="${it.uid}">Sell · ${sellPrice(it, r.hero)} 🪙</button>`, false, equippedSlot(r, it)))}`}
   <div class="row" style="margin-top:12px">${r.shopRerolls >= MAX_SHOP_REROLLS ? `<button disabled>No rerolls left</button>` : `<button data-reroll>Reroll stock · ${shopRerollCost(r)} 🪙 (${MAX_SHOP_REROLLS - r.shopRerolls} left)</button>`}<button class="primary" data-leave>Leave</button></div>`;
 }
 
@@ -489,7 +489,7 @@ function clearedScene(r: Run) {
 
 function restScene(r: Run) {
   if (r.scene.t !== "rest") return "";
-  return `<h2>Campfire</h2>${r.scene.done ? `<p>You rest a while.</p>` : `<div class="row"><button class="primary" data-rest="heal">Rest: heal 40% of Max HP</button></div>`}
+  return `<h2>Campfire</h2>${r.scene.done ? `<p>You rest a while.</p>` : `<div class="row"><button class="primary" data-rest="heal">Rest: heal ${Math.round(restPct(r.hero) * 100)}% of Max HP</button></div>`}
   <div class="row" style="margin-top:12px"><button data-leave>Move on</button></div>`;
 }
 
