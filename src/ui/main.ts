@@ -19,11 +19,12 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   combinablePairs, sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, OFFERING_FAIL, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  abandonRun, smithUpgrade, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
+  abandonRun, smithUpgrade, runSummary, trackGold, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { potionCap, potionsPerFight } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
+import { BOARDS, type Board, fetchBoard, flushQueue, leaderboardOn, playerName, type Row, setPlayerName, submitRun } from "./leaderboard";
 import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
@@ -54,6 +55,14 @@ let pendingOrigin: OriginId | null = null;
 let storyOpen: Mode | null = null;
 /** The How to play guide is open. */
 let helpOpen = false;
+/** Leaderboards: the board on show, what came back, and how this run placed. */
+let lbOpen = false;
+let lbBoard: Board = "floor";
+let lbRows: Row[] | null = null;
+let lbMe: { rank: number; value: number } | null = null;
+let lbError = "";
+let lbResult: { ranks?: Partial<Record<Board, number>> } | null | "sending" = null;
+let lbNaming = false;
 /** The in-run menu (main menu / end run). */
 let menuOpen = false;
 /** The current-bounty popup. */
@@ -255,7 +264,7 @@ function titleScreen() {
   const next = UNLOCK_TIERS.find(t => meta.renown < t.at);
   return `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>
   <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
-  <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span><span class="grow"></span><button class="small" data-codex>📖 Codex</button><button class="small" data-help>❓ How to play</button></div>
+  <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span><span class="grow"></span><button class="small" data-codex>📖 Codex</button><button class="small lb-btn" data-lb>🏆 Leaderboards</button><button class="small" data-help>❓ How to play</button></div>
     ${next ? `<p class="sub">Next unlock at ${next.at} Renown: <b>${esc(next.name)}</b> (${locked.size} items still locked)</p>` : `<p class="sub">Everything is unlocked.</p>`}</div>
   ${(() => { const sv = savedSummary(); return sv ? `<button class="primary continue" data-continue>▶ Continue your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run · ${sv.mode === "endless" ? "Endless " : ""}floor ${sv.floor} · level ${sv.level}</button>` : ""; })()}
   <h2 class="bright">Mode</h2>
@@ -657,14 +666,74 @@ function killerPanel(r: Run) {
   </div>`;
 }
 
+/** Send a finished run to the leaderboards (once), then show where it placed. */
+function sendRun(r: Run) {
+  if (!leaderboardOn() || r.submitted) return;
+  lbResult = "sending";
+  void submitRun(r, VERSION).then(res => { lbResult = res; render(); });
+}
+
+const fmtN = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${(n / 1e3).toFixed(1)}k` : String(n));
+
+/** The run's leaderboard numbers, and the name / submit box. */
+function runStatsPanel(r: Run) {
+  const x = runSummary(r);
+  const tiles = `<div class="lb-stats">
+    <span>🕳️ Floor <b>${x.floor}</b></span><span>💀 Elites <b>${x.elites}</b></span><span>👹 Champions <b>${x.champions}</b></span>
+    <span>⚔️ Damage <b>${fmtN(x.damage)}</b></span><span>💥 Biggest hit <b>${fmtN(x.bestHit)}</b></span><span>🪙 Gold earned <b>${fmtN(x.gold)}</b></span></div>`;
+  if (!leaderboardOn()) return tiles;
+  const name = playerName();
+  let box: string;
+  if (!name || lbNaming) {
+    box = `<div class="lb-name"><p><b>🏆 Put this run on the leaderboards</b></p>
+      <div class="row"><input id="lb-name" maxlength="16" placeholder="Your name" value="${esc(name)}" autocomplete="nickname"><button class="primary small" data-lbsubmit>${r.submitted ? "Save name" : "Submit"}</button></div>
+      <p class="sub">Up to 16 letters. It's remembered: your next runs go up by themselves.</p></div>`;
+  } else if (lbResult === "sending") box = `<p class="lb-placed">🏆 Sending to the leaderboards…</p>`;
+  else if (lbResult && lbResult.ranks) {
+    const rk = lbResult.ranks;
+    const best = BOARDS.filter(b => (rk[b.id] ?? 99) <= 10).map(b => `${b.icon} #${rk[b.id]} ${b.label}`);
+    box = `<p class="lb-placed">🏆 On the leaderboards as <b>${esc(name)}</b>${best.length ? ` · ${best.join(" · ")}` : ` · #${rk.floor} deepest`}</p>
+      <div class="row"><button class="small" data-lb>See the leaderboards</button><button class="small" data-lbrename>Change name</button></div>`;
+  } else if (r.submitted) box = `<p class="lb-placed">🏆 Couldn't reach the leaderboards. This run will be sent when you're back online.</p>`;
+  else box = `<div class="row"><button class="small primary" data-lbsend>🏆 Submit as ${esc(name)}</button><button class="small" data-lbrename>Change name</button></div>`;
+  return tiles + box;
+}
+
+function leaderboardPopup() {
+  const tabs = BOARDS.map(b => `<button class="small ${lbBoard === b.id ? "primary" : ""}" data-lbboard="${b.id}">${b.icon} ${b.label}</button>`).join("");
+  const unit = BOARDS.find(b => b.id === lbBoard)!;
+  const ORIGIN_IC: Record<string, string> = { warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" };
+  let body: string;
+  if (!leaderboardOn()) body = `<p class="sub center">The leaderboards are being set up. Check back soon!</p>`;
+  else if (lbError) body = `<p class="sub center">${esc(lbError)}</p>`;
+  else if (!lbRows) body = `<p class="sub center">Loading…</p>`;
+  else if (!lbRows.length) body = `<p class="sub center">Nobody's on this board yet. Be the first!</p>`;
+  else body = `<ol class="lb-list">${lbRows.map(row => `<li class="${row.you ? "you" : ""} ${row.rank <= 3 ? `top${row.rank}` : ""}"><span class="lb-rank">${row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}</span><span class="lb-nm">${ORIGIN_IC[row.origin] ?? ""} ${esc(row.name)}${row.you ? " <i>(you)</i>" : ""}</span><b class="lb-val">${fmtN(row.value)}</b></li>`).join("")}</ol>
+    ${lbMe ? `<p class="lb-me">You: #${lbMe.rank} · ${fmtN(lbMe.value)}</p>` : ""}`;
+  return `<div class="overlay"><div class="inner lb-pop">
+    <div class="row"><h1 class="grow">🏆 Leaderboards</h1><button data-lbclose>Close</button></div>
+    <div class="row lb-tabs">${tabs}</div>
+    <p class="sub">Each player's best run · ${esc(unit.unit)}</p>
+    ${body}
+  </div></div>`;
+}
+
+function loadBoard(board: Board) {
+  lbBoard = board; lbRows = null; lbMe = null; lbError = "";
+  if (!leaderboardOn()) return;
+  fetchBoard(board).then(d => { if (lbBoard === board) { lbRows = d.rows; lbMe = d.me; } render(); })
+    .catch(() => { lbError = navigator.onLine ? "Couldn't load the leaderboard. Try again in a moment." : "You're offline. The leaderboards need a connection."; render(); });
+}
+
 function overScene(r: Run) {
   if (r.scene.t !== "over") return "";
   const h = r.hero;
   const won = r.scene.won;
   return `<div class="banner ${won ? "won" : "lost"}">${r.finale ? "Nothing remains. You won everything." : won ? "The Hollow King falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen."}</div>
   ${!won && r.killer && !r.abandoned ? killerPanel(r) : ""}
-  <div class="panel"><p>${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses · biggest hit ${r.stats.bestHit}</p>
+  <div class="panel"><p>${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses</p>
   ${recorded ? `<p>🏅 +${recorded.earned} Renown (total ${meta.renown})${recorded.unlocked.length ? ` · Unlocked: <b>${recorded.unlocked.map(esc).join(", ")}</b>` : ""}</p>` : ""}
+  ${runStatsPanel(r)}
   <p class="sub">Final build:</p><div class="cards">${EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x).map(it => itemCard(it)).join("")}</div></div>
   <div class="row" style="margin-top:12px">${won && !r.finale ? `<button class="primary" data-endless>Keep delving · better rewards below</button>` : ""}<button class="${won ? "" : "primary"}" data-newrun>New run</button></div>`;
 }
@@ -1167,7 +1236,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}`;
+    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -1184,10 +1253,12 @@ function render2() {
     if ((s.battle.enemy.items["m_death"] ?? 0) > 0) deathIntro(r.floor !== DEATH_FLOOR);
     dispHp.player = dispHp.enemy = null;
   }
+  trackGold(r);
   if (s.t === "over" && !recorded) {
     recorded = recordRun(meta, r, banked);
     banked += recorded.earned;
     sfx(s.won ? "win" : "lose");
+    if (playerName()) sendRun(r);
   }
   const body =
     s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r)
@@ -1218,7 +1289,7 @@ function render2() {
       else celebrate(["rare", "epic", "legendary"].includes(getItem(relicNow).rarity ?? "") ? (getItem(relicNow).rarity as string) : "rare", "NEW RELIC", false);
     }
   }
-  app.innerHTML = `${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}`;
   bind();
 }
 
@@ -1358,6 +1429,20 @@ function bind() {
   on("[data-mute]", () => toggleMute());
   on("[data-togglemusic]", () => toggleMusic());
   on("[data-startmusic]", () => playMusic(run ? "game" : "title"));
+  // Leaderboards (title screen and end of run).
+  on("[data-lb]", () => { lbOpen = true; loadBoard(lbBoard); });
+  on("[data-lbclose]", () => { lbOpen = false; });
+  on("[data-lbboard]", el => { loadBoard(el.dataset.lbboard as Board); });
+  on("[data-lbrename]", () => { lbNaming = true; });
+  on("[data-lbsend]", () => { if (run) sendRun(run); });
+  on("[data-lbsubmit]", () => {
+    const input = app.querySelector<HTMLInputElement>("#lb-name");
+    const name = setPlayerName(input?.value ?? "");
+    if (!name) { say("Pick a name first (letters and numbers, up to 16)."); return; }
+    lbNaming = false;
+    if (run && !run.submitted) sendRun(run);
+  });
+  app.querySelector<HTMLInputElement>("#lb-name")?.addEventListener("click", ev => ev.stopPropagation());
   app.querySelectorAll<HTMLInputElement>("[data-music]").forEach(el => {
     el.oninput = () => {
       const k = el.dataset.music as Track;
@@ -1392,7 +1477,7 @@ function bind() {
     on("[data-help]", () => { helpOpen = true; });
     on("[data-closehelp]", () => { helpOpen = false; });
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode; });
-    on("[data-start]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; run = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
+    on("[data-start]", () => { lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; run = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); });
     return;
   }
   const r = run;
@@ -1465,8 +1550,8 @@ function bind() {
   on("[data-rest]", () => say(rest(r, "heal")));
   on("[data-risk]", el => confirmRisk(r, el.dataset.risk === "yes"));
   on("[data-event]", el => chooseEvent(r, Number(el.dataset.event)));
-  on("[data-newrun]", () => { run = null; bagOpen = false; meta = loadMeta(); });
-  on("[data-endless]", () => { continueEndless(r); recorded = null; });
+  on("[data-newrun]", () => { run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
+  on("[data-endless]", () => { if (run) run.submitted = false; lbResult = null; continueEndless(r); recorded = null; });
   on("[data-unequip]", el => say(unequip(r.hero, el.dataset.unequip as EquipSlot)));
   on("[data-equip]", el => { const it = r.hero.backpack.find(i => i.uid === Number(el.dataset.equip)); if (it) say(equipItem(r.hero, it, el.dataset.slot as EquipSlot)); });
   on("[data-salvage]", el => { const n = salvage(r.hero, Number(el.dataset.salvage)); say(`+${n} Scrap`, false); });
@@ -1483,5 +1568,5 @@ watchForUpdates(() => { if (run && run.scene.t !== "map" && run.scene.t !== "ove
 
 // Going offline: tell the player what that means. Coming back: a quick note.
 window.addEventListener("offline", () => { offlineOpen = true; render(); });
-window.addEventListener("online", () => { offlineOpen = false; say("📶 You're back online.", false); render(); });
+window.addEventListener("online", () => { offlineOpen = false; say("📶 You're back online.", false); void flushQueue(); render(); });
 if (typeof navigator !== "undefined" && navigator.onLine === false) { offlineOpen = true; render(); }

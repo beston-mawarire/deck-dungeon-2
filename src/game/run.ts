@@ -104,6 +104,11 @@ export interface Run {
   pendingTalents: number;
   message: string;
   stats: { kills: number; bestHit: number; bosses: number; legendaries: number; fusions: number };
+  /** Leaderboards: all the Gold you've picked up this run, and the purse last time we looked. */
+  goldEarned?: number;
+  goldSeen?: number;
+  /** This run's result has been sent to the leaderboard. */
+  submitted?: boolean;
   /** Ids found this run (for the Codex between runs). */
   found: Set<string>;
   /** Ids allowed in loot this run (unlocked by Renown); empty = everything. */
@@ -1445,6 +1450,24 @@ export function unifyHeart(run: Run): string | null {
   h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.max(0, h.f.maxHp - before));
   s.done = true;
   return null;
+}
+
+/** Count every Gold you gain (call after each action): spending doesn't take it away. */
+export function trackGold(run: Run) {
+  const g = run.hero.f.gold;
+  if (run.goldSeen !== undefined && g > run.goldSeen) run.goldEarned = (run.goldEarned ?? 0) + (g - run.goldSeen);
+  run.goldSeen = g;
+}
+
+/** What a finished run puts on the leaderboards. */
+export function runSummary(run: Run) {
+  const p = run.hero.f.persist;
+  trackGold(run);
+  return {
+    seed: run.seed, origin: run.hero.origin, mode: run.mode, floor: run.floor, won: run.scene.t === "over" && run.scene.won,
+    level: run.hero.level, kills: run.stats.kills, elites: p["q_elites"] ?? 0, champions: p["q_champions"] ?? 0,
+    damage: Math.round(p["t_dmg"] ?? 0), bestHit: Math.round(Math.max(p["t_best"] ?? 0, run.stats.bestHit)), gold: run.goldEarned ?? 0
+  };
 }
 
 export const baseName = (item: GearItem) => baseOf(item.base).name;

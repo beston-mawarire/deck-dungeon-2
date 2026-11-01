@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.12.0
+- **Leaderboards** (switched on once the server is live): Deepest floor, Elites, Champions, Damage (whole run), Biggest hit and Gold earned. Each board shows every player's best. A 🏆 Leaderboards button on the title screen; the end-of-run screen asks for a name once, then every finished run goes up by itself (and waits if you're offline).
+- The game now tracks total damage dealt, your true biggest single hit, and all Gold earned in a run; the end-of-run screen shows them.
+- New `/leaderboard` folder: the Cloudflare Worker + D1 database and a GitHub Action that deploys them.
+
 ## 1.11.6
 - After choosing a class, the start button says "Start Campaign" or "Start Endless" to match the chosen mode.
 

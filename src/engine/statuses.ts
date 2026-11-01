@@ -113,6 +113,12 @@ export function loseHp(b: Battle, f: Fighter, amount: number): number {
   }
   f.hp -= amount;
   if (amount > 0) f.flags["hurt"] = 1; // (Bounty Board: "win without losing HP")
+  // Leaderboards: damage you deal over the whole run, and your single biggest hit.
+  if (amount > 0 && f.id === "enemy") {
+    const p = b.player.persist;
+    p["t_dmg"] = (p["t_dmg"] ?? 0) + amount;
+    if (amount > (p["t_best"] ?? 0)) p["t_best"] = amount;
+  }
   if (amount > 0 && f.flags["penanceRound"] === b.round) f.flags["penanceStore"] = (f.flags["penanceStore"] ?? 0) + amount;
   if (amount > 0) fx(b, { who: f.id, kind: "dmg", value: amount });
   else if (bar > 0) fx(b, { who: f.id, kind: "block", text: "Barrier", icon: "🛡️" });

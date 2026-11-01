@@ -1,0 +1,11 @@
+# The Deck Dungeon 2 leaderboard: a tiny Worker in front of a D1 (SQLite) database.
+# Deployed by .github/workflows/leaderboard.yml; the database id is filled in there.
+name = "deck-dungeon-leaderboard"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "deck-dungeon-lb"
+database_id = "__DB_ID__"
