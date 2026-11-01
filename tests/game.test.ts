@@ -333,7 +333,7 @@ describe("forge: offering, combine, transmute", () => {
     const run = newRun("warrior", 23);
     const sword = run.hero.equip.main!;
     expect(forgeTransmute(run, sword.uid)).toBe("You need the Transmuter's Crucible.");
-    run.hero.relics["transmuter"] = 1;
+    run.hero.crucible = true;
     run.hero.starmetal = 3;
     expect(forgeTransmute(run, sword.uid)).toBe("Needs 4 Starmetal.");
     run.hero.starmetal = 4;

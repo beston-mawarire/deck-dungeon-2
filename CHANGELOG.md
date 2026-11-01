@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.14.1
+- The Transmuter's Crucible is now a key item instead of a relic. It still drops from Champions at the same rate and has its own slot in the Extras tab, which shows as empty until you find it. Saves that already have the Crucible relic are converted automatically.
+- The Forge's Transmute tab is always shown. Without the Crucible it's locked and says you're missing a key item.
+
 ## 1.14.0
 - Leaderboard anti-cheat: the server now keeps its own record of every run (start time and each floor reached, one at a time, at a believable pace). Finished runs are checked against it (floor, time, kills, Elites/Champions, Gold, level); anything that doesn't add up is kept but hidden from the boards, with the reason recorded. Runs started offline can't be verified.
 

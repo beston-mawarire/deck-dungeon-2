@@ -20,7 +20,6 @@ export const GENERAL: HookDef[] = [
   relic({ id: "chalice", name: "Chalice", rarity: "common", tags: ["Blood", "Kill"], text: "Kills heal 2", hooks: { onKill: (b, ctx) => { heal(b, ctx.attacker, 2, "Chalice"); } } }),
   relic({ id: "gamblers_glove", name: "Gambler's Glove", rarity: "rare", tags: ["Luck"], text: "Once per Resplendent chest, after your pick flips you may give it up and take another card", hooks: {} }),
   relic({ id: "four_leaf_clover", name: "Four-Leaf Clover", rarity: "uncommon", tags: ["Luck"], text: "+3% Legendary odds on every Resplendent card (+3%)", hooks: {} }),
-  relic({ id: "transmuter", name: "Transmuter's Crucible", rarity: "rare", tags: ["Luck", "Arcane"], text: "At a Forge, turn a Common item into a Legendary of the same kind for 4 Starmetal", hooks: {} }),
   relic({ id: "skeleton_key", name: "Skeleton Key", rarity: "uncommon", tags: ["Luck"], text: "Iron chests are never Mimics and give 1 of 2", hooks: {} })
 ];
 
@@ -216,3 +215,6 @@ export const STORM_RELICS: HookDef[] = [
 ];
 
 export const RELICS: HookDef[] = [...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3, ...LEGENDARY_RELICS, ...GUARD_RELICS, ...HOLY_RELICS, ...STORM_RELICS, ...CRIT_RELICS, ...DUAL_RELICS, ...STREAK_RELICS, ...BASIC_RELICS, ...BUILD_RELICS, ...POTION_RELICS, ...JEWEL_RELICS];
+
+/** The Transmuter's Crucible used to be a relic; it's a key item now (kept registered so old saves still read). */
+export const OLD_TRANSMUTER: HookDef = relic({ id: "transmuter", name: "Transmuter's Crucible", rarity: "rare", tags: ["Luck", "Arcane"], text: "At a Forge, turn a Common item into a Legendary of the same kind for 4 Starmetal", hooks: {} });

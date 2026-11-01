@@ -54,6 +54,8 @@ export interface Hero {
   manaPotions: number;
   /** One Keepsake at a time (from bosses after floor 5). */
   keepsake?: string;
+  /** The Transmuter's Crucible: a key item (not a relic). With it, the Forge can turn a Common into a Legendary. */
+  crucible?: boolean;
   /** Torn from a slain dragon. Each further dragon slain raises its level. Unified at a Dragon Sanctum: every stat +50%. */
   dragonHeart?: { level: number; unified?: boolean };
   xp: number;
@@ -154,6 +156,8 @@ export function canGuard(h: Hero): boolean {
 
 /** Rebuild the Fighter's stats and hook sources from everything the hero has. */
 export function recompute(h: Hero) {
+  // Older saves held the Crucible as a relic: it's a key item now.
+  if (h.relics["transmuter"]) { delete h.relics["transmuter"]; h.crucible = true; }
   const f = h.f;
   // Lost Titan's Grip or the War Harness (an event can take relics): put back what no longer fits.
   if (!hasGrip(h) && h.equip.off && effectiveBase(h.equip.off).twoHanded) { h.backpack.push(h.equip.off); delete h.equip.off; }

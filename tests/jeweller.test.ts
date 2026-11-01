@@ -134,3 +134,11 @@ it("the Forge and the Jeweller take turns", () => {
   expect(seen.length).toBe(6);
   for (let i = 1; i < seen.length; i++) expect(seen[i]).not.toBe(seen[i - 1]);
 });
+
+it("the Crucible is a key item now (old saves holding it as a relic are converted)", () => {
+  const run = newRun("warrior", 11);
+  run.hero.relics = { transmuter: 1 };
+  recompute(run.hero);
+  expect(run.hero.crucible).toBe(true);
+  expect(run.hero.relics["transmuter"]).toBeUndefined();
+});

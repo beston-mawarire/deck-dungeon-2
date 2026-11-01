@@ -595,3 +595,10 @@ button.potion-btn:disabled { opacity: .55; }
 /* Close buttons: their own dusky-rose fill */
 button.closebtn { background: linear-gradient(180deg, #7a3e57, #5a2b40); border: 1px solid #a5607e; color: #ffe8f0; font-weight: 700; }
 button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
+/* The Transmuter's Crucible: a key item */
+.item.key-item { border-color: #e8a04a; background: linear-gradient(160deg, #3a2a16, var(--panel2) 65%); margin-bottom: 10px; }
+.item.key-item .nm { color: #ffc46b; }
+.item.key-item.empty-slot { border-style: dashed; opacity: .9; }
+.item.key-item.empty-slot .nm { color: #c99a5e; }
+.key-found.crucible-found { color: #ffc46b; border-color: #e8a04a; background: linear-gradient(160deg, #3a2410, #1c120a); text-shadow: 0 0 14px rgba(232,160,74,.7); }
+.locked-tool { border-color: #6b5a3a; }

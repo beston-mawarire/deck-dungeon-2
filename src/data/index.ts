@@ -7,7 +7,7 @@ import { FUSION_RELICS } from "./fusions";
 import { GEAR_BASES } from "./gear";
 import { TRAITS } from "./monsters";
 import { CURSES, ORIGIN_PASSIVES } from "./origins";
-import { RELICS } from "./relics";
+import { OLD_TRANSMUTER, RELICS } from "./relics";
 import { TALENTS } from "./talents";
 import { ABYSS_ITEMS } from "./abyss";
 
@@ -15,7 +15,7 @@ let done = false;
 export function loadLibrary() {
   if (done) return;
   done = true;
-  register([...ABYSS_ITEMS, ...GEAR_BASES, ...LEGENDARIES, ...CRIMSON, ...BONUSES, ...EPIC_POWERS, ...RELICS, ...FUSION_RELICS, ...TALENTS, ...TRAITS, ...ORIGIN_PASSIVES, ...CURSES, ...KEEPSAKES]);
+  register([...ABYSS_ITEMS, ...GEAR_BASES, ...LEGENDARIES, ...CRIMSON, ...BONUSES, ...EPIC_POWERS, ...RELICS, ...FUSION_RELICS, ...TALENTS, ...TRAITS, ...ORIGIN_PASSIVES, ...CURSES, ...KEEPSAKES, OLD_TRANSMUTER]);
 }
 
 export { BONUSES, CRIMSON, KEEPSAKES, CURSES, FUSION_RELICS, EPIC_POWERS, GEAR_BASES, LEGENDARIES, ORIGIN_PASSIVES, RELICS, TALENTS, TRAITS };

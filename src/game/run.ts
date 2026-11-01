@@ -67,7 +67,7 @@ export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "reli
 export type Scene =
   | { t: "map" }
   | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" }
-  | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent"; crimsonKey?: boolean; /** A Bounty Board payout (closing it doesn't use a step). */ bounty?: boolean; /** A Dragon Heart was torn from the dragon (its level now). */ dragonHeart?: number }
+  | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent"; crimsonKey?: boolean; /** A Bounty Board payout (closing it doesn't use a step). */ bounty?: boolean; /** A Dragon Heart was torn from the dragon (its level now). */ dragonHeart?: number; /** The Transmuter's Crucible dropped. */ crucible?: boolean }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
   | { t: "talent"; options: string[] }
@@ -566,6 +566,7 @@ function afterFight(run: Run) {
   }
   let goblinGold = 0;
   let heartLevel = 0;
+  let crucibleFound = false;
   if (then === "dragon") {
     // The dragon's hoard: a big pile of Gold and Scrap; maybe a great relic, rarely an Epic or a Legendary.
     goblinGold = 80 + 25 * run.floor;
@@ -604,7 +605,8 @@ function afterFight(run: Run) {
       h.starmetal += metal;
       run.message = `The Champion leaves ${metal} Starmetal behind.`;
     }
-    if (!h.relics["transmuter"] && run.rng() < 0.12) relic = "transmuter";
+    // The Transmuter's Crucible: a rare key item some Champions carry (once per run).
+    if (!h.crucible && run.rng() < 0.12) { h.crucible = true; crucibleFound = true; }
     relic = relic ?? randomRelic(run, 2);
   }
   if (rank === "crimson") {
@@ -656,7 +658,7 @@ function afterFight(run: Run) {
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (relic) grantRelic(run, relic);
   if (scrolls) grantScrolls(run, scrolls);
-  run.scene = { t: "loot", title: then === "dragon" ? "The Dragon's Hoard" : then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined, dragonHeart: heartLevel || undefined };
+  run.scene = { t: "loot", title: then === "dragon" ? "The Dragon's Hoard" : then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined, dragonHeart: heartLevel || undefined, crucible: crucibleFound || undefined };
   const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean);
   run.message = notes.join(" ");
 }
@@ -697,7 +699,7 @@ export function relicRarityWeight(rarity: string, floor: number, quality = 1): n
 const fireRelicWeight = (r: { tags: readonly string[]; text: string }) => (r.tags.includes("Burn") || /smoulder/i.test(r.text) ? 0.8 : 1);
 export function randomRelic(run: Run, quality = 1): string {
   const tags = heroTags(run.hero);
-  const pool = RELICS.filter(r => !isLocked(r.id) && r.id !== "transmuter");
+  const pool = RELICS.filter(r => !isLocked(r.id));
   const w = pool.map(r => relicRarityWeight(r.rarity ?? "common", run.floor, quality) * (1 + 0.3 * r.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * fireRelicWeight(r));
   let x = run.rng() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < pool.length; i++) {
@@ -992,7 +994,7 @@ export function chooseEvent(run: Run, i: number) {
       return itemName(it);
     },
     gainCommonRelic: () => {
-      const pool = RELICS.filter(r => (r.rarity ?? "common") === "common" && !isLocked(r.id) && r.id !== "transmuter");
+      const pool = RELICS.filter(r => (r.rarity ?? "common") === "common" && !isLocked(r.id));
       const id = pool[Math.floor(run.rng() * pool.length)].id;
       grantRelic(run, id);
       return getItem(id).name;
@@ -1154,7 +1156,7 @@ export const TRANSMUTE_COST = 4;
 /** With the Transmuter's Crucible: a Common item + 4 Starmetal becomes an (unrevealed) Legendary of the same kind. */
 export function forgeTransmute(run: Run, uid: number): GearItem | string {
   const h = run.hero;
-  if (!h.relics["transmuter"]) return "You need the Transmuter's Crucible.";
+  if (!h.crucible) return "You need the Transmuter's Crucible.";
   const found = findItem(h, uid);
   if (!found || found.item.rarity !== "common") return "Only Common items can be transmuted.";
   if (h.starmetal < TRANSMUTE_COST) return `Needs ${TRANSMUTE_COST} Starmetal.`;
