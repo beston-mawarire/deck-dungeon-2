@@ -422,3 +422,8 @@ h2.bright { color: #e4d6f2; text-shadow: 0 1px 6px rgba(200,170,255,.25); }
 .gear-group > .cards { margin-top: 0; }
 .slot-label { color: #f0e2c0; font-weight: 700; font-size: .85rem; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 4px; }
 .die.tinted { box-shadow: 0 0 14px var(--tint), inset 0 0 0 2px rgba(255,255,255,.35); transition: background .25s, box-shadow .25s; }
+
+/* Talents name in Rare blue (description stays default); curses fully purple */
+.talent-line .nm { color: var(--rare); }
+.curse-line, .curse-line .nm, .curse-line .desc { color: #c08cff; }
+.subtabs { margin: 4px 0 2px; gap: 8px; }

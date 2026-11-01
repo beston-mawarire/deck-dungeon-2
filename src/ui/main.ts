@@ -54,6 +54,7 @@ let menuOpen = false;
 /** Which Inventory tab is open. */
 type BagTab = "gear" | "stats" | "relics" | "talents" | "extras";
 let bagTab: BagTab = "gear";
+let talentSub: "talents" | "curses" = "talents";
 /** Shown when the device loses its connection. */
 let offlineOpen = false;
 let endArmed = false;
@@ -563,7 +564,7 @@ function bag(r: Run) {
     return `<div><div class="slot-label">${slotName[s]}</div>${it ? itemCard(it, inCombat ? "" : `<button class="small" data-unequip="${s}">Unequip</button>${revealBtn(r, it)}`) : `<div class="item"><span class="sub">Empty</span></div>`}</div>`;
   }).join("");
   const pack = h.backpack.map(it => itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(s => `<button class="small primary" data-equip="${it.uid}" data-slot="${s}">Equip${slotsFor(it, h).length > 1 ? ` (${slotName[s].toLowerCase()}${s === "trinket2" ? " 2" : ""})` : ""}</button>`).join("")}<button class="small" data-salvage="${it.uid}">Scrap</button>${revealBtn(r, it)}`, !inCombat)).join("");
-  const list = (o: Record<string, number>) => Object.entries(o).map(([id, n]) => { const d = getItem(id); return `<p><b>${esc(d.name)}</b>${n > 1 ? ` ×${n}` : ""} — ${esc(fillText(d.text, n))}</p>`; }).join("") || `<p class="sub">None yet.</p>`;
+  const list = (o: Record<string, number>, cls = "") => Object.entries(o).map(([id, n]) => { const d = getItem(id); return `<p class="${cls}"><b class="nm">${esc(d.name)}</b>${n > 1 ? ` ×${n}` : ""} — <span class="desc">${esc(fillText(d.text, n))}</span></p>`; }).join("") || `<p class="sub">None yet.</p>`;
   const passive = getItem(ORIGINS[h.origin].passive);
   const f = h.f;
   const crits = f.faces.filter(x => x.kind === "crit").length;
@@ -623,7 +624,8 @@ function bag(r: Run) {
       ${dragon > 0 ? `<div class="stile extra-tile bless-tile"><span>🐲</span><span><b>Dragon's Blessing</b><span class="sub">${esc(BLESSINGS[h.f.persist["blessKind"] ?? 0])} · ${dragon} fight${dragon === 1 ? "" : "s"} left</span></span></div>` : ""}
       ${blessCount === 0 ? `<div class="stile extra-tile empty-slot" style="grid-column: 1 / -1"><span>✨</span><span><b>None</b><span class="sub">Shrines and strange creatures in the dark sometimes grant blessings…</span></span></div>` : ""}
     </div>`;
-  const nRelics = Object.keys(h.relics).length + Object.keys(h.curses).length;
+  const nRelics = Object.keys(h.relics).length;
+  const nCurses = Object.values(h.curses).reduce((a, n) => a + n, 0);
   const nTalents = Object.keys(h.talents).length;
   const tabs: [BagTab, string, string][] = [
     ["gear", "⚔️ Gear", `${h.backpack.length ? `<i>${h.backpack.length}</i>` : ""}`],
@@ -636,8 +638,12 @@ function bag(r: Run) {
     bagTab === "gear" ? `${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}<div class="gear-group equipped-group"><div class="group-label">🛡️ Equipped</div><div class="cards">${equipped}</div></div>
       <div class="gear-group backpack-group"><div class="group-label">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</div><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div></div>`
     : bagTab === "stats" ? `${stats}<p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>`
-    : bagTab === "relics" ? `<h2>Relics</h2>${list(h.relics)}${Object.keys(h.curses).length ? `<h2>Curses</h2>${list(h.curses)}` : ""}`
-    : bagTab === "talents" ? `<h2>Talents</h2>${list(h.talents)}`
+    : bagTab === "relics" ? `<h2>Relics</h2>${list(h.relics)}`
+    : bagTab === "talents" ? `<div class="row subtabs">
+        <button class="small ${talentSub === "talents" ? "primary" : ""}" data-talentsub="talents">🌟 Talents${nTalents ? ` (${nTalents})` : ""}</button>
+        <button class="small curse-subtab ${talentSub === "curses" ? "primary" : ""}" data-talentsub="curses">🕯️ Curses${nCurses ? ` (${nCurses})` : ""}</button></div>
+      ${talentSub === "talents" ? `<h2>Talents</h2>${list(h.talents, "talent-line")}`
+        : `<h2>Active curses</h2>${nCurses ? list(h.curses, "curse-line") : `<p class="sub">You carry no curses. Shrines, Accursed foes and dark magic can lay them on you; a Campfire can cleanse one.</p>`}`}`
     : `${extras}${reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`}`;
   return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
@@ -1237,7 +1243,8 @@ function bind() {
   on("[data-potion]", () => { drinkPotion(r); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-bag]", () => { bagOpen = true; bagTab = "gear"; });
   on("[data-closebag]", () => { bagOpen = false; });
-  on("[data-bagtab]", el => { bagTab = el.dataset.bagtab as BagTab; });
+  on("[data-bagtab]", el => { bagTab = el.dataset.bagtab as BagTab; talentSub = "talents"; });
+  on("[data-talentsub]", el => { talentSub = el.dataset.talentsub as "talents" | "curses"; });
   on("[data-take]", el => say(takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack")));
   on("[data-scrapfound]", el => scrapFound(r, Number(el.dataset.scrapfound)));
   on("[data-finish]", () => { r.message = ""; finishLoot(r); });
