@@ -50,6 +50,19 @@ describe("origins and gear", () => {
     expect(b.enemy.hp).toBe(200 - 2 * (4 + Math.floor(b.player.armor / 3))); // (sword 4 + Warrior armor bonus) × crit 2
   });
 
+  it("Evade stacks: each stack makes one hit miss", () => {
+    const h = newHero("warrior");
+    const b = startBattle(h.f, dummy(), 1);
+    b.player.statuses.evade = 0;
+    applyStatus(b, b.player, b.player, "evade", 1);
+    applyStatus(b, b.player, b.player, "evade", 1);
+    expect(st(b.player, "evade")).toBe(2);
+    const hp = b.player.hp;
+    enemyPhase(b);
+    expect(st(b.player, "evade")).toBe(1);
+    expect(b.player.hp).toBe(hp);
+  });
+
   it("Haste stacks with no cap and one stack is spent per turn", () => {
     const h = newHero("warrior");
     const b = startBattle(h.f, dummy(), 1);

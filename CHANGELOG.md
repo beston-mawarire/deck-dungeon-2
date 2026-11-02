@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.16
+- Evade now stacks. Every source adds a stack, and each stack makes one hit miss (so two Evade sources at fight start dodge the first two hits).
+
 ## 1.26.15
 - Sigils have moved: they now have their own 🔮 Sigils tab in Inventory › Gear, next to Equipped and Backpack. The Talisman tab is gone from Spoils. New sigils light the Gear tab's dot.
 

@@ -98,7 +98,7 @@ function purify(b: Battle, ctx: AttackCtx) {
     return afterStrike(b, ctx);
   }
   if (st(d, "evade") > 0) {
-    d.statuses.evade = 0;
+    d.statuses.evade = st(d, "evade") - 1;
     log(b, `${d.name} evades the Purify.`);
     fx(b, { who: d.id, kind: "miss", text: "Evaded" });
     return afterStrike(b, ctx);
@@ -410,7 +410,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   }
   ctx.raw = raw;
   if (st(d, "evade") > 0) {
-    d.statuses.evade = 0;
+    d.statuses.evade = st(d, "evade") - 1;
     log(b, `${d.name} evades!`);
     fx(b, { who: d.id, kind: "miss", text: "Evaded" });
     breakStreak(b, a);
