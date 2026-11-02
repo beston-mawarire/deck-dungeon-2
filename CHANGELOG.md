@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.1
+- The ⚡ Auto-fight button now sits beside its room in the same row, at the same height and in the same style as the room cards.
+
 ## 1.26.0
 - Auto-battle now works from floor 1 (was floor 2).
 - New ⚡ Auto-fight button under Monster, Elite and Champion rooms on the map. It enters the room and plays the fight out instantly, but only if it's one you can't lose. Otherwise it drops you into the fight with a warning.

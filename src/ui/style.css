@@ -787,6 +787,7 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .compare .cmp-fx li.up { color: #7ff0a8; } .compare .cmp-fx li.down { color: #ff9aa9; }
 .compare .cmp-fx li .sub { color: var(--muted); }
 /* Auto-fight from the map */
-.room-wrap { display: flex; flex-direction: column; gap: 6px; }
-.room-wrap > .room { width: 100%; }
-.auto-room { align-self: flex-end; margin-top: -2px; color: #ffe39a; border-color: #8a6534; background: rgba(232,184,74,.08); }
+.room-wrap { display: flex; flex-direction: row; align-items: stretch; gap: 8px; }
+.room-wrap > .room { flex: 1; width: auto; min-width: 0; }
+.auto-room { flex: 0 0 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 10px 6px; text-align: center; background: linear-gradient(170deg, #3a2f49 0%, #2a2236 70%); border-color: #5a4b70; font-size: .85rem; font-weight: 700; line-height: 1.15; }
+.auto-room .ic { font-size: 1.5rem; filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
