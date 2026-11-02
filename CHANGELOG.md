@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.11
+- After a fight, "Leave the rest" is now 🚫 Take nothing, with the same muted grey fill as Add to backpack. The Take nothing button on pick-one rewards matches it.
+
 ## 1.26.10
 - Pick-one rewards (bosses, Iron chests with the Skeleton Key): the heading is now bright, with a glowing gold "CHOOSE ONE" on its own line.
 - The "Choose ·" prefix is gone from loot buttons on every screen size.

@@ -600,7 +600,7 @@ function lootScene(r: Run) {
     + (s.dragonHeart ? `<div class="key-found heart-found">🫀 ${s.dragonHeart > 1 ? `DRAGON HEART · LEVEL ${s.dragonHeart}` : "DRAGON HEART"}<span>${s.dragonHeart > 1 ? "Another dragon's heart feeds yours. It beats stronger." : "Still warm. Still beating. It's yours now."}</span></div>` : "");
   const body = `${key}${extras.length ? `<div class="panel">${extras.map(x => `<p>${esc(x)}</p>`).join("")}</div>` : ""}
     <div class="cards" style="margin-top:10px">${s.items.map(it => itemCard(it, takeButtons(it), true)).join("")}</div>
-    <div class="row" style="margin-top:12px"><button class="primary" data-finish>${s.items.length ? "Leave the rest" : "Continue"}${s.then === "resplendent" ? " → open the Resplendent chest" : ""}</button></div>`;
+    <div class="row" style="margin-top:12px"><button class="${s.items.length ? "take-pack take-none" : "primary"}" data-finish>${s.items.length ? "🚫 Take nothing" : "Continue"}${s.then === "resplendent" ? " → open the Resplendent chest" : ""}</button></div>`;
   return victory ? `<div class="victory"><div class="victory-title">${esc(s.title === "Victory" ? "VICTORY" : s.title.toUpperCase())}</div>${body}</div>` : `<h2>${esc(s.title)}</h2>${body}`;
 }
 
@@ -615,7 +615,7 @@ function pickScene(r: Run) {
     ${s.items.length > 1 ? `<div class="toast">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
     <div class="cards">${s.items.map(it => itemCard(it, s.items.length > 1 ? pickButtons(it) : takeButtons(it), true)).join("")}</div>
     ${s.passed?.length ? `<h2>You passed up</h2><div class="cards">${s.passed.map(it => itemCard(it)).join("")}</div>` : ""}
-    <div class="row" style="margin-top:12px"><button data-finish>Take nothing</button></div>`;
+    <div class="row" style="margin-top:12px"><button class="take-pack take-none" data-finish>🚫 Take nothing</button></div>`;
 }
 
 function resplendentScene(r: Run) {
