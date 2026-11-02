@@ -19,6 +19,8 @@ jobs:
         run: wrangler d1 execute deck-dungeon-lb --remote -y --command "SELECT id, name, mode, origin, floor, won, kills, level, version, suspect, reason, datetime(created_at/1000, 'unixepoch') AS at FROM runs ORDER BY created_at DESC LIMIT 15"
       - name: Top of the floor board (what players see)
         run: wrangler d1 execute deck-dungeon-lb --remote -y --command "WITH best AS (SELECT pid, name, mode, floor, created_at, ROW_NUMBER() OVER (PARTITION BY pid ORDER BY floor DESC, created_at ASC) AS rn FROM runs WHERE suspect = 0 AND mode != 'abyss' AND daily IS NULL) SELECT substr(pid,1,6) AS pid, name, mode, floor FROM best WHERE rn = 1 ORDER BY floor DESC, created_at ASC LIMIT 10"
+      - name: One run in full (temporary)
+        run: wrangler d1 execute deck-dungeon-lb --remote -y --command "SELECT id, substr(pid,1,6) AS pid, name, mode, floor, daily, suspect, won FROM runs WHERE id IN (16, 21, 24)"
       - name: Latest sessions
         run: wrangler d1 execute deck-dungeon-lb --remote -y --command "SELECT substr(sid,1,6) AS sid, floor, max_floor, flagged, ended, posted_floor, datetime(started_at/1000, 'unixepoch') AS started, datetime(floor_at/1000, 'unixepoch') AS floor_at FROM sessions ORDER BY started_at DESC LIMIT 15"
       - name: Can a run open a session?
