@@ -21,6 +21,15 @@ export const TABLES = {
   shop: { common: 15, uncommon: 56.8, rare: 27, epic: 1.2 }
 } satisfies Record<string, Odds>;
 
+/** Campaign boss picks grow richer floor by floor: early bosses mostly offer Uncommons, a Rare is a treat. */
+export function bossOdds(floor: number): Odds {
+  if (floor <= 1) return { uncommon: 85, rare: 15 };
+  if (floor <= 3) return { uncommon: 65, rare: 33, epic: 2 };
+  if (floor <= 7) return { uncommon: 40, rare: 54, epic: 5, legendary: 1 };
+  if (floor <= 14) return { uncommon: 25, rare: 66.2, epic: 7.2, legendary: 1.6 };
+  return TABLES.boss;
+}
+
 /** Abyss drop tables: far richer than the campaign, and richest from the toughest foes (Champions, bosses, Uber bosses). */
 export const ABYSS_TABLES = {
   ...TABLES,

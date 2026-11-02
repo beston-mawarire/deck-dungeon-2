@@ -21,7 +21,7 @@ import { generate, genName, setGenLuck } from "./gen";
 import { GEN_MINORS } from "../data/genparts";
 import { SIGIL_SETS } from "../data/talisman";
 const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
-import { isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES, ABYSS_TABLES } from "./loot";
+import { bossOdds, isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -882,7 +882,8 @@ function afterFight(run: Run) {
     const offer = b.enemy.crimson ? [rollItem(h, "crimson", depth(run), run.rng), roll(T.boss), roll(T.boss)]
       : EPIC_CRIMSON_FLOORS.includes(run.floor) ? [rollEpicCrimson(h, depth(run), run.rng), roll(T.boss), roll(T.boss)]
       : run.scene.uber ? [roll(T.uber), roll(T.uber), roll(T.uber)]
-      : [roll(T.boss), roll(T.boss), roll(T.boss)];
+      : run.mode === "abyss" ? [roll(T.boss), roll(T.boss), roll(T.boss)]
+      : [roll(bossOdds(run.floor)), roll(bossOdds(run.floor)), roll(bossOdds(run.floor))];
     // After the fifth boss, bosses sometimes leave a Keepsake behind.
     // Keepsakes are a rare find: about one boss in ten after floor 5 leaves one behind.
     const keepsake = run.floor > FLOORS && run.rng() < 0.1 ? KEEPSAKES.filter(k => k.id !== h.keepsake)[Math.floor(run.rng() * (KEEPSAKES.length - (h.keepsake ? 1 : 0)))]?.id : undefined;

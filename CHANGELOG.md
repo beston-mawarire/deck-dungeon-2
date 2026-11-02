@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.42.1
+- Campaign boss picks grow richer as you go deeper: early bosses mostly offer Uncommons, and a Rare is a treat. Richer picks come from floor 4, and the full boss table from floor 15.
+
 ## 1.42.0
 - 🌅 A second, complete wipe to be sure: every device clears everything the game keeps in the browser once more (progress, settings, name, player id, session data and caches), and the leaderboards and backups start empty again. Older backup codes restore nothing.
 - 🔥 New Heat leaderboard: the deepest floor reached in a Campaign at Heat 1 or higher, with each run's Heat shown.
