@@ -872,7 +872,7 @@ function jewellerScene(r: Run) {
     <div class="jpicks">${trinkets.map(pick).join("") || `<p class="sub">No trinkets.</p>`}</div>
     ${s.mode === "fuse" ? `<h3 class="jhead">Your relics</h3>
     <div class="jpicks">${relics.length ? relics.map(([id, n]) => { const d = getItem(id); const x: JewelSlot = { kind: "relic", id }; return `<button class="jpick r-${d.rarity ?? "common"}" data-jpick="relic:${id}" ${onBench(x) ? "disabled" : ""}><b class="nm">${esc(d.name)}${n > 1 ? ` ×${n}` : ""}</b><span class="sub">Relic${FUSABLE_RELICS.has(id) ? ` · <span class="fusable-tag">🔗 Fusable</span>` : ""}</span></button>`; }).join("") : `<p class="sub">No relics.</p>`}</div>` : ""}
-    <div class="row" style="margin-top:14px"><button data-leave>Leave the Jeweller</button></div>`;
+    <div class="row" style="margin-top:14px"><button class="primary leave-wide" data-leave>🚪 Leave the Jeweller</button></div>`;
 }
 
 function sanctumScene(r: Run) {

@@ -955,3 +955,4 @@ button.take-cmp { color: #e6f0ff; font-weight: 700; border-color: #5f8fc8; backg
 .opt-sec .backup-panel { margin: 8px 0 0; }
 .opt-sec.danger-sec { border-color: rgba(226,85,106,.45); }
 .opt-sec.danger-sec h3 { color: #ff9aa8; }
+.leave-wide { flex: 1; min-height: 46px; font-size: 1rem; }
