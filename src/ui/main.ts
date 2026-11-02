@@ -791,7 +791,7 @@ function runStatsPanel(r: Run) {
       <div class="row"><input id="lb-name" maxlength="16" placeholder="Your name" value="${esc(name)}" autocomplete="nickname"><button class="primary small" data-lbsubmit>${r.submitted ? "Save name" : "Submit"}</button></div>
       <p class="sub">Up to 16 letters. It's remembered: your next runs go up by themselves.</p></div>`;
   } else if (lbResult === "sending") box = `<p class="lb-placed">🏆 Sending to the leaderboards…</p>`;
-  else if (lbResult && lbResult.verified === false) box = `<p class="lb-placed">🏆 This run couldn't be verified (it may have been played offline), so it isn't on the leaderboards.</p>`;
+  else if (lbResult && lbResult.verified === false) box = `<p class="lb-placed">🏆 This run couldn't be verified, so it isn't on the leaderboards. ${r.sid ? "The server couldn't confirm how it went (for example, floors cleared faster than it allows)." : "It began without a connection to the leaderboard server (offline, or before verification was added)."}</p>`;
   else if (lbResult && lbResult.ranks) {
     const rk = lbResult.ranks;
     const best = BOARDS.filter(b => (rk[b.id] ?? 99) <= 10).map(b => `${b.icon} #${rk[b.id]} ${b.label}`);

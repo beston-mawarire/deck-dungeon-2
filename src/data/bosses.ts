@@ -102,8 +102,9 @@ export const DEATH_FLOOR = 25;
 export const END_FLOOR = 26;
 /** Floors whose bosses drop an Epic Crimson item: the Horror and the four after it. */
 export const EPIC_CRIMSON_FLOORS = [20, 21, 22, 23, 24];
-/** DEATH is always built as it was on its old floor 80: absurd on purpose. */
-const DEATH_POWER_FLOOR = 80;
+/** DEATH has fixed stats, wherever you meet it: far beyond any floor boss, but within reach of a truly broken build.
+ *  (Its Reap hits for 60% of your Max HP, so its own Power hardly matters; its HP and Armor are the wall.) */
+const DEATH_STATS = { hp: 40000, armor: 40, power: 150 };
 const WALL: BossDef = { name: "Ur-Thane", title: "the Horror Beneath", family: "Construct", moves: ["bulwark", "heavy", "thorns", "charge", "smash", "regrow"], armor: 20, hpMult: 6 };
 
 /** HP and Power for a boss on a floor. Past the Horror, everything grows much faster. */
@@ -204,7 +205,10 @@ TRAITS.push(
 );
 
 export function makeDeath(): Fighter {
-  const f = build({ name: "DEATH", title: "", family: "Undead", moves: ["reap"], traits: ["m_death", "x_warded"], armor: 300, hpMult: 12 }, DEATH_POWER_FLOOR);
+  const f = build({ name: "DEATH", title: "", family: "Undead", moves: ["reap"], traits: ["m_death", "x_warded"] }, DEATH_FLOOR);
+  f.hp = f.maxHp = DEATH_STATS.hp;
+  f.armor = DEATH_STATS.armor;
+  f.damage = DEATH_STATS.power;
   f.faces = [HIT, HIT, HIT, HIT, CRIT, CRIT];
   return f;
 }
