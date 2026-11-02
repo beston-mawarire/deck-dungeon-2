@@ -40,8 +40,6 @@ jobs:
             wrangler d1 execute deck-dungeon-lb --remote -y --command "ALTER TABLE runs ADD COLUMN $col" || true
           done
           wrangler d1 execute deck-dungeon-lb --remote -y --command "ALTER TABLE vault ADD COLUMN save TEXT" || true
-      - name: Re-verify a run hidden by the old floor-tracking bug (one-off)
-        run: wrangler d1 execute deck-dungeon-lb --remote -y --command "UPDATE runs SET suspect = 0, reason = NULL WHERE id = 4 AND reason LIKE 'claims floor 26, server saw 5'"
       - name: Deploy the Worker
         run: wrangler deploy
       - name: Check it's answering
