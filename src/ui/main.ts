@@ -251,9 +251,9 @@ const COMPARE_STATS: [string, (f: Fighter) => number, string][] = [
   ["Bash", f => f.bash ?? 0, "%"],
   ["Spell Amp", f => f.spellAmp ?? 0, "%"]
 ];
-function compareHtml(h: Hero, it: GearItem): string {
+function compareHtml(h: Hero, it: GearItem, forceSlot?: EquipSlot, full = false): string {
   if (findItem(h, it.uid)?.where && findItem(h, it.uid)!.where !== "backpack") return "";
-  const slots = slotsFor(it, h);
+  const slots = forceSlot ? [forceSlot] : slotsFor(it, h);
   if (!slots.length) return "";
   const now = h.f;
   const deltas = (f: Fighter) => COMPARE_STATS.map(([label, get, unit]) => ({ label, unit, d: Math.round(get(f) - get(now)), base: Math.max(1, Math.abs(get(now))) }));
@@ -286,7 +286,7 @@ function compareHtml(h: Hero, it: GearItem): string {
   effects.sort((p, q) => (p.startsWith('<li class="up"') ? 0 : 1) - (q.startsWith('<li class="up"') ? 0 : 1));
   const slotLabel = SLOT_LABEL[best.s];
   const head = cur ? `vs <b>${esc(itemName(cur))}</b> <span class="sub">(${esc(slotLabel)})</span>` : `Fills your empty <b>${esc(slotLabel)}</b>`;
-  const MAX = 6;
+  const MAX = full ? 99 : 6;
   return `<div class="compare">${head}<div class="cmp-row">${stats.length ? stats.join("") : `<span class="cmp same">＝ Same stats</span>`}</div>
     ${effects.length ? `<ul class="cmp-fx">${effects.slice(0, MAX).join("")}${effects.length > MAX ? `<li class="sub">…and ${effects.length - MAX} more</li>` : ""}</ul>` : ""}</div>`;
 }
@@ -585,9 +585,18 @@ function combatScene(r: Run) {
 }
 
 /** Pick-one scenes (boss rewards, Iron chests with the Skeleton Key): every button is a choice that ends the pick. */
+/** Weapons that fit either hand get a button per hand. */
+const handSlots = (it: GearItem): EquipSlot[] | null => { const sl = run ? slotsFor(it, run.hero) : []; return sl.includes("main") && sl.includes("off") ? ["main", "off"] : null; };
+const HAND_LABEL: Partial<Record<EquipSlot, string>> = { main: "main hand", off: "off-hand" };
 const lootBtns = (it: GearItem, pick: boolean) => {
-  const pre = "";
-  return `<button class="small take-equip" data-take="${it.uid}" data-how="equip">${pre}✔ Equip</button><button class="small take-pack" data-take="${it.uid}" data-how="pack">${pre}Add to backpack</button><button class="small take-scrap" data-scrapfound="${it.uid}">${pre}Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`;
+  const hands = handSlots(it);
+  const equip = hands
+    ? hands.map(sl => `<button class="small take-equip" data-take="${it.uid}" data-how="equip" data-slot="${sl}">✔ Equip ${HAND_LABEL[sl]}</button>`).join("")
+    : `<button class="small take-equip" data-take="${it.uid}" data-how="equip">✔ Equip</button>`;
+  const compare = hands
+    ? hands.map(sl => `<button class="small take-cmp" data-compare="${it.uid}" data-slot="${sl}">⚖️ Compare ${HAND_LABEL[sl]}</button>`).join("")
+    : run && slotsFor(it, run.hero).length ? `<button class="small take-cmp" data-compare="${it.uid}">⚖️ Compare equipped</button>` : "";
+  return `${equip}${compare}<button class="small take-pack" data-take="${it.uid}" data-how="pack">Add to backpack</button><button class="small take-scrap" data-scrapfound="${it.uid}">Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`;
 };
 const pickButtons = (it: GearItem) => lootBtns(it, true);
 const takeButtons = (it: GearItem) => lootBtns(it, false);
@@ -667,7 +676,12 @@ function shopScene(r: Run) {
     body = `<div class="cards">${r.scene.stock.map((e, i) => {
     const full = e.kind === "potion" && !e.sold && h.potions >= potionCap(h);
     const btn = `<button class="small primary" data-buy="${i}" ${e.sold || full ? "disabled" : ""}>${e.sold ? "Sold" : full ? "Your potion belt is full" : `Buy · ${e.price} 🪙`}</button>`;
-    if (e.kind === "item" && e.item) return itemCard(e.item, btn, !e.sold);
+    if (e.kind === "item" && e.item) {
+      const it = e.item, hands = handSlots(it);
+      const cmp = e.sold ? "" : hands ? hands.map(sl => `<button class="small take-cmp" data-compare="${it.uid}" data-slot="${sl}">⚖️ Compare ${HAND_LABEL[sl]}</button>`).join("")
+        : slotsFor(it, h).length ? `<button class="small take-cmp" data-compare="${it.uid}">⚖️ Compare equipped</button>` : "";
+      return itemCard(it, btn + cmp, !e.sold);
+    }
     const label = e.kind === "potion" ? "🧪 Healing Potion — heal 12" : e.kind === "scroll" ? "📜 Scroll of Revelation — reveals a Legendary" : `💎 ${getItem(e.relic!).name} — ${getItem(e.relic!).text}`;
     return `<div class="item"><div class="nm">${esc(label)}</div><div class="row" style="margin-top:8px">${btn}</div></div>`;
   }).join("")}</div>
@@ -1412,6 +1426,46 @@ function musicSliders(only?: Track) {
   return `<div class="music-sliders"><div class="row"><button class="small ${isMusicOff() ? "" : "primary"}" data-togglemusic>${isMusicOff() ? "🎵 Music off" : "🎵 Music on"}</button></div>${!only || only === "title" ? sl("title", "🎵 Menu music") : ""}${!only || only === "game" ? sl("game", "🎵 Gameplay music") : ""}</div>`;
 }
 
+/** Side-by-side comparison: the find against what's in that slot now, every stat before and after, and every effect gained or lost. */
+let compareOpen: { uid: number; slot?: EquipSlot } | null = null;
+function findForCompare(r: Run, uid: number): { it: GearItem; takeable: boolean } | null {
+  const s = r.scene;
+  if (s.t === "loot" || s.t === "pick") { const it = s.items.find(i => i.uid === uid); if (it) return { it, takeable: true }; }
+  if (s.t === "shop") { const e = s.stock.find(x => x.item?.uid === uid); if (e?.item) return { it: e.item, takeable: false }; }
+  return null;
+}
+function comparePopup(r: Run): string {
+  if (!compareOpen) return "";
+  const found = findForCompare(r, compareOpen.uid);
+  if (!found) return "";
+  const h = r.hero, it = found.it;
+  const slots = slotsFor(it, h);
+  // No slot asked for: the one the inline comparison picks (an empty one, else the best fit).
+  const slot = compareOpen.slot ?? slots.find(x => !h.equip[x]) ?? slots[0];
+  if (!slot) return "";
+  const cur = h.equip[slot];
+  const after = simulateEquip(h, it, slot);
+  const rows = COMPARE_STATS.map(([label, get, unit]) => {
+    const a = Math.round(get(h.f)), b = Math.round(get(after)), d = b - a;
+    if (a === 0 && b === 0) return "";
+    return `<tr class="${d > 0 ? "up" : d < 0 ? "down" : ""}"><td>${label}</td><td>${a}${unit}</td><td>→</td><td><b>${b}${unit}</b></td><td>${d ? `${d > 0 ? "▲" : "▼"} ${Math.abs(d)}${unit}` : "＝"}</td></tr>`;
+  }).join("");
+  const label = SLOT_LABEL[slot];
+  return `<div class="overlay popup-wrap"><div class="popup compare-pop">
+    <button class="small closex closebtn" data-compareclose aria-label="Close">✕</button>
+    <h1 class="center bigname">⚖️ Compare · ${esc(label)}</h1>
+    <div class="cmp-cols">
+      <div><div class="cmp-tag new">New find</div>${itemCard(it)}</div>
+      <div><div class="cmp-tag">${cur ? `Equipped · ${esc(label)}` : esc(label)}</div>${cur ? itemCard(cur) : `<div class="item empty-slot"><div class="nm">Empty</div><p class="sub">Nothing in your ${esc(label.toLowerCase())} yet.</p></div>`}</div>
+    </div>
+    <h2>Your stats</h2>
+    <table class="cmp-table"><tr><th></th><th>Now</th><th></th><th>With it</th><th></th></tr>${rows}</table>
+    <h2>What changes</h2>
+    ${compareHtml(h, it, slot, true) || `<p class="sub">Nothing changes.</p>`}
+    <div class="row cmp-actions">${found.takeable ? `<button class="take-equip" data-take="${it.uid}" data-how="equip" data-slot="${slot}">✔ Equip ${esc(label.toLowerCase())}</button>` : ""}<button data-compareclose>Close</button></div>
+  </div></div>`;
+}
+
 function optionsPopup() {
   const sp = (v: number, label: string) => `<button class="${speed === v ? "primary" : ""}" data-speed="${v}">${label}</button>`;
   return `<div class="overlay popup-wrap"><div class="popup">
@@ -1791,7 +1845,7 @@ function render2() {
       else celebrate(["rare", "epic", "legendary"].includes(getItem(relicNow).rarity ?? "") ? (getItem(relicNow).rarity as string) : "rare", "NEW RELIC", false);
     }
   }
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
   bind();
 }
 
@@ -2108,7 +2162,9 @@ function bind() {
   on("[data-sigscrap]", el => { const n = scrapSigil(r, Number(el.dataset.sigscrap)); if (n) say(`+${n} Scrap`, false); });
   on("[data-spoilsub]", el => { spoilsSub = el.dataset.spoilsub as typeof spoilsSub; });
   on("[data-talentsub]", el => { talentSub = el.dataset.talentsub as "talents" | "curses"; });
-  on("[data-take]", el => say(takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack")));
+  on("[data-take]", el => { compareOpen = null; say(takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack", el.dataset.slot as EquipSlot | undefined)); });
+  on("[data-compare]", el => { compareOpen = { uid: Number(el.dataset.compare), slot: el.dataset.slot as EquipSlot | undefined }; });
+  on("[data-compareclose]", () => { compareOpen = null; });
   on("[data-scrapfound]", el => scrapFound(r, Number(el.dataset.scrapfound)));
   on("[data-finish]", () => { r.message = ""; finishLoot(r); });
   on("[data-card]", el => {

@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.30.0
+- Found weapons that fit either hand now have ✔ Equip main hand and ✔ Equip off-hand buttons, plus ⚖️ Compare main hand and ⚖️ Compare off-hand.
+- Every other find has a ⚖️ Compare equipped button. Merchant gear has the Compare buttons too.
+- Compare opens a side-by-side popup: the new find next to what's in that slot, a before → after table of your stats, and every effect you'd gain or lose. You can equip it straight from there.
+
 ## 1.29.3
 - Merchant: rerolling the stock no longer restocks potions. Gear, relics and scrolls are rerolled; Healing and Mana Potions stay as they were, so one you've bought stays sold.
 

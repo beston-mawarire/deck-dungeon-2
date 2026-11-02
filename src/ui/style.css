@@ -861,3 +861,23 @@ h2.shop-title { color: #f1e4ff; font-size: 1.15rem; font-weight: 800; text-shado
 @media (max-width: 400px) { .lb-main { font-size: .8rem; padding: 10px 2px; } }
 /* Longer comparison notes wrap inside the card instead of running out of it. */
 .cmp.cmp-note { white-space: normal; max-width: 100%; overflow-wrap: anywhere; }
+
+/* Loot: Equip / Compare buttons share rows; Compare is quieter */
+.item .row > .take-cmp { flex: 1 1 auto; min-height: 36px; font-size: .85rem; }
+.item .row:has(> .take-equip) > .take-equip, .item .row:has(> .take-equip) > .take-cmp { flex-basis: 40%; }
+button.take-cmp { color: #e4d6f2; border-color: #7a68a0; background: linear-gradient(180deg, #3d3150, #2d2440); }
+/* Compare popup */
+.compare-pop { max-width: 760px; width: 100%; }
+.cmp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; align-items: start; }
+@media (max-width: 560px) { .cmp-cols { grid-template-columns: 1fr; } }
+.cmp-tag { font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px 4px; }
+.cmp-tag.new { color: var(--gold); }
+.cmp-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.cmp-table th { text-align: left; color: var(--muted); font-weight: 600; font-size: .78rem; padding: 2px 6px; }
+.cmp-table td { padding: 5px 6px; border-top: 1px solid #3a3146; color: #ddd2ea; }
+.cmp-table tr.up td:last-child, .cmp-table tr.up td:nth-child(4) { color: #7ff0a8; }
+.cmp-table tr.down td:last-child, .cmp-table tr.down td:nth-child(4) { color: #ff9aa9; }
+.compare-pop .compare { margin-top: 4px; }
+.cmp-actions { justify-content: center; margin-top: 14px; gap: 10px; }
+.cmp-actions > button { min-width: 140px; }
+.compare-pop .bigname { font-size: 1.45rem; padding: 0 38px; }

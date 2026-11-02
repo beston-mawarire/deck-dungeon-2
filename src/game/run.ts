@@ -14,7 +14,7 @@ import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { autoBattleWins } from "./auto";
 import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
-import { type Sigil, SIGIL_BAG_SIZE, sigilSlots, removeItem, gainPotions, potionCap, potionsPerFight, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { type EquipSlot, type Sigil, SIGIL_BAG_SIZE, sigilSlots, removeItem, gainPotions, potionCap, potionsPerFight, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { abyssMod, heatOf } from "./progress";
 import { generate, genName, setGenLuck } from "./gen";
 import { GEN_MINORS } from "../data/genparts";
@@ -891,12 +891,12 @@ export function collectLoot(run: Run) {
 }
 
 /** Take a found item: equip it, or put it in the backpack. */
-export function takeItem(run: Run, uid: number, how: "equip" | "pack"): string | null {
+export function takeItem(run: Run, uid: number, how: "equip" | "pack", slot?: EquipSlot): string | null {
   const sc = run.scene;
   if (sc.t !== "loot" && sc.t !== "pick") return null;
   const item = sc.items.find(i => i.uid === uid);
   if (!item) return null;
-  const err = how === "equip" ? equipItem(run.hero, item) : addToBackpack(run.hero, item);
+  const err = how === "equip" ? equipItem(run.hero, item, slot) : addToBackpack(run.hero, item);
   if (err) return err;
   markFound(run, item);
   sc.items = sc.items.filter(i => i.uid !== uid);
