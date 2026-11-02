@@ -19,3 +19,10 @@ jobs:
         run: wrangler d1 execute deck-dungeon-lb --remote -y --command "SELECT id, name, mode, origin, floor, won, kills, level, version, suspect, reason, datetime(created_at/1000, 'unixepoch') AS at FROM runs ORDER BY created_at DESC LIMIT 15"
       - name: Latest sessions
         run: wrangler d1 execute deck-dungeon-lb --remote -y --command "SELECT substr(sid,1,6) AS sid, floor, max_floor, flagged, ended, posted_floor, datetime(started_at/1000, 'unixepoch') AS started, datetime(floor_at/1000, 'unixepoch') AS floor_at FROM sessions ORDER BY started_at DESC LIMIT 15"
+      - name: Can a run open a session?
+        run: |
+          URL="https://deck-dungeon-leaderboard.bestondeveloper.workers.dev"
+          curl -sS -i -X OPTIONS -H "Origin: https://beston-mawarire.github.io" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: content-type" "$URL/session" | head -12
+          echo
+          curl -sS -i -X POST -H "Origin: https://beston-mawarire.github.io" -H "content-type: application/json" -d '{"pid":"000000000000000000000000","seed":1}' "$URL/session"
+          echo
