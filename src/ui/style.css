@@ -859,3 +859,5 @@ h2.shop-title { color: #f1e4ff; font-size: 1.15rem; font-weight: 800; text-shado
 .lb-note { color: #cfc4dc; }
 .lb-main { font-size: .9rem; }
 @media (max-width: 400px) { .lb-main { font-size: .8rem; padding: 10px 2px; } }
+/* Longer comparison notes wrap inside the card instead of running out of it. */
+.cmp.cmp-note { white-space: normal; max-width: 100%; overflow-wrap: anywhere; }

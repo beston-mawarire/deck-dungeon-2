@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.29.2
+- Item comparison: the "Two-handed: your off-hand goes to your backpack" note now wraps inside the card instead of running out of it on large screens.
+
 ## 1.29.1
 - Leaderboards: the Abyss is now its own main tab (🏰 Campaign · 📅 Daily · 🕳️ Abyss · 🎯 Bounty), with Deepest, Elites, Champions, Damage, Biggest hit and Gold for Abyss runs, and the class filter. After an Abyss run, See the leaderboards opens there.
 

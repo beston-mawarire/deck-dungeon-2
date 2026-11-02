@@ -265,7 +265,7 @@ function compareHtml(h: Hero, it: GearItem): string {
   // Stats: ▲ for every one that improves, ▼ for every one that drops.
   const stats = best.ds.filter(d => d.d !== 0).map(d => `<span class="cmp ${d.d > 0 ? "up" : "down"}">${d.d > 0 ? "▲" : "▼"} ${Math.abs(d.d)}${d.unit} ${d.label}</span>`);
   const a = effectiveBase(it);
-  if (a.twoHanded && h.equip.off && !keepsOffHand(h) && best.s === "main") stats.push(`<span class="cmp down">Two-handed: your off-hand goes to the bag</span>`);
+  if (a.twoHanded && h.equip.off && !keepsOffHand(h) && best.s === "main") stats.push(`<span class="cmp down cmp-note">Two-handed: your off-hand goes to your backpack</span>`);
   // Effects: + for each one you'd gain (or that gets stronger), − for each you'd lose (or that gets weaker).
   const effectLine = (id: string, n: number) => { const d = getItem(id); return fillText(d.text, n); };
   const showable = (id: string) => {
