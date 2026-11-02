@@ -49,6 +49,8 @@ export interface Meta {
   title?: string;
   /** Heat level chosen for Campaign runs (0 = off). */
   heat?: number;
+  /** Every encounter you've had, across runs (for the Encounter achievements). */
+  encounters?: string[];
   /** Legendaries whose lore you've read (shown the first time you hold each). */
   loreSeen?: string[];
   /** What killed your last Campaign run: it waits in the next one. */
@@ -170,10 +172,11 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
   if (run.scene.t === "over" && run.scene.won && run.mode === "campaign" && !alreadyEarned) m.winsBy = { ...(m.winsBy ?? {}), [o]: (m.winsBy?.[o] ?? 0) + 1 };
   // Achievements: each once, with a Renown bonus.
   trackMarks(run);
+  m.encounters = [...new Set([...(m.encounters ?? []), ...(run.encounters ?? [])])];
   const got: string[] = [];
   for (const a of ACHIEVEMENTS) {
     if (m.achievements?.includes(a.id)) continue;
-    const ok = a.id === "mastery10" ? lv >= MASTERY_MAX : a.id === "mastery_all" ? ["warrior", "rogue", "mage", "cleric"].every(c => masteryLevel(m.mastery?.[c] ?? 0) >= MASTERY_MAX) : a.check(run, { wins: m.wins, winsBy: m.winsBy as Record<string, number> });
+    const ok = a.id === "mastery10" ? lv >= MASTERY_MAX : a.id === "mastery_all" ? ["warrior", "rogue", "mage", "cleric"].every(c => masteryLevel(m.mastery?.[c] ?? 0) >= MASTERY_MAX) : a.check(run, { wins: m.wins, winsBy: m.winsBy as Record<string, number>, encounters: m.encounters });
     if (!ok) continue;
     m.achievements = [...(m.achievements ?? []), a.id];
     m.renown += a.renown;

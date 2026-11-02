@@ -78,4 +78,26 @@ describe("mastery, kits, heat, Abyss twists, achievements", () => {
     r2.hero.f.persist["act_guard"] = 1; r2.floor = 6; r2.scene = { t: "over", won: true };
     expect(recordRun(m2, r2).achievements).not.toContain("warrior_noguard");
   });
+
+  it("encounter achievements: rooms, events and every choice (across runs)", async () => {
+    const { EVENTS } = await import("../src/data/events");
+    const { ACHIEVEMENTS } = await import("../src/game/progress");
+    const { chooseEvent } = await import("../src/game/run");
+    const ev = EVENTS.find(e => e.id === "spring")!;
+    expect(ACHIEVEMENTS.some(a => a.id === "ev_spring")).toBe(true);
+    expect(ACHIEVEMENTS.some(a => a.id === "room_rest")).toBe(true);
+    const m: Meta = { renown: 0, runs: 0, wins: 0, bestFloor: 0, found: [] };
+    for (let i = 0; i < ev.options.length; i++) {
+      const run = newRun("cleric", 30 + i);
+      run.scene = { t: "event", ev, result: null, found: [] } as Run["scene"];
+      chooseEvent(run, i);
+      run.scene = { t: "rest", done: false } as Run["scene"];
+      const { rest } = await import("../src/game/run");
+      rest(run);
+      abandonRun(run);
+      const got = recordRun(m, run).achievements;
+      if (i === 0) { expect(got).toContain("ev_spring"); expect(got).toContain("room_rest"); }
+      if (i === ev.options.length - 1) expect(got).toContain("evall_spring");
+    }
+  });
 });

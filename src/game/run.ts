@@ -194,6 +194,8 @@ export interface Run {
   abyssMod?: string;
   /** Class Mastery XP already counted for this run (a won Campaign run that carries on is recorded twice). */
   masteryBanked?: number;
+  /** Encounters this run (events met, choices taken, rooms used), for the Encounter achievements. */
+  encounters?: string[];
   /** Build moments already celebrated this run. */
   moments?: string[];
   /** Inventory tabs as last seen (a short signature each), so new things get a dot. */
@@ -364,6 +366,7 @@ function enterRoom(run: Run, room: RoomType) {
       const evDef = pool.find(e => e.id === ev)!;
       if (evDef.unique) run.seenBosses.add(`e:${evDef.id}`);
       // The Wandering Blacksmith: two free upgrades at his anvil. The Alchemist: a shop of combat tonics.
+      if (["blacksmith", "alchemist", "holy_tribute"].includes(evDef.id)) markEncounter(run, `ev:${evDef.id}`);
       if (evDef.id === "blacksmith") { run.scene = { t: "smith", uses: 2 }; return; }
       if (evDef.id === "alchemist") { run.scene = { t: "alchemist", stock: alchemistStock(run) }; return; }
       if (evDef.id === "crossroads") { run.scene = { t: "event", ev: crossroadsEvent(CROSSROADS_GUISES[Math.floor(run.rng() * CROSSROADS_GUISES.length)]), result: null, found: [] }; return; }
@@ -386,6 +389,7 @@ function enterRoom(run: Run, room: RoomType) {
 export function confirmRisk(run: Run, yes: boolean) {
   if (run.scene.t !== "confirm") return;
   if (!yes) return advance(run);
+  markEncounter(run, `room:${run.scene.room}`);
   enterRoom(run, run.scene.room);
 }
 
@@ -961,6 +965,7 @@ export function buy(run: Run, i: number): string | null {
   if (e.kind === "relic" && e.relic) grantRelic(run, e.relic);
   h.f.gold -= e.price;
   e.sold = true;
+  markEncounter(run, "room:shop");
   return null;
 }
 
@@ -1033,6 +1038,7 @@ export function forgeUpgrade(run: Run, uid: number): string | null {
   found.item.upgrades = (found.item.upgrades ?? 0) + 1;
   for (const k of Object.keys(found.item.bonuses)) found.item.bonuses[k]++;
   recompute(h);
+  markEncounter(run, "room:forge");
   return null;
 }
 
@@ -1064,6 +1070,7 @@ export function rest(run: Run, _choice: "heal" = "heal"): string | null {
   if (run.scene.t !== "rest" || run.scene.done) return null;
   restore(h, Math.round(h.f.maxHp * restPct(h) * (heatOf(run) >= 3 ? 0.5 : 1)));
   run.scene.done = true;
+  markEncounter(run, "room:rest");
   return null;
 }
 
@@ -1072,6 +1079,8 @@ export function rest(run: Run, _choice: "heal" = "heal"): string | null {
 export function chooseEvent(run: Run, i: number) {
   const s = run.scene;
   if (s.t !== "event" || s.result) return;
+  markEncounter(run, `ev:${s.ev.id}`);
+  markEncounter(run, `evopt:${s.ev.id}:${i}`);
   const h = run.hero;
   const found: GearItem[] = [];
   let dragonWakes = false;
@@ -1384,6 +1393,7 @@ export function takeBounty(run: Run, i: number) {
   const s = run.scene;
   if (s.t !== "bounty") return;
   const offer = s.offers[i];
+  if (offer) markEncounter(run, "room:bounty");
   if (!offer) return;
   run.bounty = { ...offer, base: run.hero.f.persist[offer.kind === "status" ? `q_st_${offer.status}` : `q_${offer.kind}`] ?? 0 };
   run.message = `📋 Contract taken: ${bountyText(offer, run.hero.origin)} within ${offer.roomsLeft} rooms.`;
@@ -1586,6 +1596,7 @@ export function unifyHeart(run: Run): string | null {
   if (s.t !== "sanctum" || s.done || !h.dragonHeart || h.dragonHeart.unified) return null;
   const before = h.f.maxHp;
   h.dragonHeart.unified = true;
+  markEncounter(run, "room:sanctum");
   recompute(h);
   h.f.hp = Math.min(h.f.maxHp, h.f.hp + Math.max(0, h.f.maxHp - before));
   s.done = true;
@@ -1807,4 +1818,10 @@ export function trackMarks(run: Run) {
     if (rar.every(r => r === "epic")) p["ach_all_epic"] = 1;
     if (rar.every(r => r === "rare")) p["ach_all_rare"] = 1;
   }
+}
+
+/** Remember an encounter (an event met, a choice taken, a room used) for the achievements. */
+export function markEncounter(run: Run, key: string) {
+  const e = (run.encounters ??= []);
+  if (!e.includes(key)) e.push(key);
 }

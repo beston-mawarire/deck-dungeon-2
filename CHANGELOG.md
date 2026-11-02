@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.24.0
+- **Encounter achievements**: one for every event (rare and once-a-run ones are worth more), one for trying every choice at each event (counted across your runs), and one for each special room: resting at a Campfire, buying from the Merchant, upgrading at the Forge, a Shrine, an Altar, a Resplendent Vault, a Crimson Vault, a Bounty Board contract and unifying with a Dragon Heart. The Achievements list groups them under Feats and Encounters (117 in all).
+- **8 new Epics**: Widowmaker, Sunderer, Wall of Retribution, Plague Lantern, Wolfhide Coat, Glacial Plate, Executioner's Signet, Vampire's Fang.
+- **6 new Legendaries** (each with lore): Thunderclap, Scythe of the Blood Moon, The Unbroken Vow, Robes of the Eclipse, Fortune's Favour, The Endless Hunger.
+
 ## 1.23.0
 - **Merchant**: buys as much as you like now. New "Sell all Commons" / "Commons + Uncommons" buttons; selling something you're wearing takes a second tap.
 - **Campaign tab redesigned**: a short header with a Story button, the four classes as a compact 2×2 grid (with their mastery level), and an "Also waiting" list for the Daily Dungeon, your Nemesis and Heat. The Abyss tab uses the same layout.

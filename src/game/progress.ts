@@ -1,6 +1,7 @@
 // Between-run progress: Class Mastery (and the starting kits it unlocks), Achievements (Renown and titles),
 // Heat levels (optional Campaign difficulty) and the Abyss's weekly twist.
 import { GEAR_BASES } from "../data";
+import { EVENTS } from "../data/events";
 import type { GearItem, OriginId, Rarity } from "../engine/types";
 import { EQUIP_SLOTS, recompute } from "./hero";
 import type { Run } from "./run";
@@ -54,7 +55,7 @@ export function applyKit(run: Run, kit: Kit | undefined, level: number) {
 }
 
 // ---------- Achievements ----------
-export interface Achievement { id: string; name: string; text: string; renown: number; title?: string; check: (run: Run, m: { wins?: number; winsBy?: Record<string, number> }) => boolean }
+export interface Achievement { id: string; name: string; text: string; renown: number; title?: string; group?: string; check: (run: Run, m: { wins?: number; winsBy?: Record<string, number>; encounters?: string[] }) => boolean }
 const won = (r: Run) => r.scene.t === "over" && r.scene.won;
 const P = (r: Run, k: string) => r.hero.f.persist[k] ?? 0;
 const campaignWon = (r: Run) => r.scene.t === "over" && r.scene.won && r.mode === "campaign";
@@ -144,3 +145,23 @@ export function currentAbyssMod(now = Date.now()) {
 export const abyssMod = (run: Run, id: AbyssModId) => run.mode === "abyss" && run.abyssMod === id;
 
 export type { OriginId };
+
+// ---------- Encounter achievements: every event (and every choice in it), and the special rooms ----------
+const met = (key: string) => (_r: Run, m: { encounters?: string[] }) => !!m.encounters?.includes(key);
+const ROOM_ACHIEVEMENTS: [string, string, string][] = [
+  ["rest", "Warm Hands", "Rest at a Campfire"],
+  ["shop", "Customer", "Buy something from the Merchant"],
+  ["forge", "Smith's Apprentice", "Upgrade an item at the Forge"],
+  ["shrine", "Devotee", "Pray at a Shrine (and take its curse)"],
+  ["altar", "Bloodletting", "Give your blood to an Altar"],
+  ["vault", "Vault Breaker", "Open a Resplendent Vault"],
+  ["crimson_vault", "Into the Red", "Enter a Crimson Vault"],
+  ["bounty", "Bounty Hunter", "Take a contract at a Bounty Board"],
+  ["sanctum", "Dragonblood", "Unify with a Dragon Heart"]
+];
+for (const [room, name, text] of ROOM_ACHIEVEMENTS) ACHIEVEMENTS.push({ id: `room_${room}`, name, text, renown: 5, group: "Encounters", check: met(`room:${room}`) });
+for (const ev of EVENTS) {
+  ACHIEVEMENTS.push({ id: `ev_${ev.id}`, name: ev.title, text: ev.unique ? "Meet this once-a-run encounter" : (ev.weight ?? 1) < 1 ? "Find this rare encounter" : "Take part in this encounter", renown: ev.unique || (ev.weight ?? 1) < 1 ? 10 : 5, group: "Encounters", check: met(`ev:${ev.id}`) });
+  if (ev.options.length >= 2) ACHIEVEMENTS.push({ id: `evall_${ev.id}`, name: `${ev.title}: every choice`, text: `Try all ${ev.options.length} choices here (across your runs)`, renown: 10, group: "Encounters",
+    check: (_r, m) => ev.options.every((_, i) => !!m.encounters?.includes(`evopt:${ev.id}:${i}`)) });
+}

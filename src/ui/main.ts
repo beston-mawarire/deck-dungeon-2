@@ -406,7 +406,8 @@ function infoPopup() {
 /** Achievements: what you've earned, what's left, and the title you show on the leaderboards. */
 function achievementsPopup() {
   const got = new Set(meta.achievements ?? []);
-  const rows = ACHIEVEMENTS.filter(a => (achTab === "earned") === got.has(a.id)).map(a => `<div class="ach ${got.has(a.id) ? "got" : ""}">
+  let lastGroup: string | undefined = "";
+  const rows = ACHIEVEMENTS.filter(a => (achTab === "earned") === got.has(a.id)).sort((x, y) => (x.group ? 1 : 0) - (y.group ? 1 : 0)).map(a => `${a.group !== lastGroup ? `<h3 class="ach-group">${esc((lastGroup = a.group) ?? "Feats")}</h3>` : ""}<div class="ach ${got.has(a.id) ? "got" : ""}">
     <div class="row"><b class="grow">${got.has(a.id) ? "🏆" : "🔒"} ${esc(a.name)}</b><span class="sub">+${a.renown} Renown</span></div>
     <p class="sub">${esc(a.text)}</p>
     ${a.title ? `<div class="row">${got.has(a.id) ? `<button class="small ${meta.title === a.title ? "primary" : ""}" data-title="${esc(a.title)}">${meta.title === a.title ? "✓ " : ""}Title: “${esc(a.title)}”</button>` : `<span class="sub">Title: “${esc(a.title)}”</span>`}</div>` : ""}

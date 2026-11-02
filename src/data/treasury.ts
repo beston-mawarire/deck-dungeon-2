@@ -83,7 +83,24 @@ export const EPIC_ITEMS: GearBase[] = [
     hooks: { onRoundEnd: (b, f) => { if (!f.flags["feather"] && f.hp > 0 && f.hp < f.maxHp / 4) { f.flags["feather"] = 1; heal(b, f, Math.ceil(f.maxHp / 4), "Phoenix Feather"); applyStatus(b, f, other(b, f), "burn", 6); } } } }),
   epic({ id: "ee_stormheart_pendant", kind: "trinket", slot: "trinket", name: "Stormcaller's Pendant", tags: ["Storm"], text: "On a 6: apply 4 Static. Static on enemies deals +2 per tick.", hooks: { face: [on(6, (b, c) => applyStatus(b, c.attacker, c.defender, "static", 4))] } }), // tick bonus: statuses.ts
   epic({ id: "ee_titan_ring", kind: "trinket", slot: "trinket", name: "Titan's Ring", tags: ["Guard", "Blood"], armor: 3, maxHp: 8, text: "+3 Armor and +8 Max HP.", hooks: {} }),
-  epic({ id: "ee_alchemist_eye", kind: "trinket", slot: "trinket", name: "Alchemist's Eye", tags: ["Arcane", "Hex"], text: "Reactions you cause deal +50%.", hooks: { reactionMult: () => 1.5 } })
+  epic({ id: "ee_alchemist_eye", kind: "trinket", slot: "trinket", name: "Alchemist's Eye", tags: ["Arcane", "Hex"], text: "Reactions you cause deal +50%.", hooks: { reactionMult: () => 1.5 } }),
+  // ---- More Epics ----
+  epic({ id: "ee_widowmaker", kind: "weapon", slot: "main", name: "Widowmaker", tags: ["Bleed", "Crit", "Hex"], damage: 7, faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT], text: "Crits on 5 and 6. Crits apply 3 Bleed and 2 Exposed.",
+    hooks: { onCrit: (b, c) => { applyStatus(b, c.attacker, c.defender, "bleed", 3); applyStatus(b, c.attacker, c.defender, "exposed", 2); } } }),
+  epic({ id: "ee_sunderer", kind: "weapon", slot: "main", name: "Sunderer", tags: ["Strike", "Hex"], damage: 11, twoHanded: true, faces: [MISS, HIT, HIT, HIT, HIT, CRIT], text: "Two-handed. Hits apply 1 Fracture; crits apply 3 more.",
+    hooks: { onHit: mainHit((b, c) => applyStatus(b, c.attacker, c.defender, "fracture", 1)), onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "fracture", 3) } }),
+  epic({ id: "ee_mirrored_aegis", kind: "off", slot: "off", shield: true, name: "Wall of Retribution", tags: ["Guard", "Thorns"], armor: 4, text: "Shield. +4 Armor. While you Guard, every hit is thrown back at the attacker in full.",
+    hooks: { whenHit: (b, c) => { if (c.defender.flags["guarding"] && (c.raw ?? 0) > 0) ping(b, c.attacker, c.raw ?? 0, "Wall of Retribution"); } } }),
+  epic({ id: "ee_plague_lantern", kind: "off", slot: "off", name: "Plague Lantern", tags: ["Poison", "Hex"], text: "Every round, the enemy takes 2 Poison and 1 Weak.",
+    hooks: { onRoundStart: (b, f) => { const e = other(b, f); applyStatus(b, f, e, "poison", 2); applyStatus(b, f, e, "weak", 1); } } }),
+  epic({ id: "ee_wolfhide", kind: "armour", slot: "armour", name: "Wolfhide Coat", tags: ["Tempo", "Kill"], armor: 3, maxHp: 10, text: "+3 Armor, +10 Max HP. Kills give 2 Haste.",
+    hooks: { onKill: (b, c) => applyStatus(b, c.attacker, c.attacker, "haste", 2) } }),
+  epic({ id: "ee_glacial_plate", kind: "armour", slot: "armour", name: "Glacial Plate", tags: ["Guard", "Frost"], armor: 6, text: "Heavy: +6 Armor. Anything that hits you gets 2 Chill.",
+    hooks: { whenHit: (b, c) => { if (c.dealt > 0) applyStatus(b, c.defender, c.attacker, "chill", 2); } } }),
+  epic({ id: "ee_executioner_signet", kind: "trinket", slot: "trinket", name: "Executioner's Signet", tags: ["Kill", "Strike"], text: "You deal 50% more to enemies below 30% HP.",
+    hooks: { modifyAttack: (_b, c) => { if (c.defender.hp < c.defender.maxHp * 0.3) c.mult *= 1.5; } } }),
+  epic({ id: "ee_vampire_fang", kind: "trinket", slot: "trinket", name: "Vampire's Fang", tags: ["Blood", "Crit"], text: "Your hits heal 1; crits heal 4.",
+    hooks: { onHit: mainHit((b, c) => { heal(b, c.attacker, 1, "Vampire's Fang"); }), onCrit: (b, c) => { heal(b, c.attacker, 4, "Vampire's Fang"); } } }),
 ];
 
 // ===================== LEGENDARY =====================
@@ -157,7 +174,26 @@ export const LEGENDARY_ITEMS: GearBase[] = [
     text: "Older than the dungeon. Older than the kingdom.", hooks: { onRoundEnd: (b, f) => { heal(b, f, 2, "Heart of the World"); } } }),
   legendary({ id: "lx_thorn_king", kind: "trinket", slot: "trinket", name: "Crown of the Thorn King", tags: ["Thorns", "Guard"],
     legendary: { minFloor: 3, asBase: "t_thorn_ring", reveal: "When you're hit, the attacker takes half the hit back (before Armor)." },
-    text: "He ruled by bleeding everyone who touched him.", hooks: { whenHit: (b, c) => { const n = Math.ceil((c.raw ?? 0) / 2); if (n > 0) ping(b, c.attacker, n, "Thorn King"); } } })
+    text: "He ruled by bleeding everyone who touched him.", hooks: { whenHit: (b, c) => { const n = Math.ceil((c.raw ?? 0) / 2); if (n > 0) ping(b, c.attacker, n, "Thorn King"); } } }),
+  // ---- More Legendaries ----
+  legendary({ id: "lx_thunderclap", kind: "weapon", slot: "main", name: "Thunderclap", tags: ["Storm", "Strike"], damage: 9, faces: PLAIN,
+    legendary: { minFloor: 3, asBase: "w_hammer", reveal: "Every hit applies 3 Static. Crits Shock." },
+    text: "It rumbles when it's hungry.", hooks: { onHit: mainHit((b, c) => applyStatus(b, c.attacker, c.defender, "static", 3)), onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "shock", 1) } }),
+  legendary({ id: "lx_bloodmoon_scythe", kind: "weapon", slot: "main", name: "Scythe of the Blood Moon", tags: ["Kill", "Blood"], damage: 12, twoHanded: true, faces: [MISS, HIT, HIT, HIT, CRIT, CRIT],
+    legendary: { minFloor: 4, asBase: "w_scythe", reveal: "Two-handed. Crits on 5 and 6. Kills heal you to full and give 3 Might." },
+    text: "It only reaps under a red sky.", hooks: { onKill: (b, c) => { heal(b, c.attacker, c.attacker.maxHp, "Blood Moon Scythe"); applyStatus(b, c.attacker, c.attacker, "might", 3); } } }),
+  legendary({ id: "lx_oathkeeper", kind: "off", slot: "off", shield: true, name: "The Unbroken Vow", tags: ["Guard", "Strike", "Blood"], armor: 8,
+    legendary: { minFloor: 3, asBase: "o_kite_shield", reveal: "Shield. +8 Armor. Guarding gives 3 Might and 3 Regen." },
+    text: "A promise, hammered flat.", hooks: { onGuard: (b, f) => { applyStatus(b, f, f, "might", 3); applyStatus(b, f, f, "regen", 3); } } }),
+  legendary({ id: "lx_eclipse_robes", kind: "armour", slot: "armour", name: "Robes of the Eclipse", tags: ["Arcane", "Blood"], maxHp: 20,
+    legendary: { minFloor: 3, asBase: "a_cloth", reveal: "+20 Max HP. Spell Amp +60%." },
+    text: "Half light, half dark, all stitched.", hooks: { stats: s => { s.spellAmp += 60; } } }),
+  legendary({ id: "lx_fortunes_favour", kind: "trinket", slot: "trinket", name: "Fortune's Favour", tags: ["Luck", "Crit"],
+    legendary: { minFloor: 3, asBase: "t_lucky_coin", reveal: "Every 1 you roll becomes a 6." },
+    text: "Luck, bottled and corked.", hooks: { modifyRoll: (_b, _f, r) => (r === 1 ? 6 : r) } }),
+  legendary({ id: "lx_endless_hunger", kind: "trinket", slot: "trinket", name: "The Endless Hunger", tags: ["Kill", "Strike"],
+    legendary: { minFloor: 2, asBase: "t_ring_might", reveal: "Every kill this run gives +1 Damage for good (up to +30)." },
+    text: "It is never full.", hooks: { onKill: (_b, c) => { if (c.attacker.id === "player") c.attacker.persist["hunger"] = Math.min(30, (c.attacker.persist["hunger"] ?? 0) + 1); }, stats: (s, _n, f) => { const n = f?.persist["hunger"] ?? 0; s.damage += n; s.offDamage += n; } } }),
 ];
 
 // ===================== CRIMSON =====================

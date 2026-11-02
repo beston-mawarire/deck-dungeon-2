@@ -124,4 +124,11 @@ export const LEGENDARY_LORE: Record<string, string> = {
   lx_endless_alembic: "An alchemist's still that never stops dripping. He drowned, oddly happy, in his own work.",
   la_flaskwarden: "The Flaskwarden kept the apothecary of a besieged keep. The siege ran out before she did.",
   lo_chalice_plenty: "Poured from at a saint's last feast. Somehow, there was always one more cup.",
+  // --- newer Legendaries ---
+  lx_thunderclap: "A hammer forged in a thunderhead's heart. On quiet nights you can hear it grumbling about the weather.",
+  lx_bloodmoon_scythe: "Its reaper only worked when the moon ran red. He kept very strange hours.",
+  lx_oathkeeper: "A knight swore to hold the gate forever. He did. The shield kept the promise after he couldn't.",
+  lx_eclipse_robes: "Woven in the minute the sun went dark. The seamstress has not been seen in daylight since.",
+  lx_fortunes_favour: "A gambler's last charm, won from the dungeon in a game it still insists was rigged.",
+  lx_endless_hunger: "A ring that eats. Nobody remembers who fed it first, and nobody has managed to stop.",
 };

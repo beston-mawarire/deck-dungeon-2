@@ -757,3 +757,4 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .popup .heat-panel { margin-top: 10px; text-align: left; }
 .campaign-hero .story-btn { width: auto; flex: 0 0 auto; margin: 0; }
 .campaign-hero.abyss-hero { border-color: #5b46a0; background: linear-gradient(135deg, #261c44 0%, #1a1426 70%); } .campaign-hero.abyss-hero .ch-text b { color: #d9c8ff; }
+.ach-group { margin: 14px 0 2px; font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
