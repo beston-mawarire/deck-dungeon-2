@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.32.6
+- Fixed: an update arriving the moment a run ended (a win or a death) reloaded the game straight away, skipping the results screen, the leaderboard post and Delve deeper. Updates now wait until you're back at a path choice or the main menu.
+
 ## 1.32.5
 - Found loot: the Scrap button is now red (on item cards and in the Compare popup).
 

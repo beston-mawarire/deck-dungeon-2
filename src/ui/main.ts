@@ -1826,8 +1826,9 @@ function render2() {
   const s = r.scene;
   // Autosave at every path choice; a finished run clears the save.
   if (s.t === "map") saveRun(r, banked);
-  // A new build is out: install it now that the run is safely saved at a path choice.
-  if (updateReady() && (s.t === "map" || s.t === "over")) { applyUpdate(); }
+  // A new build is out: install it now that the run is safely saved at a path choice. Never on the end-of-run screen:
+  // that would skip the results, the leaderboard post and the chance to delve deeper (it installs back at the menu).
+  if (updateReady() && s.t === "map") { applyUpdate(); }
   if (s.t === "over") clearSave();
   if (s.t === "combat" && s.battle !== currentBattle) {
     currentBattle = s.battle;
