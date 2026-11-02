@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.33.2
+- Found trinkets get a ⚖️ Compare button for each trinket slot that holds something (Compare trinket 1, Compare trinket 2, and trinket 3 if you have it). The popup can equip it into that exact slot.
+
 ## 1.33.1
 - Fixed: when the Merchant had a Mana Potion in stock (about half of visits), the shop failed to open on the first tap, and Mana Potions could never be bought. The shop now opens first time and sells them properly.
 

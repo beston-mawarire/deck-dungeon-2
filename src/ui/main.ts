@@ -600,6 +600,8 @@ const compareBtns = (it: GearItem): string => {
   const h = run.hero, hands = handSlots(it);
   if (hands) return hands.filter(sl => h.equip[sl]).map(sl => `<button class="small take-cmp" data-compare="${it.uid}" data-slot="${sl}">⚖️ Compare ${HAND_LABEL[sl]}</button>`).join("");
   const slots = slotsFor(it, h);
+  // Trinkets: one button per trinket slot that holds something.
+  if (slots[0]?.startsWith("trinket")) return slots.filter(sl => h.equip[sl]).map(sl => `<button class="small take-cmp" data-compare="${it.uid}" data-slot="${sl}">⚖️ Compare ${SLOT_LABEL[sl].replace(" ★", "").toLowerCase()}</button>`).join("");
   return slots.length && slots.every(sl => h.equip[sl]) ? `<button class="small take-cmp" data-compare="${it.uid}">⚖️ Compare equipped</button>` : "";
 };
 const lootBtns = (it: GearItem, pick: boolean) => {
