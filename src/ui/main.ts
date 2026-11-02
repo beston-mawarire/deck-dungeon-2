@@ -1548,7 +1548,7 @@ function masteryPanel(o: OriginId) {
   const slotName: Record<KitSlot, string> = { main: "Weapon", off: "Off-hand", armour: "Armour" };
   const sel = (slot: KitSlot, i: number) => {
     const id = kit[slot] ?? og.kit[i];
-    return `<div class="kit-row"><span>${slotName[slot]}</span><b class="grow">${esc(baseOf(id).name)}${kit[slot] ? "" : ` <span class="sub">(your own)</span>`}</b><button class="small" data-kitpick="${slot}">Change</button></div>`;
+    return `<div class="kit-row"><span>${slotName[slot]}</span><b class="grow">${esc(baseOf(id).name)}</b><button class="small" data-kitpick="${slot}">Change</button></div>`;
   };
   const chosen = KIT_SLOTS.map(sl => kit[sl]).filter(Boolean).map(id => baseOf(id!));
   return `<div class="panel mastery-panel">
