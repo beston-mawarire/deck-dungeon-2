@@ -1462,7 +1462,7 @@ function comparePopup(r: Run): string {
     <table class="cmp-table"><tr><th></th><th>Now</th><th></th><th>With it</th><th></th></tr>${rows}</table>
     <h2>What changes</h2>
     ${compareHtml(h, it, slot, true) || `<p class="sub">Nothing changes.</p>`}
-    <div class="row cmp-actions">${found.takeable ? `<button class="take-equip" data-take="${it.uid}" data-how="equip" data-slot="${slot}">✔ Equip ${esc(label.toLowerCase())}</button>` : ""}<button data-compareclose>Close</button></div>
+    <div class="row cmp-actions">${found.takeable ? `<button class="take-equip" data-take="${it.uid}" data-how="equip" data-slot="${slot}">✔ Equip ${esc(label.toLowerCase())}</button><button class="take-scrap" data-scrapfound="${it.uid}">Scrap (+${scrapValue(h, it)} ⚙️)</button>` : ""}<button data-compareclose>Close</button></div>
   </div></div>`;
 }
 
@@ -2165,7 +2165,7 @@ function bind() {
   on("[data-take]", el => { compareOpen = null; say(takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack", el.dataset.slot as EquipSlot | undefined)); });
   on("[data-compare]", el => { compareOpen = { uid: Number(el.dataset.compare), slot: el.dataset.slot as EquipSlot | undefined }; });
   on("[data-compareclose]", () => { compareOpen = null; });
-  on("[data-scrapfound]", el => scrapFound(r, Number(el.dataset.scrapfound)));
+  on("[data-scrapfound]", el => { compareOpen = null; scrapFound(r, Number(el.dataset.scrapfound)); });
   on("[data-finish]", () => { r.message = ""; finishLoot(r); });
   on("[data-card]", el => {
     pickResplendent(r, Number(el.dataset.card));

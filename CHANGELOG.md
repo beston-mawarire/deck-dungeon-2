@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.30.2
+- The Compare popup has a Scrap button (showing the Scrap you'd get) next to Equip.
+
 ## 1.30.1
 - ⚖️ Compare buttons now have a muted Rare-blue fill.
 
