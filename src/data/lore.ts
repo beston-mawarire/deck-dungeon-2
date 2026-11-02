@@ -85,6 +85,8 @@ export const LEGENDARY_LORE: Record<string, string> = {
   lx_last_wall: "When every other wall fell, this one stood. It has been insufferable about it since.",
   lx_mantle_unmaking: "Woven from threads pulled out of the world's seams. Things come apart near it.",
   lx_hourglass: "A duelist's timepiece. He never stopped moving long enough to read it.",
+  lx_nightfall: "Its last owner was never seen. Plenty of people felt him.",
+  lx_kingslayer: "Three crowns have rolled because of it. It is patient about the fourth.",
   lx_crown_of_embers: "Forged for a king who swore he would never be cold again. He kept his word.",
   lx_hearthfall: "Every fire it starts remembers the last one.",
   lx_berserker_mask: "No one remembers the face beneath it. Neither did its owner, after the first battle.",

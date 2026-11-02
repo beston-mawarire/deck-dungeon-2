@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.44.0
+- 🗡️ Eleven new daggers, all usable in the off-hand, at normal drop odds: Cutpurse Knife, Serrated Shiv and Quickblade (Uncommon); Moonsilver Dirk, Frostbite Kris and Backstabber (Rare); Scorpion's Sting, Misericorde and Shadowstep Blade (Epic); and two Legendaries, Nightfall and Kingslayer. Rogues find the new ones a little more often.
+
 ## 1.43.0
 - ⚔️ Gauntlets: from floor 3, now and then every path ahead is a hard fight and nothing else: three Elites; an Elite and two Champions; three Champions; or an Elite, a Champion and a Guarded Vault (a Champion before a Resplendent chest).
 

@@ -1892,3 +1892,17 @@ describe("gauntlets", () => {
     expect(early).toBe(0);
   });
 });
+
+describe("more daggers", () => {
+  it("Uncommon to Legendary daggers all drop, and Misericorde turns Hits on weak foes into Crits", () => {
+    const ids = ["dg_cutpurse_knife", "dg_serrated_shiv", "dg_quickblade", "dg_moonsilver_dirk", "dg_frostbite_kris", "dg_backstabber", "dg_scorpion_sting", "dg_misericorde", "dg_shadowstep"];
+    for (const id of ids) expect(baseOf(id).weaponType, id).toBe("dagger");
+    expect(LEGENDARIES.some(l => l.id === "lx_nightfall") && LEGENDARIES.some(l => l.id === "lx_kingslayer")).toBe(true);
+    const h = newHero("rogue");
+    equipItem(h, { uid: 991, base: "dg_misericorde", rarity: "epic", level: 1, bonuses: {}, revealed: true });
+    h.f.critChance = 0;
+    const b = startBattle(h.f, dummy(), 8); b.enemy.hp = 50; h.f.statuses = {};
+    resolveFace(b, h.f, b.enemy, 3, false);
+    expect(b.log.some(l => l.includes("Crit"))).toBe(true);
+  });
+});
