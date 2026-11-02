@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.2
+- The ⚡ Auto-fight button is now filled in the same green as the health bar.
+
 ## 1.26.1
 - The ⚡ Auto-fight button now sits beside its room in the same row, at the same height and in the same style as the room cards.
 
