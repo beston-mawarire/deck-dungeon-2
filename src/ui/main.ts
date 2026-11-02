@@ -1455,7 +1455,7 @@ function comparePopup(r: Run): string {
     <button class="small closex closebtn" data-compareclose aria-label="Close">✕</button>
     <h1 class="center bigname">⚖️ Compare · ${esc(label)}</h1>
     <div class="cmp-cols">
-      <div><div class="cmp-tag new">New find</div>${itemCard(it)}</div>
+      <div class="cmp-new"><div class="cmp-tag new">New find</div>${itemCard(it)}</div>
       <div><div class="cmp-tag">${cur ? `Equipped · ${esc(label)}` : esc(label)}</div>${cur ? itemCard(cur) : `<div class="item empty-slot"><div class="nm">Empty</div><p class="sub">Nothing in your ${esc(label.toLowerCase())} yet.</p></div>`}</div>
     </div>
     <h2>Your stats</h2>

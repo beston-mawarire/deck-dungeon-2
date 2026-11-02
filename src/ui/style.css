@@ -881,3 +881,16 @@ button.take-cmp { color: #e6f0ff; font-weight: 700; border-color: #5f8fc8; backg
 .cmp-actions { justify-content: center; margin-top: 14px; gap: 10px; }
 .cmp-actions > button { min-width: 140px; }
 .compare-pop .bigname { font-size: 1.45rem; padding: 0 38px; }
+/* Compare popup: the new find reads brighter than what you're wearing (no glow, just lighter text and border). */
+.cmp-new .item { border-width: 3px; }
+.cmp-new .item ul, .cmp-new .item p { color: #ffffff; }
+.cmp-new .item .meta { color: #f3e6c8; }
+.cmp-new .item .nm { filter: brightness(1.25); }
+.cmp-new .r-common { border-color: color-mix(in srgb, var(--common) 55%, white); }
+.cmp-new .r-uncommon { border-color: color-mix(in srgb, var(--uncommon) 60%, white); }
+.cmp-new .r-rare { border-color: color-mix(in srgb, var(--rare) 60%, white); }
+.cmp-new .r-epic { border-color: color-mix(in srgb, var(--epic) 60%, white); }
+.cmp-new .r-legendary { border-color: color-mix(in srgb, var(--legendary) 60%, white); }
+.cmp-new .r-crimson { border-color: color-mix(in srgb, var(--crimson) 60%, white); }
+.cmp-new .r-epic_crimson { border-color: color-mix(in srgb, var(--epic-crimson) 60%, white); }
+.cmp-new .r-legendary_crimson { border-color: color-mix(in srgb, var(--legendary-crimson) 60%, white); }
