@@ -474,7 +474,8 @@ button.bounty-btn.done { background: linear-gradient(180deg, #e8c46a, #b98a2e); 
 .death-intro.after80 { animation-name: deathveil80; }
 @keyframes deathveil80 { 0% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
 /* Auto-battle */
-.auto-row { justify-content: center; gap: 10px; margin-top: 6px; align-items: center; }
+.auto-row { flex-direction: column; justify-content: center; gap: 6px; margin-top: 6px; align-items: center; }
+.auto-row .sub { text-align: center; }
 button.auto-btn { background: linear-gradient(180deg, #5ec8a0, #2f8f6c); border-color: #2f8f6c; color: #06140e; font-weight: 800; }
 
 /* ---------- How to play: coloured section cards ---------- */
@@ -587,10 +588,10 @@ button.story-btn { flex: 0 0 auto; font-size: .95rem; padding: 10px 14px; font-w
 @media (max-width: 520px) { .story-row { flex-direction: column; align-items: stretch; text-align: left; } button.story-btn { width: 100%; } }
 /* Inventory button: bright, so it's easy to find */
 /* Inventory and Potion buttons: the carved-stone look of the class cards, with dark text */
-button.bag-btn, button.potion-btn { color: #17121f; font-weight: 800; border: 1px solid #8a7fa3;
+button.bag-btn, button.potion-btn, button.speed-btn { color: #17121f; font-weight: 800; border: 1px solid #8a7fa3;
   background: radial-gradient(120% 90% at 20% 0%, rgba(255,255,255,.28), transparent 55%), repeating-linear-gradient(115deg, rgba(255,255,255,.035) 0 2px, rgba(0,0,0,.035) 2px 5px), linear-gradient(180deg, #c9c0d9 0%, #b3a8c8 55%, #9b90b2 100%);
   box-shadow: 0 3px 0 #5e5476, 0 4px 10px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.45); }
-button.bag-btn:active:not(:disabled), button.potion-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #5e5476, inset 0 2px 4px rgba(40,30,60,.3); }
+button.bag-btn:active:not(:disabled), button.potion-btn:active:not(:disabled), button.speed-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #5e5476, inset 0 2px 4px rgba(40,30,60,.3); }
 button.potion-btn:disabled { opacity: .55; }
 /* Close buttons: their own dusky-rose fill */
 button.closebtn { background: linear-gradient(180deg, #7a3e57, #5a2b40); border: 1px solid #a5607e; color: #ffe8f0; font-weight: 700; }
@@ -693,7 +694,7 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 @keyframes newpulse { 50% { transform: scale(1.25); } }
 /* Combat speed toggle and bulk scrap */
 .speed-row { justify-content: center; margin-top: 6px; }
-.speed-btn { opacity: .85; }
+
 .bulk-row { margin: 4px 0 8px; gap: 8px; }
 /* Relic choice */
 .relic-choices { display: grid; gap: 10px; margin-top: 12px; }
