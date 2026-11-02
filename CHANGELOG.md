@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.32.3
+- Compare buttons only show when there's something to compare against: a find headed for an empty slot has no Compare button (for weapons that fit either hand, only the hand that's holding something gets one).
+
 ## 1.32.2
 - Options are easier to read: grouped into Sound, Gameplay, Progress & backup, and a Danger zone, with each setting on its own line (name and a short note on the left, its control on the right).
 

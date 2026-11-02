@@ -590,15 +590,20 @@ function combatScene(r: Run) {
 /** Weapons that fit either hand get a button per hand. */
 const handSlots = (it: GearItem): EquipSlot[] | null => { const sl = run ? slotsFor(it, run.hero) : []; return sl.includes("main") && sl.includes("off") ? ["main", "off"] : null; };
 const HAND_LABEL: Partial<Record<EquipSlot, string>> = { main: "main hand", off: "off-hand" };
+/** Compare buttons, only for slots that hold something (an empty slot has nothing to compare against). */
+const compareBtns = (it: GearItem): string => {
+  if (!run) return "";
+  const h = run.hero, hands = handSlots(it);
+  if (hands) return hands.filter(sl => h.equip[sl]).map(sl => `<button class="small take-cmp" data-compare="${it.uid}" data-slot="${sl}">⚖️ Compare ${HAND_LABEL[sl]}</button>`).join("");
+  const slots = slotsFor(it, h);
+  return slots.length && slots.every(sl => h.equip[sl]) ? `<button class="small take-cmp" data-compare="${it.uid}">⚖️ Compare equipped</button>` : "";
+};
 const lootBtns = (it: GearItem, pick: boolean) => {
   const hands = handSlots(it);
   const equip = hands
     ? hands.map(sl => `<button class="small take-equip" data-take="${it.uid}" data-how="equip" data-slot="${sl}">✔ Equip ${HAND_LABEL[sl]}</button>`).join("")
     : `<button class="small take-equip" data-take="${it.uid}" data-how="equip">✔ Equip</button>`;
-  const compare = hands
-    ? hands.map(sl => `<button class="small take-cmp" data-compare="${it.uid}" data-slot="${sl}">⚖️ Compare ${HAND_LABEL[sl]}</button>`).join("")
-    : run && slotsFor(it, run.hero).length ? `<button class="small take-cmp" data-compare="${it.uid}">⚖️ Compare equipped</button>` : "";
-  return `${equip}${compare}<button class="small take-pack" data-take="${it.uid}" data-how="pack">Add to backpack</button><button class="small take-scrap" data-scrapfound="${it.uid}">Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`;
+  return `${equip}${compareBtns(it)}<button class="small take-pack" data-take="${it.uid}" data-how="pack">Add to backpack</button><button class="small take-scrap" data-scrapfound="${it.uid}">Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`;
 };
 const pickButtons = (it: GearItem) => lootBtns(it, true);
 const takeButtons = (it: GearItem) => lootBtns(it, false);
@@ -679,9 +684,8 @@ function shopScene(r: Run) {
     const full = e.kind === "potion" && !e.sold && h.potions >= potionCap(h);
     const btn = `<button class="small primary" data-buy="${i}" ${e.sold || full ? "disabled" : ""}>${e.sold ? "Sold" : full ? "Your potion belt is full" : `Buy · ${e.price} 🪙`}</button>`;
     if (e.kind === "item" && e.item) {
-      const it = e.item, hands = handSlots(it);
-      const cmp = e.sold ? "" : hands ? hands.map(sl => `<button class="small take-cmp" data-compare="${it.uid}" data-slot="${sl}">⚖️ Compare ${HAND_LABEL[sl]}</button>`).join("")
-        : slotsFor(it, h).length ? `<button class="small take-cmp" data-compare="${it.uid}">⚖️ Compare equipped</button>` : "";
+      const it = e.item;
+      const cmp = e.sold ? "" : compareBtns(it);
       return itemCard(it, btn + cmp, !e.sold);
     }
     const label = e.kind === "potion" ? "🧪 Healing Potion — heal 12" : e.kind === "scroll" ? "📜 Scroll of Revelation — reveals a Legendary" : `💎 ${getItem(e.relic!).name} — ${getItem(e.relic!).text}`;
