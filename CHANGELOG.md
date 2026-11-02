@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.25.5
+- Item comparison: the ▲/▼ stat chips are back as they were; the green "+" / red "−" list of effects gained and lost sits underneath them.
+
 ## 1.25.4
 - Item comparison: every stat that would improve shows a green "+", every one that would drop a red "−". Below the stats, each effect you'd gain (or that gets stronger) is listed in green with a "+", and each effect you'd lose (or that gets weaker) in red with a "−".
 

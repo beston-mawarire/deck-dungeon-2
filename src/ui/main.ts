@@ -259,10 +259,10 @@ function compareHtml(h: Hero, it: GearItem): string {
   const empty = options.find(o => !h.equip[o.s]);
   const best = empty ?? options.reduce((a, b) => (b.ds.reduce((x, d) => x + d.d / d.base, 0) > a.ds.reduce((x, d) => x + d.d / d.base, 0) ? b : a));
   const cur = h.equip[best.s];
-  // Stats: a green + for every one that improves, a red − for every one that drops.
-  const stats = best.ds.filter(d => d.d !== 0).map(d => `<span class="cmp ${d.d > 0 ? "up" : "down"}">${d.d > 0 ? "+" : "−"}${Math.abs(d.d)}${d.unit} ${d.label}</span>`);
+  // Stats: ▲ for every one that improves, ▼ for every one that drops.
+  const stats = best.ds.filter(d => d.d !== 0).map(d => `<span class="cmp ${d.d > 0 ? "up" : "down"}">${d.d > 0 ? "▲" : "▼"} ${Math.abs(d.d)}${d.unit} ${d.label}</span>`);
   const a = effectiveBase(it);
-  if (a.twoHanded && h.equip.off && !keepsOffHand(h) && best.s === "main") stats.push(`<span class="cmp down">− Off-hand (two-handed: it goes to the bag)</span>`);
+  if (a.twoHanded && h.equip.off && !keepsOffHand(h) && best.s === "main") stats.push(`<span class="cmp down">Two-handed: your off-hand goes to the bag</span>`);
   // Effects: + for each one you'd gain (or that gets stronger), − for each you'd lose (or that gets weaker).
   const effectLine = (id: string, n: number) => { const d = getItem(id); return fillText(d.text, n); };
   const showable = (id: string) => {
