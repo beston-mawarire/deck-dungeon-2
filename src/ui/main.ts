@@ -582,11 +582,12 @@ function combatScene(r: Run) {
 }
 
 /** Pick-one scenes (boss rewards, Iron chests with the Skeleton Key): every button is a choice that ends the pick. */
-const pickButtons = (it: GearItem) =>
-  `<button class="small primary" data-take="${it.uid}" data-how="equip">Choose · equip</button><button class="small" data-take="${it.uid}" data-how="pack">Choose · to bag</button><button class="small" data-scrapfound="${it.uid}">Choose · scrap (+${run ? scrapValue(run.hero, it) : 0} ⚙️)</button>`;
-
-const takeButtons = (it: GearItem) =>
-  `<button class="small primary" data-take="${it.uid}" data-how="equip">Equip</button><button class="small" data-take="${it.uid}" data-how="pack">To bag</button><button class="small" data-scrapfound="${it.uid}">Scrap</button>`;
+const lootBtns = (it: GearItem, pick: boolean) => {
+  const pre = pick ? `<span class="pick-pre">Choose · </span>` : "";
+  return `<button class="small take-equip" data-take="${it.uid}" data-how="equip">${pre}✔ Equip</button><button class="small take-pack" data-take="${it.uid}" data-how="pack">${pre}Add to backpack</button><button class="small take-scrap" data-scrapfound="${it.uid}">${pre}Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`;
+};
+const pickButtons = (it: GearItem) => lootBtns(it, true);
+const takeButtons = (it: GearItem) => lootBtns(it, false);
 
 function lootScene(r: Run) {
   if (r.scene.t !== "loot") return "";

@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.9
+- Loot buttons are now ✔ Equip (orange-yellow), Add to backpack (muted stone grey) and Scrap, with more space between them; they stretch to fill the card.
+- On larger screens, pick-one rewards drop the "Choose ·" prefix on those buttons.
+
 ## 1.26.8
 - The border around rooms with ⚡ Quick Battle is now green, matching the button.
 
