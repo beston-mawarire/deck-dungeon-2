@@ -5,6 +5,12 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.40.0
+- 🌅 The Great Reset: with the loot rework settled, everyone starts afresh. Every device's progress is cleared once (your settings and name stay), and the leaderboards start empty. The title screen says so.
+- 🔥 Heat is a trade now, not just a punishment: every level adds its twist and stokes a boon. Kindled (start fights with 1 Might), Cinders (your crits set foes Burning), Cauterize (a killing hit leaves you at 1 HP, then it rests for 3 fights), Feast (your killing blow's overkill heals you) and Spoils (Elites and Champions drop an extra item).
+- The Daily Dungeon is a level field again: Ruin Gems don't apply there.
+- Warrior: Battle-Hardened now gives +1 Damage per 5 Armor (was per 3).
+
 ## 1.39.0
 - New: 💎 Ruin Gems. Every Uber boss in the Abyss drops one. Put gems on any class from its popup in the menu: each gives +10% Max HP, Damage and Armor in every mode, for good. Gems aren't locked in: take one off a class and give it to another whenever you like. Starting an Abyss run explains it all.
 - Vanadium Plates matter far more: the first two still add 6% each, and from the 3rd plate on, each adds 30%.

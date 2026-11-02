@@ -81,7 +81,7 @@ export function bankRuin(m: Meta, run: Run): boolean {
   return true;
 }
 
-/** Each Ruin Gem on a class: +10% to its base stats (Max HP, Damage, Armor), in every mode. */
+/** Each Ruin Gem on a class: +10% to its base stats (Max HP, Damage, Armor), in the Campaign and the Abyss. */
 export const GEM_BONUS = 0.1;
 /** Put a free Ruin Gem on a class. */
 export function addGem(m: Meta, origin: string): boolean {

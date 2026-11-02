@@ -34,6 +34,8 @@ const int = (v, lo, hi) => (Number.isFinite(v) && Math.floor(v) === v && v >= lo
 const PID = /^[0-9a-f]{24}$/;
 const SID = /^[0-9a-f]{32}$/;
 const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("");
+/** The Great Reset count: bump it (with RESET_EPOCH in the game) to wipe everything and start afresh. */
+const EPOCH = 1;
 const body = async req => { try { return await req.json(); } catch { return null; } };
 
 function validate(b) {
@@ -238,7 +240,12 @@ export default {
     if (req.method === "OPTIONS") return new Response(null, { headers: cors });
     const url = new URL(req.url);
     try {
-      if (url.pathname === "/health") return json({ ok: true });
+      if (url.pathname === "/health") return json({ ok: true, epoch: EPOCH });
+      // The Great Reset: anything sent by a game from before the current epoch is turned away (its progress was wiped).
+      if (req.method === "POST") {
+        const b = await req.clone().json().catch(() => null);
+        if (!b || Number(b.epoch ?? 0) < EPOCH) return json({ error: "this save is from before the Great Reset", reset: true }, 410);
+      }
       if (url.pathname === "/session" && req.method === "POST") return await startSession(req, env);
       if (url.pathname === "/session/floor" && req.method === "POST") return await floorReached(req, env);
       if (url.pathname === "/runs" && req.method === "POST") return await postRun(req, env);

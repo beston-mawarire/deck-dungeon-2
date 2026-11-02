@@ -245,7 +245,7 @@ export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: M
   if (mode === "abyss") run.hero.f.persist["abyssRun"] = 1;
   if (mode === "abyss") run.popup = { icon: "🕳️", title: "The Abyss", text: "Every foe down here is a rank deadlier, gets far stronger with each depth, and wears your Armor away. Ten depths, an Uber boss at the bottom of each.", list: [
     "💎 Every Uber boss you beat drops a Ruin Gem.",
-    "💎 Put gems on any class in the menu: each one gives +10% Max HP, Damage and Armor, in every mode, for good.",
+    "💎 Put gems on any class in the menu: each one gives +10% Max HP, Damage and Armor in the Campaign and the Abyss, for good (the Daily stays a level field).",
     "💎 Gems aren't stuck: take one off a class and give it to another whenever you like.",
     "⬛ Vanadium Plates are what keep you alive down here: from your 3rd plate on a class, each one adds 30%."
   ] };
@@ -812,6 +812,8 @@ function afterFight(run: Run) {
     if (then === "mimic") items.push(roll(T.elite));
     if (run.rng() < (abyssMod(run, "blood_moon") ? 0.7 : 0.35)) relic = randomRelic(run);
   }
+  // Heat 5 · Spoils: Elites and Champions drop an extra item.
+  if (heatOf(run) >= 5 && (rank === "elite" || rank === "champion") && (!then || then === "resplendent")) items.push(roll(rank === "elite" ? T.elite : T.champion));
   if (rank === "champion" && then !== "dragon") {
     items.push(roll(T.champion));
     if (run.rng() < 0.2) scrolls++;
@@ -858,7 +860,7 @@ function afterFight(run: Run) {
       run.ruin = run.ruin ?? { shards: 0, plates: 0 };
       run.ruin.gems = (run.ruin.gems ?? 0) + 1;
       ruinNote += " · 💎 a Ruin Gem!";
-      if (!run.popup) run.popup = { icon: "💎", title: "A Ruin Gem", text: "The Uber boss leaves a gem that hums with stolen strength. It's yours for good: in the menu, put it on any class for +10% Max HP, Damage and Armor in every mode. You can move it to another class whenever you like." };
+      if (!run.popup) run.popup = { icon: "💎", title: "A Ruin Gem", text: "The Uber boss leaves a gem that hums with stolen strength. It's yours for good: in the menu, put it on any class for +10% Max HP, Damage and Armor in the Campaign and the Abyss. You can move it to another class whenever you like." };
     }
     // THE END: nothing left to fight. The run is won, and there's a cookie.
     if ((b.enemy.items["m_the_end"] ?? 0) > 0) {

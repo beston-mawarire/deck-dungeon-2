@@ -263,7 +263,9 @@ export function recompute(h: Hero) {
     const n = set.pieces.filter(p => worn.has(p)).length;
     for (const [need, id] of set.bonuses) if (n >= need) add(id);
   }
-  if ((h.heat ?? 0) >= 3) add("heat_dim");
+  const heat = h.heat ?? 0;
+  if (heat >= 3) add("heat_dim");
+  (["heat_kindled", "heat_cinders", "heat_cauterize", "heat_feast"] as const).forEach((id, i) => { if (heat >= i + 1) add(id); });
   f.items = items;
   s.maxHp += 3 * (h.level - 1); // every level-up: +3 Max HP
   s.maxHp -= f.persist["maxHpLoss"] ?? 0;

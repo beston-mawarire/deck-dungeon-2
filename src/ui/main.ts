@@ -1,4 +1,5 @@
 // Deck Dungeon 2 — the playable game.
+import { justReset } from "./reset"; // first: the Great Reset wipes old saves before anything loads them
 import { BONUSES, CRIMSON, CURSES, KEEPSAKES, TRAITS, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
 import { FUSION_RECIPES } from "../data/fusions";
 /** Relics that fuse with a different relic (labelled; trinket recipes never are). */
@@ -158,6 +159,8 @@ const say = (msg: string | null, bad = true) => {
   note = msg ?? "";
   noteBad = bad;
 };
+/** The Great Reset just wiped this device: explain it once, on the splash screen. */
+let resetPopup = justReset;
 
 // ---------- Small pieces ----------
 
@@ -413,7 +416,7 @@ function heatPanel() {
   return `<div class="panel heat-panel">
     <div class="row"><b class="grow">🔥 Heat ${h ? h : "off"}</b><span class="sub">${h ? `+${Math.round(HEAT_RENOWN * h * 100)}% Renown · better loot` : "Harder runs, more Renown, better loot"}</span></div>
     <div class="heat-btns">${Array.from({ length: HEAT_MAX + 1 }, (_, i) => `<button class="small ${h === i ? "primary" : ""}" data-heat="${i}">${i === 0 ? "Off" : `🔥${i}`}</button>`).join("")}</div>
-    ${h ? `<ul class="heat-list">${HEAT_LEVELS.filter(l => l.level <= h).map(l => `<li><b>${esc(l.name)}:</b> ${esc(l.text)}</li>`).join("")}</ul>` : ""}
+    ${h ? `<ul class="heat-list">${HEAT_LEVELS.filter(l => l.level <= h).map(l => `<li><b>${esc(l.name)}:</b> ${esc(l.text)}<br><span class="heat-boon">🔥 <b>${esc(l.boon)}:</b> ${esc(l.boonText)}</span></li>`).join("")}</ul>` : ""}
   </div>`;
 }
 
@@ -1422,7 +1425,7 @@ function splashScreen() {
   const sv = savedSummary();
   return `<div class="splash">
     <div class="splash-dice">🎲</div>
-    <h1 class="splash-title">DECK DUNGEON <span>2</span></h1>
+    <div class="splash-head"><h1 class="splash-title">DECK DUNGEON <span>2</span></h1><span class="splash-blurb">The Great Reset!</span></div>
     <p class="splash-tag">Venture into the depths of darkness. Slay the horrors within.</p>
     <div class="splash-buttons">
       ${musicBlocked() ? `<button class="small music-hint" data-startmusic>🎵 Tap for music</button>` : ""}
@@ -1607,7 +1610,7 @@ function kitPopup(o: OriginId, slot: KitSlot) {
   </div></div>`;
 }
 
-/** Ruin Gems on this run's class: +10% base stats each, in every mode. */
+/** Ruin Gems on this run's class: +10% base stats each (Campaign and Abyss; the Daily stays a level field). */
 function withGems(r: Run) {
   r.hero.gems = meta.classGems?.[r.hero.origin] ?? 0;
   recompute(r.hero); r.hero.f.hp = r.hero.f.maxHp;
@@ -1618,7 +1621,7 @@ function gemPanel(o: OriginId) {
   const total = free + Object.values(meta.classGems ?? {}).reduce((a: number, n) => a + (n ?? 0), 0);
   if (!total) return "";
   return `<div class="panel gem-panel"><p class="big">💎 <b>${on}</b> Ruin Gem${on === 1 ? "" : "s"} on the ${ORIGINS[o].name}</p>
-    <p class="sub">${on ? `+${Math.round(GEM_BONUS * on * 100)}% Max HP, Damage and Armor in every mode.` : "None yet."} Each gem adds ${Math.round(GEM_BONUS * 100)}%. Gems move freely between classes.</p>
+    <p class="sub">${on ? `+${Math.round(GEM_BONUS * on * 100)}% Max HP, Damage and Armor in the Campaign and the Abyss (not the Daily).` : "None yet."} Each gem adds ${Math.round(GEM_BONUS * 100)}%. Gems move freely between classes.</p>
     <div class="row">${free ? `<button class="small primary" data-addgem="${o}">＋ Add a gem (${free} free)</button>` : ""}${on ? `<button class="small" data-removegem="${o}">− Take one back</button>` : ""}</div></div>`;
 }
 
@@ -1844,7 +1847,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -2145,6 +2148,7 @@ function bind() {
     on("[data-back]", () => { view = "title"; });
     on("[data-play]", () => { view = "title"; });
     on("[data-home]", () => { view = "splash"; });
+    on("[data-closereset]", () => { resetPopup = false; });
     on("[data-options]", () => { optionsOpen = true; resetArmed = false; });
     on("[data-closeoptions]", () => { optionsOpen = false; resetArmed = false; });
     on("[data-quick]", el => { quickOn = el.dataset.quick === "1"; try { localStorage.setItem("dd2-quick", quickOn ? "1" : "0"); } catch { /* ignore */ } });
@@ -2177,8 +2181,7 @@ function bind() {
       meta.daily = { day: today, floor: 1, won: false };
       saveMeta(meta);
       mode = "campaign"; lbResult = null; lbNaming = false; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
-      const nr = newDailyRun(today);
-      withGems(nr);
+      const nr = newDailyRun(today); // (no Ruin Gems: the Daily stays a level field)
       run = nr; void startSession(nr);
     });
     on("[data-startabyss]", () => {

@@ -1,6 +1,7 @@
 // Leaderboards: finished runs go to a small Cloudflare Worker (see /leaderboard), boards come back from it.
 // Until LEADERBOARD_URL is set, everything here quietly does nothing.
 import { runSummary, type Run } from "../game/run";
+import { RESET_EPOCH } from "./reset";
 
 /** The Worker's address, e.g. "https://deck-dungeon-leaderboard.<you>.workers.dev". Empty: leaderboards off. */
 export const LEADERBOARD_URL = "https://deck-dungeon-leaderboard.bestondeveloper.workers.dev";
@@ -58,7 +59,7 @@ const QUEUE = "dd2-lb-queue";
 const queued = (): unknown[] => { try { return JSON.parse(store.get(QUEUE) ?? "[]"); } catch { return []; } };
 
 async function post(body: unknown): Promise<{ ranks?: Partial<Record<Board, number>>; verified?: boolean } | null> {
-  const res = await fetch(`${LEADERBOARD_URL}/runs`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const res = await fetch(`${LEADERBOARD_URL}/runs`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...(body as object), epoch: RESET_EPOCH }) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -67,7 +68,7 @@ async function post(body: unknown): Promise<{ ranks?: Partial<Record<Board, numb
 export async function startSession(run: Run) {
   if (!leaderboardOn() || run.sid) return;
   try {
-    const res = await fetch(`${LEADERBOARD_URL}/session`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pid: playerId(), seed: run.seed }) });
+    const res = await fetch(`${LEADERBOARD_URL}/session`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pid: playerId(), seed: run.seed, epoch: RESET_EPOCH }) });
     if (!res.ok) return;
     const d = (await res.json()) as { sid?: string };
     if (d.sid) { run.sid = d.sid; run.reportedFloor = 1; }
@@ -86,7 +87,7 @@ export function reportFloor(run: Run): Promise<void> {
   const floor = run.floor;
   floorInFlight = (async () => {
     try {
-      const res = await fetch(`${LEADERBOARD_URL}/session/floor`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sid: run.sid, pid: playerId(), floor }), signal: timed(8000) });
+      const res = await fetch(`${LEADERBOARD_URL}/session/floor`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sid: run.sid, pid: playerId(), floor, epoch: RESET_EPOCH }), signal: timed(8000) });
       if (res.ok) run.reportedFloor = floor;
     } catch { /* try again later */ } finally { floorInFlight = null; }
   })();
@@ -137,7 +138,7 @@ export async function fetchKillers(): Promise<KillerRow[]> {
 export interface Vault { shards: number; plates: number; classPlates: Partial<Record<string, number>> }
 
 /** Everything this game keeps in the browser, except what belongs to this device alone (its id, send queues, reload marks). */
-const DEVICE_ONLY = /^dd2-(pid|vault-dirty|lb-queue|reloaded-.*)$/;
+const DEVICE_ONLY = /^dd2-(pid|vault-dirty|lb-queue|reloaded-.*|epoch)$/;
 function snapshotSave(): string {
   const keys: Record<string, string> = {};
   try {
@@ -174,7 +175,7 @@ export function backupVault(v: Vault) {
   clearTimeout(vaultTimer);
   vaultTimer = setTimeout(() => void sendVault(), 2500);
 }
-const payload = (v: Vault, save: string) => JSON.stringify({ pid: playerId(), ...v, save });
+const payload = (v: Vault, save: string) => JSON.stringify({ pid: playerId(), ...v, save, epoch: RESET_EPOCH });
 async function sendVault() {
   const v = vaultPending;
   if (!v) return;

@@ -121,11 +121,11 @@ export const ACHIEVEMENTS: Achievement[] = [
 // ---------- Heat ----------
 /** Optional Campaign difficulty, unlocked by your first Campaign win. Each level adds its twist on top of the ones below. */
 export const HEAT_LEVELS = [
-  { level: 1, name: "Tougher foes", text: "Every enemy has 30% more HP" },
-  { level: 2, name: "Lean pickings", text: "Shop prices are 30% higher, and you get half as much Gold from everything" },
-  { level: 3, name: "Dim fires", text: "All healing is halved: potions, Campfires, heals after fights, items and relics" },
-  { level: 4, name: "Hungry dark", text: "No heal after winning a fight" },
-  { level: 5, name: "Elite swarm", text: "Elites and Champions turn up twice as often (sometimes in place of the plain monster fight), and every enemy hits 20% harder" }
+  { level: 1, name: "Tougher foes", text: "Every enemy has 30% more HP", boon: "Kindled", boonText: "you start every fight with 1 Might" },
+  { level: 2, name: "Lean pickings", text: "Shop prices are 30% higher, and you get half as much Gold from everything", boon: "Cinders", boonText: "your crits set the enemy Burning" },
+  { level: 3, name: "Dim fires", text: "All healing is halved: potions, Campfires, heals after fights, items and relics", boon: "Cauterize", boonText: "a hit that would drop you to 0 leaves you at 1 HP instead; it comes back after 3 fights" },
+  { level: 4, name: "Hungry dark", text: "No heal after winning a fight", boon: "Feast", boonText: "your killing blow heals you for the damage it overkills (up to 20% of your Max HP)" },
+  { level: 5, name: "Elite swarm", text: "Elites and Champions turn up twice as often (sometimes in place of the plain monster fight), and every enemy hits 20% harder", boon: "Spoils", boonText: "Elites and Champions drop an extra item" }
 ];
 export const HEAT_MAX = 5;
 export const HEAT_RENOWN = 0.2;

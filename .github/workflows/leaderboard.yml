@@ -42,6 +42,26 @@ jobs:
           wrangler d1 execute deck-dungeon-lb --remote -y --command "ALTER TABLE vault ADD COLUMN save TEXT" || true
       - name: Deploy the Worker
         run: wrangler deploy
+      # The Great Reset (epoch 1): back up the database, then empty the boards, sessions and backups. Runs only once:
+      # the resets table remembers it. (The Worker above already turns away saves from before the reset.)
+      - name: The Great Reset (once)
+        run: |
+          wrangler d1 execute deck-dungeon-lb --remote -y --command "CREATE TABLE IF NOT EXISTS resets (epoch INTEGER PRIMARY KEY, at INTEGER NOT NULL)"
+          DONE=$(wrangler d1 execute deck-dungeon-lb --remote -y --json --command "SELECT COUNT(*) AS n FROM resets WHERE epoch = 1" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{process.stdout.write(String(JSON.parse(d)[0].results[0].n))})')
+          echo "Already reset: $DONE"
+          if [ "$DONE" = "0" ]; then
+            wrangler d1 export deck-dungeon-lb --remote --output pre-reset-backup.sql
+            test -s pre-reset-backup.sql
+            wrangler d1 execute deck-dungeon-lb --remote -y --command "DELETE FROM runs; DELETE FROM sessions; DELETE FROM vault; INSERT INTO resets (epoch, at) VALUES (1, strftime('%s','now'))"
+            echo "Wiped. Left: $(wrangler d1 execute deck-dungeon-lb --remote -y --json --command "SELECT (SELECT COUNT(*) FROM runs) + (SELECT COUNT(*) FROM sessions) + (SELECT COUNT(*) FROM vault) AS n")"
+          fi
+      - name: Keep the pre-reset backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: pre-reset-backup
+          path: leaderboard/pre-reset-backup.sql
+          if-no-files-found: ignore
+          retention-days: 90
       - name: Check it's answering
         run: |
           URL="https://deck-dungeon-leaderboard.bestondeveloper.workers.dev"

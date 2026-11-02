@@ -47,7 +47,7 @@ describe("origins and gear", () => {
     const h = newHero("warrior");
     const b = startBattle(h.f, dummy(), 1);
     resolveFace(b, h.f, b.enemy, 6, false);
-    expect(b.enemy.hp).toBe(200 - 2 * (4 + Math.floor(b.player.armor / 3))); // (sword 4 + Warrior armor bonus) × crit 2
+    expect(b.enemy.hp).toBe(200 - 2 * (4 + Math.floor(b.player.armor / 5))); // (sword 4 + Warrior armor bonus) × crit 2
   });
 
   it("Ward stacks: each stack blocks one negative status", () => {
@@ -835,7 +835,7 @@ describe("class actions and new stats", () => {
     expect(e.flags["guarding"]).toBe(1);
     const hp = e.hp;
     resolveFace(b, b.player, e, 6, false); // crit ignores Armor
-    expect(hp - e.hp).toBe(2 * (4 + Math.floor(b.player.armor / 3)));
+    expect(hp - e.hp).toBe(2 * (4 + Math.floor(b.player.armor / 5)));
     const before = h.f.hp;
     enemyPhase(b);
     expect(h.f.hp).toBe(before); // it holds its guard instead of attacking
@@ -869,7 +869,7 @@ describe("class actions and new stats", () => {
     expect(h.f.dmgTaken).toBe(25);
     const b = startBattle(h.f, dummy(), 12);
     resolveFace(b, b.player, b.enemy, 6, false); // crit, ignores armor
-    expect(200 - b.enemy.hp).toBe(Math.round(2 * (4 + Math.floor(b.player.armor / 3)) * 1.25));
+    expect(200 - b.enemy.hp).toBe(Math.round(2 * (4 + Math.floor(b.player.armor / 5)) * 1.25));
     const h2 = newHero("warrior");
     equipItem(h2, { uid: 904, base: "bt_manacles", rarity: "epic", level: 1, bonuses: {}, revealed: true });
     const b2 = startBattle(h2.f, dummy(), 13);
@@ -982,19 +982,19 @@ describe("class actions and new stats", () => {
     expect(h.f.armor).toBe(newHero("warrior").f.armor); // no Armor from the trinket
     const b = startBattle(h.f, dummy(), 31);
     resolveFace(b, b.player, b.enemy, 6, false);
-    const base = 2 * (4 + Math.floor(b.player.armor / 3));
+    const base = 2 * (4 + Math.floor(b.player.armor / 5));
     expect(200 - b.enemy.hp).toBe(Math.round(base * 1.35));
     const h2 = newHero("warrior");
     equipItem(h2, { uid: 951, base: "cv_frostfang", rarity: "rare", level: 1, bonuses: {}, revealed: true });
     const b2 = startBattle(h2.f, dummy(), 32);
     b2.enemy.statuses.chill = 1;
     resolveFace(b2, b2.player, b2.enemy, 6, false);
-    expect(200 - b2.enemy.hp).toBe(Math.round(2 * 1.5 * (b2.player.damage + Math.floor(b2.player.armor / 3))));
+    expect(200 - b2.enemy.hp).toBe(Math.round(2 * 1.5 * (b2.player.damage + Math.floor(b2.player.armor / 5))));
     const h3 = newHero("warrior");
     equipItem(h3, { uid: 952, base: "lx_ruinous_eye", rarity: "legendary", level: 1, bonuses: {}, revealed: true });
     const b3 = startBattle(h3.f, dummy(), 33);
     resolveFace(b3, b3.player, b3.enemy, 3, false);
-    expect(200 - b3.enemy.hp).toBe(4 + Math.floor(b3.player.armor / 3) + 8);
+    expect(200 - b3.enemy.hp).toBe(4 + Math.floor(b3.player.armor / 5) + 8);
   });
 
   it("HP Epics: Hollow Vessel caps Max HP at 20 and doubles the off-hand; Swelling Heart's growth ends with the fight; Bloodprice pays HP for damage", () => {
@@ -1519,12 +1519,12 @@ describe("armor and story beats", () => {
     const g = startBattle(h.f, dummy(), 1);
     resolveFace(g, g.player, g.enemy, 1, false);
     const graze = 200 - g.enemy.hp;
-    const h2 = newHero("warrior"); h2.f.armor = 9;
+    const h2 = newHero("warrior"); h2.f.armor = 10;
     const t = startBattle(h2.f, dummy(), 1);
     resolveFace(t, t.player, t.enemy, 2, false);
     const hit = 200 - t.enemy.hp;
     expect(graze).toBe(Math.round(4 * 0.5)); // sword only, halved, no armor bonus
-    expect(hit).toBe(4 + 3);
+    expect(hit).toBe(4 + 2);
   });
   it("arriving on floor 5 shows the despair popup", () => {
     const run = newRun("mage", 77);
@@ -1565,10 +1565,10 @@ describe("two-handers", () => {
     h.talents["t_heavy_hitter"] = 1; recompute(h);
     const e1 = mk(); const b1 = startBattle(h.f, e1, 1); h.f.statuses = {}; resolveFace(b1, h.f, e1, 3);
     const oneHand = 500 - e1.hp;
-    expect(oneHand).toBe(h.f.damage + Math.floor(h.f.armor / 3));
+    expect(oneHand).toBe(h.f.damage + Math.floor(h.f.armor / 5));
     equipItem(h, { uid: 990, base: "w_axe", rarity: "common", level: 1, bonuses: {}, revealed: true }, "main");
     const e2 = mk(); const b2 = startBattle(h.f, e2, 1); h.f.statuses = {}; resolveFace(b2, h.f, e2, 3);
-    expect(500 - e2.hp).toBe(h.f.damage + 2 + Math.floor(h.f.armor / 3));
+    expect(500 - e2.hp).toBe(h.f.damage + 2 + Math.floor(h.f.armor / 5));
   });
 });
 
@@ -1597,10 +1597,10 @@ describe("blades and bombs", () => {
   it("the Warrior's damage grows with Armor", () => {
     const h = newHero("warrior");
     const e = makeMonster(makeRng(71), 1, "normal"); e.hp = e.maxHp = 300; e.armor = 0; e.items = {};
-    h.f.armor = 9;
+    h.f.armor = 10;
     const b = startBattle(h.f, e, 71); h.f.statuses = {};
     resolveFace(b, h.f, e, 3);
-    expect(300 - e.hp).toBe(h.f.damage + 3);
+    expect(300 - e.hp).toBe(h.f.damage + 2);
   });
 });
 
@@ -1836,5 +1836,24 @@ describe("deep rares and forge golems", () => {
     const scrap = run.hero.scrap;
     combatAction(run, "attack");
     expect(run.hero.scrap).toBe(scrap + 4 + 1);
+  });
+});
+
+describe("Heat boons", () => {
+  it("each Heat level stokes a boon: Kindled Might, Cauterize at 1 HP (then a cooldown), Feast heals the overkill", () => {
+    const h = newHero("rogue"); h.heat = 4; recompute(h);
+    const b = startBattle(h.f, dummy(), 5);
+    expect(st(h.f, "might")).toBeGreaterThanOrEqual(1);
+    // Cauterize: a would-be killing hit leaves you at 1 HP, once, then it's on cooldown.
+    h.f.hp = 3; h.f.armor = 0; h.f.dodge = 0; h.f.statuses = {}; b.enemy.damage = 50; b.enemy.statuses = {};
+    resolveFace(b, b.enemy, h.f, 3, false);
+    expect(h.f.hp, b.log.slice(-4).join(" | ")).toBe(1);
+    expect(h.f.persist["cauterCd"]).toBe(4);
+    // Feast: overkilling heals you (halved by Dim fires at Heat 3+).
+    const h2 = newHero("rogue"); h2.heat = 4; recompute(h2);
+    const b2 = startBattle(h2.f, dummy(2), 6);
+    h2.f.hp = 5;
+    resolveFace(b2, h2.f, b2.enemy, 3, false);
+    expect(h2.f.hp).toBeGreaterThan(5);
   });
 });
