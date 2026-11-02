@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.13
+- Resplendent chests: "You passed up" is now "Lost out on", in a brighter, red-tinted heading.
+
 ## 1.26.12
 - The gold heading on pick-one rewards now reads "CHOOSE ONE REWARD".
 

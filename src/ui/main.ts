@@ -614,7 +614,7 @@ function pickScene(r: Run) {
     ${ks ? `<div class="item keepsake"><div class="meta">Keepsake · one at a time${r.hero.keepsake ? ` · replaces ${esc(getItem(r.hero.keepsake).name)}` : ""}</div><div class="nm">🕯️ ${esc(ks.name)}</div><p>${esc(ks.text)}.</p><div class="row"><button class="small primary" data-keepsake>Take the Keepsake</button></div><p class="sub">Free: it doesn't count as your pick.</p></div>` : ""}
     ${s.items.length > 1 ? `<div class="toast">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
     <div class="cards">${s.items.map(it => itemCard(it, s.items.length > 1 ? pickButtons(it) : takeButtons(it), true)).join("")}</div>
-    ${s.passed?.length ? `<h2>You passed up</h2><div class="cards">${s.passed.map(it => itemCard(it)).join("")}</div>` : ""}
+    ${s.passed?.length ? `<h2 class="lost-out">Lost out on</h2><div class="cards">${s.passed.map(it => itemCard(it)).join("")}</div>` : ""}
     <div class="row" style="margin-top:12px"><button class="take-pack take-none" data-finish>🚫 Take nothing</button></div>`;
 }
 

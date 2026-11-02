@@ -813,3 +813,4 @@ button.take-equip:active:not(:disabled), button.take-pack:active:not(:disabled) 
 .pick-title span { display: block; color: #f1e4ff; font-size: 1.15rem; font-weight: 800; letter-spacing: .08em; text-shadow: 0 1px 8px rgba(200,170,255,.3); }
 .pick-title b { display: inline-block; margin-top: 6px; color: var(--gold); font-size: 1.25rem; font-weight: 900; letter-spacing: .14em; text-shadow: 0 0 12px rgba(232,184,74,.55); }
 button.take-none { min-width: 180px; }
+h2.lost-out { color: #ffb0bb; font-size: 1.05rem; font-weight: 800; text-shadow: 0 0 10px rgba(226,85,106,.45); }
