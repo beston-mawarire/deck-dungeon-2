@@ -65,23 +65,31 @@ export async function startSession(run: Run) {
   } catch { /* offline: this run can't go on the boards */ }
 }
 
-let floorInFlight = false;
+/** A request that gives up after a while, so a stalled connection can't block later ones. */
+const timed = (ms: number): AbortSignal | undefined => {
+  try { return AbortSignal.timeout(ms); } catch { return undefined; }
+};
+let floorInFlight: Promise<void> | null = null;
 /** Tell the server each new floor as you reach it (it checks the pace). Retried on the next screen if it fails. */
-export async function reportFloor(run: Run) {
-  if (!leaderboardOn() || !run.sid || floorInFlight || run.reportedFloor === run.floor) return;
-  floorInFlight = true;
+export function reportFloor(run: Run): Promise<void> {
+  if (!leaderboardOn() || !run.sid || run.reportedFloor === run.floor) return Promise.resolve();
+  if (floorInFlight) return floorInFlight;
   const floor = run.floor;
-  try {
-    const res = await fetch(`${LEADERBOARD_URL}/session/floor`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sid: run.sid, pid: playerId(), floor }) });
-    if (res.ok) run.reportedFloor = floor;
-  } catch { /* try again later */ }
-  floorInFlight = false;
+  floorInFlight = (async () => {
+    try {
+      const res = await fetch(`${LEADERBOARD_URL}/session/floor`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sid: run.sid, pid: playerId(), floor }), signal: timed(8000) });
+      if (res.ok) run.reportedFloor = floor;
+    } catch { /* try again later */ } finally { floorInFlight = null; }
+  })();
+  return floorInFlight;
 }
 
 /** Send a finished run. Returns where it placed you (on each board), or null if it couldn't be sent yet. */
 export async function submitRun(run: Run, version: string): Promise<{ ranks?: Partial<Record<Board, number>>; verified?: boolean } | null> {
   if (!leaderboardOn() || run.submitted || !playerName()) return null;
   run.submitted = true;
+  // Make sure the server has heard about the floor this run reached before the run itself arrives.
+  if (run.sid && run.reportedFloor !== run.floor) { await reportFloor(run); if (run.reportedFloor !== run.floor) await reportFloor(run); }
   const body = { pid: playerId(), sid: run.sid, name: playerName(), title: playerTitle() || undefined, version, ...runSummary(run) };
   try {
     return await post(body);

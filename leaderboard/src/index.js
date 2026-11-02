@@ -17,8 +17,8 @@ const modeFilter = (board, day) => (board === "abyss" ? "mode = 'abyss'" : board
 const ABYSS_FLOORS = 10;
 const ORIGINS = ["warrior", "rogue", "mage", "cleric"];
 const MAX_FLOOR = 26;
-/** No floor (7 rooms and a boss) is cleared faster than this. */
-const MIN_SECONDS_PER_FLOOR = 30;
+/** No floor (7 rooms and a boss) is cleared faster than this, even with Quick Battles. */
+const MIN_SECONDS_PER_FLOOR = 12;
 /** A full backup (progress + run in progress) is at most this many characters. */
 const MAX_SAVE = 900000;
 
@@ -64,7 +64,8 @@ function discrepancy(row, s, now) {
   if (s.pid !== row.pid) return "session belongs to another player";
   if (s.seed !== row.seed) return "seed doesn't match the session";
   if (s.ended) return "session already finished";
-  if (row.floor > s.max_floor) return `claims floor ${row.floor}, server saw ${s.max_floor}`;
+  // One floor of slack: the "reached floor N" message can arrive a moment after the run itself.
+  if (row.floor > s.max_floor + 1) return `claims floor ${row.floor}, server saw ${s.max_floor}`;
   if (s.flagged) return `flagged during the run: ${s.flagged}`;
   const secs = (now - s.started_at) / 1000;
   if (secs < MIN_SECONDS_PER_FLOOR * (row.floor - 1)) return `floor ${row.floor} in ${Math.round(secs)}s`;
@@ -127,7 +128,8 @@ async function postRun(req, env) {
   const last = await env.DB.prepare("SELECT created_at FROM runs WHERE pid = ? ORDER BY created_at DESC LIMIT 1").bind(row.pid).first();
   if (last && now - last.created_at < 15000) return json({ error: "slow down" }, 429);
   const s = row.sid ? await env.DB.prepare("SELECT * FROM sessions WHERE sid = ?").bind(row.sid).first() : null;
-  // A Campaign win that carries on deeper posts again under the same session: allow that one follow-up.
+  // A run that carries on after posting (a Campaign win going deeper) posts again under the same session; the latest, furthest post decides
+  // whether it is verified, so a hiccup early on does not stick (anything flagged during the run is remembered by the session itself).
   const followUp = s && s.ended && s.pid === row.pid && row.floor >= (s.posted_floor ?? 0);
   const why = discrepancy(row, followUp ? { ...s, ended: 0 } : s, now);
   const suspect = why ? 1 : 0;
@@ -136,7 +138,9 @@ async function postRun(req, env) {
     ON CONFLICT (pid, seed) DO UPDATE SET mode = excluded.mode, floor = MAX(floor, excluded.floor), won = MAX(won, excluded.won), level = MAX(level, excluded.level),
       kills = MAX(kills, excluded.kills), elites = MAX(elites, excluded.elites), champions = MAX(champions, excluded.champions), damage = MAX(damage, excluded.damage),
       best_hit = MAX(best_hit, excluded.best_hit), gold = MAX(gold, excluded.gold), version = excluded.version, created_at = excluded.created_at,
-      sid = excluded.sid, suspect = MAX(suspect, excluded.suspect), reason = COALESCE(excluded.reason, reason)`)
+      sid = excluded.sid,
+      suspect = CASE WHEN excluded.floor >= runs.floor THEN excluded.suspect ELSE MAX(runs.suspect, excluded.suspect) END,
+      reason = CASE WHEN excluded.floor >= runs.floor THEN excluded.reason ELSE COALESCE(excluded.reason, runs.reason) END`)
     .bind(row.pid, row.name, row.seed, row.origin, row.mode, row.floor, row.won, row.level, row.kills, row.elites, row.champions, row.damage, row.best_hit, row.gold, row.version, now, row.sid, suspect, why, row.plates, row.daily, row.title).run();
   if (s && s.pid === row.pid) await env.DB.prepare("UPDATE sessions SET ended = 1, posted_floor = ? WHERE sid = ?").bind(row.floor, row.sid).run();
   await env.DB.prepare("UPDATE runs SET name = ?, title = ? WHERE pid = ?").bind(row.name, row.title, row.pid).run();
