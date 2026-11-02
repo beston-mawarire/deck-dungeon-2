@@ -812,8 +812,6 @@ function afterFight(run: Run) {
     if (then === "mimic") items.push(roll(T.elite));
     if (run.rng() < (abyssMod(run, "blood_moon") ? 0.7 : 0.35)) relic = randomRelic(run);
   }
-  // Heat 5 · Spoils: Elites and Champions drop an extra item.
-  if (heatOf(run) >= 5 && (rank === "elite" || rank === "champion") && (!then || then === "resplendent")) items.push(roll(rank === "elite" ? T.elite : T.champion));
   if (rank === "champion" && then !== "dragon") {
     items.push(roll(T.champion));
     if (run.rng() < 0.2) scrolls++;
@@ -1428,7 +1426,7 @@ export function forgeTransmute(run: Run, uid: number): GearItem | string {
   if (!found || found.item.rarity !== "common") return "Only Common items can be transmuted.";
   if (h.starmetal < TRANSMUTE_COST) return `Needs ${TRANSMUTE_COST} Starmetal.`;
   const slot = effectiveBase(found.item).slot;
-  const pool = LEGENDARIES.filter(l => l.slot === slot && !isLocked(l.id));
+  const pool = LEGENDARIES.filter(l => l.slot === slot && !isLocked(l.id) && (h.heat ?? 0) >= (l.heatMin ?? 0));
   const fitting = pool.filter(l => (l.legendary?.minFloor ?? 1) <= run.floor);
   const choice = (fitting.length ? fitting : pool)[Math.floor(run.rng() * (fitting.length || pool.length))];
   if (!choice) return "Nothing answers the Crucible.";
@@ -1955,6 +1953,11 @@ export function trackMarks(run: Run) {
     if (it.gen.mods.some(m => m[2] >= 1)) p["ach_greater"] = 1;
     if (it.rarity === "crimson") p["ach_veined"] = 1;
   }
+  // Heatforged gear: found, worn (at the end, for Ashborn), and three worn at once.
+  const heatWorn = EQUIP_SLOTS.filter(sl => h.equip[sl] && baseOf(h.equip[sl]!.base).heatMin).length;
+  for (const it of [...EQUIP_SLOTS.map(sl => h.equip[sl]), ...h.backpack]) if (it && baseOf(it.base).heatMin) { p["ach_heatforged"] = 1; if (baseOf(it.base).legendary) p["ach_heatlegend"] = 1; }
+  p["ach_heatworn"] = heatWorn > 0 ? 1 : 0;
+  if (heatWorn >= 3) p["ach_heatforged3"] = 1;
   const wornSigils = new Set((h.sigils ?? []).map(x => x.id));
   for (const set of SIGIL_SETS) {
     const n = set.pieces.filter(id => wornSigils.has(id)).length;

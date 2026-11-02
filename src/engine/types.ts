@@ -274,6 +274,8 @@ export interface GearBase extends HookDef {
   needsCurse?: boolean;
   /** Only drops on this floor or deeper (Endless). */
   floorMin?: number;
+  /** Heatforged: only drops in Campaign runs at this Heat level or more. */
+  heatMin?: number;
   /** Never rolls below this rarity (anything that grants Barrier is Uncommon or better). */
   minItemRarity?: Rarity;
   /** Only ever rolls at this rarity (the greater starter-kit items). */

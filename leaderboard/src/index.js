@@ -213,7 +213,7 @@ async function putVault(req, env) {
   let save = null;
   if (b.save !== undefined && b.save !== null) {
     if (typeof b.save !== "string" || b.save.length > MAX_SAVE) return json({ error: "bad save" }, 400);
-    try { const o = JSON.parse(b.save); if (!o || typeof o !== "object") throw 0; } catch { return json({ error: "bad save" }, 400); }
+    try { const o = JSON.parse(b.save); if (!o || typeof o !== "object") throw 0; if (Number(o.epoch ?? 0) < EPOCH) return json({ error: "this save is from before the Great Reset", reset: true }, 410); } catch { return json({ error: "bad save" }, 400); }
     save = b.save;
   }
   const now = Date.now();
@@ -230,6 +230,10 @@ async function getVault(url, env) {
   if (!PID.test(pid)) return json({ error: "bad pid" }, 400);
   const r = await env.DB.prepare("SELECT shards, plates, class_plates, updated_at, save FROM vault WHERE pid = ?").bind(pid).first();
   if (!r) return json({ found: false });
+  // Nothing from before the Great Reset is ever handed back (a backup code from then restores nothing).
+  let epoch = 0;
+  try { epoch = Number(JSON.parse(r.save ?? "{}").epoch ?? 0); } catch { /* not a save */ }
+  if (epoch < EPOCH) return json({ found: false });
   let classPlates = {};
   try { classPlates = JSON.parse(r.class_plates); } catch { /* keep empty */ }
   return json({ found: true, shards: r.shards, plates: r.plates, classPlates, updatedAt: r.updated_at, save: r.save ?? null });

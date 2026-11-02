@@ -32,7 +32,7 @@ export type Kit = Partial<Record<KitSlot, string>>;
 /** The plain items a class can start with in a slot: Commons (and, at high mastery, Uncommons). */
 export function kitOptions(slot: KitSlot, level: number, locked: Set<string> = new Set()): { id: string; name: string; rarity: Rarity; text: string }[] {
   const allowed: Rarity[] = level >= KIT_UNCOMMON_LEVEL ? ["common", "uncommon"] : level >= KIT_COMMON_LEVEL ? ["common"] : [];
-  return GEAR_BASES.filter(b => b.onlyRarity && allowed.includes(b.onlyRarity) && !b.legendary && !locked.has(b.id) && (b.weight ?? 1) > 0 &&
+  return GEAR_BASES.filter(b => b.onlyRarity && allowed.includes(b.onlyRarity) && !b.legendary && !b.heatMin && !locked.has(b.id) && (b.weight ?? 1) > 0 &&
     (slot === "off" ? b.slot === "off" || (b.kind === "weapon" && b.offDamage !== undefined) : b.slot === slot))
     .map(b => ({ id: b.id, name: b.name, rarity: b.onlyRarity!, text: b.text }))
     .sort((a, b) => (a.rarity === b.rarity ? a.name.localeCompare(b.name) : a.rarity === "common" ? -1 : 1));
@@ -66,8 +66,16 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "flawless_boss", name: "Untouched", text: "Beat a boss without taking a hit", renown: 20, title: "Untouchable", check: r => P(r, "ach_flawless_boss") > 0 },
   { id: "campaign_win", name: "Gatecloser", text: "Win the Campaign", renown: 30, title: "Gatecloser", check: r => won(r) && r.mode === "campaign" },
   { id: "teetotal", name: "Teetotal", text: "Win the Campaign without drinking a single potion", renown: 40, title: "Teetotaller", check: r => won(r) && r.mode === "campaign" && P(r, "potsDrunk") === 0 },
-  { id: "hot_win", name: "Trial by Fire", text: "Win the Campaign at Heat 3 or higher", renown: 50, title: "Firewalker", check: r => won(r) && r.mode === "campaign" && (r.heat ?? 0) >= 3 },
-  { id: "inferno_win", name: "Inferno", text: "Win the Campaign at Heat 5", renown: 100, title: "Inferno-born", check: r => won(r) && r.mode === "campaign" && (r.heat ?? 0) >= 5 },
+  // Heat
+  { id: "heat_first", name: "Feel the Heat", text: "Win the Campaign at Heat 1 or higher", renown: 20, title: "Kindled", group: "Heat", check: r => campaignWon(r) && (r.heat ?? 0) >= 1 },
+  { id: "hot_win", name: "Trial by Fire", text: "Win the Campaign at Heat 3 or higher", renown: 50, title: "Firewalker", group: "Heat", check: r => won(r) && r.mode === "campaign" && (r.heat ?? 0) >= 3 },
+  { id: "inferno_win", name: "Inferno", text: "Win the Campaign at Heat 5", renown: 100, title: "Inferno-born", group: "Heat", check: r => won(r) && r.mode === "campaign" && (r.heat ?? 0) >= 5 },
+  { id: "heat_forged", name: "Forged in Fire", text: "Find a Heatforged item (they only drop at Heat 1 or higher)", renown: 15, group: "Heat", check: r => P(r, "ach_heatforged") > 0 },
+  { id: "heat_smith", name: "Smith of Cinders", text: "Wear 3 Heatforged items at once", renown: 30, title: "Cindersmith", group: "Heat", check: r => P(r, "ach_heatforged3") > 0 },
+  { id: "heat_legend", name: "Crowned in Embers", text: "Find a Heatforged Legendary", renown: 40, group: "Heat", check: r => P(r, "ach_heatlegend") > 0 },
+  { id: "heat_ashborn", name: "Ashborn", text: "Win the Campaign at Heat 3 or higher wearing a Heatforged item", renown: 50, title: "Ashborn", group: "Heat", check: r => campaignWon(r) && (r.heat ?? 0) >= 3 && P(r, "ach_heatworn") > 0 },
+  { id: "heat_deep", name: "Slow Burn", text: "Reach floor 20 at Heat 4 or higher", renown: 40, group: "Heat", check: r => r.mode === "campaign" && (r.heat ?? 0) >= 4 && r.floor >= 20 },
+  { id: "heat_dry", name: "Dry Heat", text: "Win the Campaign at Heat 5 without drinking a single potion", renown: 120, title: "the Unquenched", group: "Heat", check: r => campaignWon(r) && (r.heat ?? 0) >= 5 && P(r, "potsDrunk") === 0 },
   { id: "floor10", name: "Into the Deep", text: "Reach floor 10", renown: 20, check: r => r.mode !== "abyss" && r.floor >= 10 },
   { id: "floor20", name: "Horror's Doorstep", text: "Reach floor 20", renown: 30, title: "Deepwalker", check: r => r.mode !== "abyss" && r.floor >= 20 },
   { id: "cursed20", name: "Damned and Delving", text: "Reach floor 20 carrying 3 or more curses", renown: 40, title: "The Damned", check: r => r.mode !== "abyss" && r.floor >= 20 && Object.values(r.hero.curses).reduce((a, n) => a + n, 0) >= 3 },
@@ -121,11 +129,11 @@ export const ACHIEVEMENTS: Achievement[] = [
 // ---------- Heat ----------
 /** Optional Campaign difficulty, unlocked by your first Campaign win. Each level adds its twist on top of the ones below. */
 export const HEAT_LEVELS = [
-  { level: 1, name: "Tougher foes", text: "Every enemy has 30% more HP", boon: "Kindled", boonText: "you start every fight with 1 Might" },
-  { level: 2, name: "Lean pickings", text: "Shop prices are 30% higher, and you get half as much Gold from everything", boon: "Cinders", boonText: "your crits set the enemy Burning" },
-  { level: 3, name: "Dim fires", text: "All healing is halved: potions, Campfires, heals after fights, items and relics", boon: "Cauterize", boonText: "a hit that would drop you to 0 leaves you at 1 HP instead; it comes back after 3 fights" },
-  { level: 4, name: "Hungry dark", text: "No heal after winning a fight", boon: "Feast", boonText: "your killing blow heals you for the damage it overkills (up to 20% of your Max HP)" },
-  { level: 5, name: "Elite swarm", text: "Elites and Champions turn up twice as often (sometimes in place of the plain monster fight), and every enemy hits 20% harder", boon: "Spoils", boonText: "Elites and Champions drop an extra item" }
+  { level: 1, name: "Tougher foes", text: "Every enemy has 30% more HP" },
+  { level: 2, name: "Lean pickings", text: "Shop prices are 30% higher, and you get half as much Gold from everything" },
+  { level: 3, name: "Dim fires", text: "All healing is halved: potions, Campfires, heals after fights, items and relics" },
+  { level: 4, name: "Hungry dark", text: "No heal after winning a fight" },
+  { level: 5, name: "Elite swarm", text: "Elites and Champions turn up twice as often (sometimes in place of the plain monster fight), and every enemy hits 20% harder" }
 ];
 export const HEAT_MAX = 5;
 export const HEAT_RENOWN = 0.2;

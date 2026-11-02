@@ -5,6 +5,12 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.41.0
+- 🔥 Heatforged gear: 12 new items and 2 Legendaries that only drop in Campaign runs at Heat 1 or more, at normal odds for their rarity. Branding Iron, Forge Bellows, Ashen Cloak, Tinderbox Charm, Cinderblade and Coal Heart from Heat 1; Ember Lantern, Cinderweave Robe, Magma Maul, Furnace Plate, Phoenix Feather and the Crown of Embers from Heat 3; the Infernal Brazier and Hearthfall at Heat 5.
+- Heat achievements, in their own group: Feel the Heat, Forged in Fire, Smith of Cinders, Crowned in Embers, Ashborn, Slow Burn and Dry Heat (Trial by Fire and Inferno join them).
+- The Heat boons from 1.40.0 are gone: Heat is back to its twists, with Heatforged gear as the reward.
+- Backup codes from before the Great Reset restore nothing (and leave your device as it was).
+
 ## 1.40.0
 - 🌅 The Great Reset: with the loot rework settled, everyone starts afresh. Every device's progress is cleared once (your settings and name stay), and the leaderboards start empty. The title screen says so.
 - 🔥 Heat is a trade now, not just a punishment: every level adds its twist and stokes a boon. Kindled (start fights with 1 Might), Cinders (your crits set foes Burning), Cauterize (a killing hit leaves you at 1 HP, then it rests for 3 fights), Feast (your killing blow's overkill heals you) and Spoils (Elites and Champions drop an extra item).

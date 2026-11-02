@@ -416,7 +416,8 @@ function heatPanel() {
   return `<div class="panel heat-panel">
     <div class="row"><b class="grow">🔥 Heat ${h ? h : "off"}</b><span class="sub">${h ? `+${Math.round(HEAT_RENOWN * h * 100)}% Renown · better loot` : "Harder runs, more Renown, better loot"}</span></div>
     <div class="heat-btns">${Array.from({ length: HEAT_MAX + 1 }, (_, i) => `<button class="small ${h === i ? "primary" : ""}" data-heat="${i}">${i === 0 ? "Off" : `🔥${i}`}</button>`).join("")}</div>
-    ${h ? `<ul class="heat-list">${HEAT_LEVELS.filter(l => l.level <= h).map(l => `<li><b>${esc(l.name)}:</b> ${esc(l.text)}<br><span class="heat-boon">🔥 <b>${esc(l.boon)}:</b> ${esc(l.boonText)}</span></li>`).join("")}</ul>` : ""}
+    ${h ? `<ul class="heat-list">${HEAT_LEVELS.filter(l => l.level <= h).map(l => `<li><b>${esc(l.name)}:</b> ${esc(l.text)}</li>`).join("")}</ul>` : ""}
+    <p class="sub">🔥 <b>Heatforged gear</b> only drops at Heat 1 or more${h >= 5 ? "" : h >= 3 ? ". Its finest pieces need Heat 5" : ". Stronger pieces need Heat 3 and 5"}.</p>
   </div>`;
 }
 
@@ -2109,15 +2110,16 @@ function bind() {
   on("[data-restoreclose]", () => { restoreOpen = false; });
   on("[data-restore]", () => {
     const code = app.querySelector<HTMLInputElement>("#restore-code")?.value ?? "";
+    const prevCode = backupCode();
     if (!useBackupCode(code)) { restoreMsg = "That isn't a valid backup code."; return; }
     restoreMsg = "Restoring…";
     fetchVault().then(v => {
-      if (!v) { restoreMsg = "Nothing is backed up under that code."; render(); return; }
+      if (!v) { useBackupCode(prevCode); restoreMsg = "Nothing is backed up under that code. (Codes from before the Great Reset don't restore anything: everyone started afresh.)"; render(); return; }
       if (v.save && applySave(v.save)) { restoreMsg = "Restored everything. Reloading…"; render(); setTimeout(() => location.reload(), 600); return; }
       meta.ruinShards = v.shards; meta.plates = v.plates; meta.classPlates = v.classPlates; saveMeta(meta);
       restoreOpen = false; restoreMsg = `Restored: ${v.shards} Ruin Shard${v.shards === 1 ? "" : "s"}, ${v.plates + Object.values(v.classPlates).reduce((a: number, n) => a + (n ?? 0), 0)} Vanadium Plate(s).`;
       render();
-    }).catch(() => { restoreMsg = "Couldn't reach the server. Try again when you're online."; render(); });
+    }).catch(() => { useBackupCode(prevCode); restoreMsg = "Couldn't reach the server. Try again when you're online."; render(); });
   });
   if (!run) {
     on("[data-mode]", el => { mode = el.dataset.mode as Mode; });

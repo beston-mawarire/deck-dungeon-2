@@ -4,7 +4,6 @@
 import type { HookDef, Tag } from "../engine/types";
 import { applyStatus, heal, other, st } from "../engine/statuses";
 import { on, ping } from "./helpers";
-import { log } from "../engine/registry";
 
 export interface SigilSet { id: string; name: string; icon: string; tags: Tag[]; pieces: string[]; bonuses: [number, string][] }
 
@@ -74,19 +73,9 @@ export const SIGIL_SETS: SigilSet[] = [
   { id: "vigil", name: "The Iron Vigil", icon: "🛡️", tags: ["Guard"], pieces: ["sc_vigil_buckle", "sc_vigil_oath", "sc_vigil_horn", "sc_vigil_banner"], bonuses: [[2, "sb_vigil_2"], [3, "sb_vigil_3"], [4, "sb_vigil_4"]] },
   { id: "gamble", name: "The Gambler's Hand", icon: "🎲", tags: ["Luck", "Crit"], pieces: ["sc_loaded_die", "sc_lucky_coin", "sc_marked_card", "sc_rabbit_paw"], bonuses: [[2, "sb_gamble_2"], [3, "sb_gamble_3"], [4, "sb_gamble_4"]] }
 ];
-/** Heat 3: all your healing is halved. Every Heat level also stokes a boon (the heat_* boons below), added while the run is at that Heat or more. */
+/** Heat 3: all your healing is halved (a hidden effect while the run is at Heat 3 or more). */
 export const HEAT_HOOKS: HookDef[] = [
-  { id: "heat_dim", name: "Heat: Dim fires", kind: "curse", tags: ["Blood"], text: "All your healing is halved", hooks: { healMult: () => 0.5 } },
-  // Heat 1 · Kindled: you start every fight with 1 Might.
-  { id: "heat_kindled", name: "Heat: Kindled", kind: "curse", tags: ["Burn"], text: "Start each fight with 1 Might", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "might", 1) } },
-  // Heat 2 · Cinders: your crits set the foe Burning.
-  { id: "heat_cinders", name: "Heat: Cinders", kind: "curse", tags: ["Burn", "Crit"], text: "Your crits set the enemy Burning", hooks: { onCrit: (b, c) => { if (!c.offhand) applyStatus(b, c.attacker, c.defender, "burn", 4); } } },
-  // Heat 3 · Cauterize: a hit that would drop you to 0 leaves you at 1 HP instead. Then it needs 3 fights to come back.
-  { id: "heat_cauterize", name: "Heat: Cauterize", kind: "curse", tags: ["Burn", "Guard"], text: "A hit that would drop you to 0 leaves you at 1 HP; it comes back after 3 fights", hooks: {
-    whenHit: (b, c) => { const d = c.defender; if (d.hp <= 0 && !d.flags["dead"] && !((d.persist["cauterCd"] ?? 0) > 0)) { d.hp = 1; d.persist["cauterCd"] = 4; log(b, "🔥 Cauterize: the flames seal the wound. You stand at 1 HP."); } },
-    onFightEnd: (_b, f) => { if ((f.persist["cauterCd"] ?? 0) > 0) f.persist["cauterCd"]--; } } },
-  // Heat 4 · Feast: the killing blow's overkill heals you (up to 20% of your Max HP).
-  { id: "heat_feast", name: "Heat: Feast", kind: "curse", tags: ["Kill", "Blood"], text: "Your killing blow heals you for its overkill", hooks: { onKill: (b, c) => { const over = Math.min(-c.defender.hp, Math.ceil(c.attacker.maxHp * 0.2)); if (over > 0) heal(b, c.attacker, over, "Feast"); } } }
+  { id: "heat_dim", name: "Heat: Dim fires", kind: "curse", tags: ["Blood"], text: "All your healing is halved", hooks: { healMult: () => 0.5 } }
 ];
 
 export const setOfPiece = (id: string) => SIGIL_SETS.find(s => s.pieces.includes(id));

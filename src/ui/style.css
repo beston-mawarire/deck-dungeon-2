@@ -963,5 +963,3 @@ button.take-cmp { color: #e6f0ff; font-weight: 700; border-color: #5f8fc8; backg
 .opt-sec.danger-sec h3 { color: #ff9aa8; }
 .leave-wide { flex: 1; min-height: 46px; font-size: 1rem; }
 button.take-scrap { color: #fff0f2; font-weight: 700; border-color: #d0627a; background: linear-gradient(180deg, #c24a5f 0%, #93303f 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 2px 0 #4f1620, 0 3px 8px rgba(0,0,0,.3); }
-
-.heat-boon { color: var(--gold); font-size: .92em; }

@@ -1839,21 +1839,27 @@ describe("deep rares and forge golems", () => {
   });
 });
 
-describe("Heat boons", () => {
-  it("each Heat level stokes a boon: Kindled Might, Cauterize at 1 HP (then a cooldown), Feast heals the overkill", () => {
-    const h = newHero("rogue"); h.heat = 4; recompute(h);
-    const b = startBattle(h.f, dummy(), 5);
-    expect(st(h.f, "might")).toBeGreaterThanOrEqual(1);
-    // Cauterize: a would-be killing hit leaves you at 1 HP, once, then it's on cooldown.
-    h.f.hp = 3; h.f.armor = 0; h.f.dodge = 0; h.f.statuses = {}; b.enemy.damage = 50; b.enemy.statuses = {};
-    resolveFace(b, b.enemy, h.f, 3, false);
-    expect(h.f.hp, b.log.slice(-4).join(" | ")).toBe(1);
-    expect(h.f.persist["cauterCd"]).toBe(4);
-    // Feast: overkilling heals you (halved by Dim fires at Heat 3+).
-    const h2 = newHero("rogue"); h2.heat = 4; recompute(h2);
-    const b2 = startBattle(h2.f, dummy(2), 6);
-    h2.f.hp = 5;
-    resolveFace(b2, h2.f, b2.enemy, 3, false);
-    expect(h2.f.hp).toBeGreaterThan(5);
+
+describe("Heatforged gear", () => {
+  it("only drops at Heat 1 or more, with the strongest pieces needing Heat 3 and 5", () => {
+    const seen = (heat: number) => {
+      const h = newHero("warrior"); h.heat = heat || undefined; const out = new Set<number>(); const rng = makeRng(90 + heat);
+      for (let i = 0; i < 6000; i++) { resetDropped(); const m = baseOf(rollItem(h, (["common", "uncommon", "rare", "epic", "legendary"] as const)[i % 5], 6, rng).base).heatMin; if (m) out.add(m); }
+      return out;
+    };
+    expect(seen(0).size).toBe(0);
+    expect([...seen(1)]).toEqual([1]);
+    expect(seen(3).has(3) && !seen(3).has(5)).toBe(true);
+    expect(seen(5).has(5)).toBe(true);
+  });
+  it("Hearthfall's Burn carries from a kill into the next fight", () => {
+    const h = newHero("warrior");
+    equipItem(h, { uid: 990, base: "lx_hearthfall", rarity: "legendary", level: 1, bonuses: {}, revealed: true });
+    const b = startBattle(h.f, dummy(1), 3); b.enemy.statuses.burn = 7;
+    resolveFace(b, h.f, b.enemy, 3, false);
+    expect(h.f.persist["hearthBurn"]).toBeGreaterThanOrEqual(7);
+    const b2 = startBattle(h.f, dummy(), 4);
+    expect(st(b2.enemy, "burn")).toBeGreaterThan(0);
+    expect(h.f.persist["hearthBurn"]).toBeUndefined();
   });
 });

@@ -147,13 +147,14 @@ function snapshotSave(): string {
       if (k && k.startsWith("dd2-") && !DEVICE_ONLY.test(k)) keys[k] = localStorage.getItem(k) ?? "";
     }
   } catch { /* storage unavailable */ }
-  return JSON.stringify({ v: 1, keys });
+  return JSON.stringify({ v: 1, epoch: RESET_EPOCH, keys });
 }
 /** Put a backed-up save in place of this device's (the page reloads afterwards). */
 export function applySave(save: string): boolean {
   try {
-    const o = JSON.parse(save) as { v?: number; keys?: Record<string, string> };
+    const o = JSON.parse(save) as { v?: number; epoch?: number; keys?: Record<string, string> };
     if (!o || typeof o.keys !== "object") return false;
+    if ((o.epoch ?? 0) < RESET_EPOCH) return false; // from before the Great Reset
     const drop: string[] = [];
     for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith("dd2-") && !DEVICE_ONLY.test(k)) drop.push(k); }
     for (const k of drop) localStorage.removeItem(k);
@@ -209,6 +210,8 @@ export async function fetchVault(pid = playerId()): Promise<(Vault & { save: str
   const res = await fetch(`${LEADERBOARD_URL}/vault?pid=${pid}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const d = (await res.json()) as { found: boolean; save?: string | null } & Partial<Vault>;
+  // A backup from before the Great Reset counts as nothing at all.
+  if (d.found) { let ep = 0; try { ep = Number(JSON.parse(d.save ?? "{}").epoch ?? 0); } catch { /* not a save */ } if (ep < RESET_EPOCH) return null; }
   return d.found ? { shards: d.shards ?? 0, plates: d.plates ?? 0, classPlates: d.classPlates ?? {}, save: d.save ?? null } : null;
 }
 
