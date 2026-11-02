@@ -5,7 +5,7 @@ import { runSummary, type Run } from "../game/run";
 /** The Worker's address, e.g. "https://deck-dungeon-leaderboard.<you>.workers.dev". Empty: leaderboards off. */
 export const LEADERBOARD_URL = "https://deck-dungeon-leaderboard.bestondeveloper.workers.dev";
 
-export type Board = "floor" | "elites" | "champions" | "damage" | "besthit" | "gold" | "abyss";
+export type Board = "floor" | "elites" | "champions" | "damage" | "besthit" | "gold" | "abyss" | "daily";
 export const BOARDS: { id: Board; label: string; icon: string; unit: string }[] = [
   { id: "floor", label: "Deepest", icon: "🕳️", unit: "floor" },
   { id: "elites", label: "Elites", icon: "💀", unit: "elites" },
@@ -13,7 +13,8 @@ export const BOARDS: { id: Board; label: string; icon: string; unit: string }[] 
   { id: "damage", label: "Damage", icon: "⚔️", unit: "damage" },
   { id: "besthit", label: "Biggest hit", icon: "💥", unit: "in one hit" },
   { id: "gold", label: "Gold", icon: "🪙", unit: "gold earned" },
-  { id: "abyss", label: "Abyss", icon: "🕳️", unit: "depth" }
+  { id: "abyss", label: "Abyss", icon: "🕳️", unit: "depth" },
+  { id: "daily", label: "Daily", icon: "📅", unit: "floor, in today's Daily Dungeon" }
 ];
 export interface Row { rank: number; name: string; value: number; origin: string; floor: number; plates?: number; you?: boolean }
 
@@ -98,7 +99,8 @@ export async function flushQueue() {
 }
 
 export async function fetchBoard(board: Board): Promise<{ rows: Row[]; me: { rank: number; value: number } | null }> {
-  const res = await fetch(`${LEADERBOARD_URL}/leaderboard?board=${board}&limit=25&pid=${playerId()}`);
+  const day = new Date().toISOString().slice(0, 10);
+  const res = await fetch(`${LEADERBOARD_URL}/leaderboard?board=${board}&limit=25&pid=${playerId()}${board === "daily" ? `&day=${day}` : ""}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as { rows: Row[]; me: { rank: number; value: number } | null };
 }

@@ -5,6 +5,13 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.19.0
+- **Loot comparison**: every item you could equip (drops, boss picks, the shop, your backpack) shows ▲/▼ for how your Damage, Armor, Max HP, Crit, Dodge, Bash and Spell Amp would change, against the item it would replace (or "Fills your empty slot"). It's worked out from your whole build, so set bonuses and relics count.
+- **Daily Dungeon**: on the Campaign tab. The same dungeon (seed and class) for everyone each day (UTC), one attempt, with every item unlocked. New 📅 Daily leaderboard for today's runs.
+- **Run history**: Info → 📜 Run history shows your last 10 runs: class, how far, how it ended (and who killed you), and your final build.
+- Fixed: weapons showed an "Armor" line from their level that they never actually gave.
+- BACKLOG.md lists the other suggested improvements.
+
 ## 1.18.5
 - Auto-battle is available from floor 2 (was floor 3).
 

@@ -173,6 +173,8 @@ export interface Run {
   popup?: { title: string; text: string; icon: string; list?: string[]; fanfare?: string };
   /** Beat THE END on floor 26: the whole game is won. */
   finale?: boolean;
+  /** The Daily Dungeon this run belongs to (its UTC date, YYYY-MM-DD), if any. */
+  daily?: string;
   /** Ruin Shards and Vanadium Plates found this run, and how many of them are already banked on the device. */
   ruin?: { shards: number; plates: number; banked?: { shards: number; plates: number } };
 }
@@ -1535,7 +1537,7 @@ export function runSummary(run: Run) {
   trackGold(run);
   return {
     seed: run.seed, origin: run.hero.origin, mode: run.mode, floor: run.mode === "abyss" ? Math.min(run.floor, ABYSS_FLOORS) : run.floor, won: run.scene.t === "over" && run.scene.won,
-    plates: run.hero.plates ?? 0,
+    plates: run.hero.plates ?? 0, daily: run.daily,
     level: run.hero.level, kills: run.stats.kills, elites: p["q_elites"] ?? 0, champions: p["q_champions"] ?? 0,
     damage: Math.round(p["t_dmg"] ?? 0), bestHit: Math.round(Math.max(p["t_best"] ?? 0, run.stats.bestHit)), gold: run.goldEarned ?? 0
   };
@@ -1684,4 +1686,23 @@ function useClover(run: Run): boolean {
 /** Gold an event asks for here: its minimum, scaled up each floor like shop prices. */
 export function eventGold(run: Run, e: GameEvent): number {
   return e.minGold ? Math.round(e.minGold * priceMult(run)) : 0;
+}
+
+// ---------- Daily Dungeon ----------
+/** Today's date in UTC (YYYY-MM-DD): everyone's Daily Dungeon changes at the same moment. */
+export const utcDay = (d = new Date()) => d.toISOString().slice(0, 10);
+const DAILY_ORIGINS: OriginId[] = ["warrior", "rogue", "mage", "cleric"];
+/** The Daily Dungeon for a day: the same seed and class for every player. */
+export function dailyFor(day: string): { day: string; seed: number; origin: OriginId } {
+  let h = 2166136261;
+  for (const ch of `dd2-daily-${day}`) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  const seed = (h >>> 0) & 0x7fffffff;
+  return { day, seed, origin: DAILY_ORIGINS[seed % DAILY_ORIGINS.length] };
+}
+/** Start a Daily Dungeon run (a Campaign run on the day's seed, with every item unlocked so it's the same for everyone). */
+export function newDailyRun(day = utcDay()): Run {
+  const d = dailyFor(day);
+  const run = newRun(d.origin, d.seed, "campaign", new Set());
+  run.daily = day;
+  return run;
 }

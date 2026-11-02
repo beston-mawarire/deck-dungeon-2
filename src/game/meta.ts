@@ -1,6 +1,25 @@
 // Between runs: Renown (earned from every run), unlock tiers that add items to the loot pools,
 // and the Codex of everything you've found. Stored in the browser (localStorage), per player.
 import type { Run } from "./run";
+import { EQUIP_SLOTS, itemName } from "./hero";
+
+/** One finished run, for the Run history. */
+export interface HistoryEntry {
+  at: number;
+  mode: string;
+  daily?: string;
+  origin: string;
+  floor: number;
+  won: boolean;
+  abandoned?: boolean;
+  level: number;
+  kills: number;
+  bosses: number;
+  plates?: number;
+  killer?: string;
+  build: { name: string; rarity: string; level: number }[];
+}
+export const HISTORY_SIZE = 10;
 
 export interface Meta {
   renown: number;
@@ -17,6 +36,10 @@ export interface Meta {
   /** The deepest Abyss depth reached, and how many Abyss runs. */
   abyssBest?: number;
   abyssRuns?: number;
+  /** Today's Daily Dungeon attempt (one a day). */
+  daily?: { day: string; floor: number; won: boolean; done?: boolean };
+  /** The last few finished runs, newest first. */
+  history?: HistoryEntry[];
 }
 
 /** The Abyss opens to anyone who has beaten floor 15 (reached floor 16) in the campaign. */
@@ -99,6 +122,16 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
   m.renown += earned;
   if (!alreadyEarned) m.runs++;
   if (run.scene.t === "over" && run.scene.won) m.wins++;
+  if (run.daily && m.daily?.day === run.daily) m.daily = { day: run.daily, floor: Math.max(m.daily.floor, run.floor), won: m.daily.won || (run.scene.t === "over" && run.scene.won), done: true };
+  const entry: HistoryEntry = {
+    at: Date.now(), mode: run.mode, daily: run.daily, origin: run.hero.origin, floor: run.floor, won: run.scene.t === "over" && run.scene.won,
+    abandoned: run.abandoned || undefined, level: run.hero.level, kills: run.stats.kills, bosses: run.stats.bosses, plates: run.hero.plates || undefined,
+    killer: run.killer ? `${run.killer.name}${run.killer.rank ? ` (${run.killer.rank})` : ""}` : undefined,
+    build: EQUIP_SLOTS.map(sl => run.hero.equip[sl]).filter((x): x is NonNullable<typeof x> => !!x).map(it => ({ name: itemName(it), rarity: it.rarity, level: it.level }))
+  };
+  // A Campaign win that carries on deeper is recorded again when it ends: replace its earlier entry.
+  const hist = (m.history ?? []).filter(e => !(alreadyEarned && e.origin === entry.origin && e.mode !== "abyss" && entry.at - e.at < 6 * 3600e3 && e.won));
+  m.history = [entry, ...hist].slice(0, HISTORY_SIZE);
   if (run.mode === "abyss") m.abyssBest = Math.max(m.abyssBest ?? 0, Math.min(run.floor, 10));
   else m.bestFloor = Math.max(m.bestFloor, run.floor);
   bankRuin(m, run);

@@ -11,14 +11,14 @@ import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engin
 import { NEGATIVE_STATUSES, rarityLabel } from "../engine/types";
 import {
   BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost, rerollsLeft,
-  keepsOffHand, findItem, recompute, reveal, salvage, slotsFor, unequip, upgradeCost, weaponDamage, xpToLevel
+  keepsOffHand, findItem, recompute, reveal, salvage, slotsFor, unequip, upgradeCost, xpToLevel
 } from "../game/hero";
-import { abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
+import { abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
-  ROOM_INFO, ABYSS_ROOM_INFO, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
+  ROOM_INFO, ABYSS_ROOM_INFO, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   abandonRun, smithUpgrade, runSummary, trackGold, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -57,6 +57,9 @@ let menuTab: "campaign" | "abyss" = "campaign";
 let plateArmed = false;
 let restoreOpen = false;
 let infoOpen = false;
+let historyOpen = false;
+/** Starting the Daily Dungeon over a saved run takes a second tap. */
+let dailyArmed = false;
 let restoreMsg = "";
 const vaultOf = (m: Meta) => ({ shards: m.ruinShards ?? 0, plates: m.plates ?? 0, classPlates: m.classPlates ?? {} });
 /** Which mode's story popup is open on the title screen. */
@@ -199,25 +202,41 @@ function reactionsPanel(r: Run) {
 }
 
 /** "Replaces X: Damage 4 → 6" for a found item against what's equipped in its slot. */
+/** What your hero would look like wearing this item in a slot (a throwaway copy: nothing real changes). */
+function simulateEquip(h: Hero, it: GearItem, slot: EquipSlot): Fighter {
+  const f = { ...h.f, persist: { ...h.f.persist }, flags: {}, statuses: {}, items: { ...h.f.items } };
+  const c: Hero = { ...h, equip: { ...h.equip, [slot]: it }, backpack: h.backpack.filter(x => x.uid !== it.uid), f };
+  recompute(c);
+  return c.f;
+}
+
+/** ▲/▼ for the stats that would change if you equipped this, against what you're wearing. */
+const COMPARE_STATS: [string, (f: Fighter) => number, string][] = [
+  ["Damage", f => f.damage + (f.offDamage ?? 0), ""],
+  ["Armor", f => f.armor, ""],
+  ["Max HP", f => f.maxHp, ""],
+  ["Crit", f => f.critChance ?? 0, "%"],
+  ["Dodge", f => f.dodge ?? 0, "%"],
+  ["Bash", f => f.bash ?? 0, "%"],
+  ["Spell Amp", f => f.spellAmp ?? 0, "%"]
+];
 function compareHtml(h: Hero, it: GearItem): string {
+  if (findItem(h, it.uid)?.where && findItem(h, it.uid)!.where !== "backpack") return "";
   const slots = slotsFor(it, h);
-  const target = slots.find(s => !h.equip[s]) ?? slots[0];
-  const cur = h.equip[target];
-  if (!cur) return `<div class="compare">Empty slot — equipping adds it.</div>`;
+  if (!slots.length) return "";
+  const now = h.f;
+  const deltas = (f: Fighter) => COMPARE_STATS.map(([label, get, unit]) => ({ label, unit, d: Math.round(get(f) - get(now)), base: Math.max(1, Math.abs(get(now))) }));
+  // Try every slot it fits; an empty slot wins, otherwise the one that helps most.
+  const options = slots.map(s => ({ s, ds: deltas(simulateEquip(h, it, s)) }));
+  const empty = options.find(o => !h.equip[o.s]);
+  const best = empty ?? options.reduce((a, b) => (b.ds.reduce((x, d) => x + d.d / d.base, 0) > a.ds.reduce((x, d) => x + d.d / d.base, 0) ? b : a));
+  const cur = h.equip[best.s];
+  const chips = best.ds.filter(d => d.d !== 0).map(d => `<span class="cmp ${d.d > 0 ? "up" : "down"}">${d.d > 0 ? "▲" : "▼"} ${Math.abs(d.d)}${d.unit} ${d.label}</span>`);
   const a = effectiveBase(it);
-  const c = effectiveBase(cur);
-  const rows: string[] = [];
-  const diff = (label: string, from: number, to: number) => {
-    if (from === to) return;
-    rows.push(`${label} ${from} → <b class="${to > from ? "up" : "down"}">${to}</b>`);
-  };
-  if (a.damage !== undefined || c.damage !== undefined) diff("Damage", c.damage !== undefined ? weaponDamage(cur) : 0, a.damage !== undefined ? weaponDamage(it) : 0);
-  diff("Armor", (c.armor ?? 0) + (c.armor ? Math.floor((cur.level - 1) / 2) : 0), (a.armor ?? 0) + (a.armor ? Math.floor((it.level - 1) / 2) : 0));
-  diff("Max HP", c.maxHp ?? 0, a.maxHp ?? 0);
-  diff("Bonuses", Object.keys(cur.bonuses).length + (cur.epic ? 1 : 0), Object.keys(it.bonuses).length + (it.epic ? 1 : 0));
-  if (a.faces && c.faces && a.faces.length !== c.faces.length) diff("Die faces", c.faces.length, a.faces.length);
-  if (a.twoHanded && h.equip.off && !keepsOffHand(h)) rows.push(`<span class="down">Two-handed: your off-hand goes to the bag</span>`);
-  return `<div class="compare">Replaces <b>${esc(itemName(cur))}</b> (${rarityLabel(cur.rarity)}, lv ${cur.level})${rows.length ? `<br>${rows.join(" · ")}` : ""}</div>`;
+  if (a.twoHanded && h.equip.off && !keepsOffHand(h) && best.s === "main") chips.push(`<span class="cmp down">Two-handed: your off-hand goes to the bag</span>`);
+  const slotLabel = SLOT_LABEL[best.s];
+  const head = cur ? `vs <b>${esc(itemName(cur))}</b> <span class="sub">(${esc(slotLabel)})</span>` : `Fills your empty <b>${esc(slotLabel)}</b>`;
+  return `<div class="compare">${head}<div class="cmp-row">${chips.length ? chips.join("") : `<span class="cmp same">＝ Same stats</span>`}</div></div>`;
 }
 
 function itemCard(it: GearItem, buttons = "", compare = false, equippedAs = "") {
@@ -308,10 +327,27 @@ function titleScreen() {
   return `${head}${tabs}${infoRow}
   ${cont}
   <div class="story-row"><span>🏰 ${FLOORS} floors, ${FLOORS} bosses. The Hollow King waits at the bottom, and beyond him, deeper still.</span><button class="story-btn" data-story="campaign">📖 Click to read story</button></div>
+  ${dailyPanel()}
   <h2 class="bright">Choose an origin</h2>
   <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
   ${originCards(false)}
   <p class="version">${VERSION}</p>`;
+}
+
+/** The Daily Dungeon: the same dungeon (seed and class) for everyone today, one attempt. */
+function dailyPanel() {
+  const today = utcDay();
+  const d = dailyFor(today);
+  const done = meta.daily?.day === today ? meta.daily : undefined;
+  const ms = Date.parse(`${today}T00:00:00Z`) + 864e5 - Date.now();
+  const left = `${Math.floor(ms / 3600e3)}h ${Math.floor((ms % 3600e3) / 60e3)}m`;
+  const og = ORIGINS[d.origin];
+  return `<div class="panel daily-panel">
+    <div class="row"><span class="daily-ic">📅</span><span class="grow"><b>Daily Dungeon</b><span class="sub"> · ${today}</span><br>
+      <span class="sub">The same dungeon for everyone today, as the <b>${ORIGIN_ICON[d.origin]} ${og.name}</b>. One attempt.</span></span></div>
+    ${done ? `<p class="daily-done">${done.done ? `Done today: ${done.won ? "🏆 won, " : ""}reached floor <b>${done.floor}</b>.` : "Today's attempt has begun."} A new dungeon in ${left}.</p>`
+      : `<div class="row" style="margin-top:8px"><button class="primary daily-go" data-daily>${dailyArmed ? "Replace your saved run?" : "▶ Start today's run"}</button></div>`}
+  </div>`;
 }
 
 /** Info: Renown and unlocks, the Codex and How to play. */
@@ -324,6 +360,25 @@ function infoPopup() {
     <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span></div>
       ${next ? `<p class="sub">Next unlock at ${next.at} Renown: <b>${esc(next.name)}</b> (${locked.size} items still locked)</p>` : `<p class="sub">Everything is unlocked.</p>`}</div>
     <div class="menu-btns two" style="margin-top:12px"><button data-codex>📖 Codex</button><button data-help>❓ How to play</button></div>
+    <div class="menu-btns" style="grid-template-columns:1fr;margin-top:10px"><button data-history>📜 Run history${meta.history?.length ? ` (${meta.history.length})` : ""}</button></div>
+  </div></div>`;
+}
+
+/** The last few finished runs: who, how far, what killed them, and what they wore. */
+function historyPopup() {
+  const list = meta.history ?? [];
+  const ago = (t: number) => { const m = Math.round((Date.now() - t) / 60000); return m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
+  const where = (e: NonNullable<Meta["history"]>[number]) => e.mode === "abyss" ? `Abyss depth ${Math.min(e.floor, ABYSS_FLOORS)}` : `Floor ${e.floor}`;
+  const body = list.length ? list.map(e => `<div class="hist ${e.won ? "won" : "lost"} ${e.mode === "abyss" ? "abyss" : ""}">
+      <div class="row"><b class="grow">${ORIGIN_ICON[e.origin as OriginId] ?? ""} ${esc(ORIGINS[e.origin as OriginId]?.name ?? e.origin)} · ${where(e)}</b><span class="sub">${ago(e.at)}</span></div>
+      <div class="hist-tags">${e.daily ? `<span class="chip">📅 Daily ${esc(e.daily)}</span>` : ""}${e.mode === "abyss" ? `<span class="chip">🕳️ Abyss${e.plates ? ` · ⬛${e.plates}` : ""}</span>` : ""}${e.mode === "endless" ? `<span class="chip">Deeper Still</span>` : ""}
+        <span class="chip">Lv ${e.level}</span><span class="chip">${e.kills} kills</span><span class="chip">${e.bosses} bosses</span></div>
+      <p class="hist-end">${e.won ? "🏆 Won" : e.abandoned ? "🏳️ Gave up" : `☠️ ${e.killer ? `Killed by <b>${esc(e.killer)}</b>` : "Fell"}`}</p>
+      <div class="hist-build">${e.build.map(b => `<span class="hb r-${b.rarity}"><span class="nm">${esc(b.name)}</span> <span class="sub">lv ${b.level}</span></span>`).join("")}</div>
+    </div>`).join("") : `<p class="sub center">No finished runs yet. Your last ${HISTORY_SIZE} will show up here.</p>`;
+  return `<div class="overlay"><div class="inner history-pop">
+    <div class="row"><h1 class="grow">📜 Run history</h1><button class="closebtn" data-closehistory>✕ Close</button></div>
+    ${body}
   </div></div>`;
 }
 
@@ -835,7 +890,7 @@ function overScene(r: Run) {
   const abyss = r.mode === "abyss";
   return `<div class="banner ${won ? "won" : "lost"}">${r.finale ? "Nothing remains. You won everything." : won && abyss ? "You reached the bottom of the Abyss!" : won ? "The Hollow King falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen."}</div>
   ${!won && r.killer && !r.abandoned ? killerPanel(r) : ""}
-  <div class="panel"><p>${abyss ? `Abyss · Depth ${Math.min(r.floor, ABYSS_FLOORS)}/${ABYSS_FLOORS}${r.hero.plates ? ` · ⬛ ${r.hero.plates} plates` : ""}` : `${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor}`} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses</p>
+  <div class="panel"><p>${abyss ? `Abyss · Depth ${Math.min(r.floor, ABYSS_FLOORS)}/${ABYSS_FLOORS}${r.hero.plates ? ` · ⬛ ${r.hero.plates} plates` : ""}` : `${r.daily ? `📅 Daily ${r.daily} · ` : ""}${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor}`} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses</p>
   ${recorded ? `<p>🏅 +${recorded.earned} Renown (total ${meta.renown})${recorded.unlocked.length ? ` · Unlocked: <b>${recorded.unlocked.map(esc).join(", ")}</b>` : ""}</p>` : ""}
   ${runStatsPanel(r)}
   <p class="sub">Final build:</p><div class="cards">${EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x).map(it => itemCard(it)).join("")}</div></div>
@@ -1385,7 +1440,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${infoOpen && !helpOpen ? infoPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${infoOpen && !helpOpen && !historyOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -1613,6 +1668,8 @@ function bind() {
     on("[data-codex]", () => { view = "codex"; infoOpen = false; });
     on("[data-info]", () => { infoOpen = true; });
     on("[data-closeinfo]", () => { infoOpen = false; });
+    on("[data-history]", () => { historyOpen = true; });
+    on("[data-closehistory]", () => { historyOpen = false; });
     on("[data-back]", () => { view = "title"; });
     on("[data-play]", () => { view = "title"; });
     on("[data-home]", () => { view = "splash"; });
@@ -1649,6 +1706,17 @@ function bind() {
         restoreOpen = false; restoreMsg = `Restored: ${v.shards} Ruin Shard${v.shards === 1 ? "" : "s"}, ${v.plates + Object.values(v.classPlates).reduce((a: number, n) => a + (n ?? 0), 0)} Vanadium Plate(s).`;
         render();
       }).catch(() => { restoreMsg = "Couldn't reach the server. Try again when you're online."; render(); });
+    });
+    on("[data-daily]", () => {
+      const today = utcDay();
+      if (meta.daily?.day === today) return;
+      if (savedSummary() && !dailyArmed) { dailyArmed = true; return; }
+      dailyArmed = false;
+      meta.daily = { day: today, floor: 1, won: false };
+      saveMeta(meta);
+      mode = "campaign"; lbResult = null; lbNaming = false; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
+      const nr = newDailyRun(today);
+      run = nr; void startSession(nr);
     });
     on("[data-startabyss]", () => {
       const o = pendingOrigin; if (!o) return;

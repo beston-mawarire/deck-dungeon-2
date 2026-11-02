@@ -666,3 +666,24 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .menu-btns.info-row { margin: 18px 0 14px; gap: 10px; }
 .menu-btns.info-row button, .menu-btns.info-row button.info-btn, .menu-btns.info-row button.lb-btn { font-size: .95rem; font-weight: 600; padding: 9px 10px; background: rgba(255,255,255,.03); border: 1px solid #3f3550; color: #cfc4e0; box-shadow: none; }
 .menu-btns.info-row button.lb-btn { color: #e6d3a2; }
+
+/* Loot comparison: ▲/▼ chips against what you're wearing */
+.compare .cmp-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.cmp { font-size: .78rem; font-weight: 700; padding: 1px 7px; border-radius: 8px; white-space: nowrap; }
+.cmp.up { color: #7ff0a8; background: rgba(95,208,138,.14); border: 1px solid rgba(95,208,138,.4); }
+.cmp.down { color: #ff9aa9; background: rgba(226,85,106,.14); border: 1px solid rgba(226,85,106,.4); }
+.cmp.same { color: var(--muted); border: 1px solid var(--line); }
+/* Daily Dungeon panel */
+.daily-panel { margin-top: 12px; border-color: #5a8fb8; background: linear-gradient(160deg, #1b2a3a, var(--panel) 70%); }
+.daily-panel .daily-ic { font-size: 1.6rem; margin-right: 6px; }
+.daily-done { margin: 8px 0 0; color: #bfe0ff; }
+.primary.daily-go { background: linear-gradient(180deg, #4d8fd0, #2c5f94); border-color: #8ec4f5; color: #fff; }
+/* Run history */
+.hist { border: 1px solid var(--line); border-left: 4px solid var(--bad); border-radius: 12px; padding: 10px; margin-top: 10px; background: var(--panel); }
+.hist.won { border-left-color: var(--gold); } .hist.abyss { background: linear-gradient(160deg, #1d1636, var(--panel) 70%); }
+.hist-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.hist-end { margin: 6px 0 4px; }
+.hist-build { display: flex; flex-wrap: wrap; gap: 4px; }
+.hist-build .hb { font-size: .78rem; border: 1px solid var(--line); border-radius: 8px; padding: 2px 7px; background: rgba(0,0,0,.2); }
+.hb.r-uncommon { border-color: var(--uncommon); } .hb.r-rare { border-color: var(--rare); } .hb.r-epic { border-color: var(--epic); } .hb.r-legendary { border-color: var(--legendary); }
+.hb[class*="crimson"] { border-color: var(--crimson); }

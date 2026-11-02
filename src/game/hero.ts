@@ -125,7 +125,7 @@ export function itemLines(item: GearItem): string[] {
   const eb = effectiveBase(item);
   const lines: string[] = [];
   if (eb.damage !== undefined) lines.push(`Damage ${weaponDamage(item)}${eb.twoHanded ? " · two-handed" : ""}${eb.offDamage ? ` · off-hand ${weaponDamage(item, true)}${offhandPenalty(item) ? " (clumsy: 60%)" : ""}` : ""}`);
-  const armor = (eb.armor ?? 0) + Math.floor((item.level - 1) / 2);
+  const armor = (eb.armor ?? 0) + (eb.armor ? Math.floor((item.level - 1) / 2) : 0);
   if (armor) lines.push(`Armor ${armor}`);
   if (eb.faces) lines.push(`Faces: ${eb.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind[0].toUpperCase() + f.kind.slice(1)}`).join(" · ")}`);
   if (eb.kind === "weapon" && eb.tags.includes("Holy")) lines.push("✝️ Holy: +50% to Undead, vampires, Crimson foes and anything that curses or Dooms. When your Ward stops an enemy's status, your next hit Smites (20% of its Max HP, once per fight).");
