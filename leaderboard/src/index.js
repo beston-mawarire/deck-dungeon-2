@@ -102,7 +102,9 @@ async function floorReached(req, env) {
   const floor = int(b.floor, 1, MAX_FLOOR);
   if (floor === null) return json({ error: "bad floor" }, 400);
   const s = await env.DB.prepare("SELECT * FROM sessions WHERE sid = ?").bind(b.sid).first();
-  if (!s || s.pid !== b.pid || s.ended) return json({ error: "no such run" }, 404);
+  // A Campaign win posts and closes the session; delving deeper after it keeps reporting floors under the same session.
+  const continuing = s && s.ended && s.posted_floor != null && floor >= s.posted_floor;
+  if (!s || s.pid !== b.pid || (s.ended && !continuing)) return json({ error: "no such run" }, 404);
   const now = Date.now();
   let flag = null;
   if (floor > s.floor + 1) flag = `jumped from floor ${s.floor} to ${floor}`;

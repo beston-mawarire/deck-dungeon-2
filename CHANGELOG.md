@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.18
+- Leaderboards: runs that won the Campaign and then delved deeper were wrongly marked unverified (the server stopped tracking floors after the win). Fixed, and the runs it hid are back on the boards.
+
 ## 1.26.17
 - Merchant: new 🛒 Buy and 🪙 Sell tabs (every visit opens on Buy). Sell has Equipped and Backpack sub-tabs; bulk selling sits in Backpack. The heading and text are brighter.
 

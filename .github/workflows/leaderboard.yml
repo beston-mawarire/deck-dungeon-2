@@ -39,6 +39,8 @@ jobs:
           for col in "sid TEXT" "suspect INTEGER NOT NULL DEFAULT 0" "reason TEXT" "plates INTEGER NOT NULL DEFAULT 0" "daily TEXT" "title TEXT"; do
             wrangler d1 execute deck-dungeon-lb --remote -y --command "ALTER TABLE runs ADD COLUMN $col" || true
           done
+      - name: Re-verify runs hidden by the delve-deeper floor bug (one-off)
+        run: wrangler d1 execute deck-dungeon-lb --remote -y --command "UPDATE runs SET suspect = 0, reason = NULL WHERE suspect = 1 AND won = 1 AND reason LIKE 'claims floor %, server saw 5'"
       - name: Deploy the Worker
         run: wrangler deploy
       - name: Check it's answering
