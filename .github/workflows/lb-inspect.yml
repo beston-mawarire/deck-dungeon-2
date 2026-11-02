@@ -21,8 +21,10 @@ jobs:
         run: wrangler d1 execute deck-dungeon-lb --remote -y --command "WITH best AS (SELECT pid, name, mode, floor, created_at, ROW_NUMBER() OVER (PARTITION BY pid ORDER BY floor DESC, created_at ASC) AS rn FROM runs WHERE suspect = 0 AND mode != 'abyss' AND daily IS NULL) SELECT substr(pid,1,6) AS pid, name, mode, floor FROM best WHERE rn = 1 ORDER BY floor DESC, created_at ASC LIMIT 10"
       - name: Backups (temporary)
         run: wrangler d1 execute deck-dungeon-lb --remote -y --command "SELECT substr(pid,1,6) AS pid, datetime(updated_at/1000,'unixepoch') AS at, length(save) AS bytes, instr(save,'dd2-run-v1') > 0 AS has_run, substr(save, instr(save,'dd2-run-v1'), 160) AS run_head FROM vault ORDER BY updated_at DESC LIMIT 6"
+      - name: Players (temporary)
+        run: wrangler d1 execute deck-dungeon-lb --remote -y --command "SELECT substr(pid,1,6) AS pid, name, COUNT(*) AS n, datetime(MAX(created_at)/1000,'unixepoch') AS last FROM runs GROUP BY pid ORDER BY last DESC"
       - name: Latest sessions
-        run: wrangler d1 execute deck-dungeon-lb --remote -y --command "SELECT substr(sid,1,6) AS sid, floor, max_floor, flagged, ended, posted_floor, datetime(started_at/1000, 'unixepoch') AS started, datetime(floor_at/1000, 'unixepoch') AS floor_at FROM sessions ORDER BY started_at DESC LIMIT 15"
+        run: wrangler d1 execute deck-dungeon-lb --remote -y --command "SELECT substr(sid,1,6) AS sid, substr(pid,1,6) AS pid, floor, max_floor, flagged, ended, posted_floor, datetime(started_at/1000, 'unixepoch') AS started, datetime(floor_at/1000, 'unixepoch') AS floor_at FROM sessions ORDER BY started_at DESC LIMIT 15"
       - name: Can a run open a session?
         run: |
           URL="https://deck-dungeon-leaderboard.bestondeveloper.workers.dev"
