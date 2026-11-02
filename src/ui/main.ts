@@ -89,8 +89,8 @@ let bountyOpen = false;
 type BagTab = "gear" | "stats" | "relics" | "talents" | "extras";
 let bagTab: BagTab = "gear";
 let talentSub: "talents" | "curses" = "talents";
-let spoilsSub: "relics" | "artefacts" | "talisman" = "relics";
-let gearSub: "equipped" | "backpack" = "equipped";
+let spoilsSub: "relics" | "artefacts" = "relics";
+let gearSub: "equipped" | "backpack" | "sigils" = "equipped";
 let statsSub: "attributes" | "statuses" = "attributes";
 /** Selling worn gear, and bulk selling, take a second tap. */
 let sellArmed: number | null = null;
@@ -590,7 +590,7 @@ const pickButtons = (it: GearItem) => lootBtns(it, true);
 const takeButtons = (it: GearItem) => lootBtns(it, false);
 
 /** Sigils found: a slim glowing strip with the reward's own name, not a popup. */
-const sigilFound = (names?: string[]) => (names ?? []).map(n => `<div class="sigil-found"><b>🔮 Sigil found</b><span class="sf-name">${esc(n)}</span><span class="sf-where">In your Talisman · Inventory › Spoils</span></div>`).join("");
+const sigilFound = (names?: string[]) => (names ?? []).map(n => `<div class="sigil-found"><b>🔮 Sigil found</b><span class="sf-name">${esc(n)}</span><span class="sf-where">In Inventory › Gear › Sigils</span></div>`).join("");
 
 function lootScene(r: Run) {
   if (r.scene.t !== "loot") return "";
@@ -1012,9 +1012,9 @@ function tabSigs(r: Run): Record<BagTab, string> {
   const p = h.f.persist;
   const ks = (o: Record<string, number> | undefined) => Object.entries(o ?? {}).filter(([, n]) => n > 0).map(([k, n]) => `${k}${n}`).sort().join(",");
   return {
-    gear: h.backpack.map(i => i.uid).sort((a, b) => a - b).join(","),
+    gear: `${h.backpack.map(i => i.uid).sort((a, b) => a - b).join(",")}|${(h.sigilBag ?? []).map(x => x.uid).join(",")}`,
     stats: "",
-    relics: `${ks(h.relics)}|${h.crucible ? 1 : 0}|${(h.sigilBag ?? []).map(x => x.uid).join(",")}`,
+    relics: `${ks(h.relics)}|${h.crucible ? 1 : 0}`,
     talents: `${ks(h.talents)}|${ks(h.curses)}`,
     extras: [h.keepsake ?? "", h.dragonHeart?.level ?? 0, (p["angelFights"] ?? 0) > 0, (p["blessFights"] ?? 0) > 0, (p["cloverChests"] ?? 0) > 0, ks(h.tonics)].join("|")
   };
@@ -1155,8 +1155,10 @@ function bag(r: Run) {
   const body =
     bagTab === "gear" ? `${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}<div class="row subtabs">
         <button class="small ${gearSub === "equipped" ? "primary" : ""}" data-gearsub="equipped">🛡️ Equipped</button>
-        <button class="small ${gearSub === "backpack" ? "primary" : ""}" data-gearsub="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</button></div>
+        <button class="small ${gearSub === "backpack" ? "primary" : ""}" data-gearsub="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</button>
+        <button class="small ${gearSub === "sigils" ? "primary" : ""}" data-gearsub="sigils">🔮 Sigils${(h.sigils?.length ?? 0) + (h.sigilBag?.length ?? 0) ? ` (${(h.sigils?.length ?? 0) + (h.sigilBag?.length ?? 0)})` : ""}</button></div>
       ${gearSub === "equipped" ? `<div class="gear-group equipped-group solo"><div class="cards">${equipped}</div></div>`
+        : gearSub === "sigils" ? talismanHtml(r, inCombat)
         : `${inCombat ? "" : bulkScrapRow(h)}<div class="gear-group backpack-group solo"><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div></div>`}`
     : bagTab === "stats" ? `<div class="row subtabs">
         <button class="small ${statsSub === "attributes" ? "primary" : ""}" data-statssub="attributes">📊 Attributes</button>
@@ -1164,9 +1166,8 @@ function bag(r: Run) {
       ${statsSub === "attributes" ? `${stats}<p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>` : reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`}`
     : bagTab === "relics" ? `<div class="row subtabs">
         <button class="small ${spoilsSub === "relics" ? "primary" : ""}" data-spoilsub="relics">💎 Relics${nRelics ? ` (${nRelics})` : ""}</button>
-        <button class="small ${spoilsSub === "artefacts" ? "primary" : ""}" data-spoilsub="artefacts">⚗️ Artefacts${h.crucible ? " (1)" : ""}</button>
-        <button class="small ${spoilsSub === "talisman" ? "primary" : ""}" data-spoilsub="talisman">🔮 Talisman${(h.sigils?.length ?? 0) + (h.sigilBag?.length ?? 0) ? ` (${(h.sigils?.length ?? 0) + (h.sigilBag?.length ?? 0)})` : ""}</button></div>
-      ${spoilsSub === "relics" ? (nRelics ? list(h.relics, "relic-line") : `<p class="sub">No relics yet.</p>`) : spoilsSub === "talisman" ? talismanHtml(r, inCombat) : artefactsHtml}`
+        <button class="small ${spoilsSub === "artefacts" ? "primary" : ""}" data-spoilsub="artefacts">⚗️ Artefacts${h.crucible ? " (1)" : ""}</button></div>
+      ${spoilsSub === "relics" ? (nRelics ? list(h.relics, "relic-line") : `<p class="sub">No relics yet.</p>`) : artefactsHtml}`
     : bagTab === "talents" ? `<div class="row subtabs">
         <button class="small ${talentSub === "talents" ? "primary" : ""}" data-talentsub="talents">🌟 Talents${nTalents ? ` (${nTalents})` : ""}</button>
         <button class="small curse-subtab ${talentSub === "curses" ? "primary" : ""}" data-talentsub="curses">🕯️ Curses${nCurses ? ` (${nCurses})` : ""}</button></div>
@@ -1327,7 +1328,7 @@ function helpGlossary() {
     row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell as much as you like (40% of its price)"),
     row("💍", "Jeweller", "Takes turns with the Forge; two tries per visit. Fuse: two relics (marked 🔗), or two Rare-or-better trinkets (yours to discover; costs Starmetal). A fusion that doesn't take still costs the fee. Infuse: put a same-rarity trinket into a weapon, off-hand or armour; the trinket is used up. Upgraded items can't be fused or infused"),
     row("⚒", "Forged by chance", "Half of all gear is made fresh: a material (Iron, Frost-forged, Dragonscale…), a form, and effects. Rarer items get more effects, and some carry a drawback (⛓️). ✦ Greater, ✦✦ Grand and ✦✦✦ Mythic rolls are much stronger, and ⚡ Overcharged items are rare, wild and very strong"),
-    row("🔮", "Talisman", "Sigils sit outside your gear (Spoils → Talisman). Wear pieces of the same set for 2-, 3- and 4-piece bonuses. 2 slots to start, more on floors 3, 6, 10 and 15"),
+    row("🔮", "Talisman", "Sigils sit beside your gear (Gear → Sigils). Wear pieces of the same set for 2-, 3- and 4-piece bonuses. 2 slots to start, more on floors 3, 6, 10 and 15"),
     row("🧪", "Healing Potions", "Heal 12. You start with 3 potion slots: carry up to 3, and drink up to 3 in one fight. Potion gear and relics add slots (more at higher rarity)")
   ].join(""))}
   ${group("📈 Between runs", [
