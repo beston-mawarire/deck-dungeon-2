@@ -17,7 +17,7 @@ export const GEN_SHARE: Partial<Record<Rarity, number>> = { common: 0.5, uncommo
 /** Power budget per rarity (tier points). */
 const BUDGET: Partial<Record<Rarity, number>> = { common: 3, uncommon: 6, rare: 10, epic: 16, legendary: 25, crimson: 35 };
 /** Slots don't all carry the same power (a weapon does the most). */
-const SLOT_MOD: Record<Slot, number> = { main: 1, off: 0.8, armour: 0.9, trinket: 0.75 };
+const SLOT_MOD: Record<Slot, number> = { main: 1, off: 0.8, armour: 0.9, trinket: 0.6 };
 /** How many of each part, [min, max]. */
 const COUNTS: Partial<Record<Rarity, { minor: [number, number]; major: [number, number]; sig: [number, number] }>> = {
   common: { minor: [0, 1], major: [0, 0], sig: [0, 0] },

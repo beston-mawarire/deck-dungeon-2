@@ -23,9 +23,9 @@ export const STREAK_TALENTS: HookDef[] = [
 
 export const STREAK_GEAR: GearBase[] = [
   { id: "t_tally_beads", kind: "trinket", slot: "trinket", name: "Tally Beads", tags: ["Bleed", "Tempo", "Crit"],
-    text: "While your hit streak is 4 or more: your hits apply 2 Bleed, heal you 1, and you have +8% Crit chance.",
+    text: "While your hit streak is 4 or more: your hits apply 1 Bleed, and you have +5% Crit chance.",
     hooks: {
-      onHit: (b, c) => { if (streakOf(c.attacker) >= 4) { applyStatus(b, c.attacker, c.defender, "bleed", 2); heal(b, c.attacker, 1, "Tally Beads"); } },
+      onHit: (b, c) => { if (streakOf(c.attacker) >= 4) applyStatus(b, c.attacker, c.defender, "bleed", 1); },
       modifyAttack: (b, c) => {
         // The crit chance only counts on a streak; roll it here so it follows the streak live.
         if (c.kind === "hit" && streakOf(c.attacker) >= 4 && b.rng() < 0.08) { c.kind = "crit"; c.mult = 2; c.ignoreArmor = true; }

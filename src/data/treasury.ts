@@ -280,7 +280,7 @@ export const DEEP_RARES: GearBase[] = [
   deep({ id: "dr_pilgrim_signet", kind: "trinket", slot: "trinket", name: "Signet of the Deep", tags: ["Strike", "Blood"], maxHp: 8,
     text: "Deep find. +2 Damage and +8 Max HP.", hooks: { stats: s => { s.damage += 2; s.offDamage += 2; } } }),
   deep({ id: "dr_echo_charm", kind: "trinket", slot: "trinket", name: "Echoing Charm", tags: ["Arcane", "Hex"],
-    text: "Deep find. Reactions you cause deal +40% and heal you 3.", hooks: { reactionMult: () => 1.4 } }), // heal: statuses.ts
+    text: "Deep find. Reactions you cause deal +25% and heal you 3.", hooks: { reactionMult: () => 1.25 } }), // heal: statuses.ts
   deep({ id: "dr_marrow_ring", kind: "trinket", slot: "trinket", name: "Marrowstone Ring", tags: ["Guard", "Crit"], armor: 3,
     text: "Deep find. +3 Armor and +5% Crit chance.", hooks: { stats: s => { s.critChance += 5; } } })
 ];

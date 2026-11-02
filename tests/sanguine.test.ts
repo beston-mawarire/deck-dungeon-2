@@ -114,3 +114,14 @@ it("tempering at the altar gives +4 levels", () => {
   const after = Object.values(run.hero.equip).reduce((a, it) => a + (it?.level ?? 0), 0);
   expect(after - before).toBe(4);
 });
+
+it("the Sanguine Altar is its own path on the map, never inside Something Strange", async () => {
+  const { chooseRoom, genChoices } = await import("../src/game/run");
+  const run = newRun("warrior", 88);
+  let seen = 0;
+  for (let i = 0; i < 400; i++) { run.step = 2; if (genChoices(run).includes("sanguine")) seen++; }
+  expect(seen).toBeGreaterThan(5);
+  for (let i = 0; i < 300; i++) { run.scene = { t: "map" }; chooseRoom(run, "event"); const s = run.scene as { ev?: { id: string } }; expect(s.ev?.id).not.toBe("sanguine_altar"); }
+  run.scene = { t: "map" }; chooseRoom(run, "sanguine");
+  expect((run.scene as { ev?: { id: string } }).ev?.id).toBe("sanguine_altar");
+});

@@ -11,8 +11,15 @@ export const other = (b: Battle, f: Fighter) => (f === b.player ? b.enemy : b.pl
 const SINGLE: StatusId[] = ["stun", "focus"];
 /** The hero's Haste stacks without limit; enemies can bank at most this many. */
 export const ENEMY_HASTE_CAP = 4;
+/** The hero can bank at most this many Haste (extra actions). */
+export const PLAYER_HASTE_CAP = 3;
+/** Barrier the hero gains is scaled by this, and capped at this share of Max HP. */
+export const BARRIER_GAIN = 0.75;
+export const BARRIER_CAP = 0.4;
 
 export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: string }> = {
+  causality: { name: "Causality Mirror", icon: "🪞", text: "The first hit it takes is reflected back in full, past any Evade or Dodge. It can't be removed" },
+  truestrike: { name: "True Strike", icon: "🎯", text: "Its attacks ignore Blind, Evade and Dodge. It can't be removed" },
   bleed: { name: "Bleed", icon: "🩸", text: "Lose 1 HP per stack at end of round; stacks fall by 1" },
   burn: { name: "Burn", icon: "🔥", text: "Take damage equal to stacks at start of turn; stacks halve" },
   poison: { name: "Poison", icon: "☠️", text: "Lose 1 HP per stack each round; doesn't fade during the fight" },
@@ -24,9 +31,9 @@ export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: s
   stun: { name: "Stun", icon: "💫", text: "Skips its next action" },
   doom: { name: "Doom", icon: "💀", text: "Dies when Doom stacks reach its current HP" },
   regen: { name: "Regen", icon: "💚", text: "Heal 1 per stack at end of round; stacks fall by 1" },
-  barrier: { name: "Barrier", icon: "🛡️", text: "Absorbs damage before HP; half of it fades at the end of each round" },
+  barrier: { name: "Barrier", icon: "🛡️", text: "Absorbs damage before HP; half of it fades at the end of each round. Yours holds at most 40% of your Max HP" },
   might: { name: "Might", icon: "💪", text: "+1 Damage per stack this fight" },
-  haste: { name: "Haste", icon: "💨", text: "An extra action on your turn. Stacks: one is used each turn" },
+  haste: { name: "Haste", icon: "💨", text: "An extra action on your turn. Stacks (up to 3): one is used each turn" },
   focus: { name: "Focus", icon: "🎲", text: "Next roll: roll twice, keep the better" },
   evade: { name: "Evade", icon: "🌀", text: "The next hit misses. Stacks: each stack makes one more hit miss" },
   spikes: { name: "Spikes", icon: "🌵", text: "When hit, deal stacks back; stacks fall by 1 each round" },
@@ -198,7 +205,9 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   else if (id === "shock") target.statuses.shock = Math.max(st(target, "shock"), amount);
   else if (id === "static") target.statuses.static = Math.min(staticCap(source), st(target, "static") + amount);
   else if (id === "dazzled") target.statuses.dazzled = Math.min(4, Math.max(st(target, "dazzled"), amount));
-  else if (id === "haste" && target !== b.player) target.statuses.haste = Math.min(ENEMY_HASTE_CAP, st(target, "haste") + amount);
+  else if (id === "haste") target.statuses.haste = Math.min(target === b.player ? PLAYER_HASTE_CAP : ENEMY_HASTE_CAP, st(target, "haste") + amount);
+  // Barrier on the hero: a quarter weaker than it says, and never more than 40% of your Max HP at once.
+  else if (id === "barrier" && target === b.player) target.statuses.barrier = Math.min(Math.max(1, Math.round(target.maxHp * BARRIER_CAP)), st(target, "barrier") + Math.max(1, Math.round(amount * BARRIER_GAIN)));
   else if (id === "consecrated") target.statuses.consecrated = Math.max(st(target, "consecrated"), amount);
   else target.statuses[id] = st(target, id) + amount;
   // Bounty Board counters: statuses the hero lands on foes.

@@ -6,9 +6,9 @@ const ep = (d: Omit<GearBase, "onlyRarity">): GearBase => ({ ...d, onlyRarity: "
 
 export const HP_EPICS: GearBase[] = [
   ep({ id: "ep_swelling_heart", kind: "trinket", slot: "trinket", name: "Swelling Heart", tags: ["Blood", "Strike"],
-    text: "Every hit you land gives you +2 Max HP (and heals 2) until the fight ends.",
+    text: "Every hit you land gives you +2 Max HP (and heals 2) until the fight ends, up to +30.",
     hooks: {
-      onHit: (b, c) => { const a = c.attacker; a.maxHp += 2; a.hp += 2; a.flags["swell"] = (a.flags["swell"] ?? 0) + 2; },
+      onHit: (b, c) => { const a = c.attacker; if ((a.flags["swell"] ?? 0) >= 30) return; a.maxHp += 2; a.hp += 2; a.flags["swell"] = (a.flags["swell"] ?? 0) + 2; },
       onFightEnd: (_b, f) => { const n = f.flags["swell"] ?? 0; if (n) { f.maxHp -= n; f.hp = Math.min(f.hp, f.maxHp); f.flags["swell"] = 0; } }
     } }),
   ep({ id: "ep_bloodprice", kind: "weapon", slot: "main", name: "Bloodprice Blade", tags: ["Blood", "Strike"], damage: 7, faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT],

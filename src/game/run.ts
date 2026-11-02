@@ -70,16 +70,24 @@ const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Reco
 /** Abyss: every floor down, everything gets this much tougher on top of its depth. */
 /** The Abyss is the endgame: every foe starts far tougher than its Campaign self and grows with every depth
  *  (Vanadium Plates are how you keep up). HP and damage scale separately, and Armor creeps up too. */
-export const ABYSS_GROWTH = 1.11;
+export const ABYSS_GROWTH = 1.14;
+/** From this Campaign floor on, foes scale harder every floor. */
+export const DEEP_FLOOR = 15;
+/** In the Abyss, the 7th Elite fight in a row is a boss instead. */
+export const ABYSS_ELITE_STREAK = 7;
+/** Status immunities a boss can carry. */
+const BOSS_IMMUNITIES = ["x_fireproof", "x_antitoxic", "x_bloodless", "x_insulated", "x_frostproof", "x_hexproof"];
+/** Abyss Merchants charge far more. */
+export const ABYSS_PRICE_MULT = 2;
 export const ABYSS_BASE = 1.35;
-export const ABYSS_DMG_GROWTH = 1.09;
+export const ABYSS_DMG_GROWTH = 1.11;
 export const ABYSS_DMG_BASE = 1.25;
 /** From this floor on (outside the Abyss), bosses drop Ruin Shards, and sometimes a Vanadium Plate. */
 export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
 const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
 
-export type RoomType = "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
+export type RoomType = "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -97,6 +105,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   jeweller: { name: "Jeweller", icon: "💍", text: "Two things on the bench, one comes back. For a fee." },
   crossroads: { name: "The Crossroads", icon: "🌒", text: "Two tunnels, one figure." },
   cleansing: { name: "Cleansing", icon: "⛲", text: "Somewhere your curses could be lifted, for a price." },
+  sanguine: { name: "Sanguine Altar", icon: "🩸", text: "Trade your own blood for power. The more you give, the more it gives back." },
   bounty: { name: "Bounty Board", icon: "📋", text: "Notices nailed to a post. Work for hire." },
   event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
@@ -276,10 +285,12 @@ const pickW = <T extends string>(rng: () => number, w: Partial<Record<T, number>
 export const CLEANSING_PATH_CHANCE = 0.3;
 /** The curse-lifting encounters: their own path on the map, never part of Something Strange. */
 export const CLEANSING_EVENTS = ["cleansing_well", "holy_tribute"];
+/** Encounters with their own path on the map, never part of Something Strange. */
+export const OWN_PATH_EVENTS = [...CLEANSING_EVENTS, "sanguine_altar"];
 
 export function genChoices(run: Run): RoomType[] {
   if (run.step >= STEPS_PER_FLOOR) return ["boss"];
-  const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 9, vault: 3, altar: 3, shrine: 3, champion: 3 };
+  const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 9, vault: 3, altar: 3, shrine: 3, champion: 3, sanguine: 2 };
   // After the fifth boss (Endless), Crimson Elites start to appear; they drop the keys to Crimson Vaults.
   if (crimsonActive(run)) w.crimson_elite = 4;
   // Named unique foes: from floor 2, rare, each one once per run.
@@ -395,7 +406,7 @@ function enterRoom(run: Run, room: RoomType) {
     case "event": {
       // Unique encounters (the dragon, the mirror pool) happen at most once per run.
       const cursed = Object.keys(run.hero.curses).length > 0;
-      const pool = EVENTS.filter(e => !CLEANSING_EVENTS.includes(e.id) && (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || cursed) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e));
+      const pool = EVENTS.filter(e => !OWN_PATH_EVENTS.includes(e.id) && (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || cursed) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e));
       const ev = pickW(run.rng, Object.fromEntries(pool.map(e => [e.id, e.weight ?? 1])) as Record<string, number>);
       const evDef = pool.find(e => e.id === ev)!;
       if (evDef.unique) run.seenBosses.add(`e:${evDef.id}`);
@@ -408,6 +419,7 @@ function enterRoom(run: Run, room: RoomType) {
       run.scene = { t: "event", ev: evDef, result: null, found: [] };
       return;
     }
+    case "sanguine": run.scene = { t: "event", ev: EVENTS.find(e => e.id === "sanguine_altar")!, result: null, found: [] }; return;
     case "cleansing": {
       // The Well (rarer) or a Holy Tribute.
       const id = run.rng() < 0.25 ? "cleansing_well" : "holy_tribute";
@@ -449,6 +461,8 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   let uber = false;
   if (run.mode === "abyss" && !then) {
     if (rank === "boss" && run.step >= STEPS_PER_FLOOR) uber = true;
+    // Seven Elite fights in a row and the Abyss answers with something worse: a boss (a flat count).
+    else if (rank === "normal" && (run.normalStreak ?? 0) >= ABYSS_ELITE_STREAK) { rank = "boss"; run.normalStreak = 0; run.message = "Something bigger heard the fighting. It came to see."; }
     else rank = ({ normal: "elite", elite: "champion", champion: "boss" } as Partial<Record<MonsterRank, MonsterRank>>)[rank] ?? rank;
     if (rank === "champion" && abyssMod(run, "crimson_tide")) rank = "crimson";
   }
@@ -474,6 +488,22 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
     if (abyssMod(run, "thick_hides")) enemy.maxHp = enemy.hp = Math.round(enemy.hp * 1.3);
     if (abyssMod(run, "glass_cannon")) { enemy.damage = Math.round(enemy.damage * 1.3); enemy.dmgTaken = (enemy.dmgTaken ?? 0) + 30; }
     if (abyssMod(run, "blood_moon") && then !== "death") enemy.items["x_crimson"] = 1;
+  }
+  // Bosses and Uber bosses sometimes shrug off a kind of status, strike true, or carry a Causality Mirror. Uber bosses always have something.
+  if (rank === "boss" && then !== "death" && enemy.name !== "DEATH") {
+    const roll = (p: number) => run.rng() < p;
+    const pick = BOSS_IMMUNITIES[Math.floor(run.rng() * BOSS_IMMUNITIES.length)];
+    if (uber || (run.floor >= 2 && roll(0.35))) enemy.items[pick] = 1;
+    if (roll(uber ? 0.4 : run.floor >= 3 ? 0.2 : 0)) enemy.items["x_truestrike"] = 1;
+    if (roll(uber ? 0.4 : run.floor >= 4 ? 0.12 : 0)) enemy.items["x_mirror"] = 1;
+  }
+  // Deeper foes wear more Armor, in every mode (bosses most of all). DEATH is its own thing.
+  if (then !== "death") enemy.armor += Math.floor((F - 1) / 3) + (rank === "boss" ? Math.floor(F / 5) : 0);
+  // From floor 15 of a Campaign, every floor is a good deal deadlier than the last.
+  if (run.mode !== "abyss" && run.floor >= DEEP_FLOOR && then !== "death") {
+    const k = run.floor - DEEP_FLOOR + 1;
+    enemy.maxHp = enemy.hp = Math.round(enemy.hp * Math.pow(1.07, k));
+    enemy.damage = Math.round(enemy.damage * Math.pow(1.05, k));
   }
   // Heat: tougher foes (1), and harder hits at 5.
   const heat = heatOf(run);
@@ -1069,7 +1099,7 @@ export const wealthMult = (run: Run) => 1 + Math.min(0.75, Math.max(0, run.hero.
 /** Shop prices: floor and curses (priceMult) times what the Merchant thinks you can afford. */
 export const shopMult = (run: Run) => priceMult(run) * wealthMult(run);
 
-export const priceMult = (run: Run) => (1 + 0.12 * (run.floor - 1)) * gouge(run.hero) * (heatOf(run) >= 2 ? 1.3 : 1);
+export const priceMult = (run: Run) => (1 + 0.12 * (run.floor - 1)) * gouge(run.hero) * (heatOf(run) >= 2 ? 1.3 : 1) * (run.mode === "abyss" ? ABYSS_PRICE_MULT : 1);
 /** Each reroll at the same Merchant costs triple the last (from 15 Gold, scaled by the floor), up to 5 rerolls per visit. */
 export const MAX_SHOP_REROLLS = 5;
 export const shopRerollCost = (run: Run) => Math.round(15 * shopMult(run)) * 3 ** run.shopRerolls;

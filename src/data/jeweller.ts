@@ -84,8 +84,8 @@ export const FUSED_TRINKETS: GearBase[] = [
     hooks: { stats: s => { s.critChance += 12; }, onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "blind", 1) } }),
   F({ id: "tf_bonesplitter", name: "Bonesplitter Fetish", tags: ["Strike", "Bleed"], armor: 1, text: "+3 Damage, +1 Armor. Every hit applies 1 Bleed.",
     hooks: { stats: s => { s.damage += 3; s.offDamage += 3; }, onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "bleed", 1) } }),
-  F({ id: "tf_lunar_heart", name: "Lunar Heart", tags: ["Tempo", "Blood"], maxHp: 15, text: "+15 Max HP, +10% Dodge. Every attack you dodge heals you 4.",
-    hooks: { stats: s => { s.dodge += 10; }, onDodge: (b, c) => { heal(b, c.defender, 4, "Lunar Heart"); } } }),
+  F({ id: "tf_lunar_heart", name: "Lunar Heart", tags: ["Tempo", "Blood"], maxHp: 10, text: "+10 Max HP, +6% Dodge. Every attack you dodge heals you 3.",
+    hooks: { stats: s => { s.dodge += 6; }, onDodge: (b, c) => { heal(b, c.defender, 3, "Lunar Heart"); } } }),
   F({ id: "tf_amber_hourglass", name: "Amber Hourglass", tags: ["Tempo", "Luck"], text: "Start every fight with 2 Haste.",
     hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "haste", 2) } }),
   F({ id: "tf_fortunes_amber", name: "Fortune's Amber", tags: ["Luck", "Gold"], text: "Your 1s become 4s. +4 Gold per fight.",
@@ -106,8 +106,8 @@ export const FUSED_TRINKETS: GearBase[] = [
     hooks: { stats: s => { s.critChance += 6; }, onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "poison", c.kind === "crit" ? 4 : 1) } }),
   F({ id: "tf_golden_thimble", name: "Golden Thimble", tags: ["Gold", "Kill"], text: "Every kill gives you 8 Gold.",
     hooks: { onKill: (_b, c) => { c.attacker.gold += 8; } } }),
-  F({ id: "tf_silver_hearth", name: "Hearth of Silver", tags: ["Blood"], maxHp: 25, text: "+25 Max HP. Heal 5% of your Max HP at the start of every fight.",
-    hooks: { onFightStart: (b, f) => { heal(b, f, Math.ceil(f.maxHp * 0.05), "Hearth of Silver"); } } })
+  F({ id: "tf_silver_hearth", name: "Hearth of Silver", tags: ["Blood"], maxHp: 18, text: "+18 Max HP. Heal 4% of your Max HP at the start of every fight.",
+    hooks: { onFightStart: (b, f) => { heal(b, f, Math.ceil(f.maxHp * 0.04), "Hearth of Silver"); } } })
 ];
 
 /** Trinket recipes, by base id (either order). Never shown to the player. */

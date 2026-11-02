@@ -1,9 +1,12 @@
 // Monsters: four families, Elite affixes, and the three floor bosses.
 import { PLAIN_FACES } from "../engine/combat";
-import type { FaceSpec, Fighter, HookDef } from "../engine/types";
+import type { FaceSpec, Fighter, HookDef, StatusId } from "../engine/types";
 import { applyStatus, CRIT, GRAZE, heal, hex, HIT, log, MISS, other, parch, ping, spell } from "./helpers";
 
 const trait = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "trait", ...d });
+/** A foe that shrugs off some statuses entirely. */
+const immune = (id: string, name: string, tags: HookDef["tags"], statuses: StatusId[]) =>
+  trait({ id, name, tags, text: `Immune to ${statuses.map(x => x[0].toUpperCase() + x.slice(1)).join(" and ")}`, hooks: { incomingStatus: (_b, _f, st, n) => (statuses.includes(st) ? 0 : n) } });
 
 export const TRAITS: HookDef[] = [
   trait({ id: "m_ambush", name: "Ambush", tags: ["Tempo"], text: "Strikes first", hooks: { onFightStart: (_b, f) => { f.flags["ambush"] = 1; } } }),
@@ -68,12 +71,21 @@ export const TRAITS: HookDef[] = [
     } }),
   trait({ id: "m_toll", name: "The Toll", tags: ["Hex", "Blood"], text: "Every action you take — attack, Guard, potion or class action — costs you HP (more the deeper you are)", hooks: {} }), // combat.ts
   trait({ id: "x_tormenting", name: "Tormenting", tags: ["Hex", "Blood"], text: "Every action you take — attack, Guard, potion or class action — costs you HP (more the deeper you are)", hooks: {} }), // combat.ts
+  // Immunities, True Strike and the Causality Mirror (Elites, Champions, bosses and Uber bosses).
+  immune("x_fireproof", "Fireproof", ["Burn"], ["burn", "smoulder"]),
+  immune("x_antitoxic", "Antitoxic", ["Poison"], ["poison"]),
+  immune("x_bloodless", "Bloodless", ["Bleed"], ["bleed"]),
+  immune("x_insulated", "Insulated", ["Storm"], ["shock", "static"]),
+  immune("x_frostproof", "Frostproof", ["Frost"], ["chill", "soaked"]),
+  immune("x_hexproof", "Hexproof", ["Hex"], ["weak", "exposed", "doom"]),
+  trait({ id: "x_truestrike", name: "True Strike", tags: ["Strike"], text: "Its attacks ignore Blind, Evade and Dodge", hooks: { onFightStart: (_b, f) => { f.statuses.truestrike = 1; } } }),
+  trait({ id: "x_mirror", name: "Causality Mirror", tags: ["Guard"], text: "The first hit it takes is reflected back at you in full, past Evade and Dodge. It can't be removed", hooks: { onFightStart: (_b, f) => { f.statuses.causality = 1; } } }),
   trait({ id: "x_regenerating", name: "Regenerating", tags: ["Blood"], text: "Heals 2 at the end of every round", hooks: { onRoundEnd: (b, f) => { heal(b, f, 2, "Regenerating"); } } }),
 ];
 
-export const ELITE_AFFIX_IDS = ["x_bulwark", "x_tormenting", "x_accursed", "x_parching", "x_smouldering", "x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying"];
+export const ELITE_AFFIX_IDS = ["x_bulwark", "x_tormenting", "x_accursed", "x_parching", "x_smouldering", "x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying", "x_fireproof", "x_antitoxic", "x_bloodless", "x_insulated", "x_frostproof", "x_hexproof", "x_truestrike", "x_mirror"];
 /** How often each affix rolls (Nullifying is rare). */
-export const AFFIX_WEIGHT: Record<string, number> = { x_parching: 0.4, x_nullifying: 0.35, x_concussive: 0.8, x_smouldering: 0.6, x_accursed: 0.4, x_tormenting: 0.5 };
+export const AFFIX_WEIGHT: Record<string, number> = { x_fireproof: 0.5, x_antitoxic: 0.5, x_bloodless: 0.5, x_insulated: 0.5, x_frostproof: 0.5, x_hexproof: 0.4, x_truestrike: 0.6, x_mirror: 0.35, x_parching: 0.4, x_nullifying: 0.35, x_concussive: 0.8, x_smouldering: 0.6, x_accursed: 0.4, x_tormenting: 0.5 };
 
 interface MonsterDef { name: string; family: string; hp: number; power: number; armor?: number; traits: string[]; faces?: FaceSpec[] }
 

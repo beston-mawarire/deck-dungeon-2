@@ -86,10 +86,12 @@ export function applyPlate(m: Meta, origin: string): boolean {
   return true;
 }
 
-/** Pay a Ruin Shard to enter the Abyss. */
+/** Ruin Shards it costs to enter the Abyss. */
+export const ABYSS_SHARD_COST = 3;
+/** Pay the Ruin Shards to enter the Abyss. */
 export function spendShard(m: Meta): boolean {
-  if ((m.ruinShards ?? 0) <= 0) return false;
-  m.ruinShards = (m.ruinShards ?? 0) - 1;
+  if ((m.ruinShards ?? 0) < ABYSS_SHARD_COST) return false;
+  m.ruinShards = (m.ruinShards ?? 0) - ABYSS_SHARD_COST;
   m.abyssRuns = (m.abyssRuns ?? 0) + 1;
   saveMeta(m);
   return true;

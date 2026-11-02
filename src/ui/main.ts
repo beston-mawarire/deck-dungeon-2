@@ -17,7 +17,7 @@ import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
 import { GEN_MODULE_MAP, modValue } from "../game/gen";
 import { ABYSS_MODS, ACHIEVEMENTS, applyKit, currentAbyssMod, HEAT_LEVELS, HEAT_MAX, HEAT_RENOWN, heatOf, KIT_COMMON_LEVEL, KIT_SLOTS, KIT_UNCOMMON_LEVEL, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX, MASTERY_XP } from "../game/progress";
-import { abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
+import { ABYSS_SHARD_COST, abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
@@ -378,7 +378,7 @@ function titleScreen() {
     const body = !abyssUnlocked(meta)
       ? `<div class="panel abyss-locked"><p class="big">🔒 The Abyss is sealed.</p><p>Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find the way down.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p></div>`
       : `<div class="campaign-hero abyss-hero">
-          <div class="ch-text"><b>🕳️ The Abyss</b><span>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. The richest loot comes from the deadliest. Each run costs one Ruin Shard.</span></div>
+          <div class="ch-text"><b>🕳️ The Abyss</b><span>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. The richest loot comes from the deadliest. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.</span></div>
           <button class="story-btn small" data-story="abyss">📖 Story</button>
         </div>
         <div class="abyss-stock">
@@ -387,7 +387,7 @@ function titleScreen() {
           <div class="stile extra-tile" style="grid-column: 1 / -1"><span>🏅</span><span>Deepest: <b>${meta.abyssBest ? `depth ${meta.abyssBest}/10` : "not yet"}</b><span class="sub">${meta.abyssRuns ?? 0} Abyss run${(meta.abyssRuns ?? 0) === 1 ? "" : "s"}</span></span></div>
         </div>
         ${(() => { const w = currentAbyssMod(); return `<div class="panel abyss-week"><b>${w.icon} This week: ${esc(w.name)}</b><br><span class="sub">${esc(w.text)}. Changes every Monday.</span></div>`; })()}
-        ${shards ? "" : `<div class="panel abyss-warn">You need a Ruin Shard to enter. Every boss from floor 20 of the Campaign drops one.</div>`}
+        ${shards >= ABYSS_SHARD_COST ? "" : `<div class="panel abyss-warn">You need ${ABYSS_SHARD_COST} Ruin Shards to enter (you have ${shards}). Every boss from floor 20 of the Campaign drops one.</div>`}
         <h2 class="bright">Choose a hero</h2>
         <p class="sub">Vanadium Plates make a hero stronger in the Abyss only. Once given, a plate stays with that hero for good.</p>
         ${originCards(true)}
@@ -1392,6 +1392,7 @@ function helpGlossary() {
     row("💰", "Thieves", "Kill them within 5 rounds or they escape with 30% of your Gold; kill them and you get 60% on top"),
     row("🕯️", "Curses", "Lasting penalties from shrines, idols and cursing foes. Only something holy can lift them"),
     row("🔨", "Forge", "Upgrade or reroll gear with Scrap; sacrifice items in an Offering; Combine two of the same item"),
+    row("🩸", "Sanguine Altar", "Pay a share of your Max HP for Gold, Max HP, upgrades, gear or a fresh start from curses; the bigger the price, the better the gift"),
     row("⛲", "Cleansing", "Only while you carry a curse: the Well of Cleansing or a Holy Tribute, a way to lift your curses for a price"),
     row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell as much as you like (40% of its price)"),
     row("💍", "Jeweller", "Takes turns with the Forge; two tries per visit. Fuse: two relics (marked 🔗), or two Rare-or-better trinkets (yours to discover; costs Starmetal). A fusion that doesn't take still costs the fee. Infuse: put a same-rarity trinket into a weapon, off-hand or armour; the trinket is used up. Upgraded items can't be fused or infused"),
@@ -1408,7 +1409,7 @@ function helpGlossary() {
     row("🌕", "Abyss weekly twist", "Each week the Abyss changes: some twists help, some hurt")
   ].join(""))}
   ${group("🕳️ The Abyss", [
-    row("🔓", "Opening it", `Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign. Then each Abyss run costs one Ruin Shard`),
+    row("🔓", "Opening it", `Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign. Then each Abyss run costs ${ABYSS_SHARD_COST} Ruin Shards`),
     row("🪨", "Ruin Shards", "Every Campaign boss from floor 20 on drops one"),
     row("⬛", "Vanadium Plates", "Those same bosses sometimes drop one. Give it to a class (for good): in the Abyss only, that class gets more Max HP, Armor and Damage for every plate"),
     row("☠️", "Ten depths", "Every plain fight is a rank tougher: monsters are Elites, Elites are Champions, Champions are bosses, and each depth ends with an Uber boss. Each depth is far deadlier than the last"),
@@ -1622,8 +1623,8 @@ function originPopup(o: OriginId) {
       <p class="sub">${pl ? `+${Math.round(PLATE_BONUS * pl * 100)}% Max HP, Armor and Damage in the Abyss.` : "No plates yet."} Each plate adds ${Math.round(PLATE_BONUS * 100)}% more.</p>
       ${free ? `<button class="small ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : `＋ Give a plate (${free} to give)`}</button>` : `<p class="sub">No plates to give. Campaign bosses from floor 20 sometimes drop one.</p>`}</div>
     ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
-    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary abyss-go" data-startabyss ${shards ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 1</button><button data-closeorigin>Back</button></div>
-    ${shards ? `<p class="sub center">You have ${shards} Ruin Shard${shards === 1 ? "" : "s"}.</p>` : `<p class="sub center warn">You need a Ruin Shard.</p>`}
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary abyss-go" data-startabyss ${shards >= ABYSS_SHARD_COST ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 ${ABYSS_SHARD_COST}</button><button data-closeorigin>Back</button></div>
+    ${shards >= ABYSS_SHARD_COST ? `<p class="sub center">You have ${shards} Ruin Shard${shards === 1 ? "" : "s"}.</p>` : `<p class="sub center warn">You need ${ABYSS_SHARD_COST} Ruin Shards (you have ${shards}).</p>`}
   </div></div>`;
   }
   return `<div class="overlay popup-wrap"><div class="popup">
@@ -2161,7 +2162,7 @@ function bind() {
     });
     on("[data-startabyss]", () => {
       const o = pendingOrigin; if (!o) return;
-      if (!spendShard(meta)) { say("You need a Ruin Shard."); return; }
+      if (!spendShard(meta)) { say(`You need ${ABYSS_SHARD_COST} Ruin Shards.`); return; }
       backupVault(vaultOf(meta));
       mode = "abyss"; lbResult = null; lbNaming = false; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
       const nr = newRun(o, Date.now() & 0x7fffffff, "abyss", lockedIds(meta));

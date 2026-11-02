@@ -10,7 +10,9 @@ export const NEGATIVE_STATUSES = ["bleed", "burn", "poison", "chill", "shock", "
 export const POSITIVE_STATUSES = ["regen", "barrier", "might", "haste", "focus", "evade", "spikes", "ward", "charged", "kindled", "grounded", "smoulder_soul", "consecrated", "reinforced", "blessed"] as const;
 export type NegativeStatus = (typeof NEGATIVE_STATUSES)[number];
 export type PositiveStatus = (typeof POSITIVE_STATUSES)[number];
-export type StatusId = NegativeStatus | PositiveStatus;
+/** Foes only, set by their traits, and never removed or stolen: Causality Mirror and True Strike. */
+export const ENEMY_STATUSES = ["causality", "truestrike"] as const;
+export type StatusId = NegativeStatus | PositiveStatus | (typeof ENEMY_STATUSES)[number];
 export type Statuses = Partial<Record<StatusId, number>>;
 
 /** Crimson sits above Legendary: it only drops from Crimson bosses (Endless, after the fifth boss). */

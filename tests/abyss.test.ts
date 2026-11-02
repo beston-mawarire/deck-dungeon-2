@@ -65,8 +65,10 @@ describe("the Abyss", () => {
     expect(bankRuin(m, run)).toBe(false);
     expect(m.ruinShards).toBe(1);
     expect(abyssUnlocked(m)).toBe(true);
+    expect(spendShard(m)).toBe(false); // one shard isn't enough: the Abyss costs three
+    m.ruinShards = 4;
     expect(spendShard(m)).toBe(true);
-    expect(spendShard(m)).toBe(false);
+    expect(m.ruinShards).toBe(1);
     // Floor 19 boss: nothing.
     const early = newRun("warrior", 4); early.mode = "endless"; early.floor = 19;
     win(early, enter(early, "boss", STEPS_PER_FLOOR));
@@ -89,4 +91,16 @@ describe("the Abyss", () => {
     expect(plated.f.maxHp).toBeGreaterThan(plain.f.maxHp);
     expect(plated.f.damage).toBeGreaterThanOrEqual(plain.f.damage);
   });
+});
+
+it("the 7th Elite fight in a row in the Abyss is a boss", async () => {
+  const { chooseRoom } = await import("../src/game/run");
+  const run = newRun("warrior", 55, "abyss");
+  run.popup = undefined; run.step = 1; run.normalStreak = 5;
+  chooseRoom(run, "fight");
+  expect((run.scene as { rank?: string }).rank).toBe("elite");
+  run.scene = { t: "map" }; run.normalStreak = 6;
+  chooseRoom(run, "fight");
+  expect((run.scene as { rank?: string }).rank).toBe("boss");
+  expect(run.normalStreak).toBe(0);
 });

@@ -20,8 +20,8 @@ export const TRINKETS_2: GearBase[] = [
   // Max HP
   only("common", { ...T, id: "tk_hearthstone", name: "Hearthstone Ring", tags: ["Blood"], maxHp: 5, text: "+5 Max HP.", hooks: {} }),
   only("uncommon", { ...T, id: "tk_fortitude", name: "Amulet of Fortitude", tags: ["Blood"], maxHp: 10, text: "+10 Max HP.", hooks: {} }),
-  only("rare", { ...T, id: "tk_mountain_heart", name: "Heart of the Mountain", tags: ["Blood", "Guard"], maxHp: 18, text: "+18 Max HP. Heal 5% of your Max HP at the start of every fight.",
-    hooks: { onFightStart: (b, f) => { heal(b, f, Math.ceil(f.maxHp * 0.05), "Heart of the Mountain"); } } }),
+  only("rare", { ...T, id: "tk_mountain_heart", name: "Heart of the Mountain", tags: ["Blood", "Guard"], maxHp: 12, text: "+12 Max HP. Heal 3% of your Max HP at the start of every fight.",
+    hooks: { onFightStart: (b, f) => { heal(b, f, Math.ceil(f.maxHp * 0.03), "Heart of the Mountain"); } } }),
   // Other effects
   only("uncommon", { ...T, id: "tk_leech_ring", name: "Leech Ring", tags: ["Blood"], text: "Heal 1 every time you land a hit.", hooks: { onHit: (b, c) => { heal(b, c.attacker, 1, "Leech Ring"); } } }),
   only("rare", { ...T, id: "tk_quickstep", name: "Quickstep Anklet", tags: ["Tempo"], text: "Start every fight with Haste (an extra attack).", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "haste", 1) } }),

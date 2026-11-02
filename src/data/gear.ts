@@ -301,21 +301,21 @@ export const TRINKETS: GearBase[] = [
   trinket({ id: "t_heart_locket", name: "Heart Locket", tags: ["Blood", "Guard"], text: "+4 Max HP. Guarding heals 2.", maxHp: 4, hooks: { onGuard: (b, f) => { heal(b, f, 2, "Heart Locket"); } } }),
   trinket({ id: "t_venom_gland", name: "Venom Gland", tags: ["Poison"], text: "Poison you apply +1.",
     hooks: { onStatusApplied: (_b, self, t, status) => { if (status === "poison" && t !== self) t.statuses.poison = st(t, "poison") + 1; } } }),
-  trinket({ id: "t_holy_water", name: "Holy Water", tags: ["Holy", "Guard"], text: "Start each fight with Ward. The first time your Ward blocks a status each fight, gain Ward again.",
-    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1), onWard: (b, f) => { if (!f.flags["holyWater"]) { f.flags["holyWater"] = 1; applyStatus(b, f, f, "ward", 1); } } } }),
+  trinket({ id: "t_holy_water", name: "Holy Water", tags: ["Holy", "Guard"], text: "Start each fight with Ward.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 1) } }),
   trinket({ id: "t_sin_eater", name: "Sin-Eater's Tooth", tags: ["Holy", "Blood"], text: "Every status your Purify strips heals you 2.",
     hooks: {} }), // Purify (combat.ts)
-  trinket({ id: "t_zealot_brand", name: "Zealot's Brand", tags: ["Holy", "Burn"], text: "Each round: apply 2 Burn. Holy hits deal +2.",
-    hooks: { onRoundStart: (b, f) => applyStatus(b, f, other(b, f), "burn", 2), modifyAttack: (_b, c) => { if (wieldsHoly(c.attacker)) c.bonus += 2; } } }),
+  trinket({ id: "t_zealot_brand", name: "Zealot's Brand", tags: ["Holy", "Burn"], text: "Each round: apply 1 Burn. Holy hits deal +2.",
+    hooks: { onRoundStart: (b, f) => applyStatus(b, f, other(b, f), "burn", 1), modifyAttack: (_b, c) => { if (wieldsHoly(c.attacker)) c.bonus += 2; } } }),
   // ---------- Electric trinkets (a little rarer) ----------
   trinket({ id: "t_spark_ring", name: "Spark Ring", tags: ["Storm"], weight: 0.45, text: "On a 4: apply 2 Static.", hooks: { face: [on(4, (b, c) => applyStatus(b, c.attacker, c.defender, "static", 2))] } }),
   trinket({ id: "t_capacitor", name: "Capacitor", tags: ["Storm", "Strike"], weight: 0.45, text: "Every 3rd round, gain 3 Charged.", hooks: { onRoundStart: (b, f) => { if (b.round % 3 === 0) applyStatus(b, f, f, "charged", 3); } } }),
   trinket({ id: "t_lightning_rod", name: "Lightning Rod Amulet", tags: ["Storm", "Guard"], weight: 0.45, text: "Shock you apply also adds 3 Static. You can't be Shocked.",
     hooks: { onStatusApplied: (b, self, t, s) => { if (s === "shock" && t !== self) applyStatus(b, self, t, "static", 3); }, incomingStatus: (_b, _f, s, n) => (s === "shock" ? 0 : n) } }),
   trinket({ id: "t_rain_charm", name: "Rain Charm", tags: ["Storm", "Frost"], weight: 0.45, text: "The enemy starts each fight Soaked 3.", hooks: { onFightStart: (b, f) => applyStatus(b, f, other(b, f), "soaked", 3) } }),
-  trinket({ id: "t_kindling_heart", name: "Kindling Heart", tags: ["Burn"], text: "Start each fight Kindled 3: your hits apply Burn while it lasts.", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "kindled", 3) } }),
-  trinket({ id: "t_coal_heart", name: "Coal-Heart Amulet", tags: ["Burn", "Blood"], text: "Start each fight with 3 Smouldering Soul: you take 1 Burn a round, but every action deals 5 Burn to the enemy.",
-    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "smoulder_soul", 3) } }),
+  trinket({ id: "t_kindling_heart", name: "Kindling Heart", tags: ["Burn"], minItemRarity: "uncommon", text: "Start each fight Kindled 3: your hits apply Burn while it lasts.", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "kindled", 3) } }),
+  trinket({ id: "t_coal_heart", name: "Coal-Heart Amulet", tags: ["Burn", "Blood"], minItemRarity: "rare", text: "Start each fight with 1 Smouldering Soul: you take 1 Burn a round, but every action deals 5 Burn to the enemy.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "smoulder_soul", 1) } }),
   trinket({ id: "t_quicksilver", name: "Quicksilver Ring", tags: ["Tempo"], text: "Start each fight at full HP with Haste.", hooks: { onFightStart: (b, f) => { if (f.hp >= f.maxHp) applyStatus(b, f, f, "haste", 1); } } })
 ];
 

@@ -9,7 +9,7 @@ import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
 import { applyStatus, endOfRound, st } from "../src/engine/statuses";
 import { TAGS } from "../src/engine/types";
-import { equipItem, itemName, newHero, recompute, reveal, salvage, slotsFor, weaponDamage } from "../src/game/hero";
+import { baseOf, equipItem, itemName, newHero, recompute, reveal, salvage, slotsFor, weaponDamage } from "../src/game/hero";
 import { resetDropped, resplendentCards, rollItem, setGenEnabled } from "../src/game/loot";
 import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem, rerollShop, drinkPotion, lockGold, restore, chooseEvent, smithUpgrade, buyTonic, useTonic } from "../src/game/run";
 
@@ -79,7 +79,7 @@ describe("origins and gear", () => {
     expect(b.player.hp).toBe(hp);
   });
 
-  it("Haste stacks with no cap and one stack is spent per turn", () => {
+  it("Haste stacks up to 3 for the hero, and one stack is spent per turn", () => {
     const h = newHero("warrior");
     const b = startBattle(h.f, dummy(), 1);
     b.player.statuses.haste = 0;
@@ -87,7 +87,7 @@ describe("origins and gear", () => {
     applyStatus(b, b.player, b.player, "haste", 1);
     expect(st(b.player, "haste")).toBe(2);
     applyStatus(b, b.player, b.player, "haste", 5);
-    expect(st(b.player, "haste")).toBe(7);
+    expect(st(b.player, "haste")).toBe(3);
     applyStatus(b, b.enemy, b.enemy, "haste", 9);
     expect(st(b.enemy, "haste")).toBe(4);
     b.player.statuses.haste = 2;
@@ -129,10 +129,10 @@ describe("origins and gear", () => {
     const h = newHero("warrior");
     const rng = makeRng(3);
     const epic = rollItem(h, "epic", 2, rng);
-    expect(Object.keys(epic.bonuses).length).toBe(3);
+    expect(Object.keys(epic.bonuses).length).toBe(baseOf(epic.base).slot === "trinket" ? 2 : 3); // trinkets carry one fewer
     expect(epic.epic).toBeDefined();
     const rare = rollItem(h, "rare", 1, rng);
-    expect(Object.keys(rare.bonuses).length).toBe(2);
+    expect(Object.keys(rare.bonuses).length).toBe(baseOf(rare.base).slot === "trinket" ? 1 : 2);
   });
 
   it("an unrevealed Legendary acts as a Common of its base; a Scroll reveals it", () => {
@@ -862,7 +862,7 @@ describe("class actions and new stats", () => {
     expect(st(b.enemy, "fracture")).toBe(0);
   });
 
-  it("Reckless gear: deal more and take more; Manacles cap the enemy's die at 4", () => {
+  it("Reckless gear: deal more and take more; Manacles cap the enemy's die at 5", () => {
     const h = newHero("warrior");
     equipItem(h, { uid: 903, base: "bt_berserker_torc", rarity: "rare", level: 1, bonuses: {}, revealed: true });
     expect(h.f.dmgDealt).toBe(25);
@@ -873,7 +873,7 @@ describe("class actions and new stats", () => {
     const h2 = newHero("warrior");
     equipItem(h2, { uid: 904, base: "bt_manacles", rarity: "epic", level: 1, bonuses: {}, revealed: true });
     const b2 = startBattle(h2.f, dummy(), 13);
-    expect(b2.enemy.flags["rollCap"]).toBe(4);
+    expect(b2.enemy.flags["rollCap"]).toBe(5);
   });
 
   it("basic relics add Max HP, Armor, and Scrap per scrapped item", () => {
@@ -1146,7 +1146,7 @@ describe("class actions and new stats", () => {
     applyStatus(b2, b2.enemy, g.f, "bleed", 2);
     expect(st(g.f, "barrier")).toBe(2);
     applyStatus(b2, b2.enemy, g.f, "weak", 1);
-    expect(st(g.f, "barrier")).toBe(2 + 4);
+    expect(st(g.f, "barrier")).toBe(2 + 3); // Barrier the hero gains is 25% weaker
   });
 
   it("new curses: Destitute locks Gold, Unhealing stops healing, Frostbound starts fights Chilled", () => {
@@ -1659,6 +1659,32 @@ describe("dual wielding and faith weapons", () => {
     h.f.statuses = { ward: 1 };
     resolveFace(b, h.f, e, 3);
     expect(300 - e.hp).toBe(h.f.damage + 4);
+  });
+});
+
+describe("enemy defences", () => {
+  it("Causality Mirror reflects the first hit in full, past Evade; True Strike ignores Evade and Dodge; immunities block", () => {
+    const h = newHero("warrior");
+    const e = dummy(500); e.items = { x_mirror: 1 };
+    const b = startBattle(h.f, e, 7);
+    expect(st(b.enemy, "causality")).toBe(1);
+    b.player.statuses.evade = 3;
+    const hp = b.player.hp;
+    resolveFace(b, b.player, b.enemy, 3);
+    expect(b.enemy.hp).toBe(500);
+    expect(b.player.hp).toBeLessThan(hp);
+    expect(st(b.enemy, "causality")).toBe(0);
+    resolveFace(b, b.player, b.enemy, 3);
+    expect(b.enemy.hp).toBeLessThan(500);
+    const e2 = dummy(500); e2.items = { x_truestrike: 1, x_fireproof: 1 }; e2.damage = 5;
+    const b2 = startBattle(newHero("rogue").f, e2, 8);
+    b2.player.statuses = { evade: 5 }; b2.player.dodge = 60;
+    const hp2 = b2.player.hp;
+    for (let i = 0; i < 4; i++) resolveFace(b2, b2.enemy, b2.player, 4);
+    expect(b2.player.hp).toBeLessThan(hp2);
+    expect(st(b2.player, "evade")).toBe(5);
+    applyStatus(b2, b2.player, b2.enemy, "burn", 5);
+    expect(st(b2.enemy, "burn")).toBe(0);
   });
 });
 

@@ -42,7 +42,7 @@ export const BRUTE_GEAR: GearBase[] = [
   only("rare", { ...T, id: "bt_berserker_torc", name: "Berserker's Torc", tags: ["Strike", "Blood"],
     text: "Reckless: you deal 25% more damage and take 25% more.", hooks: { stats: reckless(25, 25) } }),
   only("epic", { ...T, id: "bt_manacles", name: "Manacles of the Warden", tags: ["Guard", "Hex"],
-    text: "Shackles the enemy: its die can't roll above 4.", hooks: { onFightStart: (b, f) => { other(b, f).flags["rollCap"] = 4; } } })
+    text: "Shackles the enemy: its die can't roll above 5.", hooks: { onFightStart: (b, f) => { other(b, f).flags["rollCap"] = 5; } } })
 ];
 
 export const BRUTE_LEGENDARIES: GearBase[] = [

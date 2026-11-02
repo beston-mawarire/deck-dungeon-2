@@ -260,7 +260,7 @@ function resolveRolledFace(b: Battle, a: Fighter, d: Fighter, face: number, offh
     breakStreak(b, a);
     return;
   }
-  if (st(a, "blind") > 0 && face <= 2) {
+  if (st(a, "blind") > 0 && face <= 2 && !(st(a, "truestrike") > 0)) {
     log(b, `${a.name} is Blind and misses.`);
     fx(b, { who: d.id, kind: "miss", text: "Blind — miss" });
     breakStreak(b, a);
@@ -409,7 +409,19 @@ function strike(b: Battle, ctx: AttackCtx) {
     raw = 0;
   }
   ctx.raw = raw;
-  if (st(d, "evade") > 0) {
+  // Causality Mirror: the first hit it takes comes straight back at the attacker, in full. Evade and Dodge can't stop it.
+  if (st(d, "causality") > 0 && raw > 0) {
+    d.statuses.causality = 0;
+    log(b, `🪞 Causality Mirror! ${a.name}'s blow comes back at them: ${raw}.`);
+    fx(b, { who: d.id, kind: "block", text: "Reflected", icon: "🪞" });
+    loseHp(b, a, raw);
+    fx(b, { who: a.id, kind: "dmg", value: raw });
+    breakStreak(b, a);
+    return afterStrike(b, ctx);
+  }
+  // True Strike: nothing can make its attacks miss.
+  const sure = st(a, "truestrike") > 0;
+  if (st(d, "evade") > 0 && !sure) {
     d.statuses.evade = st(d, "evade") - 1;
     log(b, `${d.name} evades!`);
     fx(b, { who: d.id, kind: "miss", text: "Evaded" });
@@ -419,7 +431,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   // Dodge (a % chance; Countering adds 20%). It's not Evade: Evade bonuses don't fire, Dodge ones do.
   const countering = d.flags["counter"] === b.round;
   const dodgeChance = Math.min(DODGE_CAP, (d.dodge ?? 0) + (countering ? 20 : 0));
-  if (dodgeChance > 0 && b.rng() * 100 < dodgeChance) {
+  if (dodgeChance > 0 && !sure && b.rng() * 100 < dodgeChance) {
     log(b, `${d.name} dodges!`);
     fx(b, { who: d.id, kind: "miss", text: "Dodged" });
     breakStreak(b, a);

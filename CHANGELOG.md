@@ -5,6 +5,14 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.37.0
+- Barrier you gain is a quarter weaker, and yours holds at most 40% of your Max HP. Your Haste now caps at 3 stacks.
+- Foes wear more Armor the deeper you go, in every mode (bosses most of all). From Campaign floor 15, every floor scales harder; Abyss depths scale harder still.
+- Trinkets do less: hand-made trinkets carry one rolled effect fewer, generated trinkets get a smaller budget, and the most overloaded ones are toned down (Coal-Heart Amulet, Tally Beads, Holy Water, Zealot's Brand, Kindling Heart, Heart of the Mountain, Echoing Charm, Hearth of Silver, Lunar Heart, Crown of the Tenth Gate, Manacles of the Warden, Swelling Heart).
+- The Abyss: entering costs 3 Ruin Shards; Merchants there charge double; and the 7th Elite fight in a row draws a boss.
+- The Sanguine Altar is its own 🩸 path on the map, no longer hidden in Something Strange.
+- New enemy defences on Elites, Champions, bosses and Uber bosses: immunities (Fireproof, Antitoxic, Bloodless, Insulated, Frostproof, Hexproof), 🎯 True Strike (its attacks ignore Blind, Evade and Dodge) and 🪞 Causality Mirror (the first hit it takes is reflected back in full, past Evade and Dodge). Neither can be removed. Uber bosses always carry at least one.
+
 ## 1.36.0
 - Relics: 39 new small, steady relics join the pool (a point of Max HP, Damage or Armor, a few % of crit damage, Dodge, Spell Amp, healing, a little Barrier or Regen to start a fight, and so on). They turn up often, and extra copies keep adding up.
 - Relics that change the rules, set up combos or are simply powerful are now far rarer finds; useful conditional tricks sit in between.

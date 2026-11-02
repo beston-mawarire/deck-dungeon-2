@@ -13,7 +13,7 @@ export const DEPTH_EPICS: GearBase[] = [
     text: "From floor 10. Heavy: +9 Armor, +20 Max HP. Hits that deal 10 or more to you are cut by 3.",
     hooks: { whenHit: (b, c) => { if (c.dealt >= 10) { c.defender.hp = Math.min(c.defender.maxHp, c.defender.hp + 3); log(b, "Abyssal Scale: 3 turned aside."); } } } }),
   ep(10, { kind: "trinket", slot: "trinket", id: "dp_tenth_gate", name: "Crown of the Tenth Gate", tags: ["Strike", "Tempo"], maxHp: 10,
-    text: "From floor 10. +10 Max HP. Start every fight with 3 Might and Haste.", hooks: { onFightStart: (b, f) => { applyStatus(b, f, f, "might", 3); applyStatus(b, f, f, "haste", 1); } } }),
+    text: "From floor 10. +10 Max HP. Start every fight with 2 Might and Haste.", hooks: { onFightStart: (b, f) => { applyStatus(b, f, f, "might", 2); applyStatus(b, f, f, "haste", 1); } } }),
   // ---------- Floor 20+ ----------
   ep(20, { kind: "weapon", slot: "main", id: "dp_voidreaver", name: "Voidreaver", tags: ["Strike", "Hex", "Kill"], damage: 20, twoHanded: true, faces: PLAIN,
     text: "From floor 20. Two-handed. Every hit also deals 3% of the enemy's Max HP. Kills heal 15%.",
