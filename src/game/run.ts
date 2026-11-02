@@ -510,7 +510,7 @@ export function autoBattle(run: Run): string | null {
   while (run.scene.t === "combat" && !b.over && n++ < 100) combatAction(run, "attack");
   b.fx.length = 0;
   const lost = Math.max(0, hp - run.hero.f.hp);
-  return `⚡ Auto-battle: ${b.over === "won" ? "won" : "over"} in ${b.round - start} round${b.round - start === 1 ? "" : "s"}${lost ? `, −${lost} HP` : ", untouched"}.`;
+  return `⚡ Quick Battle: ${b.over === "won" ? "won" : "over"} in ${b.round - start} round${b.round - start === 1 ? "" : "s"}${lost ? `, −${lost} HP` : ", untouched"}.`;
 }
 
 /** After the UI has played a phase, finish the fight if it's over. */

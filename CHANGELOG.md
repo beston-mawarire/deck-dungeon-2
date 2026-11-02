@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.7
+- The in-combat ⚡ Auto-battle button is now ⚡ Quick Battle too, as is the result message it shows.
+
 ## 1.26.6
 - The map's ⚡ Auto-fight button is now called ⚡ Quick Battle.
 
