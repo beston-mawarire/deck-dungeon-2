@@ -7,7 +7,7 @@ import { applyStatus, heal, log, other, ping, st } from "./helpers";
 export const AFFINITY: Record<OriginId, string[]> = {
   warrior: ["w_sword", "w_axe", "w_hand_axe", "w_hammer", "w_morningstar", "w_spear", "o_wooden_shield", "o_tower_shield", "o_kite_shield", "o_spiked_shield", "o_war_banner", "a_chain", "a_plate", "a_scale", "a_spiked", "t_warlord_torc"],
   rogue: ["w_dagger", "w_throwing_knife", "w_rapier", "w_katana", "w_whip", "w_sickle", "w_main_gauche", "w_bow", "o_smoke_pouch", "o_buckler", "a_leather", "a_shadow", "a_assassin", "t_thieves_ring", "t_lucky_coin"],
-  mage: ["w_staff", "w_greatstaff", "w_wand", "w_lute", "o_ember_charm", "o_frost_orb", "o_grimoire", "o_tome", "o_storm_lantern", "o_crystal_orb", "o_runestone", "a_cloth", "a_bloodweave", "t_archmage_signet", "t_ember_pendant"],
+  mage: ["w_staff", "w_greatstaff", "w_wand", "s1_ashwood_wand", "s1_rimewood_rod", "s1_stormcaller_rod", "s1_bogwood_staff", "s1_prism_scepter", "s1_bloodwood_cane", "s1_magisters_rod", "s1_hexwood_scepter", "w_lute", "o_ember_charm", "o_frost_orb", "o_grimoire", "o_tome", "o_storm_lantern", "o_crystal_orb", "o_runestone", "a_cloth", "a_bloodweave", "t_archmage_signet", "t_ember_pendant"],
   cleric: ["w_mace", "w_morningstar", "w_flail", "w_hammer", "o_holy_symbol", "o_prayer_beads", "o_sun_disc", "o_reliquary", "o_censer", "a_padded", "a_vestments", "a_scale", "t_templar_seal", "t_band_vigor"]
 };
 
