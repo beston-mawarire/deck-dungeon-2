@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.25.2
+- Heat 2 now halves all Gold you gain (was a quarter less).
+- Heat 3 ("Dim fires") now halves all healing: potions, Campfires, heals after fights, items and relics.
+
 ## 1.25.1
 - Challenges: the Abyss weekly twist stays locked (and hidden) until you've opened the Abyss.
 - Heat retuned: Heat 1 gives enemies 30% more HP (was 20%); Heat 2 ("Lean pickings") also cuts all Gold you gain by a quarter — fights, chests, events, mid-fight item Gold and sales — on top of pricier shops; Heat 4 removes the heal after won fights entirely; Heat 5 enemies hit 20% harder (was 15%).

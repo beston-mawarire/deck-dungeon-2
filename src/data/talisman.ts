@@ -73,4 +73,9 @@ export const SIGIL_SETS: SigilSet[] = [
   { id: "vigil", name: "The Iron Vigil", icon: "🛡️", tags: ["Guard"], pieces: ["sc_vigil_buckle", "sc_vigil_oath", "sc_vigil_horn", "sc_vigil_banner"], bonuses: [[2, "sb_vigil_2"], [3, "sb_vigil_3"], [4, "sb_vigil_4"]] },
   { id: "gamble", name: "The Gambler's Hand", icon: "🎲", tags: ["Luck", "Crit"], pieces: ["sc_loaded_die", "sc_lucky_coin", "sc_marked_card", "sc_rabbit_paw"], bonuses: [[2, "sb_gamble_2"], [3, "sb_gamble_3"], [4, "sb_gamble_4"]] }
 ];
+/** Heat 3: all your healing is halved (a hidden effect while the run is at Heat 3 or more). */
+export const HEAT_HOOKS: HookDef[] = [
+  { id: "heat_dim", name: "Heat: Dim fires", kind: "curse", tags: ["Blood"], text: "All your healing is halved", hooks: { healMult: () => 0.5 } }
+];
+
 export const setOfPiece = (id: string) => SIGIL_SETS.find(s => s.pieces.includes(id));

@@ -1103,7 +1103,7 @@ export const restPct = (h: Hero) => ((h.curses["c_restless"] ?? 0) > 0 ? 0.2 : 0
 export function rest(run: Run, _choice: "heal" = "heal"): string | null {
   const h = run.hero;
   if (run.scene.t !== "rest" || run.scene.done) return null;
-  restore(h, Math.round(h.f.maxHp * restPct(h) * (heatOf(run) >= 3 ? 0.5 : 1)));
+  restore(h, Math.round(h.f.maxHp * restPct(h)));
   run.scene.done = true;
   markEncounter(run, "room:rest");
   return null;
@@ -1682,7 +1682,7 @@ export function grantRelic(run: Run, id: string) {
 }
 
 /** Heat 2+: less Gold from everything (fights, chests, events, sales). */
-export const goldMult = (run: Run) => (heatOf(run) >= 2 ? 0.75 : 1);
+export const goldMult = (run: Run) => (heatOf(run) >= 2 ? 0.5 : 1);
 
 /** Base luck for generated gear: the Abyss doubles it, every Heat level adds a little. */
 const genLuck = (run: Run) => (run.mode === "abyss" ? 2 : 1) * (1 + 0.15 * heatOf(run));

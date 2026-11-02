@@ -122,8 +122,8 @@ export const ACHIEVEMENTS: Achievement[] = [
 /** Optional Campaign difficulty, unlocked by your first Campaign win. Each level adds its twist on top of the ones below. */
 export const HEAT_LEVELS = [
   { level: 1, name: "Tougher foes", text: "Every enemy has 30% more HP" },
-  { level: 2, name: "Lean pickings", text: "Shop prices are 30% higher, and you get 25% less Gold from everything" },
-  { level: 3, name: "Cold campfires", text: "Campfires heal half as much" },
+  { level: 2, name: "Lean pickings", text: "Shop prices are 30% higher, and you get half as much Gold from everything" },
+  { level: 3, name: "Dim fires", text: "All healing is halved: potions, Campfires, heals after fights, items and relics" },
   { level: 4, name: "Hungry dark", text: "No heal after winning a fight" },
   { level: 5, name: "Elite swarm", text: "Elites and Champions turn up twice as often, and every enemy hits 20% harder" }
 ];

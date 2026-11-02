@@ -68,6 +68,8 @@ export interface Hero {
   crucible?: boolean;
   /** Torn from a slain dragon. Each further dragon slain raises its level. Unified at a Dragon Sanctum: every stat +50%. */
   dragonHeart?: { level: number; unified?: boolean };
+  /** The run's Heat level (Heat 3+ halves all healing). */
+  heat?: number;
   /** The Talisman: sigils worn (outside the gear slots) and sigils carried. */
   sigils?: Sigil[];
   sigilBag?: Sigil[];
@@ -255,6 +257,7 @@ export function recompute(h: Hero) {
     const n = set.pieces.filter(p => worn.has(p)).length;
     for (const [need, id] of set.bonuses) if (n >= need) add(id);
   }
+  if ((h.heat ?? 0) >= 3) add("heat_dim");
   f.items = items;
   s.maxHp += 3 * (h.level - 1); // every level-up: +3 Max HP
   s.maxHp -= f.persist["maxHpLoss"] ?? 0;

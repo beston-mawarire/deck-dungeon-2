@@ -101,18 +101,25 @@ describe("mastery, kits, heat, Abyss twists, achievements", () => {
     }
   });
 
-  it("Heat 2 cuts Gold by a quarter; Heat 4 removes the after-fight heal", async () => {
+  it("Heat 2 halves Gold; Heat 3 halves healing; Heat 4 removes the after-fight heal", async () => {
     const { collectLoot } = await import("../src/game/run");
     const a = newRun("warrior", 51), b = newRun("warrior", 51);
     b.heat = 2;
     for (const r of [a, b]) { r.scene = { t: "loot", title: "", items: [], gold: 100, scrolls: 0, potions: 0 } as Run["scene"]; r.hero.f.gold = 0; collectLoot(r); }
     expect(a.hero.f.gold).toBe(100);
-    expect(b.hero.f.gold).toBe(75);
+    expect(b.hero.f.gold).toBe(50);
     const c = newRun("warrior", 52);
     c.heat = 4;
     const sc = fightIn(c, "fight");
     c.hero.f.hp = 10;
     sc.battle.enemy.hp = 0; sc.battle.over = "won"; settleCombat(c);
     expect(c.hero.f.hp).toBe(10);
+    // Heat 3: every heal is halved.
+    const { restore } = await import("../src/game/run");
+    const { recompute } = await import("../src/game/hero");
+    const d = newRun("cleric", 53);
+    d.hero.heat = 3; recompute(d.hero);
+    d.hero.f.hp = 1; restore(d.hero, 20);
+    expect(d.hero.f.hp).toBe(11);
   });
 });
