@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.32.0
+- Rooms with Quick Battle now also have a red ⚔️ Fight button beside it, so it's clear you can still fight them yourself (clicking the card works too).
+- Options: Quick Battle can be switched On or Off. Off hides the Quick Battle buttons on the map and in fights.
+
 ## 1.31.4
 - Phones: Resplendent chest cards are stacked one under the other instead of side by side.
 

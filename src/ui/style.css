@@ -921,3 +921,21 @@ button.take-cmp { color: #e6f0ff; font-weight: 700; border-color: #5f8fc8; backg
   .flip, .flip .face { min-height: 84px; }
   .flip .back { font-size: 2rem; }
 }
+
+/* Rooms with Quick Battle: a plain Fight button beside it, so fighting it yourself is obvious. */
+.room-acts { flex: 0 0 88px; display: flex; flex-direction: column; gap: 6px; }
+.room-acts > button { flex: 1 1 0; width: 100%; }
+.fight-room { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 6px; font-size: .85rem; font-weight: 700; color: #ffe7ea; border-color: #b85a68; background: linear-gradient(170deg, #9a3a49 0%, #6e2633 100%); }
+.fight-room .ic { font-size: 1.3rem; }
+.room-acts .auto-room { flex: 1 1 0; }
+.room-acts .auto-room .ic { font-size: 1.3rem; }
+@media (max-width: 480px) {
+  .room-acts { flex-basis: 100px; }
+  .room-acts > button { flex-direction: row; gap: 5px; padding: 6px 6px; font-size: .8rem; line-height: 1.1; min-height: 0; text-align: left; }
+  .room-acts > button .ic, .room-acts .auto-room .ic, .room-acts .fight-room .ic { font-size: 1rem; }
+}
+@media (min-width: 481px) {
+  .room-acts { flex: 0 0 auto; flex-direction: row; }
+  .fight-room { flex-direction: row; gap: 6px; padding: 9px 10px; }
+  .fight-room .ic, .room-acts .auto-room .ic { font-size: 1.1rem; }
+}
