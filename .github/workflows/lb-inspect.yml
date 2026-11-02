@@ -28,3 +28,9 @@ jobs:
           echo
           curl -sS -i -X POST -H "Origin: https://beston-mawarire.github.io" -H "content-type: application/json" -d '{"pid":"000000000000000000000000","seed":1}' "$URL/session"
           echo
+      - name: New boards answer
+        run: |
+          URL="https://deck-dungeon-leaderboard.bestondeveloper.workers.dev"
+          curl -sS "$URL/leaderboard?board=floor&scope=dailyall&limit=5"; echo
+          curl -sS "$URL/leaderboard?board=floor&scope=campaign&origin=warrior&limit=5"; echo
+          curl -sS "$URL/killers"; echo
