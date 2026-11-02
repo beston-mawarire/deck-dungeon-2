@@ -16,7 +16,7 @@ export const BOARDS: { id: Board; label: string; icon: string; unit: string }[] 
   { id: "abyss", label: "Abyss", icon: "🕳️", unit: "depth" },
   { id: "daily", label: "Daily", icon: "📅", unit: "floor, in today's Daily Dungeon" }
 ];
-export interface Row { rank: number; name: string; value: number; origin: string; floor: number; plates?: number; you?: boolean }
+export interface Row { rank: number; name: string; title?: string; value: number; origin: string; floor: number; plates?: number; you?: boolean }
 
 export const leaderboardOn = () => LEADERBOARD_URL.length > 0;
 
@@ -35,6 +35,9 @@ export function playerId(): string {
   return id;
 }
 export const playerName = () => store.get("dd2-name") ?? "";
+/** The achievement title shown next to your name on the boards (empty: none). */
+export const playerTitle = () => store.get("dd2-title") ?? "";
+export const setPlayerTitle = (t: string) => store.set("dd2-title", t.slice(0, 24));
 export function setPlayerName(name: string): string {
   const clean = name.replace(/[^\p{L}\p{N} _.\-']/gu, "").trim().slice(0, 16);
   if (clean) store.set("dd2-name", clean);
@@ -79,7 +82,7 @@ export async function reportFloor(run: Run) {
 export async function submitRun(run: Run, version: string): Promise<{ ranks?: Partial<Record<Board, number>>; verified?: boolean } | null> {
   if (!leaderboardOn() || run.submitted || !playerName()) return null;
   run.submitted = true;
-  const body = { pid: playerId(), sid: run.sid, name: playerName(), version, ...runSummary(run) };
+  const body = { pid: playerId(), sid: run.sid, name: playerName(), title: playerTitle() || undefined, version, ...runSummary(run) };
   try {
     return await post(body);
   } catch {

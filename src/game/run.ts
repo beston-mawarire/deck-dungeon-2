@@ -15,6 +15,7 @@ import { RARITIES } from "../engine/types";
 import { autoBattleWins } from "./auto";
 import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
 import { removeItem, gainPotions, potionCap, potionsPerFight, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { abyssMod, heatOf } from "./progress";
 import { isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -179,6 +180,11 @@ export interface Run {
   finale?: boolean;
   /** Two relics to choose between (one is yours), waiting for the player. */
   relicChoice?: string[];
+  /** Heat level (optional Campaign difficulty) and this run's Abyss twist. */
+  heat?: number;
+  abyssMod?: string;
+  /** Class Mastery XP already counted for this run (a won Campaign run that carries on is recorded twice). */
+  masteryBanked?: number;
   /** Build moments already celebrated this run. */
   moments?: string[];
   /** Inventory tabs as last seen (a short signature each), so new things get a dot. */
@@ -248,6 +254,9 @@ export function genChoices(run: Run): RoomType[] {
   if (run.floor >= 2 && UNIQUES.some(u => !run.seenBosses.has(`u:${u.id}`))) w.unique = 2;
   // Treasure Goblins: from floor 3, about as rare as a Legendary drop.
   if (run.floor >= 3) w.goblin = 0.5;
+  if (abyssMod(run, "goblin_rush")) w.goblin = 6;
+  // Heat 5: Elites and Champions turn up twice as often.
+  if (heatOf(run) >= 5) { w.elite = (w.elite ?? 0) * 2; w.champion = (w.champion ?? 0) * 2; }
   // Your Nemesis: from floor 2, about as often as a Strange Presence, once per run.
   if (run.nemesis && run.floor >= 2 && !run.seenBosses.has("nemesis")) w.nemesis = 2.5;
   if (run.step === 0) { w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; w.unique = 0; w.nemesis = 0; }
@@ -308,7 +317,7 @@ function enterRoom(run: Run, room: RoomType) {
       return fight(run, "boss", "crimson");
     case "wooden":
       const woodOdds = useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden;
-      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, woodOdds, luckFloor(run)), depth(run), run.rng)], gold: 3 + run.floor, scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0 };
+      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, woodOdds, luckFloor(run)), depth(run), run.rng)], gold: (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0 };
       return;
     case "iron": {
       const key = (h.relics["skeleton_key"] ?? 0) > 0;
@@ -319,7 +328,7 @@ function enterRoom(run: Run, room: RoomType) {
       const ironOdds = useClover(run) ? luckyOdds(tables(run).iron) : tables(run).iron;
       const items = [rollItem(h, rollRarity(run.rng, ironOdds, luckFloor(run)), depth(run), run.rng)];
       if (key) items.push(rollItem(h, rollRarity(run.rng, ironOdds, luckFloor(run)), depth(run), run.rng));
-      run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: 5 + run.floor * 2, scrolls: 0, potions: 0 };
+      run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: (5 + run.floor * 2) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: 0 };
       return;
     }
     case "altar":
@@ -387,6 +396,7 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   if (run.mode === "abyss" && !then) {
     if (rank === "boss" && run.step >= STEPS_PER_FLOOR) uber = true;
     else rank = ({ normal: "elite", elite: "champion", champion: "boss" } as Partial<Record<MonsterRank, MonsterRank>>)[rank] ?? rank;
+    if (rank === "champion" && abyssMod(run, "crimson_tide")) rank = "crimson";
   }
   // Fighting anything but a normal monster breaks the plain-fight streak (the floor boss doesn't count: you can't avoid it).
   if (rank !== "normal" && !(rank === "boss" && !then)) run.normalStreak = 0;
@@ -406,7 +416,14 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
     enemy.maxHp = enemy.hp = Math.round(enemy.hp * g);
     enemy.damage = Math.round(enemy.damage * g);
     if (uber) makeUber(enemy, F, run.rng);
+    if (abyssMod(run, "thick_hides")) enemy.maxHp = enemy.hp = Math.round(enemy.hp * 1.3);
+    if (abyssMod(run, "glass_cannon")) { enemy.damage = Math.round(enemy.damage * 1.3); enemy.dmgTaken = (enemy.dmgTaken ?? 0) + 30; }
+    if (abyssMod(run, "blood_moon") && then !== "death") enemy.items["x_crimson"] = 1;
   }
+  // Heat: tougher foes (1), and harder hits at 5.
+  const heat = heatOf(run);
+  if (heat >= 1 && then !== "death") enemy.maxHp = enemy.hp = Math.round(enemy.hp * 1.2);
+  if (heat >= 5 && then !== "death") enemy.damage = Math.round(enemy.damage * 1.15);
   const battle = startBattle(run.hero.f, enemy, Math.floor(run.rng() * 1e9), run.carry);
   // Angelic Blessing: heal 2 as the fight begins.
   if ((run.hero.f.persist["angelFights"] ?? 0) > 0) healF(battle, run.hero.f, 2, "Angelic Blessing");
@@ -520,6 +537,8 @@ export function drinkPotion(run: Run): string | null {
   if (h.f.items["pc_alchemist_coat"]) amount = Math.round(amount * 1.25);
   if (h.f.items["la_flaskwarden"]) amount *= 2;
   if (h.f.items["c_famine"]) amount = Math.ceil(amount / 2);
+  if (abyssMod(run, "deep_flasks")) amount *= 2;
+  h.f.persist["potsDrunk"] = (h.f.persist["potsDrunk"] ?? 0) + 1;
   if (run.scene.t === "combat") {
     const b = run.scene.battle;
     actionToll(b, h.f);
@@ -601,16 +620,21 @@ function afterFight(run: Run) {
     thiefPay = Math.floor(h.f.gold * 0.6);
     h.f.gold += thiefPay;
   }
+  // Achievement marks.
+  if (rank === "champion" && run.floor === 1) bump("ach_champ1");
+  if (then === "goblin") bump("ach_goblin");
+  if (rank === "boss" && !b.player.flags["hurt"]) bump("ach_flawless_boss");
+  if ((b.enemy.items["m_death"] ?? 0) > 0) bump("ach_death");
   if (rank === "boss") {
     run.stats.bosses++;
     if (then !== "crimson") run.lastBoss = b.enemy.name;
     h.f.persist["bossKills"] = (h.f.persist["bossKills"] ?? 0) + 1;
   }
   // Catch your breath: a small heal after every won fight.
-  restore(h, Math.ceil(h.f.maxHp * 0.15));
+  restore(h, Math.ceil(h.f.maxHp * (abyssMod(run, "merciful_dark") ? 0.3 : heatOf(run) >= 4 ? 0.075 : 0.15)));
   const xp = { normal: 1, elite: 3, champion: 5, crimson: 7, boss: b.enemy.crimson ? 9 : 6 }[rank];
-  gainXp(run, xp);
-  const gold = { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank] + relicBonus(h.relics, "gold");
+  gainXp(run, abyssMod(run, "thick_hides") ? Math.round(xp * 1.5) : xp);
+  const gold = { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank] * (abyssMod(run, "golden_depths") ? 2 : 1) + relicBonus(h.relics, "gold");
   const items: GearItem[] = [];
   let scrolls = 0;
   let potions = 0;
@@ -669,7 +693,7 @@ function afterFight(run: Run) {
   } else if (rank === "elite") {
     items.push(roll(T.elite));
     if (then === "mimic") items.push(roll(T.elite));
-    if (run.rng() < 0.35) relic = randomRelic(run);
+    if (run.rng() < (abyssMod(run, "blood_moon") ? 0.7 : 0.35)) relic = randomRelic(run);
   }
   if (rank === "champion" && then !== "dragon") {
     items.push(roll(T.champion));
@@ -965,7 +989,7 @@ export const wealthMult = (run: Run) => 1 + Math.min(0.75, Math.max(0, run.hero.
 /** Shop prices: floor and curses (priceMult) times what the Merchant thinks you can afford. */
 export const shopMult = (run: Run) => priceMult(run) * wealthMult(run);
 
-export const priceMult = (run: Run) => (1 + 0.12 * (run.floor - 1)) * gouge(run.hero);
+export const priceMult = (run: Run) => (1 + 0.12 * (run.floor - 1)) * gouge(run.hero) * (heatOf(run) >= 2 ? 1.3 : 1);
 /** Each reroll at the same Merchant costs double the last (from 10 Gold, scaled by the floor), up to 5 rerolls per visit. */
 export const MAX_SHOP_REROLLS = 5;
 export const shopRerollCost = (run: Run) => Math.round(10 * shopMult(run)) * 2 ** run.shopRerolls;
@@ -1021,7 +1045,7 @@ export const restPct = (h: Hero) => ((h.curses["c_restless"] ?? 0) > 0 ? 0.2 : 0
 export function rest(run: Run, _choice: "heal" = "heal"): string | null {
   const h = run.hero;
   if (run.scene.t !== "rest" || run.scene.done) return null;
-  restore(h, Math.round(h.f.maxHp * restPct(h)));
+  restore(h, Math.round(h.f.maxHp * restPct(h) * (heatOf(run) >= 3 ? 0.5 : 1)));
   run.scene.done = true;
   return null;
 }

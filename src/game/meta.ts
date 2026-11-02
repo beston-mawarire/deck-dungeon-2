@@ -2,6 +2,7 @@
 // and the Codex of everything you've found. Stored in the browser (localStorage), per player.
 import type { Run } from "./run";
 import { EQUIP_SLOTS, itemName } from "./hero";
+import { ACHIEVEMENTS, heatOf, HEAT_RENOWN, type Kit, masteryFor, masteryLevel, MASTERY_MAX } from "./progress";
 
 /** One finished run, for the Run history. */
 export interface HistoryEntry {
@@ -38,6 +39,16 @@ export interface Meta {
   abyssRuns?: number;
   /** Today's Daily Dungeon attempt (one a day). */
   daily?: { day: string; floor: number; won: boolean; done?: boolean };
+  /** Class Mastery XP, and each class's chosen starting kit. */
+  mastery?: Partial<Record<string, number>>;
+  kits?: Partial<Record<string, Kit>>;
+  /** Campaign wins per class. */
+  winsBy?: Partial<Record<string, number>>;
+  /** Achievements earned, and the title shown by your name on the leaderboards. */
+  achievements?: string[];
+  title?: string;
+  /** Heat level chosen for Campaign runs (0 = off). */
+  heat?: number;
   /** Legendaries whose lore you've read (shown the first time you hold each). */
   loreSeen?: string[];
   /** What killed your last Campaign run: it waits in the next one. */
@@ -116,11 +127,11 @@ export function lockedIds(m: Meta): Set<string> {
 
 export function renownFor(run: Run): number {
   const floors = run.floor - 1 + (run.scene.t === "over" && run.scene.won ? 1 : 0);
-  return Math.max(1, floors * 2 + run.stats.bosses * 5 + run.stats.legendaries * 3 + run.stats.fusions * 5);
+  return Math.round(Math.max(1, floors * 2 + run.stats.bosses * 5 + run.stats.legendaries * 3 + run.stats.fusions * 5) * (1 + HEAT_RENOWN * heatOf(run)));
 }
 
 /** Record a finished run. Returns the Renown earned and any tiers newly unlocked. */
-export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: number; unlocked: string[] } {
+export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: number; unlocked: string[]; achievements: string[]; mastery?: { origin: string; gained: number; level: number; levelUp: boolean } } {
   const before = m.renown;
   const earned = Math.max(0, renownFor(run) - alreadyEarned);
   m.renown += earned;
@@ -148,5 +159,25 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
   bankRuin(m, run);
   m.found = [...new Set([...m.found, ...run.found])];
   saveMeta(m);
-  return { earned, unlocked: UNLOCK_TIERS.filter(t => before < t.at && m.renown >= t.at).map(t => t.name) };
+  // Class Mastery: floors reached and bosses beaten (only the part not counted yet, if a won run carried on).
+  const o = run.hero.origin;
+  const total = masteryFor(run);
+  const gained = Math.max(0, total - (run.masteryBanked ?? 0));
+  run.masteryBanked = total;
+  const beforeLv = masteryLevel(m.mastery?.[o] ?? 0);
+  m.mastery = { ...(m.mastery ?? {}), [o]: (m.mastery?.[o] ?? 0) + gained };
+  const lv = masteryLevel(m.mastery[o] ?? 0);
+  if (run.scene.t === "over" && run.scene.won && run.mode === "campaign" && !alreadyEarned) m.winsBy = { ...(m.winsBy ?? {}), [o]: (m.winsBy?.[o] ?? 0) + 1 };
+  // Achievements: each once, with a Renown bonus.
+  const got: string[] = [];
+  for (const a of ACHIEVEMENTS) {
+    if (m.achievements?.includes(a.id)) continue;
+    const ok = a.id === "mastery10" ? lv >= MASTERY_MAX : a.check(run, { wins: m.wins, winsBy: m.winsBy as Record<string, number> });
+    if (!ok) continue;
+    m.achievements = [...(m.achievements ?? []), a.id];
+    m.renown += a.renown;
+    got.push(a.id);
+  }
+  saveMeta(m);
+  return { earned, achievements: got, mastery: { origin: o, gained, level: lv, levelUp: lv > beforeLv }, unlocked: UNLOCK_TIERS.filter(t => before < t.at && m.renown >= t.at).map(t => t.name) };
 }

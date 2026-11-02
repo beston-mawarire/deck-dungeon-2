@@ -14,6 +14,7 @@ import {
   keepsOffHand, findItem, recompute, reveal, salvage, slotsFor, unequip, upgradeCost, xpToLevel
 } from "../game/hero";
 import { LEGENDARY_LORE } from "../data/lore";
+import { ABYSS_MODS, ACHIEVEMENTS, applyKit, currentAbyssMod, HEAT_LEVELS, HEAT_MAX, HEAT_RENOWN, heatOf, KIT_COMMON_LEVEL, KIT_SLOTS, KIT_UNCOMMON_LEVEL, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX, MASTERY_XP } from "../game/progress";
 import { abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
@@ -25,7 +26,7 @@ import {
 import { fortunePips } from "../game/loot";
 import { PLATE_BONUS, potionCap, potionsPerFight } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
-import { backupCode, backupVault, BOARDS, type Board, fetchBoard, fetchVault, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun, useBackupCode, vaultDirty } from "./leaderboard";
+import { backupCode, backupVault, setPlayerTitle, BOARDS, type Board, fetchBoard, fetchVault, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun, useBackupCode, vaultDirty } from "./leaderboard";
 import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
@@ -59,6 +60,7 @@ let plateArmed = false;
 let restoreOpen = false;
 let infoOpen = false;
 let historyOpen = false;
+let achOpen = false;
 /** Starting the Daily Dungeon over a saved run takes a second tap. */
 let dailyArmed = false;
 let restoreMsg = "";
@@ -105,7 +107,7 @@ let endArmed = false;
 let ackedTalentScene: unknown = null;
 let note = "";
 let noteBad = false;
-let recorded: { earned: number; unlocked: string[] } | null = null;
+let recorded: ReturnType<typeof recordRun> | null = null;
 /** Renown already banked this run (a campaign win that continues into Endless). */
 let banked = 0;
 
@@ -266,7 +268,8 @@ function itemCard(it: GearItem, buttons = "", compare = false, equippedAs = "") 
 }
 
 const nextMilestone = (f: number) => (f < WALL_FLOOR ? ` · a Horror at ${WALL_FLOOR}` : f < DEATH_FLOOR ? ` · DEATH at ${DEATH_FLOOR}` : f < END_FLOOR ? ` · the End at ${END_FLOOR}` : "");
-const floorLabel = (r: Run) => (r.mode === "abyss" ? `Depth <b>${Math.min(r.floor, ABYSS_FLOORS)}</b>/${ABYSS_FLOORS}` : r.mode === "endless" ? `Floor <b>${r.floor}</b>${nextMilestone(r.floor)}` : `Floor <b>${Math.min(r.floor, FLOORS)}</b>/${FLOORS}`);
+const runChips = (r: Run) => `${heatOf(r) ? ` <span class="heat-chip" title="Heat ${heatOf(r)}">🔥${heatOf(r)}</span>` : ""}${r.mode === "abyss" && r.abyssMod ? (() => { const m = ABYSS_MODS.find(x => x.id === r.abyssMod); return m ? ` <span class="heat-chip" title="${esc(`${m.name}: ${m.text}`)}">${m.icon}</span>` : ""; })() : ""}${r.daily ? ` <span class="heat-chip" title="Daily Dungeon">📅</span>` : ""}`;
+const floorLabel = (r: Run) => runChips(r) + (r.mode === "abyss" ? `Depth <b>${Math.min(r.floor, ABYSS_FLOORS)}</b>/${ABYSS_FLOORS}` : r.mode === "endless" ? `Floor <b>${r.floor}</b>${nextMilestone(r.floor)}` : `Floor <b>${Math.min(r.floor, FLOORS)}</b>/${FLOORS}`);
 
 /** The current bounty's tracker button (📋 progress/target). */
 function bountyBtn(r: Run) {
@@ -328,6 +331,7 @@ function titleScreen() {
           <div class="stile extra-tile plate-tile"><span>⬛</span><span><b>${meta.plates ?? 0}</b> Vanadium Plate${(meta.plates ?? 0) === 1 ? "" : "s"} to give<span class="sub">Rare drops from the same bosses.</span></span></div>
           <div class="stile extra-tile" style="grid-column: 1 / -1"><span>🏅</span><span>Deepest: <b>${meta.abyssBest ? `depth ${meta.abyssBest}/10` : "not yet"}</b><span class="sub">${meta.abyssRuns ?? 0} Abyss run${(meta.abyssRuns ?? 0) === 1 ? "" : "s"}</span></span></div>
         </div>
+        ${(() => { const w = currentAbyssMod(); return `<div class="panel abyss-week"><b>${w.icon} This week: ${esc(w.name)}</b><br><span class="sub">${esc(w.text)}. Changes every Monday.</span></div>`; })()}
         ${shards ? "" : `<div class="panel abyss-warn">You need a Ruin Shard to enter. Every boss from floor 20 of the Campaign drops one.</div>`}
         <h2 class="bright">Choose a hero</h2>
         <p class="sub">Vanadium Plates make a hero stronger in the Abyss only. Once given, a plate stays with that hero for good.</p>
@@ -339,11 +343,23 @@ function titleScreen() {
   ${cont}
   <div class="story-row"><span>🏰 ${FLOORS} floors, ${FLOORS} bosses. The Hollow King waits at the bottom, and beyond him, deeper still.</span><button class="story-btn" data-story="campaign">📖 Click to read story</button></div>
   ${dailyPanel()}
+  ${heatPanel()}
   ${meta.nemesis ? `<div class="panel nemesis-panel">😈 <b>Your Nemesis:</b> ${esc(meta.nemesis.name)}${meta.nemesis.level > 1 ? ` <span class="sub">(beaten you ${meta.nemesis.level}×)</span>` : ""}<br><span class="sub">It waits somewhere in your next Campaign run, from floor 2. There's a bounty on its head.</span></div>` : ""}
   <h2 class="bright">Choose an origin</h2>
   <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
   ${originCards(false)}
   <p class="version">${VERSION}</p>`;
+}
+
+/** Heat: optional Campaign difficulty for more Renown (after your first win). */
+function heatPanel() {
+  if (!meta.wins) return `<div class="panel heat-panel locked"><b>🔥 Heat</b> <span class="sub">— win the Campaign once to unlock harder runs for more Renown.</span></div>`;
+  const h = meta.heat ?? 0;
+  return `<div class="panel heat-panel">
+    <div class="row"><b class="grow">🔥 Heat ${h ? h : "off"}</b><span class="sub">${h ? `+${Math.round(HEAT_RENOWN * h * 100)}% Renown` : "Campaign runs only"}</span></div>
+    <div class="heat-btns">${Array.from({ length: HEAT_MAX + 1 }, (_, i) => `<button class="small ${h === i ? "primary" : ""}" data-heat="${i}">${i === 0 ? "Off" : `🔥${i}`}</button>`).join("")}</div>
+    ${h ? `<ul class="heat-list">${HEAT_LEVELS.filter(l => l.level <= h).map(l => `<li><b>${esc(l.name)}:</b> ${esc(l.text)}</li>`).join("")}</ul>` : ""}
+  </div>`;
 }
 
 /** The Daily Dungeon: the same dungeon (seed and class) for everyone today, one attempt. */
@@ -372,7 +388,22 @@ function infoPopup() {
     <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span></div>
       ${next ? `<p class="sub">Next unlock at ${next.at} Renown: <b>${esc(next.name)}</b> (${locked.size} items still locked)</p>` : `<p class="sub">Everything is unlocked.</p>`}</div>
     <div class="menu-btns two" style="margin-top:12px"><button data-codex>📖 Codex</button><button data-help>❓ How to play</button></div>
-    <div class="menu-btns" style="grid-template-columns:1fr;margin-top:10px"><button data-history>📜 Run history${meta.history?.length ? ` (${meta.history.length})` : ""}</button></div>
+    <div class="menu-btns two" style="margin-top:10px"><button data-history>📜 Run history${meta.history?.length ? ` (${meta.history.length})` : ""}</button><button data-achievements>🏆 Achievements (${meta.achievements?.length ?? 0}/${ACHIEVEMENTS.length})</button></div>
+  </div></div>`;
+}
+
+/** Achievements: what you've earned, what's left, and the title you show on the leaderboards. */
+function achievementsPopup() {
+  const got = new Set(meta.achievements ?? []);
+  const rows = ACHIEVEMENTS.map(a => `<div class="ach ${got.has(a.id) ? "got" : ""}">
+    <div class="row"><b class="grow">${got.has(a.id) ? "🏆" : "🔒"} ${esc(a.name)}</b><span class="sub">+${a.renown} Renown</span></div>
+    <p class="sub">${esc(a.text)}</p>
+    ${a.title ? `<div class="row">${got.has(a.id) ? `<button class="small ${meta.title === a.title ? "primary" : ""}" data-title="${esc(a.title)}">${meta.title === a.title ? "✓ " : ""}Title: “${esc(a.title)}”</button>` : `<span class="sub">Title: “${esc(a.title)}”</span>`}</div>` : ""}
+  </div>`).join("");
+  return `<div class="overlay"><div class="inner ach-pop">
+    <div class="row"><h1 class="grow">🏆 Achievements</h1><button class="closebtn" data-closeach>✕ Close</button></div>
+    <p class="sub">${got.size}/${ACHIEVEMENTS.length} earned. ${meta.title ? `Your title on the leaderboards: <b>“${esc(meta.title)}”</b> <button class="small" data-title="">Remove</button>` : "Pick a title you've earned to show next to your name on the leaderboards."}</p>
+    ${rows}
   </div></div>`;
 }
 
@@ -678,7 +709,7 @@ function clearedScene(r: Run) {
 
 function restScene(r: Run) {
   if (r.scene.t !== "rest") return "";
-  return `<h2>Campfire</h2>${r.scene.done ? `<p>You rest a while.</p>` : `<div class="row"><button class="primary" data-rest="heal">Rest: heal ${Math.round(restPct(r.hero) * 100)}% of Max HP</button></div>`}
+  return `<h2>Campfire</h2>${r.scene.done ? `<p>You rest a while.</p>` : `<div class="row"><button class="primary" data-rest="heal">Rest: heal ${Math.round(restPct(r.hero) * (heatOf(r) >= 3 ? 0.5 : 1) * 100)}% of Max HP</button></div>`}
   <div class="row" style="margin-top:12px"><button data-leave>Move on</button></div>`;
 }
 
@@ -879,7 +910,7 @@ function leaderboardPopup() {
   else if (lbError) body = `<p class="sub center">${esc(lbError)}</p>`;
   else if (!lbRows) body = `<p class="sub center">Loading…</p>`;
   else if (!lbRows.length) body = `<p class="sub center">Nobody's on this board yet. Be the first!</p>`;
-  else body = `<ol class="lb-list">${lbRows.map(row => `<li class="${row.you ? "you" : ""} ${row.rank <= 3 ? `top${row.rank}` : ""}"><span class="lb-rank">${row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}</span><span class="lb-nm">${ORIGIN_IC[row.origin] ?? ""} ${esc(row.name)}${row.you ? " <i>(you)</i>" : ""}${row.plates ? ` <span class="lb-plates" title="Vanadium Plates">⬛${row.plates}</span>` : ""}</span><b class="lb-val">${fmtN(row.value)}</b></li>`).join("")}</ol>
+  else body = `<ol class="lb-list">${lbRows.map(row => `<li class="${row.you ? "you" : ""} ${row.rank <= 3 ? `top${row.rank}` : ""}"><span class="lb-rank">${row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}</span><span class="lb-nm">${ORIGIN_IC[row.origin] ?? ""} ${esc(row.name)}${row.title ? ` <span class="lb-title">“${esc(row.title)}”</span>` : ""}${row.you ? " <i>(you)</i>" : ""}${row.plates ? ` <span class="lb-plates" title="Vanadium Plates">⬛${row.plates}</span>` : ""}</span><b class="lb-val">${fmtN(row.value)}</b></li>`).join("")}</ol>
     ${lbMe ? `<p class="lb-me">You: #${lbMe.rank} · ${fmtN(lbMe.value)}</p>` : ""}`;
   return `<div class="overlay"><div class="inner lb-pop">
     <div class="row"><h1 class="grow">🏆 Leaderboards</h1><button class="closebtn" data-lbclose>✕ Close</button></div>
@@ -904,6 +935,8 @@ function overScene(r: Run) {
   return `<div class="banner ${won ? "won" : "lost"}">${r.finale ? "Nothing remains. You won everything." : won && abyss ? "You reached the bottom of the Abyss!" : won ? "The Hollow King falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen."}</div>
   ${!won && r.killer && !r.abandoned ? killerPanel(r) : ""}
   <div class="panel"><p>${abyss ? `Abyss · Depth ${Math.min(r.floor, ABYSS_FLOORS)}/${ABYSS_FLOORS}${r.hero.plates ? ` · ⬛ ${r.hero.plates} plates` : ""}` : `${r.daily ? `📅 Daily ${r.daily} · ` : ""}${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor}`} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses</p>
+  ${recorded?.achievements.length ? `<div class="ach-earned">${recorded.achievements.map(id => { const a = ACHIEVEMENTS.find(x => x.id === id)!; return `<p>🏆 <b>${esc(a.name)}</b> — ${esc(a.text)} <span class="sub">(+${a.renown} Renown${a.title ? ` · title “${esc(a.title)}”` : ""})</span></p>`; }).join("")}</div>` : ""}
+  ${recorded?.mastery?.gained ? `<p class="mastery-line">${ORIGIN_ICON[recorded.mastery.origin as OriginId]} ${esc(ORIGINS[recorded.mastery.origin as OriginId].name)} Mastery +${recorded.mastery.gained}${recorded.mastery.levelUp ? ` · <b>level ${recorded.mastery.level}!</b>${recorded.mastery.level === KIT_COMMON_LEVEL ? " Starting kit choices unlocked." : recorded.mastery.level === KIT_UNCOMMON_LEVEL ? " Uncommon kit choices unlocked." : ""}` : ""}</p>` : ""}
   ${recorded ? `<p>🏅 +${recorded.earned} Renown (total ${meta.renown})${recorded.unlocked.length ? ` · Unlocked: <b>${recorded.unlocked.map(esc).join(", ")}</b>` : ""}</p>` : ""}
   ${runStatsPanel(r)}
   <p class="sub">Final build:</p><div class="cards">${EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x).map(it => itemCard(it)).join("")}</div></div>
@@ -1202,6 +1235,14 @@ function helpGlossary() {
     row("💍", "Jeweller", "Takes turns with the Forge; two tries per visit. Fuse: two relics (marked 🔗), or two Rare-or-better trinkets (yours to discover; costs Starmetal). A fusion that doesn't take still costs the fee. Infuse: put a same-rarity trinket into a weapon, off-hand or armour; the trinket is used up. Upgraded items can't be fused or infused"),
     row("🧪", "Healing Potions", "Heal 12. You start with 3 potion slots: carry up to 3, and drink up to 3 in one fight. Potion gear and relics add slots (more at higher rarity)")
   ].join(""))}
+  ${group("📈 Between runs", [
+    row("⭐", "Class Mastery", `Each class grows with play (floors reached and bosses beaten). At mastery ${KIT_COMMON_LEVEL} you can swap its starting weapon, off-hand and armour for other Commons; at ${KIT_UNCOMMON_LEVEL}, Uncommons too`),
+    row("🏆", "Achievements", "Each one pays Renown once, and many give a title to show beside your name on the leaderboards (Info → Achievements)"),
+    row("🔥", "Heat", "After your first Campaign win: optional extra difficulty for more Renown, five levels that stack"),
+    row("📅", "Daily Dungeon", "The same dungeon and class for everyone each day; one attempt, with its own leaderboard"),
+    row("😈", "Nemesis", "Whatever kills your Campaign run waits in the next one, stronger each time it wins. Beat it for a bounty"),
+    row("🌕", "Abyss weekly twist", "Each week the Abyss changes: some twists help, some hurt")
+  ].join(""))}
   ${group("🕳️ The Abyss", [
     row("🔓", "Opening it", `Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign. Then each Abyss run costs one Ruin Shard`),
     row("🪨", "Ruin Shards", "Every Campaign boss from floor 20 on drops one"),
@@ -1303,6 +1344,37 @@ function storyBeat(p: { icon: string; title: string; text: string; list?: string
   </div></div>`;
 }
 
+/** Class Mastery for an origin: level, progress, and the starting-kit choices it has opened. */
+function masteryPanel(o: OriginId) {
+  const xp = meta.mastery?.[o] ?? 0;
+  const lv = masteryLevel(xp);
+  const next = lv < MASTERY_MAX ? MASTERY_XP[lv + 1] : 0;
+  const prev = MASTERY_XP[lv];
+  const pct = lv >= MASTERY_MAX ? 100 : Math.round(((xp - prev) / (next - prev)) * 100);
+  const og = ORIGINS[o];
+  const kit = meta.kits?.[o] ?? {};
+  const locked = lockedIds(meta);
+  const slotName: Record<KitSlot, string> = { main: "Weapon", off: "Off-hand", armour: "Armour" };
+  const sel = (slot: KitSlot, i: number) => {
+    const opts = kitOptions(slot, lv, locked);
+    const def = og.kit[i];
+    return `<label class="kit-row"><span>${slotName[slot]}</span><select data-kit="${slot}">
+      <option value="">${esc(baseOf(def).name)} (your own)</option>
+      ${opts.filter(x => x.id !== def).map(x => `<option value="${x.id}" ${kit[slot] === x.id ? "selected" : ""}>${esc(x.name)}${x.rarity === "uncommon" ? " ◆ Uncommon" : ""}</option>`).join("")}
+    </select></label>`;
+  };
+  const chosen = KIT_SLOTS.map(sl => kit[sl]).filter(Boolean).map(id => baseOf(id!));
+  return `<div class="panel mastery-panel">
+    <div class="row"><b class="grow">⭐ Mastery ${lv}${lv >= MASTERY_MAX ? " (max)" : ""}</b><span class="sub">${lv >= MASTERY_MAX ? `${xp} XP` : `${xp}/${next} XP`}</span></div>
+    <div class="bar mastery-bar"><i style="width:${pct}%"></i></div>
+    <p class="sub">Earned by playing the ${og.name}: floors reached and bosses beaten.</p>
+    ${lv >= KIT_COMMON_LEVEL ? `<p class="kit-head"><b>Starting kit</b> <span class="sub">${lv >= KIT_UNCOMMON_LEVEL ? "Commons and Uncommons" : `Commons (Uncommons at mastery ${KIT_UNCOMMON_LEVEL})`}</span></p>
+      ${KIT_SLOTS.map(sel).join("")}
+      ${chosen.length ? `<div class="kit-notes">${chosen.map(b => `<p class="sub"><b>${esc(b.name)}:</b> ${esc(b.text)}</p>`).join("")}</div>` : ""}`
+      : `<p class="sub">Reach mastery ${KIT_COMMON_LEVEL} to choose your starting kit.</p>`}
+  </div>`;
+}
+
 function originPopup(o: OriginId) {
   const og = ORIGINS[o];
   const p = getItem(og.passive);
@@ -1315,6 +1387,7 @@ function originPopup(o: OriginId) {
     <h1 class="center bigname">${og.name}</h1>
     <div class="center bigicon">${ORIGIN_ICON[o]}</div>
     <p class="center">Into the Abyss as the ${og.name}.</p>
+    ${masteryPanel(o)}
     <div class="panel plate-panel"><p class="big">⬛ <b>${pl}</b> Vanadium Plate${pl === 1 ? "" : "s"} on the ${og.name}</p>
       <p class="sub">${pl ? `+${Math.round(PLATE_BONUS * pl * 100)}% Max HP, Armor and Damage in the Abyss.` : "No plates yet."} Each plate adds ${Math.round(PLATE_BONUS * 100)}% more.</p>
       ${free ? `<button class="small ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : `＋ Give a plate (${free} to give)`}</button>` : `<p class="sub">No plates to give. Campaign bosses from floor 20 sometimes drop one.</p>`}</div>
@@ -1330,6 +1403,7 @@ function originPopup(o: OriginId) {
     <p>${esc(ORIGIN_PITCH[o])}</p>
     <p class="sub"><b>${esc(p.name)}:</b> ${esc(p.text)}.</p>
     <p class="sub">Starts with ${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p>
+    ${masteryPanel(o)}
     ${savedSummary() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>🏰 Start Campaign</button><button data-closeorigin>Back</button></div>
   </div></div>`;
@@ -1513,7 +1587,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${infoOpen && !helpOpen && !historyOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -1771,6 +1845,20 @@ function bind() {
     on("[data-info]", () => { infoOpen = true; });
     on("[data-closeinfo]", () => { infoOpen = false; });
     on("[data-history]", () => { historyOpen = true; });
+    on("[data-achievements]", () => { achOpen = true; });
+    on("[data-closeach]", () => { achOpen = false; });
+    on("[data-title]", el => { meta.title = el.dataset.title || undefined; saveMeta(meta); setPlayerTitle(meta.title ?? ""); });
+    on("[data-heat]", el => { meta.heat = Number(el.dataset.heat) || 0; saveMeta(meta); });
+    app.querySelectorAll<HTMLSelectElement>("[data-kit]").forEach(el => {
+      el.onclick = ev => ev.stopPropagation();
+      el.onchange = () => {
+        const o = pendingOrigin; if (!o) return;
+        const k = { ...(meta.kits?.[o] ?? {}) };
+        const slot = el.dataset.kit as KitSlot;
+        if (el.value) k[slot] = el.value; else delete k[slot];
+        meta.kits = { ...(meta.kits ?? {}), [o]: k }; saveMeta(meta); render();
+      };
+    });
     on("[data-closehistory]", () => { historyOpen = false; });
     on("[data-back]", () => { view = "title"; });
     on("[data-play]", () => { view = "title"; });
@@ -1826,6 +1914,8 @@ function bind() {
       backupVault(vaultOf(meta));
       mode = "abyss"; lbResult = null; lbNaming = false; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
       const nr = newRun(o, Date.now() & 0x7fffffff, "abyss", lockedIds(meta));
+      nr.abyssMod = currentAbyssMod().id;
+      applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0));
       nr.hero.plates = meta.classPlates?.[o] ?? 0;
       recompute(nr.hero); nr.hero.f.hp = nr.hero.f.maxHp;
       run = nr; void startSession(nr);
@@ -1834,7 +1924,7 @@ function bind() {
     on("[data-help]", () => { helpOpen = true; });
     on("[data-closehelp]", () => { helpOpen = false; });
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode; });
-    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; run = nr; void startSession(nr); });
+    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0)); run = nr; void startSession(nr); });
     return;
   }
   const r = run;
@@ -1949,6 +2039,8 @@ watchForUpdates(() => { if (run && run.scene.t !== "map" && run.scene.t !== "ove
 // Going offline: tell the player what that means. Coming back: a quick note.
 window.addEventListener("offline", () => { offlineOpen = true; render(); });
 window.addEventListener("online", () => { offlineOpen = false; say("📶 You're back online.", false); void flushQueue(); if (vaultDirty()) backupVault(vaultOf(meta)); render(); });
+
+setPlayerTitle(meta.title ?? "");
 
 // Abyss items backup: resend a backup that didn't make it; on a device that has never held any, adopt the online copy.
 if (vaultDirty()) backupVault(vaultOf(meta));

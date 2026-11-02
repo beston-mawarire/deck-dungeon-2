@@ -17,7 +17,7 @@ Suggested 2026-11-02. ✅ = done, 🔨 = in progress.
 
 ## Replayability
 - ✅ **Daily Dungeon**: the same seed (and class) for everyone each day, one attempt, with its own leaderboard.
-- **Achievements with unlocks**: e.g. "beat a Champion on floor 1", "win without potions", "reach floor 20 cursed"; reward cosmetic titles or starting-kit options.
-- **Class mastery**: cross-run XP per class that unlocks alternate starting kits (e.g. a two-handed Warrior).
-- **Heat levels**: optional campaign modifiers chosen before a run (+25% enemy HP, no Campfires…) for more Renown.
-- **Abyss weekly modifier**: one rotating twist per week ("all Champions are Crimson", "chests are Mimics").
+- ✅ **Achievements with unlocks** (Renown + titles): e.g. "beat a Champion on floor 1", "win without potions", "reach floor 20 cursed"; reward cosmetic titles or starting-kit options.
+- ✅ **Class mastery** (Common kits from mastery 2, Uncommon from 6; 14 new Commons): cross-run XP per class that unlocks alternate starting kits (e.g. a two-handed Warrior).
+- ✅ **Heat levels**: optional campaign modifiers chosen before a run (+25% enemy HP, no Campfires…) for more Renown.
+- ✅ **Abyss weekly modifier**: one rotating twist per week ("all Champions are Crimson", "chests are Mimics").

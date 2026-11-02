@@ -5,6 +5,14 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.22.0
+- **Class Mastery**: each class earns mastery from floors reached and bosses beaten (10 levels). From mastery 2 you can choose its starting weapon, off-hand and armour from the Commons; from mastery 6, from the Uncommons too. Shown in each class's popup.
+- **14 new Common items** (Woodsman's Hatchet, Boar Spear, Butcher's Knife, Chain Flail, Cracked Wand, Pilgrim's Cane, Pot Lid, Smoke Stick, Prayer Card, Scrap Mail, Fur Cloak, Rough Robe, Rabbit's Foot, Whetstone), in the loot pool and as kit choices.
+- **Achievements**: 22 to earn, each paying Renown once; many give a title you can show beside your name on the leaderboards (Info → Achievements).
+- **Heat**: after your first Campaign win, five stacking difficulty levels for +20% Renown each (tougher foes, greedy merchants, cold campfires, hungry dark, elite swarm). Not used in the Daily Dungeon or the Abyss.
+- **Abyss weekly twist**: one of eight twists each week (some help, some hurt), shown on the Abyss tab and in the run's header.
+- How to play has a "Between runs" section.
+
 ## 1.21.0
 - **Relic choice**: bosses always, Champions and other big foes half the time, and Elites a quarter of the time offer a choice of two relics instead of one.
 - **Nemesis**: whatever kills your Campaign run waits in your next one (from floor 2), tougher than a Champion and stronger every time it wins. Beat it for its bounty: Gold, an Epic or Legendary, a relic to choose and a Scroll. The title screen shows who your Nemesis is.
