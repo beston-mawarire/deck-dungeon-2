@@ -4,6 +4,8 @@ import { ABYSS_ITEMS } from "../data/abyss";
 import { relicBonus } from "../data/basic_relics";
 import { CRIMSON, GEAR_BASES, LEGENDARIES } from "../data";
 import { ORIGINS } from "../data/origins";
+import { genHooks, genLines, GRADE_MARK, genTopGrade, GEN_MODULE_MAP, modValue } from "./gen";
+import { SIGIL_SETS } from "../data/talisman";
 import { PLAIN_FACES } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import type { Fighter, GearBase, GearItem, OriginId, Rarity, Slot, StatBlock } from "../engine/types";
@@ -16,6 +18,12 @@ export const hasThirdTrinket = (h: Hero) => h.keepsake === "ks_collector";
 export const openSlots = (h: Hero) => EQUIP_SLOTS.filter(s => s !== "trinket3" || hasThirdTrinket(h));
 export const BACKPACK_SIZE = 6;
 export const DRAGON_HEART_MULT = 1.5;
+/** A Talisman sigil: a set piece (its id) or a plain one (a minor module at a tier). Its level is the floor it came from. */
+export interface Sigil { uid: number; id: string; level: number; tier?: number }
+export const SIGIL_BAG_SIZE = 12;
+/** Talisman slots: 2, then one more on floors 3, 6, 10 and 15. */
+export const SIGIL_FLOORS = [3, 6, 10, 15];
+export const sigilSlots = (h: Hero) => 2 + SIGIL_FLOORS.filter(f => (h.f.persist["floor"] ?? 1) >= f).length;
 /** Each Vanadium Plate on a class (Abyss runs only): Max HP, Armor and Damage this much stronger. */
 export const PLATE_BONUS = 0.06;
 /** Healing Potions: 3 slots to start (potion gear adds more). */
@@ -60,6 +68,9 @@ export interface Hero {
   crucible?: boolean;
   /** Torn from a slain dragon. Each further dragon slain raises its level. Unified at a Dragon Sanctum: every stat +50%. */
   dragonHeart?: { level: number; unified?: boolean };
+  /** The Talisman: sigils worn (outside the gear slots) and sigils carried. */
+  sigils?: Sigil[];
+  sigilBag?: Sigil[];
   /** Vanadium Plates this class carries into an Abyss run (set only on Abyss runs). */
   plates?: number;
   xp: number;
@@ -109,6 +120,7 @@ export function itemName(item: GearItem): string {
   const b = baseOf(item.base);
   if (b.legendary && !item.revealed) return `??? (unrevealed ${effectiveBase(item).name})`;
   if (b.legendary) return b.name;
+  if (item.gen) { const g = genTopGrade(item.gen); return `${item.gen.name}${g ? ` ${GRADE_MARK[g]}` : ""}`; }
   const epic = item.epic ? `${getItem(item.epic).affix} ` : "";
   const first = Object.keys(item.bonuses)[0];
   const suffix = first ? ` ${getItem(first).affix}` : "";
@@ -117,7 +129,8 @@ export function itemName(item: GearItem): string {
 
 export const fillText = (text: string, n: number) =>
   text.replace(/\{(\d*)n([+-]\d+)?\}/g, (_m, mul, add) => String((mul ? Number(mul) : 1) * n + (add ? Number(add) : 0)))
-    .replace(/\{(\d+)-n\}/g, (_m, k) => String(Math.max(4, Number(k) - n)));
+    .replace(/\{(\d+)-n\}/g, (_m, k) => String(Math.max(4, Number(k) - n)))
+    .replace(/\{n\/(\d+)\}/g, (_m, d) => String(Math.max(1, Math.ceil(n / Number(d)))));
 
 /** Lines describing an item for the UI. */
 export function itemLines(item: GearItem): string[] {
@@ -138,7 +151,8 @@ export function itemLines(item: GearItem): string[] {
   if (b.legendary && !item.revealed) lines.push("A Legendary, waiting to be revealed. Use a Scroll of Revelation.");
   else if (b.legendary) lines.push(`★ ${b.legendary.reveal}`);
   else if (eb.text) lines.push(eb.text);
-  if (item.epic) lines.push(`✦ ${getItem(item.epic).name}: ${getItem(item.epic).text}`);
+  if (item.epic) lines.push(`★ ${getItem(item.epic).name}: ${getItem(item.epic).text}`);
+  lines.push(...genLines(item, fillText, id => `${getItem(id).name}: ${getItem(id).text}`));
   for (const [id, n] of Object.entries(item.bonuses)) lines.push(`+ ${fillText(getItem(id).text, n)}`);
   return lines;
 }
@@ -200,6 +214,8 @@ export function recompute(h: Hero) {
     add(real.legendary && it.revealed ? real.id : eb.id);
     for (const [id, n] of Object.entries(it.bonuses)) add(id, n);
     if (it.epic) add(it.epic);
+    // Generated gear: its material, modules, signature and flaw.
+    for (const [id, n] of genHooks(it)) add(id, n);
     // Infused at the Jeweller: the trinket's effects (and its Armor / Max HP) ride along.
     if (it.infused) { add(it.infused); const tb = baseOf(it.infused); s.armor += tb.armor ?? 0; s.maxHp += tb.maxHp ?? 0; }
     s.armor += (eb.armor ?? 0) + (eb.armor ? Math.floor((it.level - 1) / 2) : 0);
@@ -227,6 +243,17 @@ export function recompute(h: Hero) {
       s.offDamage = Math.max(1, Math.round(weaponDamage(it) * 0.6));
       f.offFaces = eb.faces;
     }
+  }
+  // The Talisman: each sigil's passive, then the bonuses of any set with enough different pieces worn.
+  const worn = new Set<string>();
+  for (const sg of h.sigils ?? []) {
+    const gm = GEN_MODULE_MAP.get(sg.id);
+    if (gm) add(gm.id, modValue(gm, sg.tier ?? 2, 0, sg.level));
+    else { add(sg.id, sg.level); worn.add(sg.id); }
+  }
+  for (const set of SIGIL_SETS) {
+    const n = set.pieces.filter(p => worn.has(p)).length;
+    for (const [need, id] of set.bonuses) if (n >= need) add(id);
   }
   f.items = items;
   s.maxHp += 3 * (h.level - 1); // every level-up: +3 Max HP

@@ -1,3 +1,5 @@
+import { SET_BONUSES, SET_PIECES } from "./talisman";
+import { GEN_MODULES } from "./genparts";
 // Registers the whole library with the engine. Import this once at startup.
 import { register } from "../engine/registry";
 import { BONUSES, EPIC_POWERS, LEGENDARIES } from "./affixes";
@@ -15,7 +17,7 @@ let done = false;
 export function loadLibrary() {
   if (done) return;
   done = true;
-  register([...ABYSS_ITEMS, ...GEAR_BASES, ...LEGENDARIES, ...CRIMSON, ...BONUSES, ...EPIC_POWERS, ...RELICS, ...FUSION_RELICS, ...TALENTS, ...TRAITS, ...ORIGIN_PASSIVES, ...CURSES, ...KEEPSAKES, OLD_TRANSMUTER]);
+  register([...ABYSS_ITEMS, ...GEAR_BASES, ...LEGENDARIES, ...CRIMSON, ...BONUSES, ...EPIC_POWERS, ...RELICS, ...FUSION_RELICS, ...TALENTS, ...TRAITS, ...ORIGIN_PASSIVES, ...CURSES, ...KEEPSAKES, OLD_TRANSMUTER, ...GEN_MODULES, ...SET_PIECES, ...SET_BONUSES]);
 }
 
 export { BONUSES, CRIMSON, KEEPSAKES, CURSES, FUSION_RELICS, EPIC_POWERS, GEAR_BASES, LEGENDARIES, ORIGIN_PASSIVES, RELICS, TALENTS, TRAITS };

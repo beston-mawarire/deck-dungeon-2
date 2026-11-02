@@ -5,6 +5,14 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.25.0
+- **Gear forged by chance** (the item generator): half of all Common–Epic drops (and some Legendaries and Crimson) are now made fresh from a form, one of 51 materials (each with its own innate effect) and a set of effects drawn from 400+ modules. Rarer items get more: Epics 5–7 effects including a signature power, Legendaries 7–9, and the new **Crimson-veined** tier up to 10 (usually with a drawback ⛓️). Drawbacks also turn up now and then on Rare, Epic and Legendary rolls and pay for extra power.
+- **Greater rolls**: ✦ Greater, ✦✦ Grand and ✦✦✦ Mythic effects are 1.5×, 2× and 3× as strong, each much rarer than the last, and likelier from Champions, bosses, Uber bosses, the Abyss and Heat. Mythic rolls get their own fanfare.
+- **⚡ Overcharged** items: about one generated drop in 300 breaks every rule (far more power, extra effects). Rare on purpose.
+- Generated gear works with the Forge (upgrade, reroll keeps the material, scrap, sell, offer) but can't be Combined or taken to the Jeweller.
+- **The Talisman** (Spoils → Talisman): sigils that sit outside your gear. Plain sigils from Elites and chests, set pieces mostly from Champions and bosses. Six sets (Ember Court, Frozen Saint, Storm Choir, Red Tithe, Iron Vigil, Gambler's Hand) with 2-, 3- and 4-piece bonuses. 2 slots, +1 on floors 3, 6, 10 and 15.
+- 6 new achievements (Greater, Mythic, Overcharged, Crimson-veined, matching pair, full Talisman set). How to play explains both systems.
+
 ## 1.24.1
 - Main menu: a ⚔️ Challenges button between Info and Leaderboards. It holds the Daily Dungeon (a red dot until you've played today's), your Nemesis, Heat and this week's Abyss twist, so the Campaign tab is just the classes now.
 

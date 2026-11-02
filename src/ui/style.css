@@ -763,3 +763,21 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .menu-btns.info-row button.ch-btn { position: relative; color: #ffc9b0; }
 .ch-pop .mini-row { margin-top: 8px; text-align: left; }
 .mini-row.week-row { border-color: #5b46a0; }
+/* Generated gear */
+.gen-tag { color: #c9b8a0; font-size: .72rem; letter-spacing: 0; text-transform: none; }
+.item.grade-1 { box-shadow: 0 0 10px rgba(255,227,154,.25); }
+.item.grade-2 { box-shadow: 0 0 14px rgba(255,227,154,.45); }
+.item.grade-3 { box-shadow: 0 0 20px rgba(255,200,90,.7), inset 0 0 12px rgba(255,200,90,.15); }
+.item.overcharged { border-color: #7ff0ff; box-shadow: 0 0 18px rgba(127,240,255,.6), inset 0 0 14px rgba(127,240,255,.15); animation: overpulse 1.8s infinite; }
+@keyframes overpulse { 50% { box-shadow: 0 0 28px rgba(127,240,255,.85), inset 0 0 18px rgba(127,240,255,.25); } }
+.item.veined { background: linear-gradient(160deg, #2c1018, var(--panel2) 60%); }
+.item.veined .nm { color: #ff7d8e; }
+/* Talisman */
+.sigil { border: 1px solid var(--line); border-radius: 12px; padding: 9px 10px; margin-top: 8px; background: var(--panel); }
+.sigil.set { border-color: #8f6cf0; background: linear-gradient(160deg, #221a3c, var(--panel) 70%); }
+.sigil.empty-slot { border-style: dashed; text-align: center; }
+.sigil.locked { border-style: dashed; opacity: .6; text-align: center; }
+.sigil p { margin: 4px 0; }
+.sigil-set { border: 1px solid #5b46a0; border-radius: 12px; padding: 9px 10px; margin-top: 8px; }
+.sigil-set p { margin: 3px 0; font-size: .88rem; }
+.sigil-set .set-on { color: #c8f7a0; font-weight: 700; }

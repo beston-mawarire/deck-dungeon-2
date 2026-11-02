@@ -109,6 +109,12 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "warrior_noguard", name: "No Shield Needed", text: "Win the Campaign as a Warrior without ever Guarding", renown: 50, title: "the Reckless", check: r => campaignWon(r) && r.hero.origin === "warrior" && P(r, "act_guard") === 0 },
   { id: "mage_nobarrier", name: "Unshielded", text: "Win the Campaign as a Mage without ever using Elemental Barrier", renown: 50, check: r => campaignWon(r) && r.hero.origin === "mage" && P(r, "act_barrier") === 0 },
   { id: "rogue_nocounter", name: "Straight Shooter", text: "Win the Campaign as a Rogue without ever Countering", renown: 50, check: r => campaignWon(r) && r.hero.origin === "rogue" && P(r, "act_counter") === 0 },
+  { id: "gen_greater", name: "A Cut Above", text: "Find an item with a ✦ Greater roll", renown: 10, check: r => P(r, "ach_greater") > 0 },
+  { id: "gen_mythic", name: "Mythic", text: "Find an item with a ✦✦✦ Mythic roll", renown: 40, title: "the Blessed", check: r => P(r, "ach_mythic") > 0 },
+  { id: "gen_overcharged", name: "Overcharged", text: "Find an Overcharged item", renown: 50, title: "Live Wire", check: r => P(r, "ach_overcharged") > 0 },
+  { id: "gen_veined", name: "Red in the Vein", text: "Find a Crimson-veined item", renown: 20, check: r => P(r, "ach_veined") > 0 },
+  { id: "sigil_two", name: "Matching Pair", text: "Wear two sigils of the same set", renown: 10, check: r => P(r, "ach_sigil2") > 0 },
+  { id: "sigil_full", name: "Full Talisman", text: "Wear a complete sigil set", renown: 40, title: "the Complete", check: r => P(r, "ach_sigil_full") > 0 },
   { id: "cleric_nopenance", name: "No Regrets", text: "Win the Campaign as a Cleric without ever using Penance", renown: 50, check: r => campaignWon(r) && r.hero.origin === "cleric" && P(r, "act_penance") === 0 }
 ];
 

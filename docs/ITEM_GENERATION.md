@@ -1,6 +1,6 @@
 # Item Generation Engine — proposal
 
-Status: **pinned** (not started). Written 2026-11-02 for Beston, to be discussed before building.
+Status: **built (first version, v1.25.0)**. Proposal written 2026-11-02; decisions below. Code: `src/game/gen.ts` (engine), `src/data/genparts.ts` (parts), `src/data/talisman.ts` (Talisman).
 
 Goal: generated gear that adds huge variety to the hand-made pool (weapons, off-hands, armour, trinkets, Common → Crimson),
 stays fair, runs instantly on a phone, and never breaks saves or the leaderboard.
@@ -134,15 +134,20 @@ Performance: ~150 small module definitions (a few KB of code). A roll is ~10 wei
 
 ---
 
-## 7. Decisions for Beston
+## 7. Decisions (Beston, 2026-11-02) and what was built
 
-1. **Drop share**: what fraction of non-Legendary drops should be generated at first? (Suggested: 25%.)
-2. **Drawbacks**: on Rare/Epic as an optional trade (more power for a downside), or only on Crimson-veined?
-3. **Material set bonuses**: yes (more build goals), or keep items fully independent?
-4. **Tiers visible?** Show T1–T7, or only the ✦ for Greater rolls? (Suggested: only ✦.)
-5. **Crimson-veined**: a new generated tier beside Crimson (suggested), or skip it and stop generation at Epic?
+1. **Drop share: half and half.** 50% of Common–Epic drops come from the generator, 35% of Legendaries and 40% of Crimson (the rest stay hand-made). One number per rarity in `GEN_SHARE`.
+2. **Drawbacks:** uncommon on Rare (8%), Epic (10%) and Legendary (12%); near-certain on Crimson-veined (85%). Each refunds budget.
+3. **No material set bonuses.** Instead: the **Talisman**, sigils outside the gear slots (inspired by Diablo IV's Talisman: Diablo II charms + Diablo III set bonuses). Plain sigils carry one passive; **6 sigil sets × 4 pieces** unlock 2/3/4-piece bonuses. Slots: 2 at the start of a run, +1 on floors 3, 6, 10 and 15. Plain sigils from Elites and chests; set pieces mostly from Champions, bosses (more in the Abyss and with Heat).
+4. **Show the mark:** only the grade marks are shown, no tier numbers.
+5. **Crimson-veined: yes**, a generated tier beside Crimson.
 
----
+Also asked for and built:
+- **More than three effects from Epic up:** Epic 5–7, Legendary 7–9, Crimson-veined 7–10 effects (counting the material's innate effect, modules and signatures; a flaw comes on top).
+- **More materials:** 51 (plus Crimson-veined), from Iron and Bronze on floor 1 to Starmetal, Dragonscale, Voidtouched and Abyssal deep down.
+- **More Greater tiers:** ✦ Greater (×1.5), ✦✦ Grand (×2), ✦✦✦ Mythic (×3), each much rarer than the last; more likely from Champions, bosses, Uber bosses, the Abyss and Heat.
+- **Broken items, rarely:** ⚡ Overcharged items (~1 in 300 generated drops, more from bosses and in the Abyss) get 2.5× budget, an extra module, higher tiers and three times the Greater chance. Nothing stops them: that's the point.
+- **Module library:** 16 minor stat lines, 396 trigger → payload majors (21 triggers × 22 payloads, filtered for sense), 14 flaws, and the 26 Epic powers as signatures.
 
 ## Sources
 

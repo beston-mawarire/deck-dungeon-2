@@ -1,3 +1,4 @@
+import { generate, GEN_SHARE } from "./gen";
 // Loot: rarity tables, rolling gear, chests (Wooden, Iron, Resplendent) and bad-luck protection.
 import { EPIC_CRIMSON } from "../data/abyss";
 import { BONUSES, CRIMSON, EPIC_POWERS, GEAR_BASES, LEGENDARIES } from "../data";
@@ -117,6 +118,11 @@ export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => numb
   if ((h.curses["c_ill_fortune"] ?? 0) > 0 && (rarity === "rare" || rarity === "epic" || rarity === "legendary") && rng() < 0.3)
     rarity = rarity === "legendary" ? "epic" : rarity === "epic" ? "rare" : "uncommon";
   const tags = heroTags(h);
+  // Half of most drops come from the item generator (fewer Legendaries and Crimson: the hand-made ones are special).
+  if (GEN_ON && (GEN_SHARE[rarity] ?? 0) > 0 && rng() < GEN_SHARE[rarity]!) {
+    const g = rollGenerated(h, rarity, floor, rng);
+    if (g) return g;
+  }
   if (rarity === "crimson") {
     const pool = CRIMSON.filter(c => !DROPPED.has(c.id));
     const base = weighted(rng, pool.length ? pool : CRIMSON, b => (1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * elementalW(b.tags));
@@ -139,6 +145,22 @@ export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => numb
   const bonuses = rollBonuses(h, rarity, base, floor, rng, nBonuses);
   const epic = rarity === "epic" ? weighted(rng, EPIC_POWERS.filter(e => !LOCKED.has(e.id)), e => tagWeight(tags, e.tags)).id : undefined;
   return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses, epic, revealed: true, bash: rollBash(rarity, base, rng) };
+}
+
+let GEN_ON = true;
+/** Turn the item generator on or off (tests of hand-made loot switch it off). */
+export const setGenEnabled = (on: boolean) => { GEN_ON = on; };
+
+/** A generated item: a form from the ordinary pool (no hand-made Legendaries), built up by the generator. */
+export function rollGenerated(h: Hero, rarity: Rarity, floor: number, rng: () => number, depth = floor): GearItem | null {
+  const tags = heroTags(h);
+  const fav = new Set(AFFINITY[h.origin]);
+  const pool = GEAR_BASES.filter(g => !g.legendary && (!LOCKED.has(g.id) || (g.deep && floor > 5)) && floor >= (g.floorMin ?? 0) && (!g.needsCurse || (h.f.persist["everCursed"] ?? 0) > 0)
+    && (g.weight ?? 1) > 0 && !g.noJewel && (!g.onlyRarity || g.onlyRarity === rarity || (rank(rarity) >= rank("rare") && rank(g.onlyRarity) <= rank("rare"))));
+  if (!pool.length) return null;
+  const base = weighted(rng, pool, b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1) * elementalW(b.tags));
+  const gen = generate(base, rarity, floor, depth, rng, tags, LOCKED);
+  return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses: {}, revealed: true, bash: rollBash(rarity === "crimson" ? "crimson" : rarity, base, rng), gen };
 }
 
 function rollBonuses(h: Hero, rarity: Rarity, base: GearBase, floor: number, rng: () => number, n: number): Record<string, number> {

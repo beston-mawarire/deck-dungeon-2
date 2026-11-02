@@ -11,16 +11,18 @@ import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engin
 import { NEGATIVE_STATUSES, rarityLabel } from "../engine/types";
 import {
   BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost, rerollsLeft,
-  keepsOffHand, findItem, recompute, reveal, salvage, slotsFor, unequip, upgradeCost, xpToLevel
+  keepsOffHand, findItem, recompute, type Sigil, SIGIL_BAG_SIZE, SIGIL_FLOORS, sigilSlots, reveal, salvage, slotsFor, unequip, upgradeCost, xpToLevel
 } from "../game/hero";
 import { LEGENDARY_LORE } from "../data/lore";
+import { SIGIL_SETS } from "../data/talisman";
+import { GEN_MODULE_MAP, modValue } from "../game/gen";
 import { ABYSS_MODS, ACHIEVEMENTS, applyKit, currentAbyssMod, HEAT_LEVELS, HEAT_MAX, HEAT_RENOWN, heatOf, KIT_COMMON_LEVEL, KIT_SLOTS, KIT_UNCOMMON_LEVEL, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX, MASTERY_XP } from "../game/progress";
 import { abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
-  ROOM_INFO, ABYSS_ROOM_INFO, chooseRelic, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
+  ROOM_INFO, ABYSS_ROOM_INFO, chooseRelic, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -87,7 +89,7 @@ let bountyOpen = false;
 type BagTab = "gear" | "stats" | "relics" | "talents" | "extras";
 let bagTab: BagTab = "gear";
 let talentSub: "talents" | "curses" = "talents";
-let spoilsSub: "relics" | "artefacts" = "relics";
+let spoilsSub: "relics" | "artefacts" | "talisman" = "relics";
 let gearSub: "equipped" | "backpack" = "equipped";
 let statsSub: "attributes" | "statuses" = "attributes";
 /** Selling worn gear, and bulk selling, take a second tap. */
@@ -265,12 +267,16 @@ function compareHtml(h: Hero, it: GearItem): string {
   return `<div class="compare">${head}<div class="cmp-row">${chips.length ? chips.join("") : `<span class="cmp same">＝ Same stats</span>`}</div></div>`;
 }
 
+/** Rarity as shown on a card (generated Crimson items are Crimson-veined). */
+const itemRarity = (it: GearItem) => (it.gen && it.rarity === "crimson" ? "Crimson-veined" : rarityLabel(it.rarity));
+
 function itemCard(it: GearItem, buttons = "", compare = false, equippedAs = "") {
   const b = baseOf(it.base);
   const hidden = b.legendary && !it.revealed;
-  return `<div class="item r-${it.rarity} ${hidden ? "unrevealed" : ""} ${equippedAs ? "is-equipped" : ""}">
+  const grade = it.gen ? Math.max(0, ...it.gen.mods.map(m => m[2])) : 0;
+  return `<div class="item r-${it.rarity} ${hidden ? "unrevealed" : ""} ${equippedAs ? "is-equipped" : ""} ${it.gen?.broken ? "overcharged" : ""} ${grade ? `grade-${grade}` : ""} ${it.gen && it.rarity === "crimson" ? "veined" : ""}">
     ${equippedAs ? `<div class="eqbadge">⚔️ Equipped · ${esc(equippedAs)}</div>` : ""}
-    <div class="meta">${rarityLabel(it.rarity)} · ${b.slot === "main" ? "weapon" : b.slot === "off" ? "off-hand" : b.slot} · level ${it.level}</div>
+    <div class="meta">${itemRarity(it)}${it.gen ? ` · <span class="gen-tag" title="Made by chance: a generated item">⚒ forged by chance</span>` : ""} · ${b.slot === "main" ? "weapon" : b.slot === "off" ? "off-hand" : b.slot} · level ${it.level}</div>
     <div class="nm">${esc(itemName(it))}</div>
     <ul>${itemLines(it).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
     ${it.infused ? (() => { const t = baseOf(it.infused!); return `<div class="infused">💠 Infused: <b>${esc(t.name)}</b> — ${esc(t.legendary?.reveal ?? t.text)}</div>`; })() : ""}
@@ -560,7 +566,7 @@ const takeButtons = (it: GearItem) =>
 function lootScene(r: Run) {
   if (r.scene.t !== "loot") return "";
   const s = r.scene;
-  const extras = [s.gold ? `🪙 ${s.gold} Gold` : "", s.potions ? `🧪 Potion` : "", s.scrolls ? `📜 ${s.scrolls > 1 ? `${s.scrolls} Scrolls` : "Scroll"} of Revelation (yours)` : "", s.relic ? `💎 New relic: ${getItem(s.relic).name} — ${getItem(s.relic).text}` : ""].filter(Boolean);
+  const extras = [...(s.sigils ?? []).map(n => `🔮 Sigil: ${n} (in your Talisman bag)`), s.gold ? `🪙 ${s.gold} Gold` : "", s.potions ? `🧪 Potion` : "", s.scrolls ? `📜 ${s.scrolls > 1 ? `${s.scrolls} Scrolls` : "Scroll"} of Revelation (yours)` : "", s.relic ? `💎 New relic: ${getItem(s.relic).name} — ${getItem(s.relic).text}` : ""].filter(Boolean);
   // After a won fight, the rewards sit in a framed Victory panel.
   const victory = s.title === "Victory" || s.title.startsWith("You caught") || s.title === "The Mimic's hoard";
   const key = (s.crimsonKey ? `<div class="key-found">🗝️ CRIMSON KEY FOUND<span>A Crimson Vault will now be offered on your path.</span></div>` : "")
@@ -977,7 +983,7 @@ function tabSigs(r: Run): Record<BagTab, string> {
   return {
     gear: h.backpack.map(i => i.uid).sort((a, b) => a - b).join(","),
     stats: "",
-    relics: `${ks(h.relics)}|${h.crucible ? 1 : 0}`,
+    relics: `${ks(h.relics)}|${h.crucible ? 1 : 0}|${(h.sigilBag ?? []).map(x => x.uid).join(",")}`,
     talents: `${ks(h.talents)}|${ks(h.curses)}`,
     extras: [h.keepsake ?? "", h.dragonHeart?.level ?? 0, (p["angelFights"] ?? 0) > 0, (p["blessFights"] ?? 0) > 0, (p["cloverChests"] ?? 0) > 0, ks(h.tonics)].join("|")
   };
@@ -987,6 +993,36 @@ function newTabs(r: Run): Set<BagTab> {
   const sig = tabSigs(r);
   if (!r.seenTabs) r.seenTabs = { ...sig };
   return new Set((Object.keys(sig) as BagTab[]).filter(k => r.seenTabs![k] !== undefined && r.seenTabs![k] !== sig[k] && !(bagOpen && bagTab === k)));
+}
+
+/** The Talisman: worn sigils (and locked slots), set progress, and the sigil bag. */
+function talismanHtml(r: Run, inCombat: boolean) {
+  const h = r.hero;
+  const slots = sigilSlots(h);
+  const worn = h.sigils ?? [];
+  const bag = h.sigilBag ?? [];
+  const sigText = (sg: Sigil) => {
+    const gm = GEN_MODULE_MAP.get(sg.id);
+    return gm ? fillText(gm.text, modValue(gm, sg.tier ?? 2, 0, sg.level)) : fillText(getItem(sg.id).text, sg.level);
+  };
+  const setOf = (sg: Sigil) => SIGIL_SETS.find(x => x.pieces.includes(sg.id));
+  const card = (sg: Sigil, btns: string) => { const set = setOf(sg); return `<div class="sigil ${set ? "set" : ""}"><div class="row"><b class="grow">🔮 ${esc(sigilName(sg))}</b>${set ? `<span class="sub">${set.icon} ${esc(set.name)}</span>` : ""}</div><p class="sub">${esc(sigText(sg))} · found on floor ${sg.level}</p>${inCombat ? "" : `<div class="row">${btns}</div>`}</div>`; };
+  const wornIds = new Set(worn.map(x => x.id));
+  const owned = new Set([...worn, ...bag].map(x => x.id));
+  const sets = SIGIL_SETS.filter(set => set.pieces.some(p => owned.has(p))).map(set => {
+    const n = set.pieces.filter(p => wornIds.has(p)).length;
+    return `<div class="sigil-set"><div class="row"><b class="grow">${set.icon} ${esc(set.name)}</b><span class="sub">${n}/${set.pieces.length} worn · ${set.pieces.filter(p => owned.has(p)).length} found</span></div>
+      ${set.bonuses.map(([need, id]) => `<p class="${n >= need ? "set-on" : "sub"}">(${need}) ${esc(getItem(id).text)}</p>`).join("")}</div>`;
+  }).join("");
+  const locked = SIGIL_FLOORS.filter(f => (h.f.persist["floor"] ?? 1) < f);
+  return `<p class="sub">Sigils sit outside your gear. Wear different pieces of the same set to unlock its bonuses.</p>
+    <h3 class="jhead">Worn · ${worn.length}/${slots}</h3>
+    ${worn.map(sg => card(sg, `<button class="small" data-sigoff="${sg.uid}">Take off</button>`)).join("")}
+    ${Array.from({ length: Math.max(0, slots - worn.length) }, () => `<div class="sigil empty-slot"><span class="sub">Empty slot</span></div>`).join("")}
+    ${locked.map(f => `<div class="sigil locked"><span class="sub">🔒 Opens on floor ${f}</span></div>`).join("")}
+    ${sets ? `<h3 class="jhead">Sets</h3>${sets}` : ""}
+    <h3 class="jhead">Sigil bag · ${bag.length}/${SIGIL_BAG_SIZE}</h3>
+    ${bag.length ? bag.map(sg => card(sg, `<button class="small primary" data-sigon="${sg.uid}">Wear</button><button class="small" data-sigscrap="${sg.uid}">Scrap</button>`)).join("") : `<p class="sub">No sigils yet. Elites, Champions, bosses and chests sometimes carry them.</p>`}`;
 }
 
 function bag(r: Run) {
@@ -1097,8 +1133,9 @@ function bag(r: Run) {
       ${statsSub === "attributes" ? `${stats}<p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>` : reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`}`
     : bagTab === "relics" ? `<div class="row subtabs">
         <button class="small ${spoilsSub === "relics" ? "primary" : ""}" data-spoilsub="relics">💎 Relics${nRelics ? ` (${nRelics})` : ""}</button>
-        <button class="small ${spoilsSub === "artefacts" ? "primary" : ""}" data-spoilsub="artefacts">⚗️ Artefacts${h.crucible ? " (1)" : ""}</button></div>
-      ${spoilsSub === "relics" ? (nRelics ? list(h.relics, "relic-line") : `<p class="sub">No relics yet.</p>`) : artefactsHtml}`
+        <button class="small ${spoilsSub === "artefacts" ? "primary" : ""}" data-spoilsub="artefacts">⚗️ Artefacts${h.crucible ? " (1)" : ""}</button>
+        <button class="small ${spoilsSub === "talisman" ? "primary" : ""}" data-spoilsub="talisman">🔮 Talisman${(h.sigils?.length ?? 0) + (h.sigilBag?.length ?? 0) ? ` (${(h.sigils?.length ?? 0) + (h.sigilBag?.length ?? 0)})` : ""}</button></div>
+      ${spoilsSub === "relics" ? (nRelics ? list(h.relics, "relic-line") : `<p class="sub">No relics yet.</p>`) : spoilsSub === "talisman" ? talismanHtml(r, inCombat) : artefactsHtml}`
     : bagTab === "talents" ? `<div class="row subtabs">
         <button class="small ${talentSub === "talents" ? "primary" : ""}" data-talentsub="talents">🌟 Talents${nTalents ? ` (${nTalents})` : ""}</button>
         <button class="small curse-subtab ${talentSub === "curses" ? "primary" : ""}" data-talentsub="curses">🕯️ Curses${nCurses ? ` (${nCurses})` : ""}</button></div>
@@ -1122,7 +1159,7 @@ function sideEquip(r: Run) {
     const it = h.equip[s];
     if (!it) return `<div class="se-item empty"><div class="se-slot">${slotName[s]}</div><span class="sub">Empty</span></div>`;
     const lines = itemLines(it).filter(l => !l.startsWith("Faces:") && !l.startsWith("✝️") && !l.startsWith("✨ Purify")).slice(0, 3);
-    return `<div class="se-item r-${it.rarity}"><div class="se-slot">${slotName[s]} · ${rarityLabel(it.rarity)} · lv ${it.level}</div><div class="nm">${esc(itemName(it))}</div>
+    return `<div class="se-item r-${it.rarity}"><div class="se-slot">${slotName[s]} · ${itemRarity(it)} · lv ${it.level}</div><div class="nm">${esc(itemName(it))}</div>
       ${lines.map(l => `<div class="se-line">${esc(l)}</div>`).join("")}</div>`;
   }).join("");
   const relics = Object.entries(h.relics).map(([id, n]) => `<span class="chip" title="${esc(fillText(getItem(id).text, n))}">${esc(getItem(id).name)}${n > 1 ? ` ×${n}` : ""}</span>`).join("");
@@ -1258,6 +1295,8 @@ function helpGlossary() {
     row("🔨", "Forge", "Upgrade or reroll gear with Scrap; sacrifice items in an Offering; Combine two of the same item"),
     row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell as much as you like (40% of its price)"),
     row("💍", "Jeweller", "Takes turns with the Forge; two tries per visit. Fuse: two relics (marked 🔗), or two Rare-or-better trinkets (yours to discover; costs Starmetal). A fusion that doesn't take still costs the fee. Infuse: put a same-rarity trinket into a weapon, off-hand or armour; the trinket is used up. Upgraded items can't be fused or infused"),
+    row("⚒", "Forged by chance", "Half of all gear is made fresh: a material (Iron, Frost-forged, Dragonscale…), a form, and effects. Rarer items get more effects, and some carry a drawback (⛓️). ✦ Greater, ✦✦ Grand and ✦✦✦ Mythic rolls are much stronger, and ⚡ Overcharged items are rare, wild and very strong"),
+    row("🔮", "Talisman", "Sigils sit outside your gear (Spoils → Talisman). Wear pieces of the same set for 2-, 3- and 4-piece bonuses. 2 slots to start, more on floors 3, 6, 10 and 15"),
     row("🧪", "Healing Potions", "Heal 12. You start with 3 potion slots: carry up to 3, and drink up to 3 in one fight. Potion gear and relics add slots (more at higher rarity)")
   ].join(""))}
   ${group("📈 Between runs", [
@@ -1590,12 +1629,19 @@ function celebrateScene(r: Run) {
   const found: GearItem[] = s.t === "loot" || s.t === "pick" ? s.items
     : s.t === "resplendent" && s.picked !== null && s.cards[s.picked].kind === "item" ? [(s.cards[s.picked] as { item: GearItem }).item] : [];
   let best: GearItem | null = null;
+  let special = "";
   for (const it of found) {
-    if (celebrated.has(it.uid) || !RANK[it.rarity]) continue;
+    if (celebrated.has(it.uid)) continue;
+    // Overcharged and Mythic (✦✦✦) rolls get their own fanfare, whatever their rarity.
+    if (it.gen?.broken) special = "⚡ OVERCHARGED";
+    else if (!special && it.gen?.mods.some(m => m[2] >= 3)) special = "✦✦✦ MYTHIC ROLL";
+    else if (!special && it.gen?.mods.some(m => m[2] >= 2) && !RANK[it.rarity]) special = "✦✦ GRAND ROLL";
+    if (!RANK[it.rarity] && !special) continue;
     celebrated.add(it.uid);
-    if (!best || RANK[it.rarity] > RANK[best.rarity]) best = it;
+    if (RANK[it.rarity] && (!best || RANK[it.rarity] > RANK[best.rarity])) best = it;
   }
-  if (best) celebrate(best.rarity);
+  if (special) celebrate("legendary", special);
+  else if (best) celebrate(best.rarity);
 }
 
 function render() {
@@ -1980,6 +2026,9 @@ function bind() {
     say(`Scrapped ${list.length} item${list.length === 1 ? "" : "s"}: +${n} ⚙️ Scrap${metal ? ` · +${metal} ✴️` : ""}`, false); sfx("hit");
   });
   on("[data-gearsub]", el => { gearSub = el.dataset.gearsub as typeof gearSub; });
+  on("[data-sigon]", el => say(wearSigil(r, Number(el.dataset.sigon))));
+  on("[data-sigoff]", el => say(removeSigil(r, Number(el.dataset.sigoff))));
+  on("[data-sigscrap]", el => { const n = scrapSigil(r, Number(el.dataset.sigscrap)); if (n) say(`+${n} Scrap`, false); });
   on("[data-spoilsub]", el => { spoilsSub = el.dataset.spoilsub as typeof spoilsSub; });
   on("[data-talentsub]", el => { talentSub = el.dataset.talentsub as "talents" | "curses"; });
   on("[data-take]", el => say(takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack")));

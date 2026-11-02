@@ -14,8 +14,12 @@ import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { autoBattleWins } from "./auto";
 import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
-import { removeItem, gainPotions, potionCap, potionsPerFight, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { type Sigil, SIGIL_BAG_SIZE, sigilSlots, removeItem, gainPotions, potionCap, potionsPerFight, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { abyssMod, heatOf } from "./progress";
+import { generate, genName, setGenLuck } from "./gen";
+import { GEN_MINORS } from "../data/genparts";
+import { SIGIL_SETS } from "../data/talisman";
+const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
 import { isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -109,7 +113,7 @@ export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "reli
 export type Scene =
   | { t: "map" }
   | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" | "nemesis"; uber?: boolean }
-  | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent"; crimsonKey?: boolean; /** A Bounty Board payout (closing it doesn't use a step). */ bounty?: boolean; /** A Dragon Heart was torn from the dragon (its level now). */ dragonHeart?: number; /** The Transmuter's Crucible dropped. */ crucible?: boolean }
+  | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; /** Talisman sigils found (names). */ sigils?: string[]; potions: number; then?: "resplendent"; crimsonKey?: boolean; /** A Bounty Board payout (closing it doesn't use a step). */ bounty?: boolean; /** A Dragon Heart was torn from the dragon (its level now). */ dragonHeart?: number; /** The Transmuter's Crucible dropped. */ crucible?: boolean }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
   | { t: "talent"; options: string[] }
@@ -326,11 +330,16 @@ function enterRoom(run: Run, room: RoomType) {
       if (h.crimsonKeys <= 0) return advance(run);
       h.crimsonKeys--;
       return fight(run, "boss", "crimson");
-    case "wooden":
+    case "wooden": {
+      setGenLuck(genLuck(run));
+      const sg = rollSigilDrop(run, 0.06, 0.1);
       const woodOdds = useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden;
-      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, heatOdds(run, woodOdds), luckFloor(run)), depth(run), run.rng)], gold: (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0 };
+      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, heatOdds(run, woodOdds), luckFloor(run)), depth(run), run.rng)], gold: (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0, sigils: sg ? [sg] : undefined };
       return;
+    }
     case "iron": {
+      setGenLuck(genLuck(run));
+      const sg = rollSigilDrop(run, 0.12, 0.15);
       const key = (h.relics["skeleton_key"] ?? 0) > 0;
       if (!key && run.rng() < 1 / 6) {
         run.message = "The chest bites! It's a Mimic.";
@@ -339,7 +348,7 @@ function enterRoom(run: Run, room: RoomType) {
       const ironOdds = useClover(run) ? luckyOdds(tables(run).iron) : tables(run).iron;
       const items = [rollItem(h, rollRarity(run.rng, heatOdds(run, ironOdds), luckFloor(run)), depth(run), run.rng)];
       if (key) items.push(rollItem(h, rollRarity(run.rng, heatOdds(run, ironOdds), luckFloor(run)), depth(run), run.rng));
-      run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: (5 + run.floor * 2) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: 0 };
+      run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: (5 + run.floor * 2) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: 0, sigils: sg ? [sg] : undefined };
       return;
     }
     case "altar":
@@ -661,6 +670,8 @@ function afterFight(run: Run) {
   let relic: string | undefined;
   let keyFound = false;
   const T = tables(run);
+  // Generated gear from tougher foes is more often Greater (✦) — or, very rarely, Overcharged.
+  setGenLuck(genLuck(run) * ({ normal: 1, elite: 1.25, champion: 1.6, crimson: 2, boss: run.scene.uber ? 2.6 : 2 } as Record<string, number>)[rank] * (then === "unique" || then === "dragon" || then === "nemesis" ? 1.5 : 1));
   const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, heatOdds(run, odds), luckFloor(run)), depth(run), run.rng);
   if (rank === "normal" && run.rng() < 0.2) items.push(roll(T.drop));
   if (rank === "normal" && run.rng() < 0.1) potions++;
@@ -772,6 +783,8 @@ function afterFight(run: Run) {
       run.message = `+${gold} Gold${ruinNote}`;
       return;
     }
+    const bossSigil = rollSigilDrop(run, 0.4, 0.65);
+    if (bossSigil) ruinNote += ` · 🔮 ${bossSigil}`;
     // Crimson bosses offer a Crimson item alongside two boss finds; the bosses of floors 20–24 offer an Epic Crimson.
     const offer = b.enemy.crimson ? [rollItem(h, "crimson", depth(run), run.rng), roll(T.boss), roll(T.boss)]
       : EPIC_CRIMSON_FLOORS.includes(run.floor) ? [rollEpicCrimson(h, depth(run), run.rng), roll(T.boss), roll(T.boss)]
@@ -786,8 +799,10 @@ function afterFight(run: Run) {
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (relic) offerRelic(run, relic, rank === "elite" && !then ? 0.25 : 0.5, rank === "elite" && !then ? 1 : 2);
+  // Talisman sigils: plain ones from Elites, set pieces mostly from Champions and up.
+  const sigil = rollSigilDrop(run, ({ normal: 0, elite: 0.18, champion: 0.3, crimson: 0.35, boss: 0.4 } as Record<string, number>)[rank] ?? 0, rank === "elite" && !then ? 0.12 : 0.6);
   if (scrolls) grantScrolls(run, scrolls);
-  run.scene = { t: "loot", title: then === "dragon" ? "The Dragon's Hoard" : then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic: run.relicChoice ? undefined : relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined, dragonHeart: heartLevel || undefined, crucible: crucibleFound || undefined };
+  run.scene = { t: "loot", title: then === "dragon" ? "The Dragon's Hoard" : then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic: run.relicChoice ? undefined : relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined, dragonHeart: heartLevel || undefined, crucible: crucibleFound || undefined, sigils: sigil ? [sigil] : undefined };
   const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean);
   run.message = notes.join(" ");
 }
@@ -1047,6 +1062,21 @@ export function forgeReroll(run: Run, uid: number): string | null {
   const found = findItem(h, uid);
   if (!found) return null;
   const keys = Object.keys(found.item.bonuses);
+  if (found.item.gen) {
+    // Generated gear: the Forge rerolls everything but its material.
+    if ((found.item.rerolls ?? 0) >= MAX_REROLLS) return "This item can't be rerolled any more.";
+    const cost = rerollCost(found.item, h);
+    if (h.scrap < cost) return `Needs ${cost} Scrap.`;
+    h.scrap -= cost;
+    found.item.rerolls = (found.item.rerolls ?? 0) + 1;
+    const m = found.item.gen.m;
+    setGenLuck(genLuck(run));
+    const fresh = generate(baseOf(found.item.base), found.item.rarity, found.item.level, depth(run), run.rng, heroTags(h));
+    fresh.m = m;
+    found.item.gen = { ...fresh, name: genNameFor(found.item.base, fresh) };
+    recompute(h);
+    return null;
+  }
   if (!keys.length) return "This item has no bonuses to reroll.";
   if ((found.item.rerolls ?? 0) >= MAX_REROLLS) return "This item can't be rerolled any more.";
   const cost = rerollCost(found.item, h);
@@ -1245,6 +1275,7 @@ export function forgeCombine(run: Run, a: number, b: number): GearItem | string 
   const A = findItem(h, a)?.item;
   const B = findItem(h, b)?.item;
   if (!A || !B || a === b) return "Pick two items.";
+  if (A.gen || B.gen) return "Items made by chance (generated gear) can't be combined.";
   if (A.base !== B.base) return "Only two of the same item can be combined.";
   if (A.rarity === "legendary" || B.rarity === "legendary" || A.rarity === "crimson" || B.rarity === "crimson") return "Legendary and Crimson items can't be combined.";
   if (baseOf(A.base).noJewel) return `The ${baseOf(A.base).name} can't be combined.`;
@@ -1470,6 +1501,7 @@ export function jewelPlace(run: Run, slot: JewelSlot): string | null {
   } else {
     const it = findItem(run.hero, slot.uid)?.item;
     if (!it) return null;
+    if (it.gen) return "The Jeweller won't touch gear made by chance (generated items).";
     if (s.mode === "infuse") {
       if (isTrinket(it)) { s.right = slot; return null; }
       if (isInfusable(it)) { s.left = slot; return null; }
@@ -1644,6 +1676,9 @@ export function grantRelic(run: Run, id: string) {
   recompute(h);
 }
 
+/** Base luck for generated gear: the Abyss doubles it, every Heat level adds a little. */
+const genLuck = (run: Run) => (run.mode === "abyss" ? 2 : 1) * (1 + 0.15 * heatOf(run));
+
 /** A relic reward: sometimes a choice of two instead (the player picks one). */
 function offerRelic(run: Run, relic: string, chance: number, quality = 2) {
   if (run.rng() < chance) {
@@ -1808,6 +1843,20 @@ export function trackMarks(run: Run) {
   const p = h.f.persist;
   p["ach_max_gold"] = Math.max(p["ach_max_gold"] ?? 0, h.f.gold);
   if ((p["angelFights"] ?? 0) > 0 || (p["blessFights"] ?? 0) > 0 || (p["cloverChests"] ?? 0) > 0) p["ach_blessing"] = 1;
+  // Generated gear finds, and Talisman sets.
+  for (const it of [...EQUIP_SLOTS.map(sl => h.equip[sl]), ...h.backpack]) {
+    if (!it?.gen) continue;
+    if (it.gen.broken) p["ach_overcharged"] = 1;
+    if (it.gen.mods.some(m => m[2] >= 3)) p["ach_mythic"] = 1;
+    if (it.gen.mods.some(m => m[2] >= 1)) p["ach_greater"] = 1;
+    if (it.rarity === "crimson") p["ach_veined"] = 1;
+  }
+  const wornSigils = new Set((h.sigils ?? []).map(x => x.id));
+  for (const set of SIGIL_SETS) {
+    const n = set.pieces.filter(id => wornSigils.has(id)).length;
+    if (n >= 2) p["ach_sigil2"] = 1;
+    if (n >= set.pieces.length) p["ach_sigil_full"] = 1;
+  }
   // A full set: every slot you have filled (the off-hand may be empty behind a two-hander).
   const main = h.equip.main;
   const need = EQUIP_SLOTS.filter(sl => sl !== "trinket3" || h.equip.trinket3).filter(sl => !(sl === "off" && main && effectiveBase(main).twoHanded && !h.equip.off));
@@ -1824,4 +1873,63 @@ export function trackMarks(run: Run) {
 export function markEncounter(run: Run, key: string) {
   const e = (run.encounters ??= []);
   if (!e.includes(key)) e.push(key);
+}
+
+// ---------- The Talisman ----------
+/** Maybe find a sigil (straight into the sigil bag). Set pieces lean toward sets you've started. Returns its name. */
+export function rollSigilDrop(run: Run, chance: number, setChance: number): string | null {
+  const luck = (run.mode === "abyss" ? 1.5 : 1) * (1 + 0.05 * heatOf(run));
+  if (run.rng() >= chance * luck) return null;
+  const h = run.hero;
+  const level = depth(run);
+  let sg: Sigil;
+  if (run.rng() < Math.min(0.9, setChance * luck)) {
+    const owned = new Set([...(h.sigils ?? []), ...(h.sigilBag ?? [])].map(x => x.id));
+    const sets = SIGIL_SETS.map(set => ({ set, w: 1 + 1.5 * set.pieces.filter(p => owned.has(p)).length }));
+    let x = run.rng() * sets.reduce((a, b) => a + b.w, 0);
+    const set = sets.find(o => (x -= o.w) < 0)?.set ?? SIGIL_SETS[0];
+    const missing = set.pieces.filter(p => !owned.has(p));
+    const pool = missing.length ? missing : set.pieces;
+    sg = { uid: h.nextUid++, id: pool[Math.floor(run.rng() * pool.length)], level };
+  } else {
+    const mod = GEN_MINORS[Math.floor(run.rng() * GEN_MINORS.length)];
+    sg = { uid: h.nextUid++, id: mod.id, level, tier: 2 + Math.floor(run.rng() * 3) };
+  }
+  const bag = (h.sigilBag ??= []);
+  if (bag.length >= SIGIL_BAG_SIZE) { h.scrap += 3; return null; }
+  bag.push(sg);
+  return sigilName(sg);
+}
+export const sigilName = (sg: Sigil) => (GEN_MINORS.some(m => m.id === sg.id) ? `Sigil ${GEN_MINORS.find(m => m.id === sg.id)!.affix}` : getItem(sg.id).name);
+/** Wear a sigil from the bag (if there's a free slot). */
+export function wearSigil(run: Run, uid: number): string | null {
+  const h = run.hero;
+  const bag = h.sigilBag ?? [];
+  const sg = bag.find(x => x.uid === uid);
+  if (!sg) return null;
+  if ((h.sigils ?? []).length >= sigilSlots(h)) return "Your Talisman is full. Take a sigil off first.";
+  if (!GEN_MINORS.some(m => m.id === sg.id) && (h.sigils ?? []).some(x => x.id === sg.id)) return "You're already wearing that sigil.";
+  h.sigilBag = bag.filter(x => x.uid !== uid);
+  (h.sigils ??= []).push(sg);
+  recompute(h);
+  return null;
+}
+export function removeSigil(run: Run, uid: number): string | null {
+  const h = run.hero;
+  const sg = (h.sigils ?? []).find(x => x.uid === uid);
+  if (!sg) return null;
+  if ((h.sigilBag ?? []).length >= SIGIL_BAG_SIZE) return "Your sigil bag is full.";
+  h.sigils = h.sigils!.filter(x => x.uid !== uid);
+  (h.sigilBag ??= []).push(sg);
+  recompute(h);
+  return null;
+}
+export function scrapSigil(run: Run, uid: number): number {
+  const h = run.hero;
+  const before = (h.sigilBag ?? []).length;
+  h.sigilBag = (h.sigilBag ?? []).filter(x => x.uid !== uid);
+  if (h.sigilBag.length === before) return 0;
+  const n = 4 + Math.floor(depth(run) / 2);
+  h.scrap += n;
+  return n;
 }

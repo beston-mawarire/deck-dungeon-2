@@ -301,4 +301,22 @@ export interface GearItem {
   upgrades?: number;
   /** A trinket infused into this weapon, off-hand or armour at the Jeweller (its id: its effects come along). */
   infused?: string;
+  /** Generated gear: what it's made of (see game/gen.ts). */
+  gen?: GenRecipe;
+}
+
+/** What a generated item is made of. Stored on the item; everything else is rebuilt from it. */
+export interface GenRecipe {
+  /** Material id. */
+  m: string;
+  /** Modules: [id, tier 1–7, grade 0–3] (grade: 0 normal, 1 ✦ Greater, 2 ✦✦ Grand, 3 ✦✦✦ Mythic). */
+  mods: [string, number, number][];
+  /** Signature powers (Epic and up). */
+  sig?: string[];
+  /** A drawback: [id, tier]. */
+  flaw?: [string, number];
+  /** Overcharged: far over budget (rare, on purpose). */
+  broken?: boolean;
+  /** The name it was born with. */
+  name: string;
 }

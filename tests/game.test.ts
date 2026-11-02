@@ -10,10 +10,10 @@ import { makeRng } from "../src/engine/rng";
 import { applyStatus, endOfRound, st } from "../src/engine/statuses";
 import { TAGS } from "../src/engine/types";
 import { equipItem, itemName, newHero, recompute, reveal, salvage, slotsFor, weaponDamage } from "../src/game/hero";
-import { resetDropped, resplendentCards, rollItem } from "../src/game/loot";
+import { resetDropped, resplendentCards, rollItem, setGenEnabled } from "../src/game/loot";
 import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem, rerollShop, drinkPotion, lockGold, restore, chooseEvent, smithUpgrade, buyTonic, useTonic } from "../src/game/run";
 
-beforeAll(() => loadLibrary());
+beforeAll(() => { loadLibrary(); setGenEnabled(false); });
 
 const dummy = (hp = 200) => {
   const e = makeMonster(makeRng(1), 1, "normal");
