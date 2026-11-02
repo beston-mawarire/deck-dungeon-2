@@ -6,7 +6,7 @@ Versions follow MAJOR.MINOR.PATCH:
 - The build number (git commit count) still goes up with every deploy.
 
 ## 1.36.0
-- Relics: 40 new small, steady relics join the pool (a point of Max HP, Damage or Armor, a few % of crit damage, Dodge, Spell Amp, healing, a little Barrier or Regen to start a fight, and so on). They turn up often, and extra copies keep adding up.
+- Relics: 39 new small, steady relics join the pool (a point of Max HP, Damage or Armor, a few % of crit damage, Dodge, Spell Amp, healing, a little Barrier or Regen to start a fight, and so on). They turn up often, and extra copies keep adding up.
 - Relics that change the rules, set up combos or are simply powerful are now far rarer finds; useful conditional tricks sit in between.
 - Talents: 19 new small talents (Max HP, Damage, crit damage, Dodge, Spell Amp, healing, Barrier, Gold and more), offered often. Build-defining and combo talents are offered far less often.
 - Curse cleansing has its own path: while you carry a curse, a ⛲ Cleansing room (the Well of Cleansing or a Holy Tribute) is often offered on the map. They're no longer hidden inside Something Strange.
