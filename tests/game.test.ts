@@ -1678,6 +1678,19 @@ describe("save and resume", () => {
     expect(loaded.run.hero.f.faces.length).toBe(6);
     expect(loaded.run.rng()).toBe(run.rng());
   });
+  it("a finished run stays saved on its results screen, with its results", async () => {
+    const { saveRun, loadRun, savedSummary, clearSave } = await import("../src/game/save");
+    const run = newRun("rogue", 4321);
+    run.scene = { t: "over", won: true };
+    run.endRecord = { earned: 42, unlocked: [], achievements: [] };
+    saveRun(run);
+    expect(savedSummary()?.over?.won).toBe(true);
+    const loaded = loadRun()!;
+    expect(loaded.run.scene).toEqual({ t: "over", won: true });
+    expect(loaded.run.endRecord?.earned).toBe(42);
+    clearSave();
+    expect(savedSummary()).toBeNull();
+  });
 });
 
 describe("treasury and encounters", () => {

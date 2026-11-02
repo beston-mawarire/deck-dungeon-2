@@ -349,9 +349,13 @@ function hud(r: Run) {
 
 // ---------- Title, Codex ----------
 
+/** A saved run still in progress (not one sitting on its results screen). */
+const liveSave = () => { const sv = savedSummary(); return !!sv && !sv.over; };
+
 function titleScreen() {
   const sv = savedSummary();
-  const cont = sv ? `<button class="primary continue" data-continue>▶ Continue your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run · ${sv.mode === "abyss" ? `Abyss depth ${sv.floor}` : `${sv.mode === "endless" ? "Endless " : ""}floor ${sv.floor}`} · level ${sv.level}</button>` : "";
+  const cont = sv?.over ? `<button class="primary continue" data-continue>▶ ${sv.over.won ? "🏆 " : ""}Back to your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run's results · ${sv.mode === "abyss" ? `Abyss depth ${sv.floor}` : `floor ${sv.floor}`}</button>`
+    : sv ? `<button class="primary continue" data-continue>▶ Continue your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run · ${sv.mode === "abyss" ? `Abyss depth ${sv.floor}` : `${sv.mode === "endless" ? "Endless " : ""}floor ${sv.floor}`} · level ${sv.level}</button>` : "";
   const tabs = `<div class="menu-tabs" role="tablist">
     <button class="menu-tab ${menuTab === "campaign" ? "active" : ""}" data-menutab="campaign" role="tab">🏰 Campaign</button>
     <button class="menu-tab abyss ${menuTab === "abyss" ? "active" : ""}" data-menutab="abyss" role="tab">${abyssUnlocked(meta) ? "🕳️" : "🔒"} Abyss Run</button></div>`;
@@ -973,7 +977,7 @@ function killerPanel(r: Run) {
 function sendRun(r: Run) {
   if (!leaderboardOn() || r.submitted) return;
   lbResult = "sending";
-  void submitRun(r, VERSION).then(res => { lbResult = res; render(); });
+  void submitRun(r, VERSION).then(res => { lbResult = res; if (res) { r.lbDone = true; if (r.scene.t === "over") saveRun(r, banked); } render(); });
 }
 
 const fmtN = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${(n / 1e3).toFixed(1)}k` : String(n));
@@ -1614,7 +1618,7 @@ function originPopup(o: OriginId) {
     <div class="panel plate-panel"><p class="big">⬛ <b>${pl}</b> Vanadium Plate${pl === 1 ? "" : "s"} on the ${og.name}</p>
       <p class="sub">${pl ? `+${Math.round(PLATE_BONUS * pl * 100)}% Max HP, Armor and Damage in the Abyss.` : "No plates yet."} Each plate adds ${Math.round(PLATE_BONUS * 100)}% more.</p>
       ${free ? `<button class="small ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : `＋ Give a plate (${free} to give)`}</button>` : `<p class="sub">No plates to give. Campaign bosses from floor 20 sometimes drop one.</p>`}</div>
-    ${savedSummary() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
+    ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary abyss-go" data-startabyss ${shards ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 1</button><button data-closeorigin>Back</button></div>
     ${shards ? `<p class="sub center">You have ${shards} Ruin Shard${shards === 1 ? "" : "s"}.</p>` : `<p class="sub center warn">You need a Ruin Shard.</p>`}
   </div></div>`;
@@ -1628,7 +1632,7 @@ function originPopup(o: OriginId) {
     <p class="sub">Starts with ${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p>
     ${masteryPanel(o)}
     ${heatPanel()}
-    ${savedSummary() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
+    ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>🏰 Start Campaign</button><button data-closeorigin>Back</button></div>
   </div></div>`;
 }
@@ -1829,7 +1833,7 @@ function render2() {
   // A new build is out: install it now that the run is safely saved at a path choice. Never on the end-of-run screen:
   // that would skip the results, the leaderboard post and the chance to delve deeper (it installs back at the menu).
   if (updateReady() && s.t === "map") { applyUpdate(); }
-  if (s.t === "over") clearSave();
+
   if (s.t === "combat" && s.battle !== currentBattle) {
     currentBattle = s.battle;
     lastRoll.player = lastRoll.enemy = null;
@@ -1842,12 +1846,16 @@ function render2() {
   if (bankRuin(meta, r)) backupVault(vaultOf(meta));
   // The leaderboard server keeps its own record of how far this run has got.
   if (r.sid && r.floor !== r.reportedFloor && s.t !== "over") void reportFloor(r);
+  if (s.t === "over" && !recorded && r.endRecord) recorded = r.endRecord;
   if (s.t === "over" && !recorded) {
     recorded = recordRun(meta, r, banked);
+    r.endRecord = recorded;
     banked += recorded.earned;
     sfx(s.won ? "win" : "lose");
     if (playerName()) sendRun(r);
   }
+  // A finished run stays saved on its results screen until a new run starts.
+  if (s.t === "over") saveRun(r, banked);
   const body =
     s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r)
     : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r)
@@ -2140,7 +2148,7 @@ function bind() {
     on("[data-daily]", () => {
       const today = utcDay();
       if (meta.daily?.day === today) return;
-      if (savedSummary() && !dailyArmed) { dailyArmed = true; return; }
+      if (liveSave() && !dailyArmed) { dailyArmed = true; return; }
       dailyArmed = false; challengesOpen = false;
       meta.daily = { day: today, floor: 1, won: false };
       saveMeta(meta);
@@ -2163,7 +2171,9 @@ function bind() {
     on("[data-closeorigin]", () => { pendingOrigin = null; });
     on("[data-help]", () => { helpOpen = true; });
     on("[data-closehelp]", () => { helpOpen = false; });
-    on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode; });
+    on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode;
+      // A finished run that never reached the leaderboard is sent now.
+      if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
     on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0)); run = nr; void startSession(nr); });
     return;
   }
@@ -2288,8 +2298,8 @@ function bind() {
   on("[data-rest]", () => say(rest(r, "heal")));
   on("[data-risk]", el => confirmRisk(r, el.dataset.risk === "yes"));
   on("[data-event]", el => chooseEvent(r, Number(el.dataset.event)));
-  on("[data-newrun]", () => { run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
-  on("[data-endless]", () => { if (run) run.submitted = false; lbResult = null; continueEndless(r); recorded = null; });
+  on("[data-newrun]", () => { clearSave(); run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
+  on("[data-endless]", () => { if (run) { run.submitted = false; run.lbDone = false; run.endRecord = undefined; } lbResult = null; continueEndless(r); recorded = null; });
   on("[data-unequip]", el => say(unequip(r.hero, el.dataset.unequip as EquipSlot)));
   on("[data-equip]", el => { const it = r.hero.backpack.find(i => i.uid === Number(el.dataset.equip)); if (it) say(equipItem(r.hero, it, el.dataset.slot as EquipSlot)); });
   on("[data-forgescrap]", el => { const u = Number(el.dataset.forgescrap); if (worn(u)) forgeAsk = { kind: "scrap", uid: u }; else doScrap(u); });

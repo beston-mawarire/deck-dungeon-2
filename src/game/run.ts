@@ -185,6 +185,10 @@ export interface Run {
   killer?: { name: string; title?: string; family?: string; traitIds?: string[]; nemesis?: boolean; rank: string; hp: number; maxHp: number; damage: number; armor: number; crimson?: boolean; traits: string[]; statuses: [string, number][] };
   /** The player ended this run themselves. */
   abandoned?: boolean;
+  /** The end-of-run results (Renown, unlocks, achievements), kept with the save so a finished run can be reopened. */
+  endRecord?: { earned: number; unlocked: string[]; achievements: string[]; mastery?: { origin: string; gained: number; level: number; levelUp: boolean } };
+  /** The leaderboard confirmed this run's latest post. */
+  lbDone?: boolean;
   /** The last boss beaten (for the Floor cleared screen). */
   lastBoss?: string;
   /** A story popup waiting to be shown (e.g. arriving on the last floor). */

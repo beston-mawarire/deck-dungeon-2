@@ -1,5 +1,7 @@
 // Save and resume: the run is saved to this browser every time you reach a path choice (the map),
 // so a refresh or a closed tab doesn't lose it. Mid-room progress isn't saved: you resume at the last choice.
+// A finished run (won or lost) stays saved on its results screen until you start a new run, so a reload
+// can't take away the results, the leaderboard post or the chance to delve deeper.
 import { makeRng, type Rng } from "../engine/rng";
 import { type Hero, recompute } from "./hero";
 import { getDropped, setDropped, setLocked } from "./loot";
@@ -13,11 +15,14 @@ interface SavedRun {
   rngState: number;
   dropped: string[];
   extra: { banked: number };
+  /** Set when the run has ended: it reopens on the results screen. */
+  over?: { won: boolean };
 }
 
-/** Save the run (only at the map, between rooms). */
+/** Save the run (at the map, between rooms, or on its results screen once it has ended). */
 export function saveRun(run: Run, banked = 0) {
-  if (run.scene.t !== "map") return;
+  if (run.scene.t !== "map" && run.scene.t !== "over") return;
+  const over = run.scene.t === "over" ? { won: run.scene.won } : undefined;
   try {
     const { rng, found, locked, seenBosses, scene, ...rest } = run;
     void scene;
@@ -26,7 +31,8 @@ export function saveRun(run: Run, banked = 0) {
       run: { ...rest, found: [...found], locked: [...locked], seenBosses: [...seenBosses] },
       rngState: (rng as Rng).state?.() ?? 0,
       dropped: getDropped(),
-      extra: { banked }
+      extra: { banked },
+      over
     };
     localStorage.setItem(KEY, JSON.stringify(data));
   } catch { /* storage unavailable or full */ }
@@ -37,12 +43,12 @@ export function clearSave() {
 }
 
 /** A short description of the saved run for the title screen, or null. */
-export function savedSummary(): { origin: string; floor: number; level: number; mode: string } | null {
+export function savedSummary(): { origin: string; floor: number; level: number; mode: string; over?: { won: boolean } } | null {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const d = JSON.parse(raw) as SavedRun;
-    return { origin: d.run.hero.origin, floor: d.run.floor, level: d.run.hero.level, mode: d.run.mode };
+    return { origin: d.run.hero.origin, floor: d.run.floor, level: d.run.hero.level, mode: d.run.mode, over: d.over };
   } catch { return null; }
 }
 
@@ -64,7 +70,7 @@ export function loadRun(): { run: Run; banked: number } | null {
       found: new Set(d.run.found),
       locked: new Set(d.run.locked),
       seenBosses: new Set(d.run.seenBosses),
-      scene: { t: "map" }
+      scene: d.over ? { t: "over", won: d.over.won } : { t: "map" }
     };
     setLocked(run.locked);
     setDropped(d.dropped);

@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.33.0
+- A finished run (won or lost) now stays saved on its results screen until you press New run (or start another run). If the game reloads or you close it, the menu offers ▶ Back to your run's results: everything is still there, including Delve deeper after a win, and a leaderboard post that didn't make it is sent again. Rewards aren't counted twice.
+
 ## 1.32.6
 - Fixed: an update arriving the moment a run ended (a win or a death) reloaded the game straight away, skipping the results screen, the leaderboard post and Delve deeper. Updates now wait until you're back at a path choice or the main menu.
 
