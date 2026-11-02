@@ -119,7 +119,7 @@ async function startSession(req, env) {
   return json({ sid });
 }
 
-/** The run reached a floor. One floor at a time (going back is allowed: the Crossroads), never too fast. */
+/** The run reached a floor. Going back is allowed (the Crossroads); going forward is checked against the time taken. */
 async function floorReached(req, env) {
   const b = await body(req);
   if (!b || typeof b.sid !== "string" || !SID.test(b.sid) || typeof b.pid !== "string") return json({ error: "bad request" }, 400);
@@ -131,8 +131,10 @@ async function floorReached(req, env) {
   if (!s || s.pid !== b.pid || (s.ended && !continuing)) return json({ error: "no such run" }, 404);
   const now = Date.now();
   let flag = null;
-  if (floor > s.floor + 1) flag = `jumped from floor ${s.floor} to ${floor}`;
-  else if (floor === s.floor + 1 && floor > s.max_floor && (now - s.floor_at) / 1000 < MIN_SECONDS_PER_FLOOR) flag = `floor ${floor} after ${Math.round((now - s.floor_at) / 1000)}s`;
+  // Several floors at once is fine if enough time has passed for them (a missed "reached floor" message, a dropped connection);
+  // only a pace no one could play at is flagged.
+  const gap = floor - s.floor, secs = (now - s.floor_at) / 1000;
+  if (gap >= 1 && floor > s.max_floor && secs < MIN_SECONDS_PER_FLOOR * gap) flag = gap > 1 ? `jumped from floor ${s.floor} to ${floor} in ${Math.round(secs)}s` : `floor ${floor} after ${Math.round(secs)}s`;
   // A flagged step isn't believed: the server's floor only moves on believable steps.
   const believed = flag ? s.floor : floor;
   await env.DB.prepare("UPDATE sessions SET floor = ?, max_floor = MAX(max_floor, ?), floor_at = ?, flagged = COALESCE(flagged, ?) WHERE sid = ?")

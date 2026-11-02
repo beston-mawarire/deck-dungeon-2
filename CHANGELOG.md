@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.34.2
+- Leaderboards: a run that skipped a floor check-in (a dropped connection, or the old bug after delving deeper) was marked unverified for the rest of the run. The server now accepts several floors at once when enough time has passed for them, and only flags a pace no one could play at. The run this hid is back on the boards.
+
 ## 1.34.1
 - The Mage now favours the new one-handed staffs: they turn up about twice as often for a Mage, in hand-made and generated loot alike.
 
