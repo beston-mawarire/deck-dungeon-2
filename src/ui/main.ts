@@ -1120,7 +1120,7 @@ function talismanHtml(r: Run, inCombat: boolean) {
     ${locked.map(f => `<div class="sigil locked"><span class="sub">🔒 Opens on floor ${f}</span></div>`).join("")}
     ${sets ? `<h3 class="jhead">Sets</h3>${sets}` : ""}
     <h3 class="jhead">Sigil bag · ${bag.length}/${SIGIL_BAG_SIZE}</h3>
-    ${bag.length ? bag.map(sg => card(sg, `<button class="small primary" data-sigon="${sg.uid}">Wear</button><button class="small" data-sigscrap="${sg.uid}">Scrap</button>`)).join("") : `<p class="sub">No sigils yet. Elites, Champions, bosses and chests sometimes carry them.</p>`}`;
+    ${bag.length ? bag.map(sg => card(sg, `<button class="small primary" data-sigon="${sg.uid}">Wear</button><button class="small take-scrap" data-sigscrap="${sg.uid}">Scrap</button>`)).join("") : `<p class="sub">No sigils yet. Elites, Champions, bosses and chests sometimes carry them.</p>`}`;
 }
 
 function bag(r: Run) {
@@ -1131,7 +1131,7 @@ function bag(r: Run) {
     const it = h.equip[s];
     return `<div><div class="slot-label">${slotName[s]}</div>${it ? itemCard(it, inCombat ? "" : `<button class="small" data-unequip="${s}">Unequip</button>${revealBtn(r, it)}`) : `<div class="item"><span class="sub">Empty</span></div>`}</div>`;
   }).join("");
-  const pack = h.backpack.map(it => itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(s => `<button class="small primary" data-equip="${it.uid}" data-slot="${s}">Equip${slotsFor(it, h).length > 1 ? ` (${slotName[s].toLowerCase()})` : ""}</button>`).join("")}<button class="small" data-salvage="${it.uid}">Scrap</button>${revealBtn(r, it)}`, !inCombat)).join("");
+  const pack = h.backpack.map(it => itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(s => `<button class="small primary" data-equip="${it.uid}" data-slot="${s}">Equip${slotsFor(it, h).length > 1 ? ` (${slotName[s].toLowerCase()})` : ""}</button>`).join("")}<button class="small take-scrap" data-salvage="${it.uid}">Scrap</button>${revealBtn(r, it)}`, !inCombat)).join("");
   const fusable = (id: string) => (FUSABLE_RELICS.has(id) ? ` <span class="fusable-tag">🔗 Fusable</span>` : "");
   const list = (o: Record<string, number>, cls = "") => Object.entries(o).map(([id, n]) => { const d = getItem(id); return `<p class="${cls}"><b class="nm">${esc(d.name)}</b>${n > 1 ? ` ×${n}` : ""}${cls === "relic-line" ? fusable(id) : ""} — <span class="desc">${esc(fillText(d.text, n))}</span></p>`; }).join("") || `<p class="sub">None yet.</p>`;
   const passive = getItem(ORIGINS[h.origin].passive);
