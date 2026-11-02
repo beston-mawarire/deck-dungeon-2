@@ -913,3 +913,5 @@ button.take-cmp { color: #e6f0ff; font-weight: 700; border-color: #5f8fc8; backg
 }
 .kit-swipe { color: var(--gold); font-weight: 700; }
 @media (min-width: 700px) { .kit-swipe { display: none; } }
+/* Inventory sub-tabs: the selected one is a softer, muted gold. */
+.subtabs button.primary { background: linear-gradient(180deg, #c9a75a 0%, #a8843f 100%); border-color: #b8944c; color: #1d160a; box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 2px 0 rgba(60,40,10,.5); }
