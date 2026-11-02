@@ -865,7 +865,7 @@ h2.shop-title { color: #f1e4ff; font-size: 1.15rem; font-weight: 800; text-shado
 /* Loot: Equip / Compare buttons share rows; Compare is quieter */
 .item .row > .take-cmp { flex: 1 1 auto; min-height: 36px; font-size: .85rem; }
 .item .row:has(> .take-equip) > .take-equip, .item .row:has(> .take-equip) > .take-cmp { flex-basis: 40%; }
-button.take-cmp { color: #e4d6f2; border-color: #7a68a0; background: linear-gradient(180deg, #3d3150, #2d2440); }
+button.take-cmp { color: #e6f0ff; font-weight: 700; border-color: #5f8fc8; background: linear-gradient(180deg, #3f6593 0%, #2f4e74 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 2px 0 #1c2f47, 0 3px 8px rgba(0,0,0,.3); }
 /* Compare popup */
 .compare-pop { max-width: 760px; width: 100%; }
 .cmp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; align-items: start; }

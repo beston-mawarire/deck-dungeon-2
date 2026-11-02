@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.30.1
+- ⚖️ Compare buttons now have a muted Rare-blue fill.
+
 ## 1.30.0
 - Found weapons that fit either hand now have ✔ Equip main hand and ✔ Equip off-hand buttons, plus ⚖️ Compare main hand and ⚖️ Compare off-hand.
 - Every other find has a ⚖️ Compare equipped button. Merchant gear has the Compare buttons too.
