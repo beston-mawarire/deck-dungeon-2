@@ -942,16 +942,16 @@ describe("class actions and new stats", () => {
     expect(run.hero.backpack.some(i => i.base === "lc_cookie")).toBe(true);
   });
 
-  it("shop rerolls double each time, follow your Gold, and stop after 5", () => {
+  it("shop rerolls triple each time, follow your Gold, and stop after 5", () => {
     const run = newRun("warrior", 41);
     run.hero.f.gold = 10000;
     chooseRoom(run, "shop");
     const paid: number[] = [];
     for (let i = 0; i < 6; i++) { const g = run.hero.f.gold; const err = rerollShop(run); paid.push(err ? -1 : g - run.hero.f.gold); }
-    expect(paid).toEqual([18, 36, 72, 144, 288, -1]); // 10 base × 1.75 (a full purse) = 18
+    expect(paid).toEqual([26, 78, 234, 702, 2106, -1]); // 15 base × 1.75 (a full purse) = 26
   });
 
-  it("a shop reroll doesn't restock potions", () => {
+  it("a shop reroll doesn't restock potions or relics", () => {
     const run = newRun("warrior", 42);
     run.hero.f.gold = 10000;
     run.hero.potions = 0;
@@ -964,6 +964,9 @@ describe("class actions and new stats", () => {
     const pots = run.scene.stock.filter(e => e.kind === "potion" || e.kind === "mana");
     expect(pots.length).toBe(before);
     expect(run.scene.stock.find(e => e.kind === "potion")?.sold).toBe(true);
+    const relicBefore = run.scene.stock.find(e => e.kind === "relic")?.relic;
+    rerollShop(run);
+    expect(run.scene.stock.find(e => e.kind === "relic")?.relic).toBe(relicBefore);
   });
 
   it("there are twelve Epic Crimsons, and every one is a real item", () => {

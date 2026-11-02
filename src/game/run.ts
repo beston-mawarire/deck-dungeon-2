@@ -965,7 +965,7 @@ function shopStock(run: Run): ShopEntry[] {
     stock.push({ kind: "item", item, price: Math.round(PRICE[item.rarity] * shopMult(run)) });
   }
   const shopRelic = randomRelic(run);
-  stock.push({ kind: "relic", relic: shopRelic, price: Math.round((({ common: 40, uncommon: 55, rare: 85, legendary: 160 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 50) * shopMult(run)) });
+  stock.push({ kind: "relic", relic: shopRelic, price: Math.round((({ common: 70, uncommon: 100, rare: 150, legendary: 280 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 90) * shopMult(run)) });
   stock.push({ kind: "potion", price: Math.round(15 * shopMult(run)) });
   if (run.rng() < 0.5) stock.push({ kind: "mana", price: Math.round(25 * shopMult(run)) });
   if (run.rng() < 0.12) stock.push({ kind: "scroll", price: Math.round(100 * shopMult(run)) });
@@ -1037,9 +1037,9 @@ export const wealthMult = (run: Run) => 1 + Math.min(0.75, Math.max(0, run.hero.
 export const shopMult = (run: Run) => priceMult(run) * wealthMult(run);
 
 export const priceMult = (run: Run) => (1 + 0.12 * (run.floor - 1)) * gouge(run.hero) * (heatOf(run) >= 2 ? 1.3 : 1);
-/** Each reroll at the same Merchant costs double the last (from 10 Gold, scaled by the floor), up to 5 rerolls per visit. */
+/** Each reroll at the same Merchant costs triple the last (from 15 Gold, scaled by the floor), up to 5 rerolls per visit. */
 export const MAX_SHOP_REROLLS = 5;
-export const shopRerollCost = (run: Run) => Math.round(10 * shopMult(run)) * 2 ** run.shopRerolls;
+export const shopRerollCost = (run: Run) => Math.round(15 * shopMult(run)) * 3 ** run.shopRerolls;
 
 export function rerollShop(run: Run): string | null {
   if (run.scene.t !== "shop") return null;
@@ -1048,9 +1048,10 @@ export function rerollShop(run: Run): string | null {
   if (run.hero.f.gold < cost) return "Not enough Gold.";
   run.hero.f.gold -= cost;
   run.shopRerolls++;
-  // A reroll brings new gear, relics and scrolls, but not more potions: the Healing and Mana Potions stay as they were (bought stays bought).
-  const potions = run.scene.stock.filter(e => e.kind === "potion" || e.kind === "mana");
-  const fresh = shopStock(run).filter(e => e.kind !== "potion" && e.kind !== "mana");
+  // A reroll brings new gear and scrolls, but not more potions or relics: those stay as they were (bought stays bought).
+  const kept = (e: ShopEntry) => e.kind === "potion" || e.kind === "mana" || e.kind === "relic";
+  const potions = run.scene.stock.filter(kept);
+  const fresh = shopStock(run).filter(e => !kept(e));
   const scroll = fresh.filter(e => e.kind === "scroll");
   run.scene = { ...run.scene, stock: [...fresh.filter(e => e.kind !== "scroll"), ...potions, ...scroll], markup: Math.round((wealthMult(run) - 1) * 100) };
   return null;

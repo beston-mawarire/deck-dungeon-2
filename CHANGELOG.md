@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.32.1
+- Merchant rerolls get expensive fast: each one costs triple the last (was double), starting a little higher.
+- Rerolling no longer brings a new relic: the relic on offer stays (sold stays sold). Merchant relics cost more: about 75% more at every rarity.
+
 ## 1.32.0
 - Rooms with Quick Battle now also have a red ⚔️ Fight button beside it, so it's clear you can still fight them yourself (clicking the card works too).
 - Options: Quick Battle can be switched On or Off. Off hides the Quick Battle buttons on the map and in fights.
