@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.32.5
+- Found loot: the Scrap button is now red (on item cards and in the Compare popup).
+
 ## 1.32.4
 - Jeweller: the Leave button is now a full-width gold 🚪 Leave the Jeweller, so it's easy to find.
 
