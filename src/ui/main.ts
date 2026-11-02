@@ -61,6 +61,7 @@ let restoreOpen = false;
 let infoOpen = false;
 let historyOpen = false;
 let achOpen = false;
+let challengesOpen = false;
 let achTab: "todo" | "earned" = "todo";
 /** Starting the Daily Dungeon over a saved run takes a second tap. */
 let dailyArmed = false;
@@ -333,7 +334,8 @@ function titleScreen() {
       ${abyss ? `<span class="plate-line">⬛ ${pl} plate${pl === 1 ? "" : "s"}</span>` : ""}
     </button>`;
   }).join("")}</div>`;
-  const infoRow = `<div class="menu-btns two info-row"><button class="info-btn" data-info>ℹ️ Info</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>`;
+  const dailyOpenToday = meta.daily?.day !== utcDay();
+  const infoRow = `<div class="menu-btns three info-row"><button class="info-btn" data-info>ℹ️ Info</button><button class="ch-btn" data-challenges>${dailyOpenToday ? `<b class="newdot" title="Today's Daily Dungeon is waiting"></b>` : ""}⚔️ Challenges</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>`;
   const head = `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>`;
   if (menuTab === "abyss") {
     const shards = meta.ruinShards ?? 0;
@@ -356,9 +358,6 @@ function titleScreen() {
         ${backupPanel()}`;
     return `${head}${tabs}${infoRow}${cont}${body}<p class="version">${VERSION}</p>`;
   }
-  const today = utcDay();
-  const d = dailyFor(today);
-  const dailyDone = meta.daily?.day === today ? meta.daily : undefined;
   return `${head}${tabs}${infoRow}
   ${cont}
   <div class="campaign-hero">
@@ -368,13 +367,6 @@ function titleScreen() {
   <h2 class="bright">Choose an origin</h2>
   <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
   ${originCards(false)}
-  <h3 class="mini-head">Also waiting</h3>
-  <div class="mini-rows">
-    <div class="mini-row daily-row"><span class="mr-ic">📅</span><span class="grow"><b>Daily Dungeon</b><span class="sub">${dailyDone ? `${dailyDone.done ? `Done today: floor ${dailyDone.floor}${dailyDone.won ? " · won" : ""}` : "Today's attempt has begun"}` : `Everyone's run today, as the ${ORIGIN_ICON[d.origin]} ${ORIGINS[d.origin].name}. One try.`}</span></span>
-      ${dailyDone ? `<span class="sub mr-side">${(() => { const ms = Date.parse(`${today}T00:00:00Z`) + 864e5 - Date.now(); return `${Math.floor(ms / 3600e3)}h ${Math.floor((ms % 3600e3) / 60e3)}m`; })()}</span>` : `<button class="small primary daily-go" data-daily>${dailyArmed ? "Replace save?" : "Play"}</button>`}</div>
-    ${meta.nemesis ? `<div class="mini-row nemesis-row"><span class="mr-ic">😈</span><span class="grow"><b>Your Nemesis: ${esc(meta.nemesis.name)}</b><span class="sub">${meta.nemesis.level > 1 ? `Beaten you ${meta.nemesis.level}×. ` : ""}Waits in your next Campaign run. Bounty on its head.</span></span></div>` : ""}
-    <div class="mini-row heat-row"><span class="mr-ic">🔥</span><span class="grow"><b>Heat ${meta.wins ? (meta.heat ? meta.heat : "off") : "locked"}</b><span class="sub">${meta.wins ? "Set it when you pick your class." : "Win the Campaign once to unlock harder, richer runs."}</span></span></div>
-  </div>
   <p class="version">${VERSION}</p>`;
 }
 
@@ -388,6 +380,25 @@ function heatPanel() {
   </div>`;
 }
 
+
+/** Challenges: the Daily Dungeon, your Nemesis, Heat and this week's Abyss twist. */
+function challengesPopup() {
+  const today = utcDay();
+  const d = dailyFor(today);
+  const dailyDone = meta.daily?.day === today ? meta.daily : undefined;
+  const w = currentAbyssMod();
+  return `<div class="overlay popup-wrap"><div class="popup ch-pop">
+    <button class="small closex closebtn" data-closechallenges aria-label="Close">✕</button>
+    <h1 class="center bigname">⚔️ Challenges</h1>
+  <div class="mini-rows">
+    <div class="mini-row daily-row"><span class="mr-ic">📅</span><span class="grow"><b>Daily Dungeon</b><span class="sub">${dailyDone ? `${dailyDone.done ? `Done today: floor ${dailyDone.floor}${dailyDone.won ? " · won" : ""}` : "Today's attempt has begun"}` : `Everyone's run today, as the ${ORIGIN_ICON[d.origin]} ${ORIGINS[d.origin].name}. One try.`}</span></span>
+      ${dailyDone ? `<span class="sub mr-side">${(() => { const ms = Date.parse(`${today}T00:00:00Z`) + 864e5 - Date.now(); return `${Math.floor(ms / 3600e3)}h ${Math.floor((ms % 3600e3) / 60e3)}m`; })()}</span>` : `<button class="small primary daily-go" data-daily>${dailyArmed ? "Replace save?" : "Play"}</button>`}</div>
+    ${meta.nemesis ? `<div class="mini-row nemesis-row"><span class="mr-ic">😈</span><span class="grow"><b>Your Nemesis: ${esc(meta.nemesis.name)}</b><span class="sub">${meta.nemesis.level > 1 ? `Beaten you ${meta.nemesis.level}×. ` : ""}Waits in your next Campaign run. Bounty on its head.</span></span></div>` : ""}
+    <div class="mini-row heat-row"><span class="mr-ic">🔥</span><span class="grow"><b>Heat ${meta.wins ? (meta.heat ? meta.heat : "off") : "locked"}</b><span class="sub">${meta.wins ? "Set it when you pick your class." : "Win the Campaign once to unlock harder, richer runs."}</span></span></div>
+  </div>
+    <div class="mini-row week-row"><span class="mr-ic">${w.icon}</span><span class="grow"><b>Abyss this week: ${esc(w.name)}</b><span class="sub">${esc(w.text)}.${abyssUnlocked(meta) ? "" : " (The Abyss opens after floor 15.)"}</span></span></div>
+  </div></div>`;
+}
 
 /** Info: Renown and unlocks, the Codex and How to play. */
 function infoPopup() {
@@ -1602,7 +1613,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -1861,6 +1872,8 @@ function bind() {
     on("[data-info]", () => { infoOpen = true; });
     on("[data-closeinfo]", () => { infoOpen = false; });
     on("[data-history]", () => { historyOpen = true; });
+    on("[data-challenges]", () => { challengesOpen = true; });
+    on("[data-closechallenges]", () => { challengesOpen = false; });
     on("[data-achievements]", () => { achOpen = true; });
     on("[data-closeach]", () => { achOpen = false; });
     on("[data-achtab]", el => { achTab = el.dataset.achtab as typeof achTab; });
@@ -1918,7 +1931,7 @@ function bind() {
       const today = utcDay();
       if (meta.daily?.day === today) return;
       if (savedSummary() && !dailyArmed) { dailyArmed = true; return; }
-      dailyArmed = false;
+      dailyArmed = false; challengesOpen = false;
       meta.daily = { day: today, floor: 1, won: false };
       saveMeta(meta);
       mode = "campaign"; lbResult = null; lbNaming = false; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;

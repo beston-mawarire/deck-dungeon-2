@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.24.1
+- Main menu: a ⚔️ Challenges button between Info and Leaderboards. It holds the Daily Dungeon (a red dot until you've played today's), your Nemesis, Heat and this week's Abyss twist, so the Campaign tab is just the classes now.
+
 ## 1.24.0
 - **Encounter achievements**: one for every event (rare and once-a-run ones are worth more), one for trying every choice at each event (counted across your runs), and one for each special room: resting at a Campfire, buying from the Merchant, upgrading at the Forge, a Shrine, an Altar, a Resplendent Vault, a Crimson Vault, a Bounty Board contract and unifying with a Dragon Heart. The Achievements list groups them under Feats and Encounters (117 in all).
 - **8 new Epics**: Widowmaker, Sunderer, Wall of Retribution, Plague Lantern, Wolfhide Coat, Glacial Plate, Executioner's Signet, Vampire's Fang.
