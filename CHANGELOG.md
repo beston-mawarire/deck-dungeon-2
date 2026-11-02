@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.18.5
+- Auto-battle is available from floor 2 (was floor 3).
+
 ## 1.18.4
 - DEATH scaled down drastically: it now has fixed stats wherever you meet it (40,000 HP, 40 Armor) instead of the old floor-80 numbers (trillions of HP). Its Reap is unchanged. Still extremely hard, but a truly broken build can win.
 - The "couldn't be verified" leaderboard note now says why: no server session (offline, or the run began before verification existed) or the server couldn't confirm the run.

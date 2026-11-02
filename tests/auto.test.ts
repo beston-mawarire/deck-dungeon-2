@@ -6,7 +6,7 @@ const S = (r: Run): Run["scene"] => r.scene;
 
 it("auto-battle is offered when plain attacks surely win, and it wins", () => {
   const run = newRun("warrior", 21);
-  run.floor = 3;
+  run.floor = 2;
   chooseRoom(run, "fight");
   const sc = S(run);
   if (sc.t !== "combat") throw new Error("no fight");
@@ -48,7 +48,7 @@ it("never offered against bosses", () => {
   expect(canAutoBattle(run)).toBe(false);
 });
 
-it("not before floor 3", () => {
+it("not before floor 2", () => {
   const run = newRun("warrior", 25);
   chooseRoom(run, "fight");
   const sc = S(run);
