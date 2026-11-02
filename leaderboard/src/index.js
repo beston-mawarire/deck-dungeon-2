@@ -2,7 +2,8 @@
 //   POST /session                      a run starts: the server opens its own record of it (returns a session id)
 //   POST /session/floor                the run reached a floor: the server checks the step and the pace, and records it
 //   POST /runs                         a finished run: checked against the server's record; anything off is kept but hidden
-//   GET  /leaderboard?board=..&pid=..  the top players on a board (each player's best verified run), plus your own place
+//   GET  /leaderboard?board=..&scope=campaign|daily|dailyall&origin=..&pid=..  the top players on a board (each player's best verified run), plus your own place
+//   GET  /killers                      the Bounty board: the foes that have ended the most runs
 //   POST /vault                        back up a player's progress: Ruin Shards, Vanadium Plates and the whole save (the device is in charge)
 //   GET  /vault?pid=..                 fetch that backup (to restore it on a new device)
 //   GET  /health                       ok
@@ -51,10 +52,12 @@ function validate(b) {
     version: typeof b.version === "string" ? b.version.slice(0, 40) : null,
     plates: int(b.plates ?? 0, 0, 10000) ?? 0,
     title: typeof b.title === "string" ? b.title.replace(/[^\p{L}\p{N} _.\-']/gu, "").trim().slice(0, 24) || null : null,
+    // What ended the run (a death, not a win or giving up): for the Bounty board.
+    killer: !b.won && typeof b.killer === "string" ? b.killer.replace(/[^\p{L}\p{N} _.,\-'’!]/gu, "").trim().slice(0, 48) || null : null,
     // A Daily Dungeon run: only today's (or yesterday's, for a run finished after midnight) counts.
     daily: typeof b.daily === "string" && DAY.test(b.daily) && [utcDay(), utcDay(Date.now() - 864e5)].includes(b.daily) && b.mode !== "abyss" ? b.daily : null
   };
-  for (const [k, v] of Object.entries(row)) if (v === null && k !== "version" && k !== "sid" && k !== "daily" && k !== "title") return `bad ${k}`;
+  for (const [k, v] of Object.entries(row)) if (v === null && k !== "version" && k !== "sid" && k !== "daily" && k !== "title" && k !== "killer") return `bad ${k}`;
   return row;
 }
 
@@ -78,10 +81,27 @@ function discrepancy(row, s, now) {
   return null;
 }
 
-async function placeOf(db, board, value, day) {
+/** Which runs a board covers. Scopes: the Campaign (incl. the Abyss board), today's Daily, or every Daily ever. An origin narrows it to one class. */
+function boardFilter(board, day, scope, origin) {
+  let f = scope === "dailyall" ? "daily IS NOT NULL"
+    : scope === "daily" ? `daily = '${DAY.test(day ?? "") ? day : utcDay()}'`
+    : scope === "campaign" ? (board === "abyss" ? "mode = 'abyss'" : "mode != 'abyss' AND daily IS NULL")
+    : modeFilter(board, day);
+  if (ORIGINS.includes(origin)) f += ` AND origin = '${origin}'`;
+  return f;
+}
+
+async function placeOf(db, board, value, day, scope, origin) {
   const col = BOARDS[board];
-  const r = await db.prepare(`SELECT COUNT(*) AS n FROM (SELECT pid, MAX(${col}) AS v FROM runs WHERE suspect = 0 AND ${modeFilter(board, day)} GROUP BY pid) WHERE v > ?`).bind(value).first();
+  const r = await db.prepare(`SELECT COUNT(*) AS n FROM (SELECT pid, MAX(${col}) AS v FROM runs WHERE suspect = 0 AND ${boardFilter(board, day, scope, origin)} GROUP BY pid) WHERE v > ?`).bind(value).first();
   return (r?.n ?? 0) + 1;
+}
+
+/** The Bounty board: the foes that have ended the most runs. */
+async function getKillers(env) {
+  const { results } = await env.DB.prepare(`SELECT killer, COUNT(*) AS kills, COUNT(DISTINCT pid) AS players FROM runs
+    WHERE killer IS NOT NULL AND won = 0 GROUP BY killer ORDER BY kills DESC, players DESC LIMIT 10`).all();
+  return json({ rows: results.map((r, i) => ({ rank: i + 1, name: r.killer, kills: r.kills, players: r.players })) });
 }
 
 /** A run starts: open the server's own record of it. */
@@ -133,15 +153,15 @@ async function postRun(req, env) {
   const followUp = s && s.ended && s.pid === row.pid && row.floor >= (s.posted_floor ?? 0);
   const why = discrepancy(row, followUp ? { ...s, ended: 0 } : s, now);
   const suspect = why ? 1 : 0;
-  await env.DB.prepare(`INSERT INTO runs (pid, name, seed, origin, mode, floor, won, level, kills, elites, champions, damage, best_hit, gold, version, created_at, sid, suspect, reason, plates, daily, title)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  await env.DB.prepare(`INSERT INTO runs (pid, name, seed, origin, mode, floor, won, level, kills, elites, champions, damage, best_hit, gold, version, created_at, sid, suspect, reason, plates, daily, title, killer)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT (pid, seed) DO UPDATE SET mode = excluded.mode, floor = MAX(floor, excluded.floor), won = MAX(won, excluded.won), level = MAX(level, excluded.level),
       kills = MAX(kills, excluded.kills), elites = MAX(elites, excluded.elites), champions = MAX(champions, excluded.champions), damage = MAX(damage, excluded.damage),
       best_hit = MAX(best_hit, excluded.best_hit), gold = MAX(gold, excluded.gold), version = excluded.version, created_at = excluded.created_at,
-      sid = excluded.sid,
+      sid = excluded.sid, killer = CASE WHEN excluded.floor >= runs.floor THEN excluded.killer ELSE runs.killer END,
       suspect = CASE WHEN excluded.floor >= runs.floor THEN excluded.suspect ELSE MAX(runs.suspect, excluded.suspect) END,
       reason = CASE WHEN excluded.floor >= runs.floor THEN excluded.reason ELSE COALESCE(excluded.reason, runs.reason) END`)
-    .bind(row.pid, row.name, row.seed, row.origin, row.mode, row.floor, row.won, row.level, row.kills, row.elites, row.champions, row.damage, row.best_hit, row.gold, row.version, now, row.sid, suspect, why, row.plates, row.daily, row.title).run();
+    .bind(row.pid, row.name, row.seed, row.origin, row.mode, row.floor, row.won, row.level, row.kills, row.elites, row.champions, row.damage, row.best_hit, row.gold, row.version, now, row.sid, suspect, why, row.plates, row.daily, row.title, row.killer).run();
   if (s && s.pid === row.pid) await env.DB.prepare("UPDATE sessions SET ended = 1, posted_floor = ? WHERE sid = ?").bind(row.floor, row.sid).run();
   await env.DB.prepare("UPDATE runs SET name = ?, title = ? WHERE pid = ?").bind(row.name, row.title, row.pid).run();
   if (suspect) return json({ ok: true, verified: false });
@@ -158,17 +178,20 @@ async function getBoard(url, env) {
   const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 25));
   const pid = url.searchParams.get("pid") ?? "";
   const day = url.searchParams.get("day") ?? "";
+  const scope = url.searchParams.get("scope") ?? "";
+  const origin = url.searchParams.get("origin") ?? "";
+  const where = boardFilter(board, day, scope, origin);
   const best = `WITH best AS (
-      SELECT pid, name, title, origin, floor, plates, ${col} AS value, created_at,
+      SELECT pid, name, title, origin, floor, plates, daily, ${col} AS value, created_at,
         ROW_NUMBER() OVER (PARTITION BY pid ORDER BY ${col} DESC, created_at ASC) AS rn
-      FROM runs WHERE suspect = 0 AND ${modeFilter(board, day)})
-    SELECT pid, name, title, origin, floor, plates, value, created_at FROM best WHERE rn = 1 ORDER BY value DESC, created_at ASC`;
+      FROM runs WHERE suspect = 0 AND ${where})
+    SELECT pid, name, title, origin, floor, plates, daily, value, created_at FROM best WHERE rn = 1 ORDER BY value DESC, created_at ASC`;
   const { results } = await env.DB.prepare(`${best} LIMIT ?`).bind(limit).all();
-  const rows = results.map((r, i) => ({ rank: i + 1, name: r.name, title: r.title ?? undefined, value: r.value, origin: r.origin, floor: r.floor, plates: board === "abyss" ? r.plates ?? 0 : undefined, you: r.pid === pid || undefined }));
+  const rows = results.map((r, i) => ({ rank: i + 1, name: r.name, title: r.title ?? undefined, value: r.value, origin: r.origin, floor: r.floor, plates: board === "abyss" ? r.plates ?? 0 : undefined, day: scope === "dailyall" ? r.daily ?? undefined : undefined, you: r.pid === pid || undefined }));
   let me = null;
   if (pid && !rows.some(r => r.you)) {
-    const mine = await env.DB.prepare(`SELECT MAX(${col}) AS v FROM runs WHERE pid = ? AND suspect = 0 AND ${modeFilter(board, day)}`).bind(pid).first();
-    if (mine && mine.v !== null) me = { rank: await placeOf(env.DB, board, mine.v, day), value: mine.v };
+    const mine = await env.DB.prepare(`SELECT MAX(${col}) AS v FROM runs WHERE pid = ? AND suspect = 0 AND ${where}`).bind(pid).first();
+    if (mine && mine.v !== null) me = { rank: await placeOf(env.DB, board, mine.v, day, scope, origin), value: mine.v };
   }
   return json({ board, rows, me });
 }
@@ -217,6 +240,7 @@ export default {
       if (url.pathname === "/session/floor" && req.method === "POST") return await floorReached(req, env);
       if (url.pathname === "/runs" && req.method === "POST") return await postRun(req, env);
       if (url.pathname === "/leaderboard" && req.method === "GET") return await getBoard(url, env);
+      if (url.pathname === "/killers" && req.method === "GET") return await getKillers(env);
       if (url.pathname === "/vault" && req.method === "POST") return await putVault(req, env);
       if (url.pathname === "/vault" && req.method === "GET") return await getVault(url, env);
       return json({ error: "not found" }, 404);

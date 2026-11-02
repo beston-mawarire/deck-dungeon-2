@@ -28,7 +28,7 @@ import {
 import { fortunePips } from "../game/loot";
 import { PLATE_BONUS, potionCap, potionsPerFight } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
-import { applySave, watchBackup, backupCode, backupVault, setPlayerTitle, BOARDS, type Board, fetchBoard, fetchVault, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun, useBackupCode, vaultDirty } from "./leaderboard";
+import { applySave, watchBackup, backupCode, backupVault, setPlayerTitle, SUB_BOARDS, type Board, type Scope, type KillerRow, fetchBoard, fetchKillers, fetchVault, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun, useBackupCode, vaultDirty } from "./leaderboard";
 import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
@@ -76,6 +76,9 @@ let helpOpen = false;
 /** Leaderboards: the board on show, what came back, and how this run placed. */
 let lbOpen = false;
 let lbBoard: Board = "floor";
+let lbScope: Scope = "campaign";
+let lbOrigin = "";
+let lbKillers: KillerRow[] | null = null;
 let lbRows: Row[] | null = null;
 let lbMe: { rank: number; value: number } | null = null;
 let lbError = "";
@@ -972,7 +975,8 @@ function runStatsPanel(r: Run) {
   else if (lbResult && lbResult.verified === false) box = `<p class="lb-placed">🏆 This run couldn't be verified, so it isn't on the leaderboards. ${r.sid ? "The server couldn't confirm how it went (for example, floors cleared faster than it allows)." : "It began without a connection to the leaderboard server (offline, or before verification was added)."}</p>`;
   else if (lbResult && lbResult.ranks) {
     const rk = lbResult.ranks;
-    const best = BOARDS.filter(b => (rk[b.id] ?? 99) <= 10).map(b => `${b.icon} #${rk[b.id]} ${b.label}`);
+    const named = [...SUB_BOARDS.campaign, { id: "daily" as Board, label: "Daily", icon: "📅", unit: "" }];
+    const best = named.filter(b => (rk[b.id] ?? 99) <= 10).map(b => `${b.icon} #${rk[b.id]} ${b.label}`);
     box = `<p class="lb-placed">🏆 On the leaderboards as <b>${esc(name)}</b>${best.length ? ` · ${best.join(" · ")}` : ` · #${rk.floor} deepest`}</p>
       <div class="row"><button class="small" data-lb>See the leaderboards</button><button class="small" data-lbrename>Change name</button></div>`;
   } else if (r.submitted) box = `<p class="lb-placed">🏆 Couldn't reach the leaderboards. This run will be sent when you're back online.</p>`;
@@ -981,20 +985,33 @@ function runStatsPanel(r: Run) {
 }
 
 function leaderboardPopup() {
-  const tabs = BOARDS.map(b => `<button class="small ${lbBoard === b.id ? "primary" : ""}" data-lbboard="${b.id}">${b.icon} ${b.label}</button>`).join("");
-  const unit = BOARDS.find(b => b.id === lbBoard)!;
   const ORIGIN_IC: Record<string, string> = { warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" };
+  const main = ([["campaign", "🏰 Campaign"], ["daily", "📅 Daily"], ["bounty", "🎯 Bounty"]] as [Scope, string][])
+    .map(([k, l]) => `<button class="lb-main ${lbScope === k ? "active" : ""}" data-lbscope="${k}">${l}</button>`).join("");
+  const subs = lbScope === "bounty" ? [] : SUB_BOARDS[lbScope];
+  const unit = subs.find(b => b.id === lbBoard);
+  const subTabs = subs.map(b => `<button class="small ${lbBoard === b.id ? "primary" : ""}" data-lbboard="${b.id}">${b.icon} ${b.label}</button>`).join("");
+  const classTabs = [["", "All"], ...Object.entries(ORIGINS).map(([id, o]) => [id, `${ORIGIN_IC[id] ?? ""} ${o.name}`])]
+    .map(([id, l]) => `<button class="small lb-class ${lbOrigin === id ? "active" : ""}" data-lborigin="${id}">${l}</button>`).join("");
   let body: string;
   if (!leaderboardOn()) body = `<p class="sub center">The leaderboards are being set up. Check back soon!</p>`;
   else if (lbError) body = `<p class="sub center">${esc(lbError)}</p>`;
-  else if (!lbRows) body = `<p class="sub center">Loading…</p>`;
-  else if (!lbRows.length) body = `<p class="sub center">Nobody's on this board yet. Be the first!</p>`;
-  else body = `<ol class="lb-list">${lbRows.map(row => `<li class="${row.you ? "you" : ""} ${row.rank <= 3 ? `top${row.rank}` : ""}"><span class="lb-rank">${row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}</span><span class="lb-nm">${ORIGIN_IC[row.origin] ?? ""} ${esc(row.name)}${row.title ? ` <span class="lb-title">“${esc(row.title)}”</span>` : ""}${row.you ? " <i>(you)</i>" : ""}${row.plates ? ` <span class="lb-plates" title="Vanadium Plates">⬛${row.plates}</span>` : ""}</span><b class="lb-val">${fmtN(row.value)}</b></li>`).join("")}</ol>
+  else if (lbScope === "bounty") {
+    body = !lbKillers ? `<p class="sub center">Loading…</p>`
+      : !lbKillers.length ? `<p class="sub center">Nothing has claimed a hero yet. Give it time.</p>`
+      : `<ol class="lb-list">${lbKillers.map(k => `<li class="${k.rank <= 3 ? `top${k.rank}` : ""}"><span class="lb-rank">${k.rank <= 3 ? ["🥇", "🥈", "🥉"][k.rank - 1] : `#${k.rank}`}</span><span class="lb-nm">☠️ ${esc(k.name)} <span class="lb-title">${k.players} player${k.players === 1 ? "" : "s"}</span></span><b class="lb-val">${fmtN(k.kills)}</b></li>`).join("")}</ol>`;
+  } else if (!lbRows) body = `<p class="sub center">Loading…</p>`;
+  else if (!lbRows.length) body = `<p class="sub center">${lbScope === "daily" && lbBoard !== "alltime" ? "Nobody has played today's Daily Dungeon yet. Be the first!" : "Nobody's on this board yet. Be the first!"}</p>`;
+  else body = `<ol class="lb-list">${lbRows.map(row => `<li class="${row.you ? "you" : ""} ${row.rank <= 3 ? `top${row.rank}` : ""}"><span class="lb-rank">${row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}</span><span class="lb-nm">${ORIGIN_IC[row.origin] ?? ""} ${esc(row.name)}${row.title ? ` <span class="lb-title">“${esc(row.title)}”</span>` : ""}${row.you ? " <i>(you)</i>" : ""}${row.plates ? ` <span class="lb-plates" title="Vanadium Plates">⬛${row.plates}</span>` : ""}${row.day ? ` <span class="lb-title">📅 ${esc(row.day)}</span>` : ""}</span><b class="lb-val">${fmtN(row.value)}</b></li>`).join("")}</ol>
     ${lbMe ? `<p class="lb-me">You: #${lbMe.rank} · ${fmtN(lbMe.value)}</p>` : ""}`;
+  const note = lbScope === "bounty" ? "The foes that have ended the most runs, and how many players they've claimed."
+    : lbScope === "daily" && lbBoard !== "alltime" ? `Each player's best run in today's Daily Dungeon · ${esc(unit?.unit ?? "")}. Resets at midnight UTC; the best stay on All time.`
+    : `Each player's best run · ${esc(unit?.unit ?? "")}`;
   return `<div class="overlay"><div class="inner lb-pop">
     <div class="row"><h1 class="grow">🏆 Leaderboards</h1><button class="closebtn" data-lbclose>✕ Close</button></div>
-    <div class="row lb-tabs">${tabs}</div>
-    <p class="sub">Each player's best run · ${esc(unit.unit)}</p>
+    <div class="lb-mains">${main}</div>
+    ${lbScope === "bounty" ? "" : `<div class="row lb-tabs">${subTabs}</div><div class="row lb-classes">${classTabs}</div>`}
+    <p class="sub lb-note">${note}</p>
     ${body}
   </div></div>`;
 }
@@ -1002,7 +1019,14 @@ function leaderboardPopup() {
 function loadBoard(board: Board) {
   lbBoard = board; lbRows = null; lbMe = null; lbError = "";
   if (!leaderboardOn()) return;
-  fetchBoard(board).then(d => { if (lbBoard === board) { lbRows = d.rows; lbMe = d.me; } render(); })
+  if (lbScope === "bounty") {
+    lbKillers = null;
+    fetchKillers().then(rows => { if (lbScope === "bounty") lbKillers = rows; render(); })
+      .catch(() => { lbError = navigator.onLine ? "Couldn't load the Bounty board. Try again in a moment." : "You're offline. The leaderboards need a connection."; render(); });
+    return;
+  }
+  const scope = lbScope, origin = lbOrigin;
+  fetchBoard(scope, board, origin).then(d => { if (lbBoard === board && lbScope === scope && lbOrigin === origin) { lbRows = d.rows; lbMe = d.me; } render(); })
     .catch(() => { lbError = navigator.onLine ? "Couldn't load the leaderboard. Try again in a moment." : "You're offline. The leaderboards need a connection."; render(); });
 }
 
@@ -1937,9 +1961,11 @@ function bind() {
   on("[data-togglemusic]", () => toggleMusic());
   on("[data-startmusic]", () => playMusic(run ? "game" : "title"));
   // Leaderboards (title screen and end of run).
-  on("[data-lb]", () => { lbOpen = true; loadBoard(lbBoard); });
+  on("[data-lb]", () => { lbOpen = true; if (run?.daily && run.scene.t === "over") { lbScope = "daily"; lbBoard = "floor"; } loadBoard(lbBoard); });
   on("[data-lbclose]", () => { lbOpen = false; });
   on("[data-lbboard]", el => { loadBoard(el.dataset.lbboard as Board); });
+  on("[data-lbscope]", el => { lbScope = el.dataset.lbscope as Scope; loadBoard("floor"); });
+  on("[data-lborigin]", el => { lbOrigin = el.dataset.lborigin ?? ""; loadBoard(lbBoard); });
   on("[data-lbrename]", () => { lbNaming = true; });
   on("[data-lbsend]", () => { if (run) sendRun(run); });
   on("[data-lbsubmit]", () => {

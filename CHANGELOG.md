@@ -5,6 +5,14 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.29.0
+- Leaderboards reorganised into three main tabs:
+  - 🏰 Campaign: Deepest, Elites, Champions, Damage, Biggest hit, Gold and Abyss, as before.
+  - 📅 Daily: the same boards for today's Daily Dungeon (they reset at midnight UTC), plus a new All time board with the deepest Daily runs ever, so a great Daily run never disappears.
+  - 🎯 Bounty: the 10 foes that have ended the most runs, and how many players each has claimed. Counting starts with this update.
+- Campaign and Daily boards can be filtered by class: All, Warrior, Rogue, Mage or Cleric.
+- After a Daily run, See the leaderboards opens on the Daily tab.
+
 ## 1.28.2
 - Leaderboards: a run could be wrongly marked unverified if it was sent a moment before the server heard you'd reached a new floor, and an early hiccup stuck to the run even after it later checked out. The game now tells the server your floor before sending the run, the server allows for that timing, and a run's latest post decides whether it's verified. The minimum time per floor is lowered, so Quick Battles can't trip it. Runs hidden by this are back.
 

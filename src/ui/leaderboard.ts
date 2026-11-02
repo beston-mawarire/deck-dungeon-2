@@ -5,18 +5,26 @@ import { runSummary, type Run } from "../game/run";
 /** The Worker's address, e.g. "https://deck-dungeon-leaderboard.<you>.workers.dev". Empty: leaderboards off. */
 export const LEADERBOARD_URL = "https://deck-dungeon-leaderboard.bestondeveloper.workers.dev";
 
-export type Board = "floor" | "elites" | "champions" | "damage" | "besthit" | "gold" | "abyss" | "daily";
-export const BOARDS: { id: Board; label: string; icon: string; unit: string }[] = [
+export type Board = "floor" | "elites" | "champions" | "damage" | "besthit" | "gold" | "abyss" | "daily" | "alltime";
+/** Main tabs: the Campaign's boards, the Daily Dungeon's, and the Bounty board of deadliest foes. */
+export type Scope = "campaign" | "daily" | "bounty";
+const STAT_BOARDS: { id: Board; label: string; icon: string; unit: string }[] = [
   { id: "floor", label: "Deepest", icon: "🕳️", unit: "floor" },
   { id: "elites", label: "Elites", icon: "💀", unit: "elites" },
   { id: "champions", label: "Champions", icon: "👹", unit: "champions" },
   { id: "damage", label: "Damage", icon: "⚔️", unit: "damage" },
   { id: "besthit", label: "Biggest hit", icon: "💥", unit: "in one hit" },
-  { id: "gold", label: "Gold", icon: "🪙", unit: "gold earned" },
-  { id: "abyss", label: "Abyss", icon: "🕳️", unit: "depth" },
-  { id: "daily", label: "Daily", icon: "📅", unit: "floor, in today's Daily Dungeon" }
+  { id: "gold", label: "Gold", icon: "🪙", unit: "gold earned" }
 ];
-export interface Row { rank: number; name: string; title?: string; value: number; origin: string; floor: number; plates?: number; you?: boolean }
+/** The sub-tabs under each main tab. Today's Daily boards reset every day; "All time" keeps the deepest Daily runs ever. */
+export const SUB_BOARDS: Record<Exclude<Scope, "bounty">, { id: Board; label: string; icon: string; unit: string }[]> = {
+  campaign: [...STAT_BOARDS, { id: "abyss", label: "Abyss", icon: "🕳️", unit: "depth" }],
+  daily: [{ id: "alltime", label: "All time", icon: "🏛️", unit: "floor, deepest Daily runs ever" }, ...STAT_BOARDS.map(b => ({ ...b, unit: `${b.unit}, today` }))]
+};
+/** Every board, for code that still lists them all. */
+export const BOARDS = [...SUB_BOARDS.campaign, ...SUB_BOARDS.daily];
+export interface Row { rank: number; name: string; title?: string; value: number; origin: string; floor: number; plates?: number; day?: string; you?: boolean }
+export interface KillerRow { rank: number; name: string; kills: number; players: number }
 
 export const leaderboardOn = () => LEADERBOARD_URL.length > 0;
 
@@ -109,11 +117,18 @@ export async function flushQueue() {
   store.set(QUEUE, JSON.stringify(left));
 }
 
-export async function fetchBoard(board: Board): Promise<{ rows: Row[]; me: { rank: number; value: number } | null }> {
+export async function fetchBoard(scope: Exclude<Scope, "bounty">, board: Board, origin = ""): Promise<{ rows: Row[]; me: { rank: number; value: number } | null }> {
   const day = new Date().toISOString().slice(0, 10);
-  const res = await fetch(`${LEADERBOARD_URL}/leaderboard?board=${board}&limit=25&pid=${playerId()}${board === "daily" ? `&day=${day}` : ""}`);
+  const q = board === "alltime" ? `board=floor&scope=dailyall` : `board=${board}&scope=${scope}${scope === "daily" ? `&day=${day}` : ""}`;
+  const res = await fetch(`${LEADERBOARD_URL}/leaderboard?${q}&limit=25&pid=${playerId()}${origin ? `&origin=${origin}` : ""}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as { rows: Row[]; me: { rank: number; value: number } | null };
+}
+/** The Bounty board: the foes that have ended the most runs. */
+export async function fetchKillers(): Promise<KillerRow[]> {
+  const res = await fetch(`${LEADERBOARD_URL}/killers`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return ((await res.json()) as { rows: KillerRow[] }).rows;
 }
 
 // ---------- Backup: Ruin Shards, Vanadium Plates and the whole save ----------
