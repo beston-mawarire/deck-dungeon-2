@@ -692,7 +692,7 @@ function shopScene(r: Run) {
       const cmp = e.sold ? "" : compareBtns(it);
       return itemCard(it, btn + cmp, !e.sold);
     }
-    const label = e.kind === "potion" ? "🧪 Healing Potion — heal 12" : e.kind === "scroll" ? "📜 Scroll of Revelation — reveals a Legendary" : `💎 ${getItem(e.relic!).name} — ${getItem(e.relic!).text}`;
+    const label = e.kind === "potion" ? "🧪 Healing Potion — heal 12" : e.kind === "mana" ? "🔷 Mana Potion — drink in a fight: your spells +50% and +1 stack for that fight" : e.kind === "scroll" ? "📜 Scroll of Revelation — reveals a Legendary" : e.relic ? `💎 ${getItem(e.relic).name} — ${getItem(e.relic).text}` : "";
     return `<div class="item"><div class="nm">${esc(label)}</div><div class="row" style="margin-top:8px">${btn}</div></div>`;
   }).join("")}</div>
   <p class="shop-text">Bought gear goes to your backpack; equip it from 🎒.</p>
