@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.31.4
+- Phones: Resplendent chest cards are stacked one under the other instead of side by side.
+
 ## 1.31.3
 - Inventory: the selected sub-tab (Equipped, Backpack, Sigils and the others) is a softer, muted gold.
 
