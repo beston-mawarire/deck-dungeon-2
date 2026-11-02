@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.8
+- The border around rooms with ⚡ Quick Battle is now green, matching the button.
+
 ## 1.26.7
 - The in-combat ⚡ Auto-battle button is now ⚡ Quick Battle too, as is the result message it shows.
 
