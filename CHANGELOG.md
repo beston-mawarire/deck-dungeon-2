@@ -5,6 +5,14 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.28.0
+- Dual wielding, more of it:
+  - 9 new weapons that work in either hand, from Common to Epic: Shortsword, Hatchet, Sai, Moon Sickle, Parrying Dagger, Duellist's Rapier, Flicker Blade, Wyrmtooth Scimitar and Tempest Twinblade.
+  - 2 new Legendaries for two-weapon fighters.
+  - 4 new talents: Crossed Blades, Ambidextrous, Whirlwind and Parrying Blades.
+  - 4 new relics: Whetstone Pair, Paired Scabbards, Scissor Strike and Tempo Blades.
+- Something on floor 25 has learned some new tricks.
+
 ## 1.27.0
 - Full online backup: all your progress (Renown, mastery, kits, achievements, titles, Heat, history, Shards, Plates, settings and the run you're on) is now backed up under your backup code, not just Shards and Plates. It syncs every half-minute when something has changed, and as you close or leave the page.
 - Restore from a code brings everything back (after clearing your browser, or on a new device). The backup panel is now in Options too, not only on the Abyss tab.

@@ -1594,6 +1594,28 @@ describe("dual wielding and faith weapons", () => {
     equipItem(h, mk("ku_kunai", 3), "off");
     expect(h.f.dodge).toBe(5);
   });
+  it("new dual-wield weapons work in either hand, and the new talents and relics need two weapons", () => {
+    for (const id of ["w_shortsword", "w_hatchet", "w_sai", "w_moon_sickle", "d_parrying_dagger", "w_duellist_rapier", "w_flicker_blade", "w_wyrmtooth_scimitar", "w_tempest_twinblade"])
+      expect(slotsFor(mk(id, 1)), id).toEqual(["main", "off"]);
+    const h = newHero("warrior");
+    equipItem(h, mk("w_shortsword", 5), "main");
+    equipItem(h, mk("w_sai", 6), "off");
+    expect(h.f.dualWield).toBe(true);
+    const crit0 = h.f.critChance ?? 0, armor0 = h.f.armor;
+    h.talents["t_crossed_blades"] = 2; h.talents["t_parrying_blades"] = 1;
+    recompute(h);
+    expect(h.f.critChance).toBe(crit0 + 6);
+    expect(h.f.armor).toBe(armor0 + 1);
+  });
+  it("Twinfang sends the off-hand in twice while dual wielding", () => {
+    const h = newHero("rogue");
+    equipItem(h, { ...mk("l_twinfang", 7), rarity: "legendary" as const }, "off");
+    const e = dummy(5000);
+    const b = startBattle(h.f, e, 81);
+    beginRound(b);
+    heroPhase(b, "attack");
+    expect(b.log.filter(l => /off-hand strikes again/.test(l)).length).toBe(1);
+  });
   it("the Wardblade hits harder while Warded", () => {
     const h = newHero("cleric");
     equipItem(h, mk("f_wardblade", 4), "main");

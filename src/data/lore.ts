@@ -35,6 +35,8 @@ export const LEGENDARY_LORE: Record<string, string> = {
   l_bastion_ages: "Older than the dungeon, older than the kings who dug it. It has outlasted all of them.",
   l_wyrmscale: "Cut from a dragon that bathed in fire, venom and blood, and found all three boring.",
   l_bloodletter: "A barber-surgeon's blade, long retired from medicine. It never lost the taste.",
+  l_twinfang: "Forged as one dagger and split by a jealous smith. Each half still goes looking for the other, through whoever is in the way.",
+  l_eclipse_pair: "Two blades made for a pair of sisters who never fought apart. When one fell, the other kept both swords, and both promises.",
   l_stormbreaker: "Its wielder rode the lightning down from the peaks, then did it again for the applause.",
   l_gamblers_ruin: "Every bet is all or nothing. Its owners tend to leave the table one way or the other.",
   l_wardens_oath: "Sworn by the wardens of the gate to the netherworld: hold the line, and strike from it.",
