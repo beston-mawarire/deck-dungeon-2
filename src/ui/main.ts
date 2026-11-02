@@ -11,7 +11,7 @@ import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engin
 import { NEGATIVE_STATUSES, rarityLabel } from "../engine/types";
 import {
   BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost, rerollsLeft,
-  keepsOffHand, findItem, recompute, type Sigil, SIGIL_BAG_SIZE, SIGIL_FLOORS, sigilSlots, reveal, salvage, slotsFor, unequip, upgradeCost, xpToLevel
+  keepsOffHand, findItem, newHero, recompute, type Sigil, SIGIL_BAG_SIZE, SIGIL_FLOORS, sigilSlots, reveal, salvage, slotsFor, unequip, upgradeCost, xpToLevel
 } from "../game/hero";
 import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
@@ -294,7 +294,7 @@ function compareHtml(h: Hero, it: GearItem, forceSlot?: EquipSlot, full = false)
 /** Rarity as shown on a card (generated Crimson items are Crimson-veined). */
 const itemRarity = (it: GearItem) => (it.gen && it.rarity === "crimson" ? "Crimson-veined" : rarityLabel(it.rarity));
 
-function itemCard(it: GearItem, buttons = "", compare = false, equippedAs = "") {
+function itemCard(it: GearItem, buttons = "", compare: boolean | { hero: Hero; slot: EquipSlot } = false, equippedAs = "") {
   const b = baseOf(it.base);
   const hidden = b.legendary && !it.revealed;
   const grade = it.gen ? Math.max(0, ...it.gen.mods.map(m => m[2])) : 0;
@@ -305,8 +305,8 @@ function itemCard(it: GearItem, buttons = "", compare = false, equippedAs = "") 
     <ul>${itemLines(it).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
     ${it.infused ? (() => { const t = baseOf(it.infused!); return `<div class="infused">💠 Infused: <b>${esc(t.name)}</b> — ${esc(t.legendary?.reveal ?? t.text)}</div>`; })() : ""}
     ${(it.upgrades ?? 0) > 0 ? `<div class="sub upgraded-note">⬆️ Upgraded ${it.upgrades}×</div>` : ""}
-    ${compare && run ? compareHtml(run.hero, it) : ""}
-    <div class="row">${buttons}</div>
+    ${typeof compare === "object" ? compareHtml(compare.hero, it, compare.slot) : compare && run ? compareHtml(run.hero, it) : ""}
+    ${buttons ? `<div class="row">${buttons}</div>` : ""}
   </div>`;
 }
 
@@ -1545,15 +1545,10 @@ function masteryPanel(o: OriginId) {
   const pct = lv >= MASTERY_MAX ? 100 : Math.round(((xp - prev) / (next - prev)) * 100);
   const og = ORIGINS[o];
   const kit = meta.kits?.[o] ?? {};
-  const locked = lockedIds(meta);
   const slotName: Record<KitSlot, string> = { main: "Weapon", off: "Off-hand", armour: "Armour" };
   const sel = (slot: KitSlot, i: number) => {
-    const opts = kitOptions(slot, lv, locked);
-    const def = og.kit[i];
-    return `<label class="kit-row"><span>${slotName[slot]}</span><select data-kit="${slot}">
-      <option value="">${esc(baseOf(def).name)} (your own)</option>
-      ${opts.filter(x => x.id !== def).map(x => `<option value="${x.id}" ${kit[slot] === x.id ? "selected" : ""}>${esc(x.name)}${x.rarity === "uncommon" ? " ◆ Uncommon" : ""}</option>`).join("")}
-    </select></label>`;
+    const id = kit[slot] ?? og.kit[i];
+    return `<div class="kit-row"><span>${slotName[slot]}</span><b class="grow">${esc(baseOf(id).name)}${kit[slot] ? "" : ` <span class="sub">(your own)</span>`}</b><button class="small" data-kitpick="${slot}">Change</button></div>`;
   };
   const chosen = KIT_SLOTS.map(sl => kit[sl]).filter(Boolean).map(id => baseOf(id!));
   return `<div class="panel mastery-panel">
@@ -1565,6 +1560,38 @@ function masteryPanel(o: OriginId) {
       ${chosen.length ? `<div class="kit-notes">${chosen.map(b => `<p class="sub"><b>${esc(b.name)}:</b> ${esc(b.text)}</p>`).join("")}</div>` : ""}`
       : `<p class="sub">Reach mastery ${KIT_COMMON_LEVEL} to choose your starting kit.</p>`}
   </div>`;
+}
+
+/** Starting-kit picker: every option for one slot as a card with its comparison, side-scrolling on phones, a grid on big screens. */
+let kitPick: KitSlot | null = null;
+const KIT_INDEX: Record<KitSlot, number> = { main: 0, off: 1, armour: 2 };
+/** The hero as they'd start with this class's chosen kit (to compare options against). */
+function kitHero(o: OriginId): Hero {
+  const h = newHero(o);
+  const kit = meta.kits?.[o] ?? {};
+  for (const sl of KIT_SLOTS) { const id = kit[sl]; if (id) h.equip[sl] = { uid: 900000 + KIT_INDEX[sl], base: id, rarity: baseOf(id).onlyRarity ?? "common", level: 1, bonuses: {}, revealed: true }; }
+  recompute(h);
+  return h;
+}
+function kitPopup(o: OriginId, slot: KitSlot) {
+  const lv = masteryLevel(meta.mastery?.[o] ?? 0);
+  const og = ORIGINS[o];
+  const own = og.kit[KIT_INDEX[slot]];
+  const current = meta.kits?.[o]?.[slot] ?? own;
+  const h = kitHero(o);
+  const ids = [own, ...kitOptions(slot, lv, lockedIds(meta)).map(x => x.id).filter(id => id !== own)];
+  const slotName: Record<KitSlot, string> = { main: "Weapon", off: "Off-hand", armour: "Armour" };
+  const cards = ids.map((id, n) => {
+    const it: GearItem = { uid: 910000 + n, base: id, rarity: baseOf(id).onlyRarity ?? "common", level: 1, bonuses: {}, revealed: true };
+    const isCur = id === current;
+    const btn = isCur ? `<button class="small" disabled>✔ In your kit</button>` : `<button class="small take-equip" data-kitset="${slot}|${id === own ? "" : id}">✔ Equip</button>`;
+    return `<div class="kit-card ${isCur ? "current" : ""}">${id === own ? `<div class="cmp-tag">Your own</div>` : `<div class="cmp-tag">&nbsp;</div>`}${itemCard(it, btn, isCur ? false : { hero: h, slot }, isCur ? "Starting kit" : "")}</div>`;
+  }).join("");
+  return `<div class="overlay kit-overlay"><div class="kit-pop">
+    <div class="row"><h1 class="grow">🎒 ${esc(og.name)} · ${slotName[slot]}</h1><button class="closebtn" data-kitclose>✕ Close</button></div>
+    <p class="sub">Pick what you start with. Each card compares against your current kit.<span class="kit-swipe"> Swipe for all ${ids.length} ›</span></p>
+    <div class="kit-strip">${cards}</div>
+  </div></div>`;
 }
 
 function originPopup(o: OriginId) {
@@ -1787,7 +1814,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = view === "splash" ? `${splashScreen()}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -2069,15 +2096,15 @@ function bind() {
     on("[data-achtab]", el => { achTab = el.dataset.achtab as typeof achTab; });
     on("[data-title]", el => { meta.title = el.dataset.title || undefined; saveMeta(meta); setPlayerTitle(meta.title ?? ""); });
     on("[data-heat]", el => { meta.heat = Number(el.dataset.heat) || 0; saveMeta(meta); });
-    app.querySelectorAll<HTMLSelectElement>("[data-kit]").forEach(el => {
-      el.onclick = ev => ev.stopPropagation();
-      el.onchange = () => {
-        const o = pendingOrigin; if (!o) return;
-        const k = { ...(meta.kits?.[o] ?? {}) };
-        const slot = el.dataset.kit as KitSlot;
-        if (el.value) k[slot] = el.value; else delete k[slot];
-        meta.kits = { ...(meta.kits ?? {}), [o]: k }; saveMeta(meta); render();
-      };
+    on("[data-kitpick]", el => { kitPick = el.dataset.kitpick as KitSlot; });
+    on("[data-kitclose]", () => { kitPick = null; });
+    on("[data-kitset]", el => {
+      const o = pendingOrigin; if (!o) return;
+      const [slot, id] = (el.dataset.kitset ?? "").split("|") as [KitSlot, string];
+      const k = { ...(meta.kits?.[o] ?? {}) };
+      if (id) k[slot] = id; else delete k[slot];
+      meta.kits = { ...(meta.kits ?? {}), [o]: k }; saveMeta(meta);
+      kitPick = null;
     });
     on("[data-closehistory]", () => { historyOpen = false; });
     on("[data-back]", () => { view = "title"; });

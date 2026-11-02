@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.31.0
+- Starting kits: instead of dropdowns, each slot shows what you start with and a Change button. Change opens a picker with every option as a full item card, compared against your current kit, with an Equip button. On phones the cards scroll sideways; on bigger screens it's a full-screen grid.
+
 ## 1.30.4
 - Compare popup: the stats column "With it" is now "New item".
 
