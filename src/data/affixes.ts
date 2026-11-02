@@ -1,6 +1,7 @@
 // Rolled bonuses (Uncommon+), Epic powers (Epic) and Legendaries (one of a kind).
 // A bonus's stacks are its magnitude n; "{n}" in text is replaced when shown.
 import { DUAL_LEGENDARIES } from "./dualwield";
+import { STAFF_LEGENDARIES } from "./staffs";
 import { attack } from "../engine/combat";
 import { log } from "../engine/registry";
 import type { Battle, Fighter, GearBase, HookDef } from "../engine/types";
@@ -318,4 +319,4 @@ export const LEGENDARIES: GearBase[] = [
 ];
 
 // The Treasury's Legendaries join the pool.
-LEGENDARIES.push(...DUAL_LEGENDARIES, ...LEGENDARY_ITEMS, ...CHARM_LEGENDARIES, ...SINGLE_CHARM_LEGENDARIES, ...SHIELD_LEGENDARIES, ...ROBE_LEGENDARIES, ...STREAK_GEAR_2.filter(g => g.rarity === "legendary"), ...BRUTE_LEGENDARIES, ...TRINKET_LEGENDARIES, ...CONSECRATE_LEGENDARIES, ...BLESSING_LEGENDARIES, ...DEPTH_LEGENDARIES, ...ICE_FORGE_LEGENDARIES, ...BLEED_LEGENDARIES, ...WEAK_LEGENDARIES, ...MIGHT_LEGENDARIES, ...HEAVY_LEGENDARIES, ...WAR_HAMMER_LEGENDARIES, ...SACRIFICE_LEGENDARIES, ...POTION_LEGENDARIES);
+LEGENDARIES.push(...DUAL_LEGENDARIES, ...STAFF_LEGENDARIES, ...LEGENDARY_ITEMS, ...CHARM_LEGENDARIES, ...SINGLE_CHARM_LEGENDARIES, ...SHIELD_LEGENDARIES, ...ROBE_LEGENDARIES, ...STREAK_GEAR_2.filter(g => g.rarity === "legendary"), ...BRUTE_LEGENDARIES, ...TRINKET_LEGENDARIES, ...CONSECRATE_LEGENDARIES, ...BLESSING_LEGENDARIES, ...DEPTH_LEGENDARIES, ...ICE_FORGE_LEGENDARIES, ...BLEED_LEGENDARIES, ...WEAK_LEGENDARIES, ...MIGHT_LEGENDARIES, ...HEAVY_LEGENDARIES, ...WAR_HAMMER_LEGENDARIES, ...SACRIFICE_LEGENDARIES, ...POTION_LEGENDARIES);

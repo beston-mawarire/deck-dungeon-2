@@ -5,6 +5,16 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.34.0
+- 12 new one-handed staffs: spell-casting weapons that leave your off-hand free for an orb, a tome or a shield. Two at every rarity:
+  - Common: Ashwood Wand, Rimewood Rod.
+  - Uncommon: Stormcaller Rod, Bogwood Staff.
+  - Rare: Prism Scepter, Bloodwood Cane.
+  - Epic: Magister's Rod, Hexwood Scepter.
+  - Legendary: two to discover.
+  - Crimson: Scepter of the Red Tide, Rod of Ruin.
+- The Common and Uncommon ones can also be picked for the Mage's starting kit once mastery allows.
+
 ## 1.33.3
 - Inventory: the Scrap button on backpack items (and on sigils in your Sigil bag) is now red.
 

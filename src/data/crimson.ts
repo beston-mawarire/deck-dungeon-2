@@ -1,5 +1,6 @@
 // Crimson items: the tier above Legendary. They drop only from Crimson bosses (Endless, after the fifth boss),
 // come revealed, carry two rolled bonuses, and each one is a wild combo engine on its own.
+import { STAFF_CRIMSON } from "./staffs";
 import { attack } from "../engine/combat";
 import { REACTIONS } from "../engine/statuses";
 import type { AttackCtx, Battle, GearBase, StatusId } from "../engine/types";
@@ -108,4 +109,4 @@ export const CRIMSON: GearBase[] = [
 ];
 
 // The Treasury's Crimson items join the pool.
-CRIMSON.push(...CRIMSON_ITEMS, ...CHARM_CRIMSON, ...SINGLE_CHARM_CRIMSON, ...SHIELD_CRIMSON, ...ROBE_CRIMSON, ...STREAK_GEAR_2.filter(g => g.rarity === "crimson"), ...BRUTE_CRIMSON, ...WAR_HAMMER_CRIMSON);
+CRIMSON.push(...STAFF_CRIMSON, ...CRIMSON_ITEMS, ...CHARM_CRIMSON, ...SINGLE_CHARM_CRIMSON, ...SHIELD_CRIMSON, ...ROBE_CRIMSON, ...STREAK_GEAR_2.filter(g => g.rarity === "crimson"), ...BRUTE_CRIMSON, ...WAR_HAMMER_CRIMSON);

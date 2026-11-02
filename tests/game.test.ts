@@ -1661,6 +1661,25 @@ describe("dual wielding and faith weapons", () => {
   });
 });
 
+describe("one-handed staffs", () => {
+  it("two at every rarity, none two-handed, and they drop", async () => {
+    const { ONE_HANDED_STAFFS, STAFF_LEGENDARIES, STAFF_CRIMSON } = await import("../src/data/staffs");
+    const all = [...ONE_HANDED_STAFFS, ...STAFF_LEGENDARIES, ...STAFF_CRIMSON];
+    for (const r of ["common", "uncommon", "rare", "epic", "legendary", "crimson"])
+      expect(all.filter(b => (b.onlyRarity ?? b.rarity) === r).length, r).toBeGreaterThanOrEqual(2);
+    expect(all.every(b => !b.twoHanded && b.faces?.some(f => f.magic))).toBe(true);
+    const h = newHero("mage"); const rng = makeRng(7); const seen = new Set<string>();
+    for (let i = 0; i < 6000; i++) for (const r of ["common", "uncommon", "rare", "epic"] as const) seen.add(rollItem(h, r, 3, rng).base);
+    expect(ONE_HANDED_STAFFS.filter(b => seen.has(b.id)).length).toBe(ONE_HANDED_STAFFS.length);
+  });
+  it("a one-handed staff keeps the off-hand", () => {
+    const h = newHero("mage");
+    const off = h.equip.off;
+    equipItem(h, { uid: 7001, base: "s1_prism_scepter", rarity: "rare", level: 1, bonuses: {}, revealed: true }, "main");
+    expect(h.equip.off?.uid).toBe(off?.uid);
+  });
+});
+
 describe("save and resume", () => {
   it("a saved run resumes with the same hero, floor and dice", async () => {
     const store: Record<string, string> = {};
