@@ -1877,3 +1877,18 @@ describe("tough foes and stacked statuses", () => {
     }
   });
 });
+
+describe("gauntlets", () => {
+  it("from floor 3, about 15% of steps offer only hard fights, never on a floor's first step or before floor 3", () => {
+    const run = newRun("warrior", 77);
+    const isG = (c: string[]) => c.length === 3 && c.every(x => x === "elite" || x === "champion" || x === "vault");
+    let g = 0;
+    run.floor = 3; run.step = 2;
+    for (let i = 0; i < 4000; i++) if (isG(genChoices(run))) g++;
+    expect(g / 4000).toBeGreaterThan(0.12);
+    expect(g / 4000).toBeLessThan(0.19);
+    run.step = 0; for (let i = 0; i < 500; i++) expect(isG(genChoices(run))).toBe(false);
+    run.floor = 2; run.step = 2; let early = 0; for (let i = 0; i < 2000; i++) if (genChoices(run).filter(x => x === "elite" || x === "champion").length === 3) early++;
+    expect(early).toBe(0);
+  });
+});

@@ -293,6 +293,15 @@ export const CLEANSING_EVENTS = ["cleansing_well", "holy_tribute"];
 /** Encounters with their own path on the map, never part of Something Strange. */
 export const OWN_PATH_EVENTS = [...CLEANSING_EVENTS, "sanguine_altar"];
 
+/** Gauntlets: from floor 3, 15% of steps offer only hard fights (a Guarded Vault is a Champion before a Resplendent chest). */
+export const GAUNTLET_FLOOR = 3;
+export const GAUNTLET_CHANCE = 0.15;
+export const GAUNTLETS: RoomType[][] = [
+  ["elite", "elite", "elite"],
+  ["elite", "champion", "champion"],
+  ["champion", "champion", "champion"],
+  ["elite", "champion", "vault"]
+];
 export function genChoices(run: Run): RoomType[] {
   if (run.step >= STEPS_PER_FLOOR) return ["boss"];
   const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 9, vault: 3, altar: 3, shrine: 3, champion: 3, sanguine: 2 };
@@ -308,6 +317,11 @@ export function genChoices(run: Run): RoomType[] {
   // Your Nemesis: from floor 2, about as often as a Strange Presence, once per run.
   if (run.nemesis && run.floor >= 2 && !run.seenBosses.has("nemesis")) w.nemesis = 2.5;
   if (run.step === 0) { w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; w.unique = 0; w.nemesis = 0; }
+  // A gauntlet: from floor 3 (not on a floor's first step), sometimes every path is a hard fight, and nothing else.
+  if (run.floor >= GAUNTLET_FLOOR && run.step > 0 && run.rng() < GAUNTLET_CHANCE) {
+    const set = GAUNTLETS[Math.floor(run.rng() * GAUNTLETS.length)];
+    return [...set].sort(() => run.rng() - 0.5);
+  }
   const out = new Set<RoomType>();
   out.add("fight");
   while (out.size < 3) out.add(pickW(run.rng, w));
