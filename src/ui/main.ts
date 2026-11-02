@@ -255,16 +255,37 @@ function compareHtml(h: Hero, it: GearItem): string {
   const now = h.f;
   const deltas = (f: Fighter) => COMPARE_STATS.map(([label, get, unit]) => ({ label, unit, d: Math.round(get(f) - get(now)), base: Math.max(1, Math.abs(get(now))) }));
   // Try every slot it fits; an empty slot wins, otherwise the one that helps most.
-  const options = slots.map(s => ({ s, ds: deltas(simulateEquip(h, it, s)) }));
+  const options = slots.map(s => { const f = simulateEquip(h, it, s); return { s, f, ds: deltas(f) }; });
   const empty = options.find(o => !h.equip[o.s]);
   const best = empty ?? options.reduce((a, b) => (b.ds.reduce((x, d) => x + d.d / d.base, 0) > a.ds.reduce((x, d) => x + d.d / d.base, 0) ? b : a));
   const cur = h.equip[best.s];
-  const chips = best.ds.filter(d => d.d !== 0).map(d => `<span class="cmp ${d.d > 0 ? "up" : "down"}">${d.d > 0 ? "▲" : "▼"} ${Math.abs(d.d)}${d.unit} ${d.label}</span>`);
+  // Stats: a green + for every one that improves, a red − for every one that drops.
+  const stats = best.ds.filter(d => d.d !== 0).map(d => `<span class="cmp ${d.d > 0 ? "up" : "down"}">${d.d > 0 ? "+" : "−"}${Math.abs(d.d)}${d.unit} ${d.label}</span>`);
   const a = effectiveBase(it);
-  if (a.twoHanded && h.equip.off && !keepsOffHand(h) && best.s === "main") chips.push(`<span class="cmp down">Two-handed: your off-hand goes to the bag</span>`);
+  if (a.twoHanded && h.equip.off && !keepsOffHand(h) && best.s === "main") stats.push(`<span class="cmp down">− Off-hand (two-handed: it goes to the bag)</span>`);
+  // Effects: + for each one you'd gain (or that gets stronger), − for each you'd lose (or that gets weaker).
+  const effectLine = (id: string, n: number) => { const d = getItem(id); return fillText(d.text, n); };
+  const showable = (id: string) => {
+    const d = getItem(id);
+    const keys = Object.keys(d.hooks ?? {});
+    if (!keys.length || (keys.length === 1 && keys[0] === "stats")) return false;
+    return true;
+  };
+  const effects: string[] = [];
+  const after = best.f.items, before = now.items;
+  for (const id of new Set([...Object.keys(after), ...Object.keys(before)])) {
+    const x = after[id] ?? 0, y = before[id] ?? 0;
+    if (x === y || !showable(id)) continue;
+    if (x > 0 && y <= 0) effects.push(`<li class="up">+ ${esc(effectLine(id, x))}</li>`);
+    else if (x <= 0 && y > 0) effects.push(`<li class="down">− ${esc(effectLine(id, y))}</li>`);
+    else effects.push(`<li class="${x > y ? "up" : "down"}">${x > y ? "+" : "−"} ${esc(effectLine(id, x))} <span class="sub">(was ${esc(effectLine(id, y))})</span></li>`);
+  }
+  effects.sort((p, q) => (p.startsWith('<li class="up"') ? 0 : 1) - (q.startsWith('<li class="up"') ? 0 : 1));
   const slotLabel = SLOT_LABEL[best.s];
   const head = cur ? `vs <b>${esc(itemName(cur))}</b> <span class="sub">(${esc(slotLabel)})</span>` : `Fills your empty <b>${esc(slotLabel)}</b>`;
-  return `<div class="compare">${head}<div class="cmp-row">${chips.length ? chips.join("") : `<span class="cmp same">＝ Same stats</span>`}</div></div>`;
+  const MAX = 6;
+  return `<div class="compare">${head}<div class="cmp-row">${stats.length ? stats.join("") : `<span class="cmp same">＝ Same stats</span>`}</div>
+    ${effects.length ? `<ul class="cmp-fx">${effects.slice(0, MAX).join("")}${effects.length > MAX ? `<li class="sub">…and ${effects.length - MAX} more</li>` : ""}</ul>` : ""}</div>`;
 }
 
 /** Rarity as shown on a card (generated Crimson items are Crimson-veined). */

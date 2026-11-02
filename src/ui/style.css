@@ -782,3 +782,7 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .sigil-set p { margin: 3px 0; font-size: .88rem; }
 .sigil-set .set-on { color: #c8f7a0; font-weight: 700; }
 .mini-row.locked { opacity: .55; border-style: dashed; }
+.compare .cmp-fx { list-style: none; margin: 6px 0 0; padding: 0; font-size: .8rem; line-height: 1.35; }
+.compare .cmp-fx li { margin: 2px 0; }
+.compare .cmp-fx li.up { color: #7ff0a8; } .compare .cmp-fx li.down { color: #ff9aa9; }
+.compare .cmp-fx li .sub { color: var(--muted); }

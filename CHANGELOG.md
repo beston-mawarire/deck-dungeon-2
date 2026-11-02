@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.25.4
+- Item comparison: every stat that would improve shows a green "+", every one that would drop a red "−". Below the stats, each effect you'd gain (or that gets stronger) is listed in green with a "+", and each effect you'd lose (or that gets weaker) in red with a "−".
+
 ## 1.25.3
 - Heat 5: the plain monster fight on the map is sometimes replaced by an Elite (about 30%) or a Champion (about 10%), from each floor's second step on.
 
