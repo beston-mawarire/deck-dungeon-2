@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.25.1
+- Challenges: the Abyss weekly twist stays locked (and hidden) until you've opened the Abyss.
+- Heat retuned: Heat 1 gives enemies 30% more HP (was 20%); Heat 2 ("Lean pickings") also cuts all Gold you gain by a quarter — fights, chests, events, mid-fight item Gold and sales — on top of pricier shops; Heat 4 removes the heal after won fights entirely; Heat 5 enemies hit 20% harder (was 15%).
+
 ## 1.25.0
 - **Gear forged by chance** (the item generator): half of all Common–Epic drops (and some Legendaries and Crimson) are now made fresh from a form, one of 51 materials (each with its own innate effect) and a set of effects drawn from 400+ modules. Rarer items get more: Epics 5–7 effects including a signature power, Legendaries 7–9, and the new **Crimson-veined** tier up to 10 (usually with a drawback ⛓️). Drawbacks also turn up now and then on Rare, Epic and Legendary rolls and pay for extra power.
 - **Greater rolls**: ✦ Greater, ✦✦ Grand and ✦✦✦ Mythic effects are 1.5×, 2× and 3× as strong, each much rarer than the last, and likelier from Champions, bosses, Uber bosses, the Abyss and Heat. Mythic rolls get their own fanfare.

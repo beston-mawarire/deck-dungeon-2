@@ -22,7 +22,7 @@ import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
-  ROOM_INFO, ABYSS_ROOM_INFO, chooseRelic, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
+  ROOM_INFO, ABYSS_ROOM_INFO, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -99,7 +99,7 @@ function bulkSellRow(r: Run) {
   const h = r.hero;
   const c = bulkScrapList(h, "common"), u = bulkScrapList(h, "uncommon");
   if (!c.length && !u.length) return "";
-  const total = (l: GearItem[]) => l.reduce((a, it) => a + sellPrice(it, h), 0);
+  const total = (l: GearItem[]) => l.reduce((a, it) => a + Math.round(sellPrice(it, h) * goldMult(r)), 0);
   const btn = (k: "common" | "uncommon", l: GearItem[], label: string) => l.length ? `<button class="small ${bulkSellArmed === k ? "danger" : ""}" data-bulksell="${k}">${bulkSellArmed === k ? `Tap again: sell ${l.length} for ${total(l)} 🪙` : label}</button>` : "";
   return `<div class="row bulk-row">${btn("common", c, `🪙 Sell all Commons (${c.length})`)}${u.length > c.length ? btn("uncommon", u, `🪙 Commons + Uncommons (${u.length})`) : ""}</div>`;
 }
@@ -402,7 +402,8 @@ function challengesPopup() {
     ${meta.nemesis ? `<div class="mini-row nemesis-row"><span class="mr-ic">😈</span><span class="grow"><b>Your Nemesis: ${esc(meta.nemesis.name)}</b><span class="sub">${meta.nemesis.level > 1 ? `Beaten you ${meta.nemesis.level}×. ` : ""}Waits in your next Campaign run. Bounty on its head.</span></span></div>` : ""}
     <div class="mini-row heat-row"><span class="mr-ic">🔥</span><span class="grow"><b>Heat ${meta.wins ? (meta.heat ? meta.heat : "off") : "locked"}</b><span class="sub">${meta.wins ? "Set it when you pick your class." : "Win the Campaign once to unlock harder, richer runs."}</span></span></div>
   </div>
-    <div class="mini-row week-row"><span class="mr-ic">${w.icon}</span><span class="grow"><b>Abyss this week: ${esc(w.name)}</b><span class="sub">${esc(w.text)}.${abyssUnlocked(meta) ? "" : " (The Abyss opens after floor 15.)"}</span></span></div>
+    ${abyssUnlocked(meta) ? `<div class="mini-row week-row"><span class="mr-ic">${w.icon}</span><span class="grow"><b>Abyss this week: ${esc(w.name)}</b><span class="sub">${esc(w.text)}.</span></span></div>`
+      : `<div class="mini-row week-row locked"><span class="mr-ic">🔒</span><span class="grow"><b>Abyss weekly twist</b><span class="sub">Locked: beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to open the Abyss.</span></span></div>`}
   </div></div>`;
 }
 
@@ -566,7 +567,7 @@ const takeButtons = (it: GearItem) =>
 function lootScene(r: Run) {
   if (r.scene.t !== "loot") return "";
   const s = r.scene;
-  const extras = [...(s.sigils ?? []).map(n => `🔮 Sigil: ${n} (in your Talisman bag)`), s.gold ? `🪙 ${s.gold} Gold` : "", s.potions ? `🧪 Potion` : "", s.scrolls ? `📜 ${s.scrolls > 1 ? `${s.scrolls} Scrolls` : "Scroll"} of Revelation (yours)` : "", s.relic ? `💎 New relic: ${getItem(s.relic).name} — ${getItem(s.relic).text}` : ""].filter(Boolean);
+  const extras = [...(s.sigils ?? []).map(n => `🔮 Sigil: ${n} (in your Talisman bag)`), s.gold ? `🪙 ${Math.round(s.gold * goldMult(r))} Gold` : "", s.potions ? `🧪 Potion` : "", s.scrolls ? `📜 ${s.scrolls > 1 ? `${s.scrolls} Scrolls` : "Scroll"} of Revelation (yours)` : "", s.relic ? `💎 New relic: ${getItem(s.relic).name} — ${getItem(s.relic).text}` : ""].filter(Boolean);
   // After a won fight, the rewards sit in a framed Victory panel.
   const victory = s.title === "Victory" || s.title.startsWith("You caught") || s.title === "The Mimic's hoard";
   const key = (s.crimsonKey ? `<div class="key-found">🗝️ CRIMSON KEY FOUND<span>A Crimson Vault will now be offered on your path.</span></div>` : "")
@@ -632,7 +633,7 @@ function shopScene(r: Run) {
   <h2>Sell</h2>
   <p class="sub">The Merchant buys anything, for 40% of its price.${r.scene.soldItem ? ` Last sold: ${esc(r.scene.soldItem)}.` : ""}</p>
   ${bulkSellRow(r)}
-  ${gearGroups(r, it => { const worn = !!equippedSlot(r, it); return itemCard(it, `<button class="small ${worn && sellArmed === it.uid ? "danger" : ""}" data-sell="${it.uid}">${worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${sellPrice(it, r.hero)} 🪙`}</button>`, false, equippedSlot(r, it)); })}
+  ${gearGroups(r, it => { const worn = !!equippedSlot(r, it); return itemCard(it, `<button class="small ${worn && sellArmed === it.uid ? "danger" : ""}" data-sell="${it.uid}">${worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${Math.round(sellPrice(it, r.hero) * goldMult(r))} 🪙`}</button>`, false, equippedSlot(r, it)); })}
   <div class="row" style="margin-top:12px">${r.shopRerolls >= MAX_SHOP_REROLLS ? `<button disabled>No rerolls left</button>` : `<button data-reroll>Reroll stock · ${shopRerollCost(r)} 🪙 (${MAX_SHOP_REROLLS - r.shopRerolls} left)</button>`}<button class="primary" data-leave>Leave</button></div>`;
 }
 

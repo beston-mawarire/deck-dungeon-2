@@ -444,8 +444,9 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   }
   // Heat: tougher foes (1), and harder hits at 5.
   const heat = heatOf(run);
-  if (heat >= 1 && then !== "death") enemy.maxHp = enemy.hp = Math.round(enemy.hp * 1.2);
-  if (heat >= 5 && then !== "death") enemy.damage = Math.round(enemy.damage * 1.15);
+  if (heat >= 1 && then !== "death") enemy.maxHp = enemy.hp = Math.round(enemy.hp * 1.3);
+  if (heat >= 5 && then !== "death") enemy.damage = Math.round(enemy.damage * 1.2);
+  run.hero.f.persist["goldAtFight"] = run.hero.f.gold;
   const battle = startBattle(run.hero.f, enemy, Math.floor(run.rng() * 1e9), run.carry);
   // Angelic Blessing: heal 2 as the fight begins.
   if ((run.hero.f.persist["angelFights"] ?? 0) > 0) healF(battle, run.hero.f, 2, "Angelic Blessing");
@@ -588,6 +589,9 @@ function afterFight(run: Run) {
   }
   if (eaten) recompute(h);
   const curseNote = applyQueuedCurses(run);
+  // Heat 2+: Gold picked up mid-fight (item effects) is cut too.
+  const g0 = h.f.persist["goldAtFight"];
+  if (g0 !== undefined && h.f.gold > g0 && goldMult(run) < 1) h.f.gold = g0 + Math.floor((h.f.gold - g0) * goldMult(run));
   // The Angelic Blessing lasts 2 fights.
   if ((h.f.persist["angelFights"] ?? 0) > 0) {
     h.f.persist["angelFights"]--;
@@ -644,7 +648,7 @@ function afterFight(run: Run) {
   // Caught a thief: it coughs up 60% of what you're carrying, on top.
   let thiefPay = 0;
   if ((b.enemy.items["m_thief"] ?? 0) > 0) {
-    thiefPay = Math.floor(h.f.gold * 0.6);
+    thiefPay = Math.floor(h.f.gold * 0.6 * goldMult(run));
     h.f.gold += thiefPay;
   }
   // Achievement marks.
@@ -660,7 +664,7 @@ function afterFight(run: Run) {
     h.f.persist["bossKills"] = (h.f.persist["bossKills"] ?? 0) + 1;
   }
   // Catch your breath: a small heal after every won fight.
-  restore(h, Math.ceil(h.f.maxHp * (abyssMod(run, "merciful_dark") ? 0.3 : heatOf(run) >= 4 ? 0.075 : 0.15)));
+  restore(h, Math.ceil(h.f.maxHp * (abyssMod(run, "merciful_dark") ? 0.3 : heatOf(run) >= 4 ? 0 : 0.15)));
   const xp = { normal: 1, elite: 3, champion: 5, crimson: 7, boss: b.enemy.crimson ? 9 : 6 }[rank];
   gainXp(run, abyssMod(run, "thick_hides") ? Math.round(xp * 1.5) : xp);
   const gold = { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank] * (abyssMod(run, "golden_depths") ? 2 : 1) + relicBonus(h.relics, "gold");
@@ -749,7 +753,8 @@ function afterFight(run: Run) {
   if (rank === "boss") {
     relic = randomRelic(run, 2);
     if (run.rng() < 0.15) scrolls++;
-    h.f.gold += gold;
+    const bossGold = Math.round(gold * goldMult(run));
+    h.f.gold += bossGold;
     restore(h, Math.round(h.f.maxHp * 0.3));
     if (relic) offerRelic(run, relic, 1);
     grantScrolls(run, scrolls);
@@ -780,7 +785,7 @@ function afterFight(run: Run) {
     if ((b.enemy.items["m_death"] ?? 0) > 0) {
       run.popup = { icon: "☠️", title: "DEATH IS DEAD", text: "Damn, that's crazy! Tell Beston he owes you R600…", fanfare: "legendary_crimson" };
       run.scene = { t: "pick", title: "DEATH falls. Its scythe is yours", items: [makeRewardItem(h, "lc_abaddon", run.floor)] };
-      run.message = `+${gold} Gold${ruinNote}`;
+      run.message = `+${bossGold} Gold${ruinNote}`;
       return;
     }
     const bossSigil = rollSigilDrop(run, 0.4, 0.65);
@@ -794,7 +799,7 @@ function afterFight(run: Run) {
     // Keepsakes are a rare find: about one boss in ten after floor 5 leaves one behind.
     const keepsake = run.floor > FLOORS && run.rng() < 0.1 ? KEEPSAKES.filter(k => k.id !== h.keepsake)[Math.floor(run.rng() * (KEEPSAKES.length - (h.keepsake ? 1 : 0)))]?.id : undefined;
     run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: offer, keepsake };
-    run.message = `+${gold} Gold${run.relicChoice ? " · a relic to choose" : relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""}${ruinNote} · healed 30%${curseNote ? ` ${curseNote}` : ""}`;
+    run.message = `+${bossGold} Gold${run.relicChoice ? " · a relic to choose" : relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""}${ruinNote} · healed 30%${curseNote ? ` ${curseNote}` : ""}`;
     return;
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
@@ -870,7 +875,7 @@ export function collectLoot(run: Run) {
   if (run.scene.t !== "loot") return;
   const s = run.scene;
   const h = run.hero;
-  h.f.gold += s.gold;
+  h.f.gold += Math.round(s.gold * goldMult(run));
   gainPotions(h, s.potions);
   recompute(h);
   lockGold(run);
@@ -997,7 +1002,7 @@ export function sellItem(run: Run, uid: number): string | null {
   const h = run.hero;
   const found = findItem(h, uid);
   if (!found) return null;
-  const price = sellPrice(found.item, h);
+  const price = Math.round(sellPrice(found.item, h) * goldMult(run));
   removeGear(h, uid);
   recompute(h);
   h.f.gold += price;
@@ -1119,7 +1124,7 @@ export function chooseEvent(run: Run, i: number) {
   const ctx = {
     rng: run.rng,
     gold: () => h.f.gold,
-    addGold: (n: number) => { h.f.gold = Math.max(0, h.f.gold + n); },
+    addGold: (n: number) => { h.f.gold = Math.max(0, h.f.gold + (n > 0 ? Math.round(n * goldMult(run)) : n)); },
     hp: () => h.f.hp,
     hurt: (n: number) => { h.f.hp = Math.max(1, h.f.hp - n); },
     healPct: (p: number) => { restore(h, Math.round(h.f.maxHp * p)); },
@@ -1675,6 +1680,9 @@ export function grantRelic(run: Run, id: string) {
   if (isNew) (run.relicNews ??= []).push(id);
   recompute(h);
 }
+
+/** Heat 2+: less Gold from everything (fights, chests, events, sales). */
+export const goldMult = (run: Run) => (heatOf(run) >= 2 ? 0.75 : 1);
 
 /** Base luck for generated gear: the Abyss doubles it, every Heat level adds a little. */
 const genLuck = (run: Run) => (run.mode === "abyss" ? 2 : 1) * (1 + 0.15 * heatOf(run));

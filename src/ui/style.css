@@ -781,3 +781,4 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .sigil-set { border: 1px solid #5b46a0; border-radius: 12px; padding: 9px 10px; margin-top: 8px; }
 .sigil-set p { margin: 3px 0; font-size: .88rem; }
 .sigil-set .set-on { color: #c8f7a0; font-weight: 700; }
+.mini-row.locked { opacity: .55; border-style: dashed; }
