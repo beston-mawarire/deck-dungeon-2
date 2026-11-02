@@ -38,6 +38,10 @@ export interface Meta {
   abyssRuns?: number;
   /** Today's Daily Dungeon attempt (one a day). */
   daily?: { day: string; floor: number; won: boolean; done?: boolean };
+  /** Legendaries whose lore you've read (shown the first time you hold each). */
+  loreSeen?: string[];
+  /** What killed your last Campaign run: it waits in the next one. */
+  nemesis?: { name: string; family?: string; traits: string[]; level: number };
   /** The last few finished runs, newest first. */
   history?: HistoryEntry[];
 }
@@ -132,6 +136,13 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
   // A Campaign win that carries on deeper is recorded again when it ends: replace its earlier entry.
   const hist = (m.history ?? []).filter(e => !(alreadyEarned && e.origin === entry.origin && e.mode !== "abyss" && entry.at - e.at < 6 * 3600e3 && e.won));
   m.history = [entry, ...hist].slice(0, HISTORY_SIZE);
+  // Your Nemesis: beaten, it's gone; killed by something (in the Campaign), that's the new one (stronger if it's the same foe again).
+  if (run.nemesisBeaten) m.nemesis = undefined;
+  const k = run.killer;
+  if (run.scene.t === "over" && !run.scene.won && k && !run.abandoned && run.mode !== "abyss" && !run.daily && k.name !== "DEATH" && k.name !== "THE END") {
+    const again = k.nemesis || m.nemesis?.name === k.name;
+    m.nemesis = { name: k.name, family: k.family, traits: (k.traitIds ?? []).filter(t => /^(m_|x_)/.test(t) && t !== "m_death" && t !== "m_the_end" && t !== "m_goblin" && t !== "m_thief"), level: again ? (m.nemesis?.level ?? 1) + 1 : 1 };
+  }
   if (run.mode === "abyss") m.abyssBest = Math.max(m.abyssBest ?? 0, Math.min(run.floor, 10));
   else m.bestFloor = Math.max(m.bestFloor, run.floor);
   bankRuin(m, run);

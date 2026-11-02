@@ -5,7 +5,7 @@ import { CAMPAIGN_FLOORS, DEATH_FLOOR, END_FLOOR, EPIC_CRIMSON_FLOORS, makeBoss,
 import { CROSSROADS_GUISES, crossroadsEvent, EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
 import { findRecipe, TRINKET_RECIPES } from "../data/jeweller";
-import { makeDragon, makeGoblin, makeMonster, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
+import { makeDragon, makeGoblin, makeMonster, makeNemesis, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
 import { type Action, actionToll, BLESSINGS, playRound, startBattle } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
@@ -59,7 +59,7 @@ export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
 const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
 
-export type RoomType = "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
+export type RoomType = "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -79,6 +79,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   bounty: { name: "Bounty Board", icon: "📋", text: "Notices nailed to a post. Work for hire." },
   event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
+  nemesis: { name: "Your Nemesis", icon: "😈", text: "It killed you last time. It remembers you. There's a bounty on its head." },
   unique: { name: "A Strange Presence", icon: "✴️", text: "Someone — something — with a name. Dangerous, once per run, and carrying something rare." },
   crimson_elite: { name: "Crimson Elite", icon: "🩸", text: "Rarer and deadlier than a Champion. Great loot, and often a Crimson Key." },
   goblin: { name: "Treasure Goblin", icon: "💰", text: "A Treasure Goblin, stuffed with loot! Kill it within 3 rounds before it escapes, and everything it carries is yours." },
@@ -97,7 +98,7 @@ export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "reli
 
 export type Scene =
   | { t: "map" }
-  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death"; uber?: boolean }
+  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" | "nemesis"; uber?: boolean }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; potions: number; then?: "resplendent"; crimsonKey?: boolean; /** A Bounty Board payout (closing it doesn't use a step). */ bounty?: boolean; /** A Dragon Heart was torn from the dragon (its level now). */ dragonHeart?: number; /** The Transmuter's Crucible dropped. */ crucible?: boolean }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
@@ -161,10 +162,13 @@ export interface Run {
   normalStreak?: number;
   /** The floor whose "Floor cleared" screen has been shown (you continue from it to go deeper). */
   clearedFloor?: number;
+  /** Whatever killed your last Campaign run, waiting somewhere in this one (from floor 2), and whether you've beaten it. */
+  nemesis?: Nemesis;
+  nemesisBeaten?: boolean;
   /** Relics (by id) and scrolls ("scroll:N") just gained, waiting for their popup. */
   relicNews?: string[];
   /** Who ended the run (shown on the death screen). */
-  killer?: { name: string; title?: string; family?: string; rank: string; hp: number; maxHp: number; damage: number; armor: number; crimson?: boolean; traits: string[]; statuses: [string, number][] };
+  killer?: { name: string; title?: string; family?: string; traitIds?: string[]; nemesis?: boolean; rank: string; hp: number; maxHp: number; damage: number; armor: number; crimson?: boolean; traits: string[]; statuses: [string, number][] };
   /** The player ended this run themselves. */
   abandoned?: boolean;
   /** The last boss beaten (for the Floor cleared screen). */
@@ -173,6 +177,10 @@ export interface Run {
   popup?: { title: string; text: string; icon: string; list?: string[]; fanfare?: string };
   /** Beat THE END on floor 26: the whole game is won. */
   finale?: boolean;
+  /** Two relics to choose between (one is yours), waiting for the player. */
+  relicChoice?: string[];
+  /** Build moments already celebrated this run. */
+  moments?: string[];
   /** Inventory tabs as last seen (a short signature each), so new things get a dot. */
   seenTabs?: Record<string, string>;
   /** The Daily Dungeon this run belongs to (its UTC date, YYYY-MM-DD), if any. */
@@ -180,6 +188,9 @@ export interface Run {
   /** Ruin Shards and Vanadium Plates found this run, and how many of them are already banked on the device. */
   ruin?: { shards: number; plates: number; banked?: { shards: number; plates: number } };
 }
+
+/** A foe that ended a run, remembered: it returns, stronger each time it wins. */
+export interface Nemesis { name: string; family?: string; traits: string[]; level: number }
 
 export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: Mode = "campaign", locked: Set<string> = new Set()): Run {
   const run: Run = {
@@ -237,7 +248,9 @@ export function genChoices(run: Run): RoomType[] {
   if (run.floor >= 2 && UNIQUES.some(u => !run.seenBosses.has(`u:${u.id}`))) w.unique = 2;
   // Treasure Goblins: from floor 3, about as rare as a Legendary drop.
   if (run.floor >= 3) w.goblin = 0.5;
-  if (run.step === 0) { w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; w.unique = 0; }
+  // Your Nemesis: from floor 2, about as often as a Strange Presence, once per run.
+  if (run.nemesis && run.floor >= 2 && !run.seenBosses.has("nemesis")) w.nemesis = 2.5;
+  if (run.step === 0) { w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; w.unique = 0; w.nemesis = 0; }
   const out = new Set<RoomType>();
   out.add("fight");
   while (out.size < 3) out.add(pickW(run.rng, w));
@@ -348,6 +361,7 @@ function enterRoom(run: Run, room: RoomType) {
     case "bounty": run.scene = { t: "bounty", offers: bountyOffers(run) }; return;
     case "unique": return fight(run, "elite", "unique");
     case "goblin": return fight(run, "elite", "goblin");
+    case "nemesis": run.seenBosses.add("nemesis"); return fight(run, "champion", "nemesis");
   }
 }
 
@@ -365,7 +379,7 @@ function openResplendent(run: Run) {
 
 // ---------- Combat ----------
 
-function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death", defName?: string) {
+function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" | "nemesis", defName?: string) {
   run.hero.f.persist["floor"] = run.floor;
   const F = depth(run);
   // The Abyss: every plain fight is a rank tougher. Monsters become Elites, Elites Champions, Champions bosses, and the floor boss an Uber boss.
@@ -382,7 +396,7 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && !special && run.rng() < 0.06));
   // A rare gold thief sometimes turns up in place of a normal monster.
   const thief = rank === "normal" && !then && run.rng() < 0.04;
-  const enemy = then === "death" ? makeDeath() : then === "dragon" ? makeDragon(run.rng, F, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, F) : then === "unique" ? makeUnique(run.rng, F, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(depth(run), run.rng) : rank === "boss" ? makeBoss(F, run.rng, run.seenBosses) : thief ? makeThief(run.rng, F) : makeMonster(run.rng, F, rank, defName);
+  const enemy = then === "nemesis" && run.nemesis ? makeNemesis(run.nemesis, F) : then === "death" ? makeDeath() : then === "dragon" ? makeDragon(run.rng, F, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, F) : then === "unique" ? makeUnique(run.rng, F, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(depth(run), run.rng) : rank === "boss" ? makeBoss(F, run.rng, run.seenBosses) : thief ? makeThief(run.rng, F) : makeMonster(run.rng, F, rank, defName);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
@@ -548,7 +562,7 @@ function afterFight(run: Run) {
     run.killer = {
       name: e.name, title: e.title, family: e.family, rank: e.boss ? "Boss" : e.champion ? "Champion" : e.elite ? "Elite" : "",
       hp: Math.max(0, e.hp), maxHp: e.maxHp, damage: e.damage, armor: e.armor, crimson: e.crimson,
-      traits: Object.keys(e.items).map(id => getItem(id).name),
+      traits: Object.keys(e.items).map(id => getItem(id).name), traitIds: Object.keys(e.items), nemesis: then === "nemesis" || undefined,
       statuses: Object.entries(e.statuses).filter(([, n]) => (n ?? 0) > 0) as [string, number][]
     };
     run.scene = { t: "over", won: false };
@@ -619,7 +633,15 @@ function afterFight(run: Run) {
   let goblinGold = 0;
   let heartLevel = 0;
   let crucibleFound = false;
-  if (then === "dragon") {
+  if (then === "nemesis") {
+    // The bounty on your Nemesis: a fat purse, an Epic (often a Legendary), a relic to choose and a scroll.
+    run.nemesisBeaten = true;
+    goblinGold = 40 + 15 * run.floor;
+    items.push(rollItem(h, run.rng() < 0.3 ? "legendary" : "epic", depth(run), run.rng));
+    relic = randomRelic(run, 2);
+    scrolls++;
+    run.message = `😈 Your Nemesis falls. It won't trouble you again — the bounty is yours.`;
+  } else if (then === "dragon") {
     // The dragon's hoard: a big pile of Gold and Scrap; maybe a great relic, rarely an Epic or a Legendary.
     goblinGold = 80 + 25 * run.floor;
     h.scrap += 10 + 3 * run.floor;
@@ -674,9 +696,7 @@ function afterFight(run: Run) {
     if (run.rng() < 0.15) scrolls++;
     h.f.gold += gold;
     restore(h, Math.round(h.f.maxHp * 0.3));
-    if (relic) {
-      grantRelic(run, relic);
-    }
+    if (relic) offerRelic(run, relic, 1);
     grantScrolls(run, scrolls);
     recompute(h);
     // From floor 20, every boss leaves a Ruin Shard (the key to an Abyss run), and sometimes a Vanadium Plate.
@@ -717,13 +737,13 @@ function afterFight(run: Run) {
     // Keepsakes are a rare find: about one boss in ten after floor 5 leaves one behind.
     const keepsake = run.floor > FLOORS && run.rng() < 0.1 ? KEEPSAKES.filter(k => k.id !== h.keepsake)[Math.floor(run.rng() * (KEEPSAKES.length - (h.keepsake ? 1 : 0)))]?.id : undefined;
     run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: offer, keepsake };
-    run.message = `+${gold} Gold${relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""}${ruinNote} · healed 30%${curseNote ? ` ${curseNote}` : ""}`;
+    run.message = `+${gold} Gold${run.relicChoice ? " · a relic to choose" : relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""}${ruinNote} · healed 30%${curseNote ? ` ${curseNote}` : ""}`;
     return;
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
-  if (relic) grantRelic(run, relic);
+  if (relic) offerRelic(run, relic, rank === "elite" && !then ? 0.25 : 0.5, rank === "elite" && !then ? 1 : 2);
   if (scrolls) grantScrolls(run, scrolls);
-  run.scene = { t: "loot", title: then === "dragon" ? "The Dragon's Hoard" : then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined, dragonHeart: heartLevel || undefined, crucible: crucibleFound || undefined };
+  run.scene = { t: "loot", title: then === "dragon" ? "The Dragon's Hoard" : then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic: run.relicChoice ? undefined : relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined, dragonHeart: heartLevel || undefined, crucible: crucibleFound || undefined };
   const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean);
   run.message = notes.join(" ");
 }
@@ -1565,6 +1585,22 @@ export function grantRelic(run: Run, id: string) {
   // A relic you already have just merges in (×2, stronger), silently.
   if (isNew) (run.relicNews ??= []).push(id);
   recompute(h);
+}
+
+/** A relic reward: sometimes a choice of two instead (the player picks one). */
+function offerRelic(run: Run, relic: string, chance: number, quality = 2) {
+  if (run.rng() < chance) {
+    let other = relic;
+    for (let i = 0; i < 8 && other === relic; i++) other = randomRelic(run, quality);
+    if (other !== relic) { run.relicChoice = [relic, other]; return; }
+  }
+  grantRelic(run, relic);
+}
+/** Take one of the two offered relics. */
+export function chooseRelic(run: Run, id: string) {
+  if (!run.relicChoice?.includes(id)) return;
+  run.relicChoice = undefined;
+  grantRelic(run, id);
 }
 
 /** Give the hero Scrolls of Revelation and queue their popup. */

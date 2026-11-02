@@ -5,6 +5,12 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.21.0
+- **Relic choice**: bosses always, Champions and other big foes half the time, and Elites a quarter of the time offer a choice of two relics instead of one.
+- **Nemesis**: whatever kills your Campaign run waits in your next one (from floor 2), tougher than a Champion and stronger every time it wins. Beat it for its bounty: Gold, an Epic or Legendary, a relic to choose and a Scroll. The title screen shows who your Nemesis is.
+- **Legendary lore**: the first time you hold each revealed Legendary, a line of its story.
+- **Build moments**: quick banners the first time each run you set off a reaction, Smite, land a massive or colossal hit, or one-shot an Elite, Champion or boss.
+
 ## 1.20.0
 - "New" dots: the Inventory button and its tabs get a red dot when something new lands there (bag items, relics, artefacts, talents, curses, blessings, keepsakes, tonics), until you open that tab.
 - Combat speed toggle under the fight (Normal / Fast / Very fast), same setting as in Options.

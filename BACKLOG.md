@@ -10,10 +10,10 @@ Suggested 2026-11-02. ✅ = done, 🔨 = in progress.
 - ✅ **Run history**: the last 10 runs: class, floor, killer, final build.
 
 ## Fun
-- **Build moments**: small fanfares when a combo clicks (first reaction, a Smite, a 10× hit, a full Legend set).
-- **Relic choice**: sometimes offer a pick of two relics instead of a random one, so players can steer their build.
-- **Nemesis**: whatever killed your last run sometimes returns, stronger, with a bounty on it.
-- **Legendary lore**: the first time you find each Legendary, a one-line lore popup.
+- ✅ **Build moments**: small fanfares when a combo clicks (first reaction, a Smite, a 10× hit, a full Legend set).
+- ✅ **Relic choice**: sometimes offer a pick of two relics instead of a random one, so players can steer their build.
+- ✅ **Nemesis**: whatever killed your last run sometimes returns, stronger, with a bounty on it.
+- ✅ **Legendary lore**: the first time you find each Legendary, a one-line lore popup.
 
 ## Replayability
 - ✅ **Daily Dungeon**: the same seed (and class) for everyone each day, one attempt, with its own leaderboard.

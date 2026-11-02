@@ -222,3 +222,16 @@ export function makeMonster(rng: () => number, floor: number, rank: MonsterRank,
     elite: rank === "elite" || rank === "champion" || rank === "crimson", champion: rank === "champion", crimson: rank === "crimson", boss: rank === "boss", family: def.family
   };
 }
+
+/** Your Nemesis: what killed your last run, back as something tougher than a Champion (and tougher each time it wins). */
+export function makeNemesis(n: { name: string; family?: string; traits: string[]; level: number }, floor: number): Fighter {
+  const lv = Math.max(1, n.level);
+  const hp = Math.round(22 * monsterHpMult(floor) * (2.9 + 0.17 * floor) * (1 + 0.2 * (lv - 1)));
+  const items: Record<string, number> = {};
+  for (const t of n.traits) if (TRAITS.some(x => x.id === t)) items[t] = 1;
+  return {
+    id: "enemy", name: n.name, title: lv > 1 ? `Your Nemesis · it has beaten you ${lv} times` : "Your Nemesis · it killed you last time", hp, maxHp: hp,
+    armor: 2 + Math.floor(floor / 3), damage: 5 + monsterPowerAdd(floor) + Math.floor(floor / 2) + lv,
+    faces: PLAIN_FACES, statuses: {}, flags: {}, persist: {}, items, gold: 0, elite: true, champion: true, family: n.family ?? "Beast"
+  };
+}

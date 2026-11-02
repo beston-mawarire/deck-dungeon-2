@@ -13,12 +13,13 @@ import {
   BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost, rerollsLeft,
   keepsOffHand, findItem, recompute, reveal, salvage, slotsFor, unequip, upgradeCost, xpToLevel
 } from "../game/hero";
+import { LEGENDARY_LORE } from "../data/lore";
 import { abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
-  ROOM_INFO, ABYSS_ROOM_INFO, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
+  ROOM_INFO, ABYSS_ROOM_INFO, chooseRelic, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   abandonRun, smithUpgrade, runSummary, trackGold, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -338,6 +339,7 @@ function titleScreen() {
   ${cont}
   <div class="story-row"><span>🏰 ${FLOORS} floors, ${FLOORS} bosses. The Hollow King waits at the bottom, and beyond him, deeper still.</span><button class="story-btn" data-story="campaign">📖 Click to read story</button></div>
   ${dailyPanel()}
+  ${meta.nemesis ? `<div class="panel nemesis-panel">😈 <b>Your Nemesis:</b> ${esc(meta.nemesis.name)}${meta.nemesis.level > 1 ? ` <span class="sub">(beaten you ${meta.nemesis.level}×)</span>` : ""}<br><span class="sub">It waits somewhere in your next Campaign run, from floor 2. There's a bounty on its head.</span></div>` : ""}
   <h2 class="bright">Choose an origin</h2>
   <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
   ${originCards(false)}
@@ -433,7 +435,7 @@ function mapScene(r: Run) {
   const abyss = r.mode === "abyss";
   return `<div class="floorname ${abyss ? "abyss-name" : ""}">${abyss ? `🕳️ The Abyss · Depth ${r.floor}` : `Floor ${r.floor} · ${esc(floorName(r.floor))}`}</div><div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>
   <h2>${r.step >= STEPS_PER_FLOOR ? (r.mode === "abyss" ? "The Uber boss awaits" : r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits") : "Choose your path"}</h2>
-  <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : ""}" data-room="${c}">${(() => { const g = c === "crossroads" ? CROSSROADS_GUISES[r.crossroadsGuise ?? 0] : null; const info = g ? { icon: g.icon, name: g.title, text: g.room } : (r.mode === "abyss" && ABYSS_ROOM_INFO[c]) || ROOM_INFO[c];
+  <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : c === "nemesis" ? "nemesis-room" : ""}" data-room="${c}">${(() => { const g = c === "crossroads" ? CROSSROADS_GUISES[r.crossroadsGuise ?? 0] : null; const info = g ? { icon: g.icon, name: g.title, text: g.room } : c === "nemesis" && r.nemesis ? { ...ROOM_INFO.nemesis, text: `${r.nemesis.name}. It killed you last time, and it remembers. A bounty for its head.` } : (r.mode === "abyss" && ABYSS_ROOM_INFO[c]) || ROOM_INFO[c];
     return `<span class="ic">${c === "boss" && r.floor >= FLOORS && r.mode !== "abyss" ? "💀" : info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>`).join("")}</div>`;
 }
 
@@ -1334,6 +1336,44 @@ function originPopup(o: OriginId) {
 }
 
 /** "New relic!" popup: a relic is easy to miss in a line of text, so each one gets its own moment. */
+/** Two relics on offer: take one. */
+function relicChoicePopup(r: Run) {
+  const card = (id: string) => {
+    const it = getItem(id);
+    const rar = it.rarity ?? "common";
+    const have = r.hero.relics[id] ?? 0;
+    return `<button class="relic-choice r-${rar}" data-relicpick="${id}">
+      <span class="relic-kicker" style="text-transform:capitalize">${esc(rar)} relic</span>
+      <b class="nm">${esc(it.name)}</b>
+      <span>${esc(fillText(it.text, have + 1))}</span>
+      ${have ? `<span class="sub">You have it: this makes it ×${have + 1}, stronger.</span>` : ""}
+      ${FUSABLE_RELICS.has(id) ? `<span class="fusable-tag">🔗 Fusable</span>` : ""}
+    </button>`;
+  };
+  return `<div class="overlay popup-wrap"><div class="popup relic-pop">
+    <div class="center relic-gem">💎</div>
+    <div class="center relic-kicker">CHOOSE A RELIC</div>
+    <p class="center sub">Two relics glint in the remains. You can only carry one away.</p>
+    <div class="relic-choices">${r.relicChoice!.map(card).join("")}</div>
+  </div></div>`;
+}
+
+/** The first time you ever hold a revealed Legendary: a line of its lore. */
+function nextLore(r: Run): GearItem | undefined {
+  const seen = meta.loreSeen ?? [];
+  return [...EQUIP_SLOTS.map(s => r.hero.equip[s]), ...r.hero.backpack].find((it): it is GearItem => !!it && it.revealed && !!LEGENDARY_LORE[it.base] && !seen.includes(it.base));
+}
+function lorePopup(it: GearItem) {
+  return `<div class="overlay popup-wrap"><div class="popup lore-pop r-legendary">
+    <div class="center relic-gem">📜</div>
+    <div class="center relic-kicker">A LEGEND, FOUND</div>
+    <h1 class="center bigname nm">${esc(baseOf(it.base).name)}</h1>
+    <p class="center lore-text">${esc(LEGENDARY_LORE[it.base])}</p>
+    <p class="center sub">The first time you've held one.</p>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-loreok="${it.base}">Continue</button></div>
+  </div></div>`;
+}
+
 function relicPopup(id: string, more: number) {
   if (id.startsWith("scroll:")) {
     const n = Number(id.split(":")[1]) || 1;
@@ -1530,7 +1570,7 @@ function render2() {
       else celebrate(["rare", "epic", "legendary"].includes(getItem(relicNow).rarity ?? "") ? (getItem(relicNow).rarity as string) : "rare", "NEW RELIC", false);
     }
   }
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
   bind();
 }
 
@@ -1564,8 +1604,37 @@ function shake(who: "player" | "enemy", big = false) {
 async function playFx(b: Battle) {
   while (b.fx.length) {
     const e = b.fx.shift()!;
+    buildMoment(b, e);
     await showFx(e);
   }
+}
+
+/** Build moments: a quick banner when something about your build clicks (each kind once a run, so it stays special). */
+function buildMoment(b: Battle, e: Fx) {
+  const r = run;
+  if (!r) return;
+  const seen = (r.moments ??= []);
+  const once = (key: string, text: string, tone: string) => { if (seen.includes(key)) return; seen.push(key); momentToast(text, tone); };
+  if (e.kind === "reaction" && e.src === "player") {
+    if (/Smite/.test(e.text ?? "")) once("smite", "✝️ Smite! Your faith hits back", "holy");
+    else once("reaction", `⚗️ First reaction: ${e.text ?? ""}`, "rx");
+  }
+  if (e.kind === "dmg" && e.who === "enemy" && e.src !== "enemy" && (e.value ?? 0) > 0) {
+    const base = Math.max(3, b.player.damage);
+    const v = e.value ?? 0;
+    if (v >= base * 50 && v >= 300) once("hit50", `☄️ Colossal hit: ${fmtN(v)}!`, "legend");
+    else if (v >= base * 10 && v >= 40) once("hit10", `💥 Massive hit: ${fmtN(v)}!`, "epic");
+    const en = b.enemy;
+    if ((en.boss || en.champion || en.elite) && v >= en.maxHp && en.hp <= 0) once(`oneshot-${en.boss ? "boss" : en.champion ? "champion" : "elite"}`, `⚡ One-shot ${en.boss ? "a boss" : en.champion ? "a Champion" : "an Elite"}!`, "legend");
+  }
+}
+function momentToast(text: string, tone: string) {
+  const el = document.createElement("div");
+  el.className = `moment ${tone}`;
+  el.textContent = text;
+  document.body.appendChild(el);
+  sfx("reaction");
+  setTimeout(() => el.remove(), 2200);
 }
 
 async function showFx(e: Fx) {
@@ -1765,7 +1834,7 @@ function bind() {
     on("[data-help]", () => { helpOpen = true; });
     on("[data-closehelp]", () => { helpOpen = false; });
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode; });
-    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); run = nr; void startSession(nr); });
+    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; run = nr; void startSession(nr); });
     return;
   }
   const r = run;
@@ -1810,6 +1879,8 @@ function bind() {
   on("[data-choosetalent]", () => { ackedTalentScene = r.scene; });
   on("[data-closepopup]", () => { r.popup = undefined; });
   on("[data-relicok]", () => { r.relicNews?.shift(); });
+  on("[data-loreok]", el => { meta.loreSeen = [...(meta.loreSeen ?? []), el.dataset.loreok!]; saveMeta(meta); });
+  on("[data-relicpick]", el => { chooseRelic(r, el.dataset.relicpick!); sfx("chest"); });
   on("[data-menu]", () => { if (!busy) { menuOpen = true; endArmed = false; } });
   on("[data-closemenu]", () => { menuOpen = false; endArmed = false; });
   on("[data-mainmenu]", () => { menuOpen = false; endArmed = false; bagOpen = false; helpOpen = false; run = null; view = "title"; meta = loadMeta(); });
