@@ -583,7 +583,7 @@ function combatScene(r: Run) {
 
 /** Pick-one scenes (boss rewards, Iron chests with the Skeleton Key): every button is a choice that ends the pick. */
 const lootBtns = (it: GearItem, pick: boolean) => {
-  const pre = pick ? `<span class="pick-pre">Choose · </span>` : "";
+  const pre = "";
   return `<button class="small take-equip" data-take="${it.uid}" data-how="equip">${pre}✔ Equip</button><button class="small take-pack" data-take="${it.uid}" data-how="pack">${pre}Add to backpack</button><button class="small take-scrap" data-scrapfound="${it.uid}">${pre}Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`;
 };
 const pickButtons = (it: GearItem) => lootBtns(it, true);
@@ -608,7 +608,9 @@ function pickScene(r: Run) {
   if (r.scene.t !== "pick") return "";
   const s = r.scene;
   const ks = s.keepsake ? getItem(s.keepsake) : null;
-  return `<h2>${esc(s.title)}</h2>
+  const m = /^(.*?)(!?)\s*(?:—\s*)?choose one$/i.exec(s.title);
+  const title = `<h2 class="pick-title"><span>${esc(m ? m[1] + m[2] : s.title)}</span>${m ? "<b>Choose one</b>" : ""}</h2>`;
+  return `${title}
     ${ks ? `<div class="item keepsake"><div class="meta">Keepsake · one at a time${r.hero.keepsake ? ` · replaces ${esc(getItem(r.hero.keepsake).name)}` : ""}</div><div class="nm">🕯️ ${esc(ks.name)}</div><p>${esc(ks.text)}.</p><div class="row"><button class="small primary" data-keepsake>Take the Keepsake</button></div><p class="sub">Free: it doesn't count as your pick.</p></div>` : ""}
     ${s.items.length > 1 ? `<div class="toast">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
     <div class="cards">${s.items.map(it => itemCard(it, s.items.length > 1 ? pickButtons(it) : takeButtons(it), true)).join("")}</div>
