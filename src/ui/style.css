@@ -790,4 +790,13 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .room-wrap { display: flex; flex-direction: row; align-items: stretch; gap: 8px; }
 .room-wrap > .room { flex: 1; width: auto; min-width: 0; }
 .auto-room { flex: 0 0 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 10px 6px; text-align: center; background: linear-gradient(170deg, #5fd08a 0%, #3fae68 100%); border-color: #6fe39a; color: #0f2416; text-shadow: 0 1px 0 rgba(255,255,255,.25); font-size: .85rem; font-weight: 700; line-height: 1.15; }
+.end-actions { flex-wrap: wrap; }
+.end-actions > button { flex: 1 1 0; min-height: 48px; }
+.end-actions > .ruin-line { flex-basis: 100%; }
 .auto-room .ic { font-size: 1.5rem; filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
+@media (min-width: 481px) {
+  .room-wrap { flex-direction: column; gap: 6px; }
+  .room-wrap > .room { flex: 1 1 auto; width: 100%; }
+  .auto-room { flex: 0 0 auto; flex-direction: row; gap: 6px; width: 100%; padding: 9px 10px; }
+  .auto-room .ic { font-size: 1.1rem; }
+  .auto-room br { display: none; }

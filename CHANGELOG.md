@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.3
+- End-of-run screen: the New run button (and Keep delving, after a win) now fills the whole row.
+- On wider screens the ⚡ Auto-fight button sits under its room card at the same width; phones keep it beside the card.
+
 ## 1.26.2
 - The ⚡ Auto-fight button is now filled in the same green as the health bar.
 
