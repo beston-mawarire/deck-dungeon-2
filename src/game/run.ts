@@ -1746,7 +1746,7 @@ export function runSummary(run: Run) {
   trackGold(run);
   return {
     seed: run.seed, origin: run.hero.origin, mode: run.mode, floor: run.mode === "abyss" ? Math.min(run.floor, ABYSS_FLOORS) : run.floor, won: run.scene.t === "over" && run.scene.won,
-    plates: run.hero.plates ?? 0, daily: run.daily,
+    plates: run.hero.plates ?? 0, daily: run.daily, heat: heatOf(run) || undefined,
     level: run.hero.level, kills: run.stats.kills, elites: p["q_elites"] ?? 0, champions: p["q_champions"] ?? 0,
     damage: Math.round(p["t_dmg"] ?? 0), bestHit: Math.round(Math.max(p["t_best"] ?? 0, run.stats.bestHit)), gold: run.goldEarned ?? 0,
     killer: run.scene.t === "over" && !run.scene.won && !run.abandoned ? run.killer?.name : undefined

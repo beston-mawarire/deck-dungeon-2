@@ -1017,7 +1017,7 @@ function runStatsPanel(r: Run) {
 
 function leaderboardPopup() {
   const ORIGIN_IC: Record<string, string> = { warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" };
-  const main = ([["campaign", "🏰 Campaign"], ["daily", "📅 Daily"], ["abyss", "🕳️ Abyss"], ["bounty", "🎯 Bounty"]] as [Scope, string][])
+  const main = ([["campaign", "🏰 Campaign"], ["daily", "📅 Daily"], ["abyss", "🕳️ Abyss"], ["heat", "🔥 Heat"], ["bounty", "🎯 Bounty"]] as [Scope, string][])
     .map(([k, l]) => `<button class="lb-main ${lbScope === k ? "active" : ""}" data-lbscope="${k}">${l}</button>`).join("");
   const subs = lbScope === "bounty" ? [] : SUB_BOARDS[lbScope];
   const unit = subs.find(b => b.id === lbBoard);
@@ -1033,7 +1033,7 @@ function leaderboardPopup() {
       : `<ol class="lb-list">${lbKillers.map(k => `<li class="${k.rank <= 3 ? `top${k.rank}` : ""}"><span class="lb-rank">${k.rank <= 3 ? ["🥇", "🥈", "🥉"][k.rank - 1] : `#${k.rank}`}</span><span class="lb-nm">☠️ ${esc(k.name)} <span class="lb-title">${k.players} player${k.players === 1 ? "" : "s"}</span></span><b class="lb-val">${fmtN(k.kills)}</b></li>`).join("")}</ol>`;
   } else if (!lbRows) body = `<p class="sub center">Loading…</p>`;
   else if (!lbRows.length) body = `<p class="sub center">${lbScope === "daily" && lbBoard !== "alltime" ? "Nobody has played today's Daily Dungeon yet. Be the first!" : "Nobody's on this board yet. Be the first!"}</p>`;
-  else body = `<ol class="lb-list">${lbRows.map(row => `<li class="${row.you ? "you" : ""} ${row.rank <= 3 ? `top${row.rank}` : ""}"><span class="lb-rank">${row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}</span><span class="lb-nm">${ORIGIN_IC[row.origin] ?? ""} ${esc(row.name)}${row.title ? ` <span class="lb-title">“${esc(row.title)}”</span>` : ""}${row.you ? " <i>(you)</i>" : ""}${row.plates ? ` <span class="lb-plates" title="Vanadium Plates">⬛${row.plates}</span>` : ""}${row.day ? ` <span class="lb-title">📅 ${esc(row.day)}</span>` : ""}</span><b class="lb-val">${fmtN(row.value)}</b></li>`).join("")}</ol>
+  else body = `<ol class="lb-list">${lbRows.map(row => `<li class="${row.you ? "you" : ""} ${row.rank <= 3 ? `top${row.rank}` : ""}"><span class="lb-rank">${row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}</span><span class="lb-nm">${ORIGIN_IC[row.origin] ?? ""} ${esc(row.name)}${row.title ? ` <span class="lb-title">“${esc(row.title)}”</span>` : ""}${row.you ? " <i>(you)</i>" : ""}${row.plates ? ` <span class="lb-plates" title="Vanadium Plates">⬛${row.plates}</span>` : ""}${row.day ? ` <span class="lb-title">📅 ${esc(row.day)}</span>` : ""}${row.heat ? ` <span class="lb-plates" title="Heat">🔥${row.heat}</span>` : ""}</span><b class="lb-val">${fmtN(row.value)}</b></li>`).join("")}</ol>
     ${lbMe ? `<p class="lb-me">You: #${lbMe.rank} · ${fmtN(lbMe.value)}</p>` : ""}`;
   const note = lbScope === "bounty" ? "The foes that have ended the most runs, and how many players they've claimed."
     : lbScope === "daily" && lbBoard !== "alltime" ? `Each player's best run in today's Daily Dungeon · ${esc(unit?.unit ?? "")}. Resets at midnight UTC; the best stay on All time.`
@@ -1041,7 +1041,7 @@ function leaderboardPopup() {
   return `<div class="overlay"><div class="inner lb-pop">
     <div class="row"><h1 class="grow">🏆 Leaderboards</h1><button class="closebtn" data-lbclose>✕ Close</button></div>
     <div class="lb-mains">${main}</div>
-    ${lbScope === "bounty" ? "" : `<div class="row lb-tabs">${subTabs}</div><div class="row lb-classes">${classTabs}</div>`}
+    ${lbScope === "bounty" ? "" : `${subs.length > 1 ? `<div class="row lb-tabs">${subTabs}</div>` : ""}<div class="row lb-classes">${classTabs}</div>`}
     <p class="sub lb-note">${note}</p>
     ${body}
   </div></div>`;
@@ -1426,7 +1426,7 @@ function splashScreen() {
   const sv = savedSummary();
   return `<div class="splash">
     <div class="splash-dice">🎲</div>
-    <div class="splash-head"><h1 class="splash-title">DECK DUNGEON <span>2</span></h1><span class="splash-blurb">The Great Reset!</span></div>
+    <div class="splash-head"><h1 class="splash-title">DECK DUNGEON <span>2</span></h1><span class="splash-blurb">The Great Reset is here!!</span></div>
     <p class="splash-tag">Venture into the depths of darkness. Slay the horrors within.</p>
     <div class="splash-buttons">
       ${musicBlocked() ? `<button class="small music-hint" data-startmusic>🎵 Tap for music</button>` : ""}

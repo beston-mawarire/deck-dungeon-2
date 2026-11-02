@@ -5,7 +5,7 @@ import { makeRng, rollDie } from "./rng";
 /** Dodge is capped at 60%; Bash at 30%. */
 export const DODGE_CAP = 60;
 export const BASH_CAP = 30;
-import { applyStatus, conductive, endOfRound, heal, loseHp, other, smoulderSoulAction, st, startOfTurn, staticTick } from "./statuses";
+import { applyStatus, conductive, endOfRound, heal, loseHp, other, statusLoss, smoulderSoulAction, st, startOfTurn, staticTick } from "./statuses";
 import type { AttackCtx, Battle, FaceGroup, FaceKind, FaceSpec, Fighter, StatusId, Statuses } from "./types";
 import { NEGATIVE_STATUSES } from "./types";
 
@@ -78,7 +78,7 @@ function trySmite(b: Battle, a: Fighter, d: Fighter) {
   a.flags["smites"] = (a.flags["smites"] ?? 0) + 1;
   const n = Math.ceil(d.maxHp * smitePct(a));
   fx(b, { who: d.id, kind: "reaction", text: "Smite!", status: "consecrated", src: d.id === "player" ? "enemy" : "player" });
-  const lost = loseHp(b, d, n);
+  const lost = statusLoss(b, d, n);
   log(b, `⚡✝️ SMITE! Your Ward turned their spite into judgement: ${d.name} takes ${lost}.`);
   if (a.id === "player") a.persist["rx:foe:smite"] = (a.persist["rx:foe:smite"] ?? 0) + 1;
 }
@@ -494,7 +494,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   if (ctx.dealt > 0 && st(a, "blessed") > 0 && d.hp > 0) {
     const n = st(a, "blessed");
     a.statuses.blessed = 0;
-    const lost = loseHp(b, d, Math.ceil(d.maxHp * 0.1 * n));
+    const lost = statusLoss(b, d, Math.ceil(d.maxHp * 0.1 * n));
     log(b, `🌟 Blessed ×${n}: ${lost} more.`);
     fx(b, { who: d.id, kind: "reaction", text: `Blessed ×${n}`, status: "blessed", src: d.id === "player" ? "enemy" : "player" });
   }

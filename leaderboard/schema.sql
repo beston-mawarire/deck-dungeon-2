@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS runs (
   daily TEXT,
   title TEXT,
   killer TEXT,
+  heat INTEGER NOT NULL DEFAULT 0,
   UNIQUE (pid, seed)
 );
 CREATE INDEX IF NOT EXISTS runs_pid_time ON runs (pid, created_at);

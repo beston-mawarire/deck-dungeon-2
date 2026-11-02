@@ -1863,3 +1863,17 @@ describe("Heatforged gear", () => {
     expect(h.f.persist["hearthBurn"]).toBeUndefined();
   });
 });
+
+describe("tough foes and stacked statuses", () => {
+  it("a boss, Champion or Elite can't lose more than a set share of its Max HP to statuses in one round", () => {
+    const h = newHero("mage");
+    for (const [kind, cap] of [["boss", 0.15], ["champion", 0.2], ["elite", 0.25]] as const) {
+      const e = dummy(400); (e as unknown as Record<string, boolean>)[kind] = true;
+      const b = startBattle(h.f, e, 7);
+      e.statuses = { burn: 300, poison: 300, bleed: 300 };
+      endOfRound(b, e);
+      expect(400 - e.hp, kind).toBeLessThanOrEqual(Math.floor(400 * cap));
+      expect(400 - e.hp, kind).toBeGreaterThan(0);
+    }
+  });
+});

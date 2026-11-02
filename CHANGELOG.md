@@ -5,6 +5,12 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.42.0
+- 🌅 A second, complete wipe to be sure: every device clears everything the game keeps in the browser once more (progress, settings, name, player id, session data and caches), and the leaderboards and backups start empty again. Older backup codes restore nothing.
+- 🔥 New Heat leaderboard: the deepest floor reached in a Campaign at Heat 1 or higher, with each run's Heat shown.
+- Bosses, Champions and Elites can no longer be one-shot by stacked statuses.
+- The title screen now says: The Great Reset is here!!
+
 ## 1.41.0
 - 🔥 Heatforged gear: 12 new items and 2 Legendaries that only drop in Campaign runs at Heat 1 or more, at normal odds for their rarity. Branding Iron, Forge Bellows, Ashen Cloak, Tinderbox Charm, Cinderblade and Coal Heart from Heat 1; Ember Lantern, Cinderweave Robe, Magma Maul, Furnace Plate, Phoenix Feather and the Crown of Embers from Heat 3; the Infernal Brazier and Hearthfall at Heat 5.
 - Heat achievements, in their own group: Feel the Heat, Forged in Fire, Smith of Cinders, Crowned in Embers, Ashborn, Slow Burn and Dry Heat (Trial by Fire and Inferno join them).

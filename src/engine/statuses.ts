@@ -75,7 +75,7 @@ export function staticTick(b: Battle, f: Fighter) {
   const foe = other(b, f);
   const extra = 2 * (foe.items["r_overcharged_cell"] ?? 0) + ((foe.items["ee_stormheart_pendant"] ?? 0) > 0 ? 2 : 0) + ((foe.items["cx_storm_skin"] ?? 0) > 0 ? 4 : 0);
   const dmg = (2 + extra) * (conductive(f) ? 2 : 1) * ((foe.items["lr_stormheart"] ?? 0) > 0 ? 3 : 1);
-  const lost = loseHp(b, f, Math.round(dmg * dotMult(b, f)));
+  const lost = statusLoss(b, f, Math.round(dmg * dotMult(b, f)));
   log(b, `🔋 Static crackles through ${f.name} as it acts: ${lost}.`);
 }
 
@@ -116,6 +116,20 @@ export const THRESHOLDS = [
 ];
 
 /** Take HP from a fighter; Barrier absorbs first. Returns HP actually lost. */
+/** Tough foes can't be one-shot by stacked statuses: per round, status damage (ticks, reactions, shatters, Blessed, Smite)
+ *  takes at most this share of a boss's, Champion's or Elite's Max HP. */
+export const STATUS_ROUND_CAP = { boss: 0.15, champion: 0.2, elite: 0.25 };
+export function statusLoss(b: Battle, f: Fighter, amount: number): number {
+  const cap = f.id === "player" ? 0 : f.boss ? STATUS_ROUND_CAP.boss : f.champion || f.crimson ? STATUS_ROUND_CAP.champion : f.elite ? STATUS_ROUND_CAP.elite : 0;
+  if (cap > 0) {
+    if (f.flags["sdRound"] !== b.round + 1) { f.flags["sdRound"] = b.round + 1; f.flags["sdTaken"] = 0; }
+    const room = Math.max(0, Math.floor(f.maxHp * cap) - (f.flags["sdTaken"] ?? 0));
+    amount = Math.min(Math.max(0, Math.round(amount)), room);
+  }
+  const lost = loseHp(b, f, amount);
+  if (cap > 0) f.flags["sdTaken"] = (f.flags["sdTaken"] ?? 0) + lost;
+  return lost;
+}
 export function loseHp(b: Battle, f: Fighter, amount: number): number {
   amount = Math.max(0, Math.round(amount));
   const bar = st(f, "barrier");
@@ -243,7 +257,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
     const n = st(target, t.status);
     target.statuses[t.status] = 0;
     fx(b, { who: target.id, kind: "reaction", text: `${t.name}!`, status: t.status, src: source?.id });
-    const lost = loseHp(b, target, Math.round(n * t.per * reactionMult(b, source)));
+    const lost = statusLoss(b, target, Math.round(n * t.per * reactionMult(b, source)));
     log(b, `${t.icon} ${t.name}! ${n} ${STATUS_INFO[t.status].name} bursts: ${target.name} takes ${lost}.`);
     const key = `rx:${target.id === "player" ? "you" : "foe"}:${t.id}`;
     b.player.persist[key] = (b.player.persist[key] ?? 0) + 1;
@@ -287,7 +301,7 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
       const dmg = Math.round((st(t, "burn") + st(t, "poison")) * m);
       t.statuses.burn = 0;
       if (!(source && (source.items["kindling_oil"] ?? 0) > 0)) t.statuses.poison = 0;
-      const lost = loseHp(b, t, dmg);
+      const lost = statusLoss(b, t, dmg);
       log(b, `💥 ${name}! ${t.name} takes ${lost}.`);
       break;
     }
@@ -312,12 +326,12 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
       t.statuses.static = 0;
       let mult = 1 + 0.5 * (source?.items["t_conductor"] ?? 0);
       if (conductive(t)) mult *= 2;
-      const lost = loseHp(b, t, Math.round(3 * n * m * mult));
+      const lost = statusLoss(b, t, Math.round(3 * n * m * mult));
       log(b, `⚡🔋 ${name}! ${n} Static goes off at once: ${t.name} takes ${lost}.`);
       // Heart of the Thunderhead: a bolt for every 2 Static set off.
       if (source && source !== t && (source.items["l_thunderhead"] ?? 0) > 0) {
         for (let i = 0; i < Math.floor(n / 2) && t.hp > 0; i++) {
-          const bolt = loseHp(b, t, 4 * (conductive(t) ? 2 : 1));
+          const bolt = statusLoss(b, t, 4 * (conductive(t) ? 2 : 1));
           log(b, `🌩️ A bolt from the Thunderhead: ${bolt}.`);
         }
       }
@@ -326,7 +340,7 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
     case "electrocute": {
       t.statuses.soaked = 0;
       const dmg = Math.round((4 + 2 * (b.player.persist["floor"] ?? 1)) * m * (t.family === "Construct" ? 2 : 1));
-      const lost = loseHp(b, t, dmg);
+      const lost = statusLoss(b, t, dmg);
       log(b, `⚡💧 ${name}! ${t.name} takes ${lost}.`);
       applyStatus(b, source, t, "stun", 1, depth + 1);
       break;
@@ -376,7 +390,7 @@ export const CONSECRATE_FIGHT = 99;
 export function startOfTurn(b: Battle, f: Fighter) {
   const burn = st(f, "burn");
   if (burn > 0) {
-    const lost = loseHp(b, f, Math.round(burn * dotMult(b, f)));
+    const lost = statusLoss(b, f, Math.round(burn * dotMult(b, f)));
     log(b, `🔥 ${f.name} burns for ${lost}.`);
     const skip = f.flags["burnNoHalve"] ?? 0;
     f.statuses.burn = skip ? burn : Math.floor(burn / 2);
@@ -391,7 +405,7 @@ export function endOfRound(b: Battle, f: Fighter) {
     let ticks = f.flags["rupture"] ? 2 : 1;
     if (st(f, "chill") > 0 && (opp.items["frostbite_needle"] ?? 0) > 0) ticks *= 2;
     for (let i = 0; i < ticks; i++) {
-      const lost = loseHp(b, f, Math.round(bleed * dotMult(b, f)));
+      const lost = statusLoss(b, f, Math.round(bleed * dotMult(b, f)));
       log(b, `🩸 ${f.name} bleeds for ${lost}.`);
       if (f.flags["sepsis"]) f.statuses.poison = st(f, "poison") + 1;
     }
@@ -399,7 +413,7 @@ export function endOfRound(b: Battle, f: Fighter) {
   }
   const poison = st(f, "poison");
   if (poison > 0) {
-    const lost = loseHp(b, f, Math.round(poison * dotMult(b, f)));
+    const lost = statusLoss(b, f, Math.round(poison * dotMult(b, f)));
     log(b, `☠️ ${f.name} takes ${lost} from Poison.`);
   }
   const regen = st(f, "regen");

@@ -8,7 +8,7 @@ export const LEADERBOARD_URL = "https://deck-dungeon-leaderboard.bestondeveloper
 
 export type Board = "floor" | "elites" | "champions" | "damage" | "besthit" | "gold" | "abyss" | "daily" | "alltime";
 /** Main tabs: the Campaign's boards, the Daily Dungeon's, the Abyss's, and the Bounty board of deadliest foes. */
-export type Scope = "campaign" | "daily" | "abyss" | "bounty";
+export type Scope = "campaign" | "daily" | "abyss" | "heat" | "bounty";
 const STAT_BOARDS: { id: Board; label: string; icon: string; unit: string }[] = [
   { id: "floor", label: "Deepest", icon: "🕳️", unit: "floor" },
   { id: "elites", label: "Elites", icon: "💀", unit: "elites" },
@@ -20,12 +20,13 @@ const STAT_BOARDS: { id: Board; label: string; icon: string; unit: string }[] = 
 /** The sub-tabs under each main tab. Today's Daily boards reset every day; "All time" keeps the deepest Daily runs ever. */
 export const SUB_BOARDS: Record<Exclude<Scope, "bounty">, { id: Board; label: string; icon: string; unit: string }[]> = {
   campaign: STAT_BOARDS,
+  heat: [{ id: "floor", label: "Deepest", icon: "🔥", unit: "floor reached in a Campaign at Heat 1 or higher" }],
   abyss: STAT_BOARDS.map(b => (b.id === "floor" ? { ...b, unit: "depth reached in the Abyss" } : { ...b, unit: `${b.unit}, in the Abyss` })),
   daily: [{ id: "alltime", label: "All time", icon: "🏛️", unit: "floor, deepest Daily runs ever" }, ...STAT_BOARDS.map(b => ({ ...b, unit: `${b.unit}, today` }))]
 };
 /** Every board, for code that still lists them all. */
 export const BOARDS = [...SUB_BOARDS.campaign, ...SUB_BOARDS.daily];
-export interface Row { rank: number; name: string; title?: string; value: number; origin: string; floor: number; plates?: number; day?: string; you?: boolean }
+export interface Row { rank: number; name: string; title?: string; value: number; origin: string; floor: number; plates?: number; day?: string; heat?: number; you?: boolean }
 export interface KillerRow { rank: number; name: string; kills: number; players: number }
 
 export const leaderboardOn = () => LEADERBOARD_URL.length > 0;
