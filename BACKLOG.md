@@ -21,3 +21,6 @@ Suggested 2026-11-02. ✅ = done, 🔨 = in progress.
 - ✅ **Class mastery** (Common kits from mastery 2, Uncommon from 6; 14 new Commons): cross-run XP per class that unlocks alternate starting kits (e.g. a two-handed Warrior).
 - ✅ **Heat levels**: optional campaign modifiers chosen before a run (+25% enemy HP, no Campfires…) for more Renown.
 - ✅ **Abyss weekly modifier**: one rotating twist per week ("all Champions are Crimson", "chests are Mimics").
+
+## Pinned
+- 📌 **Item generation engine**: procedurally built gear (materials, 150+ modules, Greater tiers, budgets). Proposal: `docs/ITEM_GENERATION.md`.
