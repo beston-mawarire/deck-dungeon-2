@@ -902,9 +902,9 @@ button.take-cmp { color: #e6f0ff; font-weight: 700; border-color: #5f8fc8; backg
 .kit-pop { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; width: min(1200px, 100%); max-height: 100%; overflow-y: auto; margin: auto; }
 .kit-strip { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 2px 12px; -webkit-overflow-scrolling: touch; }
 .kit-card { flex: 0 0 82%; scroll-snap-align: center; }
-.kit-card .item { height: calc(100% - 22px); display: flex; flex-direction: column; }
-.kit-card .item > .row:last-child { margin-top: auto; padding-top: 8px; }
-.kit-card .item > .row:last-child > button { flex: 1; }
+.kit-card { display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,.18); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+.kit-card .cmp-tag { margin-top: 2px; }
+.kit-card .kit-equip { margin-top: auto; width: 100%; min-height: 44px; }
 @media (min-width: 700px) {
   .kit-overlay { padding: 16px; }
   .kit-pop { height: 100%; }

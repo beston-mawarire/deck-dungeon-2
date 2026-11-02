@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.31.2
+- Starting-kit picker: each option is now its own block, with the option on top, what's in your kit now underneath, and an Equip button. Your current item no longer gets a block of its own; your class's own item is offered as an option whenever you've swapped it out.
+
 ## 1.31.1
 - Starting kit: the "(your own)" note is gone from the slot list.
 

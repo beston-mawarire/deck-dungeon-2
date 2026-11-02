@@ -11,7 +11,7 @@ import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engin
 import { NEGATIVE_STATUSES, rarityLabel } from "../engine/types";
 import {
   BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost, rerollsLeft,
-  keepsOffHand, findItem, newHero, recompute, type Sigil, SIGIL_BAG_SIZE, SIGIL_FLOORS, sigilSlots, reveal, salvage, slotsFor, unequip, upgradeCost, xpToLevel
+  keepsOffHand, findItem, recompute, type Sigil, SIGIL_BAG_SIZE, SIGIL_FLOORS, sigilSlots, reveal, salvage, slotsFor, unequip, upgradeCost, xpToLevel
 } from "../game/hero";
 import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
@@ -1565,31 +1565,24 @@ function masteryPanel(o: OriginId) {
 /** Starting-kit picker: every option for one slot as a card with its comparison, side-scrolling on phones, a grid on big screens. */
 let kitPick: KitSlot | null = null;
 const KIT_INDEX: Record<KitSlot, number> = { main: 0, off: 1, armour: 2 };
-/** The hero as they'd start with this class's chosen kit (to compare options against). */
-function kitHero(o: OriginId): Hero {
-  const h = newHero(o);
-  const kit = meta.kits?.[o] ?? {};
-  for (const sl of KIT_SLOTS) { const id = kit[sl]; if (id) h.equip[sl] = { uid: 900000 + KIT_INDEX[sl], base: id, rarity: baseOf(id).onlyRarity ?? "common", level: 1, bonuses: {}, revealed: true }; }
-  recompute(h);
-  return h;
-}
 function kitPopup(o: OriginId, slot: KitSlot) {
   const lv = masteryLevel(meta.mastery?.[o] ?? 0);
   const og = ORIGINS[o];
   const own = og.kit[KIT_INDEX[slot]];
   const current = meta.kits?.[o]?.[slot] ?? own;
-  const h = kitHero(o);
-  const ids = [own, ...kitOptions(slot, lv, lockedIds(meta)).map(x => x.id).filter(id => id !== own)];
+  const ids = [own, ...kitOptions(slot, lv, lockedIds(meta)).map(x => x.id)].filter((id, i, all) => all.indexOf(id) === i && id !== current);
   const slotName: Record<KitSlot, string> = { main: "Weapon", off: "Off-hand", armour: "Armour" };
-  const cards = ids.map((id, n) => {
-    const it: GearItem = { uid: 910000 + n, base: id, rarity: baseOf(id).onlyRarity ?? "common", level: 1, bonuses: {}, revealed: true };
-    const isCur = id === current;
-    const btn = isCur ? `<button class="small" disabled>✔ In your kit</button>` : `<button class="small take-equip" data-kitset="${slot}|${id === own ? "" : id}">✔ Equip</button>`;
-    return `<div class="kit-card ${isCur ? "current" : ""}">${id === own ? `<div class="cmp-tag">Your own</div>` : `<div class="cmp-tag">&nbsp;</div>`}${itemCard(it, btn, isCur ? false : { hero: h, slot }, isCur ? "Starting kit" : "")}</div>`;
-  }).join("");
+  const mk = (id: string, n: number): GearItem => ({ uid: 910000 + n, base: id, rarity: baseOf(id).onlyRarity ?? "common", level: 1, bonuses: {}, revealed: true });
+  const nowCard = itemCard(mk(current, 0));
+  // One block per option: the option on top, what's in your kit now underneath, then Equip.
+  const cards = ids.map((id, n) => `<div class="kit-card">
+      <div class="cmp-new"><div class="cmp-tag new">${id === own ? "Your class's own" : "Option"}</div>${itemCard(mk(id, n + 1))}</div>
+      <div><div class="cmp-tag">In your kit · ${slotName[slot]}</div>${nowCard}</div>
+      <button class="take-equip kit-equip" data-kitset="${slot}|${id === own ? "" : id}">✔ Equip</button>
+    </div>`).join("");
   return `<div class="overlay kit-overlay"><div class="kit-pop">
     <div class="row"><h1 class="grow">🎒 ${esc(og.name)} · ${slotName[slot]}</h1><button class="closebtn" data-kitclose>✕ Close</button></div>
-    <p class="sub">Pick what you start with. Each card compares against your current kit.<span class="kit-swipe"> Swipe for all ${ids.length} ›</span></p>
+    <p class="sub">Pick what you start with: each option sits above what's in your kit now.<span class="kit-swipe"> Swipe for all ${ids.length} ›</span></p>
     <div class="kit-strip">${cards}</div>
   </div></div>`;
 }
