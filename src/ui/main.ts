@@ -650,21 +650,38 @@ function talentScene(r: Run) {
   }).join("")}</div>`;
 }
 
+let shopTab: "buy" | "sell" = "buy";
+let shopSide: "equipped" | "backpack" = "equipped";
+let shopSeen: unknown = null;
 function shopScene(r: Run) {
   if (r.scene.t !== "shop") return "";
-  return `<h2>Merchant</h2><div class="cards">${r.scene.stock.map((e, i) => {
-    const full = e.kind === "potion" && !e.sold && r.hero.potions >= potionCap(r.hero);
+  // A new Merchant visit always opens on Buy.
+  if (shopSeen !== r.scene) { shopSeen = r.scene; shopTab = "buy"; shopSide = "equipped"; }
+  const h = r.hero;
+  const tabs = `<div class="shop-tabs"><button class="shop-tab ${shopTab === "buy" ? "active" : ""}" data-shoptab="buy">🛒 Buy</button><button class="shop-tab ${shopTab === "sell" ? "active" : ""}" data-shoptab="sell">🪙 Sell</button></div>`;
+  let body: string;
+  if (shopTab === "buy") {
+    body = `<div class="cards">${r.scene.stock.map((e, i) => {
+    const full = e.kind === "potion" && !e.sold && h.potions >= potionCap(h);
     const btn = `<button class="small primary" data-buy="${i}" ${e.sold || full ? "disabled" : ""}>${e.sold ? "Sold" : full ? "Your potion belt is full" : `Buy · ${e.price} 🪙`}</button>`;
     if (e.kind === "item" && e.item) return itemCard(e.item, btn, !e.sold);
     const label = e.kind === "potion" ? "🧪 Healing Potion — heal 12" : e.kind === "scroll" ? "📜 Scroll of Revelation — reveals a Legendary" : `💎 ${getItem(e.relic!).name} — ${getItem(e.relic!).text}`;
     return `<div class="item"><div class="nm">${esc(label)}</div><div class="row" style="margin-top:8px">${btn}</div></div>`;
   }).join("")}</div>
-  <p class="sub">Bought gear goes to your bag; equip it from 🎒.</p>
-  <h2>Sell</h2>
-  <p class="sub">The Merchant buys anything, for 40% of its price.${r.scene.soldItem ? ` Last sold: ${esc(r.scene.soldItem)}.` : ""}</p>
-  ${bulkSellRow(r)}
-  ${gearGroups(r, it => { const worn = !!equippedSlot(r, it); return itemCard(it, `<button class="small ${worn && sellArmed === it.uid ? "danger" : ""}" data-sell="${it.uid}">${worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${Math.round(sellPrice(it, r.hero) * goldMult(r))} 🪙`}</button>`, false, equippedSlot(r, it)); })}
-  <div class="row" style="margin-top:12px">${r.shopRerolls >= MAX_SHOP_REROLLS ? `<button disabled>No rerolls left</button>` : `<button data-reroll>Reroll stock · ${shopRerollCost(r)} 🪙 (${MAX_SHOP_REROLLS - r.shopRerolls} left)</button>`}<button class="primary" data-leave>Leave</button></div>`;
+  <p class="shop-text">Bought gear goes to your backpack; equip it from 🎒.</p>
+  <div class="row" style="margin-top:8px">${r.shopRerolls >= MAX_SHOP_REROLLS ? `<button disabled>No rerolls left</button>` : `<button data-reroll>Reroll stock · ${shopRerollCost(r)} 🪙 (${MAX_SHOP_REROLLS - r.shopRerolls} left)</button>`}</div>`;
+  } else {
+    const eq = EQUIP_SLOTS.map(k => h.equip[k]).filter((x): x is GearItem => !!x);
+    const items = shopSide === "equipped" ? eq : h.backpack;
+    const card = (it: GearItem) => { const worn = !!equippedSlot(r, it); return itemCard(it, `<button class="small ${worn && sellArmed === it.uid ? "danger" : ""}" data-sell="${it.uid}">${worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${Math.round(sellPrice(it, h) * goldMult(r))} 🪙`}</button>`, false, equippedSlot(r, it)); };
+    body = `<p class="shop-text">The Merchant buys anything, for 40% of its price.${r.scene.soldItem ? ` Last sold: <b>${esc(r.scene.soldItem)}</b>.` : ""}</p>
+    <div class="forge-sides">
+      <button class="forge-side ${shopSide === "equipped" ? "active" : ""}" data-shopside="equipped">🛡️ Equipped</button>
+      <button class="forge-side ${shopSide === "backpack" ? "active" : ""}" data-shopside="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</button></div>
+    <div class="forge-side-body">${shopSide === "backpack" ? bulkSellRow(r) : ""}${items.length ? `<div class="cards">${items.map(card).join("")}</div>` : `<p class="shop-text">Nothing here.</p>`}</div>`;
+  }
+  return `<h2 class="shop-title">Merchant</h2>${tabs}<div class="shop-body">${body}</div>
+  <div class="row" style="margin-top:12px"><button class="primary" data-leave>Leave</button></div>`;
 }
 
 const SLOT_LABEL: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket 1", trinket2: "Trinket 2", trinket3: "Trinket 3 ★" };
@@ -2137,6 +2154,8 @@ function bind() {
   on("[data-up]", el => say(forgeUpgrade(r, Number(el.dataset.up))));
   on("[data-rr]", el => say(forgeReroll(r, Number(el.dataset.rr))));
   on("[data-forgetab]", el => { forgeTab = el.dataset.forgetab as typeof forgeTab; offerSel.clear(); combineSel = []; forgeAsk = null; });
+  on("[data-shoptab]", el => { shopTab = el.dataset.shoptab as typeof shopTab; sellArmed = null; bulkSellArmed = null; });
+  on("[data-shopside]", el => { shopSide = el.dataset.shopside as typeof shopSide; sellArmed = null; bulkSellArmed = null; });
   on("[data-forgeside]", el => { forgeSide = el.dataset.forgeside as typeof forgeSide; });
   on("[data-combinesel]", el => { const u = Number(el.dataset.combinesel); combineSel = combineSel.includes(u) ? combineSel.filter(x => x !== u) : [...combineSel, u].slice(0, 2); });
   on("[data-offersel]", el => { const u = Number(el.dataset.offersel); if (offerSel.has(u)) offerSel.delete(u); else offerSel.add(u); });

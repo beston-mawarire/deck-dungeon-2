@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.17
+- Merchant: new 🛒 Buy and 🪙 Sell tabs (every visit opens on Buy). Sell has Equipped and Backpack sub-tabs; bulk selling sits in Backpack. The heading and text are brighter.
+
 ## 1.26.16
 - Evade now stacks. Every source adds a stack, and each stack makes one hit miss (so two Evade sources at fight start dodge the first two hits).
 

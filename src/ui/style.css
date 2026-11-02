@@ -839,3 +839,10 @@ button.delve-btn::after { content: ""; position: absolute; inset: 0; background:
 @keyframes delveglow { 50% { box-shadow: 0 0 0 1px rgba(232,184,74,.45), 0 0 34px rgba(232,184,74,.5), inset 0 1px 0 rgba(255,255,255,.12), 0 4px 0 #0c0712; } }
 @keyframes delveshine { 0%, 40% { transform: translateX(-100%); } 80%, 100% { transform: translateX(100%); } }
 @media (max-width: 480px) { button.delve-btn { padding: 12px 14px; gap: 10px; } .delve-btn .dv-ic { font-size: 1.6rem; } .delve-btn .dv-txt b { font-size: 1.05rem; } }
+
+/* Merchant */
+h2.shop-title { color: #f1e4ff; font-size: 1.15rem; font-weight: 800; text-shadow: 0 1px 8px rgba(200,170,255,.3); }
+.shop-text { color: #ddd2ea; font-size: .92rem; margin: 10px 0 6px; }
+.shop-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 12px; }
+.shop-tab { padding: 11px 8px; font-size: 1rem; font-weight: 800; color: #cbbfd8; }
+.shop-tab.active { color: #1a1408; background: linear-gradient(180deg, #f3ca63 0%, #dba73a 100%); border-color: #f0c15a; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 2px 0 rgba(90,60,10,.6); }
