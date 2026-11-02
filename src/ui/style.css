@@ -939,3 +939,19 @@ button.take-cmp { color: #e6f0ff; font-weight: 700; border-color: #5f8fc8; backg
   .fight-room { flex-direction: row; gap: 6px; padding: 9px 10px; }
   .fight-room .ic, .room-acts .auto-room .ic { font-size: 1.1rem; }
 }
+
+/* Options: grouped sections, one setting per line */
+.options-pop { max-width: 560px; }
+.opt-sec { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin: 12px 0; background: rgba(0,0,0,.18); }
+.opt-sec h3 { margin: 0 0 6px; font-size: .9rem; letter-spacing: .1em; text-transform: uppercase; color: #e4d6f2; }
+.opt-line { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.06); }
+.opt-sec h3 + .opt-line { border-top: none; }
+.opt-line { flex-wrap: wrap; }
+.opt-txt { flex: 1 1 170px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.opt-txt .sub { font-size: .8rem; }
+.opt-ctl { flex: 0 0 auto; margin-left: auto; }
+.seg { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.opt-sec .music-sliders { margin: 4px 0 2px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.06); }
+.opt-sec .backup-panel { margin: 8px 0 0; }
+.opt-sec.danger-sec { border-color: rgba(226,85,106,.45); }
+.opt-sec.danger-sec h3 { color: #ff9aa8; }

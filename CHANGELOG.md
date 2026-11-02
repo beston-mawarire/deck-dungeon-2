@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.32.2
+- Options are easier to read: grouped into Sound, Gameplay, Progress & backup, and a Danger zone, with each setting on its own line (name and a short note on the left, its control on the right).
+
 ## 1.32.1
 - Merchant rerolls get expensive fast: each one costs triple the last (was double), starting a little higher.
 - Rerolling no longer brings a new relic: the relic on offer stays (sold stays sold). Merchant relics cost more: about 75% more at every rarity.

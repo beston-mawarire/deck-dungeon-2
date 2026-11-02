@@ -1423,9 +1423,9 @@ function splashScreen() {
   </div>`;
 }
 
-function musicSliders(only?: Track) {
+function musicSliders(only?: Track, toggle = true) {
   const sl = (k: Track, label: string) => `<label class="music-row"><span>${label}</span><input type="range" min="0" max="100" step="5" value="${Math.round(musicVolume(k) * 100)}" data-music="${k}"><b data-musicval="${k}">${Math.round(musicVolume(k) * 100)}%</b></label>`;
-  return `<div class="music-sliders"><div class="row"><button class="small ${isMusicOff() ? "" : "primary"}" data-togglemusic>${isMusicOff() ? "🎵 Music off" : "🎵 Music on"}</button></div>${!only || only === "title" ? sl("title", "🎵 Menu music") : ""}${!only || only === "game" ? sl("game", "🎵 Gameplay music") : ""}</div>`;
+  return `<div class="music-sliders">${toggle ? `<div class="row"><button class="small ${isMusicOff() ? "" : "primary"}" data-togglemusic>${isMusicOff() ? "🎵 Music off" : "🎵 Music on"}</button></div>` : ""}${!only || only === "title" ? sl("title", "🎵 Menu music") : ""}${!only || only === "game" ? sl("game", "🎵 Gameplay music") : ""}</div>`;
 }
 
 /** Side-by-side comparison: the find against what's in that slot now, every stat before and after, and every effect gained or lost. */
@@ -1469,22 +1469,24 @@ function comparePopup(r: Run): string {
 }
 
 function optionsPopup() {
-  const sp = (v: number, label: string) => `<button class="${speed === v ? "primary" : ""}" data-speed="${v}">${label}</button>`;
-  return `<div class="overlay popup-wrap"><div class="popup">
+  const sp = (v: number, label: string) => `<button class="small ${speed === v ? "primary" : ""}" data-speed="${v}">${label}</button>`;
+  // One setting per line: what it is on the left, its control on the right.
+  const opt = (label: string, help: string, control: string) => `<div class="opt-line"><div class="opt-txt"><b>${label}</b>${help ? `<span class="sub">${help}</span>` : ""}</div><div class="opt-ctl">${control}</div></div>`;
+  const sec = (icon: string, title: string, body: string, cls = "") => `<section class="opt-sec ${cls}"><h3>${icon} ${title}</h3>${body}</section>`;
+  return `<div class="overlay popup-wrap"><div class="popup options-pop">
     <button class="small closex closebtn" data-closeoptions aria-label="Close">✕</button>
     <h1 class="center bigname">⚙️ Options</h1>
-    <h2>Sound</h2>
-    <div class="row"><button data-mute class="${isMuted() ? "" : "primary"}">${isMuted() ? "🔇 Sound off" : "🔊 Sound on"}</button></div>
-    ${musicSliders()}
-    <h2>Quick Battle</h2>
-    <div class="row"><button class="${quickOn ? "primary" : ""}" data-quick="1">⚡ On</button><button class="${quickOn ? "" : "primary"}" data-quick="0">Off</button></div>
-    <p class="sub">Lets fights you can't lose play themselves out, from the map or mid-fight.</p>
-    <h2>Combat speed</h2>
-    <div class="row">${sp(1, "Normal")}${sp(0.5, "Fast")}${sp(0.2, "Very fast")}</div>
-    <h2>Progress</h2>
-    <p class="sub">Renown, unlocks, the Codex and any saved run are kept in this browser${leaderboardOn() ? ", with a copy online" : ""}.</p>
-    ${backupPanel()}
-    <div class="row"><button class="${resetArmed ? "danger" : ""}" data-reset>${resetArmed ? "Tap again to erase everything" : "Reset all progress"}</button></div>
+    ${sec("🔊", "Sound", `
+      ${opt("Sound effects", "", `<button class="small ${isMuted() ? "" : "primary"}" data-mute>${isMuted() ? "🔇 Off" : "🔊 On"}</button>`)}
+      ${opt("Music", "", `<button class="small ${isMusicOff() ? "" : "primary"}" data-togglemusic>${isMusicOff() ? "🎵 Off" : "🎵 On"}</button>`)}
+      ${musicSliders(undefined, false)}`)}
+    ${sec("⚔️", "Gameplay", `
+      ${opt("Quick Battle", "Fights you can't lose can play themselves out, from the map or mid-fight.", `<div class="seg"><button class="small ${quickOn ? "primary" : ""}" data-quick="1">On</button><button class="small ${quickOn ? "" : "primary"}" data-quick="0">Off</button></div>`)}
+      ${opt("Combat speed", "How fast dice roll and blows land.", `<div class="seg">${sp(1, "Normal")}${sp(0.5, "Fast")}${sp(0.2, "Very fast")}</div>`)}`)}
+    ${sec("💾", "Progress & backup", `
+      <p class="sub">Renown, unlocks, the Codex and any saved run are kept in this browser${leaderboardOn() ? ", with a copy online" : ""}.</p>
+      ${backupPanel()}`)}
+    ${sec("⚠️", "Danger zone", opt("Reset all progress", "Erases everything on this device. This can't be undone.", `<button class="small ${resetArmed ? "danger" : ""}" data-reset>${resetArmed ? "Tap again to erase" : "Reset"}</button>`), "danger-sec")}
     <div class="row" style="justify-content:center;margin-top:14px"><button class="primary" data-closeoptions>Done</button></div>
   </div></div>`;
 }
