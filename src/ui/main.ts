@@ -589,13 +589,16 @@ const lootBtns = (it: GearItem, pick: boolean) => {
 const pickButtons = (it: GearItem) => lootBtns(it, true);
 const takeButtons = (it: GearItem) => lootBtns(it, false);
 
+/** Sigils found: a slim glowing strip with the reward's own name, not a popup. */
+const sigilFound = (names?: string[]) => (names ?? []).map(n => `<div class="sigil-found"><b>🔮 Sigil found</b><span class="sf-name">${esc(n)}</span><span class="sf-where">In your Talisman · Inventory › Spoils</span></div>`).join("");
+
 function lootScene(r: Run) {
   if (r.scene.t !== "loot") return "";
   const s = r.scene;
-  const extras = [...(s.sigils ?? []).map(n => `🔮 Sigil: ${n} (in your Talisman bag)`), s.gold ? `🪙 ${Math.round(s.gold * goldMult(r))} Gold` : "", s.potions ? `🧪 Potion` : "", s.scrolls ? `📜 ${s.scrolls > 1 ? `${s.scrolls} Scrolls` : "Scroll"} of Revelation (yours)` : "", s.relic ? `💎 New relic: ${getItem(s.relic).name} — ${getItem(s.relic).text}` : ""].filter(Boolean);
+  const extras = [s.gold ? `🪙 ${Math.round(s.gold * goldMult(r))} Gold` : "", s.potions ? `🧪 Potion` : "", s.scrolls ? `📜 ${s.scrolls > 1 ? `${s.scrolls} Scrolls` : "Scroll"} of Revelation (yours)` : "", s.relic ? `💎 New relic: ${getItem(s.relic).name} — ${getItem(s.relic).text}` : ""].filter(Boolean);
   // After a won fight, the rewards sit in a framed Victory panel.
   const victory = s.title === "Victory" || s.title.startsWith("You caught") || s.title === "The Mimic's hoard";
-  const key = (s.crimsonKey ? `<div class="key-found">🗝️ CRIMSON KEY FOUND<span>A Crimson Vault will now be offered on your path.</span></div>` : "")
+  const key = sigilFound(s.sigils) + (s.crimsonKey ? `<div class="key-found">🗝️ CRIMSON KEY FOUND<span>A Crimson Vault will now be offered on your path.</span></div>` : "")
     + (s.crucible ? `<div class="key-found crucible-found">⚗️ TRANSMUTER'S CRUCIBLE<span>An artefact. At any Forge, it turns a Common item into a Legendary, for Starmetal.</span></div>` : "")
     + (s.dragonHeart ? `<div class="key-found heart-found">🫀 ${s.dragonHeart > 1 ? `DRAGON HEART · LEVEL ${s.dragonHeart}` : "DRAGON HEART"}<span>${s.dragonHeart > 1 ? "Another dragon's heart feeds yours. It beats stronger." : "Still warm. Still beating. It's yours now."}</span></div>` : "");
   const body = `${key}${extras.length ? `<div class="panel">${extras.map(x => `<p>${esc(x)}</p>`).join("")}</div>` : ""}
@@ -610,7 +613,7 @@ function pickScene(r: Run) {
   const ks = s.keepsake ? getItem(s.keepsake) : null;
   const m = /^(.*?)(!?)\s*(?:—\s*)?choose one$/i.exec(s.title);
   const title = `<h2 class="pick-title"><span>${esc(m ? m[1] + m[2] : s.title)}</span>${m ? "<b>Choose one reward</b>" : ""}</h2>`;
-  return `${title}
+  return `${title}${sigilFound(s.sigils)}
     ${ks ? `<div class="item keepsake"><div class="meta">Keepsake · one at a time${r.hero.keepsake ? ` · replaces ${esc(getItem(r.hero.keepsake).name)}` : ""}</div><div class="nm">🕯️ ${esc(ks.name)}</div><p>${esc(ks.text)}.</p><div class="row"><button class="small primary" data-keepsake>Take the Keepsake</button></div><p class="sub">Free: it doesn't count as your pick.</p></div>` : ""}
     ${s.items.length > 1 ? `<div class="toast">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
     <div class="cards">${s.items.map(it => itemCard(it, s.items.length > 1 ? pickButtons(it) : takeButtons(it), true)).join("")}</div>
@@ -1000,7 +1003,7 @@ function overScene(r: Run) {
   ${runStatsPanel(r)}
   <p class="sub">Final build:</p><div class="cards">${EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x).map(it => itemCard(it)).join("")}</div></div>
   <div class="row end-actions" style="margin-top:12px">${r.ruin?.shards || r.ruin?.plates ? `<p class="ruin-line">Kept for good: ${r.ruin.shards ? `🪨 ${r.ruin.shards} Ruin Shard${r.ruin.shards === 1 ? "" : "s"}` : ""}${r.ruin.shards && r.ruin.plates ? " · " : ""}${r.ruin.plates ? `⬛ ${r.ruin.plates} Vanadium Plate${r.ruin.plates === 1 ? "" : "s"}` : ""}</p>` : ""}
-  ${won && !r.finale && !abyss ? `<button class="primary" data-endless>Keep delving · better rewards below</button>` : ""}<button class="${won ? "" : "primary"}" data-newrun>New run</button></div>`;
+  ${won && !r.finale && !abyss ? `<button class="delve-btn" data-endless><span class="dv-ic">🌀</span><span class="dv-txt"><b>Delve deeper</b><span>The dungeon goes on. Better loot below.</span></span><span class="dv-arrow">›</span></button>` : ""}<button class="${won ? "" : "primary"}" data-newrun>New run</button></div>`;
 }
 
 /** What's in each Inventory tab, in short: when it changes, the tab gets a "new" dot until you open it. */

@@ -115,7 +115,7 @@ export type Scene =
   | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" | "nemesis"; uber?: boolean }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; /** Talisman sigils found (names). */ sigils?: string[]; potions: number; then?: "resplendent"; crimsonKey?: boolean; /** A Bounty Board payout (closing it doesn't use a step). */ bounty?: boolean; /** A Dragon Heart was torn from the dragon (its level now). */ dragonHeart?: number; /** The Transmuter's Crucible dropped. */ crucible?: boolean }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
-  | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
+  | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** Talisman sigils found (names). */ sigils?: string[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
   | { t: "talent"; options: string[] }
   | { t: "shop"; stock: ShopEntry[]; /** One item may be sold per Merchant visit. */ soldItem?: string; /** % markup from the Gold you carried when this stock was priced. */ markup?: number }
   | { t: "forge" }
@@ -795,7 +795,6 @@ function afterFight(run: Run) {
       return;
     }
     const bossSigil = rollSigilDrop(run, 0.4, 0.65);
-    if (bossSigil) ruinNote += ` · 🔮 ${bossSigil}`;
     // Crimson bosses offer a Crimson item alongside two boss finds; the bosses of floors 20–24 offer an Epic Crimson.
     const offer = b.enemy.crimson ? [rollItem(h, "crimson", depth(run), run.rng), roll(T.boss), roll(T.boss)]
       : EPIC_CRIMSON_FLOORS.includes(run.floor) ? [rollEpicCrimson(h, depth(run), run.rng), roll(T.boss), roll(T.boss)]
@@ -804,7 +803,7 @@ function afterFight(run: Run) {
     // After the fifth boss, bosses sometimes leave a Keepsake behind.
     // Keepsakes are a rare find: about one boss in ten after floor 5 leaves one behind.
     const keepsake = run.floor > FLOORS && run.rng() < 0.1 ? KEEPSAKES.filter(k => k.id !== h.keepsake)[Math.floor(run.rng() * (KEEPSAKES.length - (h.keepsake ? 1 : 0)))]?.id : undefined;
-    run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: offer, keepsake };
+    run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: offer, keepsake, sigils: bossSigil ? [bossSigil] : undefined };
     run.message = `+${bossGold} Gold${run.relicChoice ? " · a relic to choose" : relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""}${ruinNote} · healed 30%${curseNote ? ` ${curseNote}` : ""}`;
     return;
   }

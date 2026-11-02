@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.14
+- Sigils you find now show as a slim, glowing violet strip at the top of the reward screen ("🔮 Sigil found", its name, and where it went), instead of a plain line among the Gold. Boss sigils show there too, rather than in the message bar.
+- The Delve deeper button after winning the Campaign is redesigned: a full-width glowing portal with a 🌀 swirl, a gold title, a short line beneath and a passing shimmer.
+
 ## 1.26.13
 - Resplendent chests: "You passed up" is now "Lost out on", in a brighter, red-tinted heading.
 
