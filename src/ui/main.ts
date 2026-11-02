@@ -1459,7 +1459,7 @@ function comparePopup(r: Run): string {
       <div><div class="cmp-tag">${cur ? `Equipped · ${esc(label)}` : esc(label)}</div>${cur ? itemCard(cur) : `<div class="item empty-slot"><div class="nm">Empty</div><p class="sub">Nothing in your ${esc(label.toLowerCase())} yet.</p></div>`}</div>
     </div>
     <h2>Your stats</h2>
-    <table class="cmp-table"><tr><th></th><th>Now</th><th></th><th>With it</th><th></th></tr>${rows}</table>
+    <table class="cmp-table"><tr><th></th><th>Now</th><th></th><th>New item</th><th></th></tr>${rows}</table>
     <h2>What changes</h2>
     ${compareHtml(h, it, slot, true) || `<p class="sub">Nothing changes.</p>`}
     <div class="row cmp-actions">${found.takeable ? `<button class="take-equip" data-take="${it.uid}" data-how="equip" data-slot="${slot}">✔ Equip ${esc(label.toLowerCase())}</button><button class="take-scrap" data-scrapfound="${it.uid}">Scrap (+${scrapValue(h, it)} ⚙️)</button>` : ""}<button data-compareclose>Close</button></div>

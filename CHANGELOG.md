@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.30.4
+- Compare popup: the stats column "With it" is now "New item".
+
 ## 1.30.3
 - Compare popup: the new find's card has brighter text and a lighter, slightly thicker border, so it stands apart from what you're wearing.
 
