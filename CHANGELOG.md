@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.29.3
+- Merchant: rerolling the stock no longer restocks potions. Gear, relics and scrolls are rerolled; Healing and Mana Potions stay as they were, so one you've bought stays sold.
+
 ## 1.29.2
 - Item comparison: the "Two-handed: your off-hand goes to your backpack" note now wraps inside the card instead of running out of it on large screens.
 

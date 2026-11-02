@@ -951,6 +951,21 @@ describe("class actions and new stats", () => {
     expect(paid).toEqual([18, 36, 72, 144, 288, -1]); // 10 base × 1.75 (a full purse) = 18
   });
 
+  it("a shop reroll doesn't restock potions", () => {
+    const run = newRun("warrior", 42);
+    run.hero.f.gold = 10000;
+    run.hero.potions = 0;
+    chooseRoom(run, "shop");
+    if (run.scene.t !== "shop") throw new Error("not a shop");
+    const i = run.scene.stock.findIndex(e => e.kind === "potion");
+    run.scene.stock[i].sold = true;
+    const before = run.scene.stock.filter(e => e.kind === "potion" || e.kind === "mana").length;
+    rerollShop(run);
+    const pots = run.scene.stock.filter(e => e.kind === "potion" || e.kind === "mana");
+    expect(pots.length).toBe(before);
+    expect(run.scene.stock.find(e => e.kind === "potion")?.sold).toBe(true);
+  });
+
   it("there are twelve Epic Crimsons, and every one is a real item", () => {
     expect(EPIC_CRIMSON.length).toBe(12);
     for (const e of EPIC_CRIMSON) expect(e.rarity).toBe("epic_crimson");

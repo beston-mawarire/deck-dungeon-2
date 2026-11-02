@@ -1048,7 +1048,11 @@ export function rerollShop(run: Run): string | null {
   if (run.hero.f.gold < cost) return "Not enough Gold.";
   run.hero.f.gold -= cost;
   run.shopRerolls++;
-  run.scene = { ...run.scene, stock: shopStock(run), markup: Math.round((wealthMult(run) - 1) * 100) };
+  // A reroll brings new gear, relics and scrolls, but not more potions: the Healing and Mana Potions stay as they were (bought stays bought).
+  const potions = run.scene.stock.filter(e => e.kind === "potion" || e.kind === "mana");
+  const fresh = shopStock(run).filter(e => e.kind !== "potion" && e.kind !== "mana");
+  const scroll = fresh.filter(e => e.kind === "scroll");
+  run.scene = { ...run.scene, stock: [...fresh.filter(e => e.kind !== "scroll"), ...potions, ...scroll], markup: Math.round((wealthMult(run) - 1) * 100) };
   return null;
 }
 
