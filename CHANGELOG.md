@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.20.0
+- "New" dots: the Inventory button and its tabs get a red dot when something new lands there (bag items, relics, artefacts, talents, curses, blessings, keepsakes, tonics), until you open that tab.
+- Combat speed toggle under the fight (Normal / Fast / Very fast), same setting as in Options.
+- Bulk scrap: "Scrap all Commons" (and Commons + Uncommons) in Inventory → Gear → Backpack and in the Forge's Scrap → Backpack tab. Two taps.
+
 ## 1.19.0
 - **Loot comparison**: every item you could equip (drops, boss picks, the shop, your backpack) shows ▲/▼ for how your Damage, Armor, Max HP, Crit, Dodge, Bash and Spell Amp would change, against the item it would replace (or "Fills your empty slot"). It's worked out from your whole build, so set bonuses and relics count.
 - **Daily Dungeon**: on the Campaign tab. The same dungeon (seed and class) for everyone each day (UTC), one attempt, with every item unlocked. New 📅 Daily leaderboard for today's runs.

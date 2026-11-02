@@ -4,9 +4,9 @@ Suggested 2026-11-02. ✅ = done, 🔨 = in progress.
 
 ## Quality of life
 - ✅ **Loot comparison arrows**: ▲/▼ on Damage, Armor, HP (and Crit, Dodge) vs what you're wearing, on drops, picks, the shop and the backpack.
-- **"New" dots**: a dot on Spoils / Aspects / Extras when something new lands there (relics, curses, blessings).
-- **Fight speed + skip**: a speed toggle in the combat bar, and "skip to result" once a fight is clearly won.
-- **Bulk sell/scrap**: one button to clear all Commons (or everything below a rarity) from the bag.
+- ✅ **"New" dots**: a dot on Spoils / Aspects / Extras when something new lands there (relics, curses, blessings).
+- ✅ **Fight speed + skip** (speed toggle; Auto-battle is the skip): a speed toggle in the combat bar, and "skip to result" once a fight is clearly won.
+- ✅ **Bulk sell/scrap** (scrap only: the Merchant buys one item a visit): one button to clear all Commons (or everything below a rarity) from the bag.
 - ✅ **Run history**: the last 10 runs: class, floor, killer, final build.
 
 ## Fun

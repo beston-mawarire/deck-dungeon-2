@@ -687,3 +687,11 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .hist-build .hb { font-size: .78rem; border: 1px solid var(--line); border-radius: 8px; padding: 2px 7px; background: rgba(0,0,0,.2); }
 .hb.r-uncommon { border-color: var(--uncommon); } .hb.r-rare { border-color: var(--rare); } .hb.r-epic { border-color: var(--epic); } .hb.r-legendary { border-color: var(--legendary); }
 .hb[class*="crimson"] { border-color: var(--crimson); }
+/* "New" dots */
+.bt-ic, .bag-btn { position: relative; }
+.newdot { position: absolute; top: -3px; left: -6px; width: 10px; height: 10px; border-radius: 50%; background: #ff5468; box-shadow: 0 0 0 2px var(--bg), 0 0 8px rgba(255,84,104,.8); animation: newpulse 1.6s infinite; }
+@keyframes newpulse { 50% { transform: scale(1.25); } }
+/* Combat speed toggle and bulk scrap */
+.speed-row { justify-content: center; margin-top: 6px; }
+.speed-btn { opacity: .85; }
+.bulk-row { margin: 4px 0 8px; gap: 8px; }

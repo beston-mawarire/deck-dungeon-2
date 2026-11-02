@@ -85,6 +85,16 @@ let talentSub: "talents" | "curses" = "talents";
 let spoilsSub: "relics" | "artefacts" = "relics";
 let gearSub: "equipped" | "backpack" = "equipped";
 let statsSub: "attributes" | "statuses" = "attributes";
+/** Bulk scrap takes a second tap: which rarity is armed. */
+let bulkArmed: "common" | "uncommon" | null = null;
+/** Items in the bag a bulk scrap would take: up to that rarity, never hidden Legendaries. */
+const bulkScrapList = (h: Hero, upTo: "common" | "uncommon") => h.backpack.filter(i => i.rarity === "common" || (upTo === "uncommon" && i.rarity === "uncommon"));
+function bulkScrapRow(h: Hero) {
+  const c = bulkScrapList(h, "common").length, u = bulkScrapList(h, "uncommon").length;
+  if (!c && !u) return "";
+  const btn = (k: "common" | "uncommon", n: number, label: string) => n ? `<button class="small ${bulkArmed === k ? "danger" : ""}" data-bulkscrap="${k}">${bulkArmed === k ? `Tap again: scrap ${n}` : label}</button>` : "";
+  return `<div class="row bulk-row">${btn("common", c, `🗑️ Scrap all Commons (${c})`)}${u > c ? btn("uncommon", u, `🗑️ Commons + Uncommons (${u})`) : ""}</div>`;
+}
 /** Forge: waiting for the player to confirm destroying gear they're wearing. */
 let forgeAsk: { kind: "scrap"; uid: number } | { kind: "offer" } | null = null;
 /** Shown when the device loses its connection. */
@@ -284,7 +294,7 @@ function hud(r: Run) {
       <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span><span title="Healing Potions carried / how many you can carry">🧪 <b>${h.potions}</b>/${potionCap(h)}</span><span>📜 <b>${h.scrolls}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
     <div class="bar xp"><i style="width:${(h.xp / need) * 100}%"></i></div>
     <div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>
-    <div class="row hud-actions" style="margin-top:6px"><button class="small bag-btn" data-bag>🎒 <span class="lbl">Inventory</span></button>${bountyBtn(r)}${h.potions && f.hp > 0 && f.hp < f.maxHp && !busy && r.scene.t !== "over" ? `<button class="small potion-btn" data-potion>🧪 <span class="lbl">Potion </span>(+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ <span class="lbl">Menu</span></button></div>
+    <div class="row hud-actions" style="margin-top:6px"><button class="small bag-btn" data-bag>${newTabs(r).size ? `<b class="newdot" title="Something new in your Inventory"></b>` : ""}🎒 <span class="lbl">Inventory</span></button>${bountyBtn(r)}${h.potions && f.hp > 0 && f.hp < f.maxHp && !busy && r.scene.t !== "over" ? `<button class="small potion-btn" data-potion>🧪 <span class="lbl">Potion </span>(+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ <span class="lbl">Menu</span></button></div>
   </div>`;
 }
 
@@ -477,6 +487,7 @@ function combatScene(r: Run) {
     </div>
     ${!busy && canAutoBattle(r) ? `<div class="row auto-row"><button class="auto-btn" data-auto title="This foe can't win against plain attacks. Skip to the end.">⚡ Auto-battle</button><span class="sub">You've got this one: attack until it falls.</span></div>` : ""}
     ${Object.keys(r.hero.tonics ?? {}).length ? `<div class="row tonics">${Object.entries(r.hero.tonics!).map(([id, n]) => `<button class="small tonic" data-tonic="${id}" ${busy ? "disabled" : ""} title="${esc(TONICS[id].text)}">${TONICS[id].icon} ${esc(TONICS[id].name)}${n > 1 ? ` ×${n}` : ""}</button>`).join("")}</div><p class="center sub" style="margin:2px 0">Tonics don't use your turn.</p>` : ""}
+    <div class="row speed-row"><button class="small speed-btn" data-speedcycle title="Combat speed (also in Options)">⏩ ${speed >= 1 ? "Normal" : speed >= 0.5 ? "Fast" : "Very fast"}</button></div>
     <p class="center sub diefaces">Your die: ${b.player.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind}`).join(" · ")}</p></div>
     </div>
     <details><summary>Battle log</summary><div class="log">${b.log.slice().reverse().map(l => `<div class="${l.startsWith("—") ? "round" : ""}">${esc(l)}</div>`).join("")}</div></details>`;
@@ -615,7 +626,7 @@ function forgeScene(r: Run) {
   } else if (forgeTab === "scrap") {
     const star: Partial<Record<string, number>> = { legendary: 2, crimson: 4, epic_crimson: 10, legendary_crimson: 25 };
     body = `<p class="sub">Break down items for Scrap. Rarer and higher-level items give more, and the rarest also give Starmetal.</p>
-      ${sides(() => true, it => itemCard(it, `<button class="small danger" data-forgescrap="${it.uid}">Scrap · +${scrapValue(h, it)} ⚙️${star[it.rarity] ? ` +${star[it.rarity]} ✴️` : ""}</button>`, false, slotOf(it)))}`;
+      ${forgeSide === "backpack" ? bulkScrapRow(h) : ""}${sides(() => true, it => itemCard(it, `<button class="small danger" data-forgescrap="${it.uid}">Scrap · +${scrapValue(h, it)} ⚙️${star[it.rarity] ? ` +${star[it.rarity]} ✴️` : ""}</button>`, false, slotOf(it)))}`;
   } else if (forgeTab === "offer") {
     const chosen = allGear(r).filter(i => offerSel.has(i.uid));
     const odds = offeringOdds(offeringValue(chosen));
@@ -898,6 +909,26 @@ function overScene(r: Run) {
   ${won && !r.finale && !abyss ? `<button class="primary" data-endless>Keep delving · better rewards below</button>` : ""}<button class="${won ? "" : "primary"}" data-newrun>New run</button></div>`;
 }
 
+/** What's in each Inventory tab, in short: when it changes, the tab gets a "new" dot until you open it. */
+function tabSigs(r: Run): Record<BagTab, string> {
+  const h = r.hero;
+  const p = h.f.persist;
+  const ks = (o: Record<string, number> | undefined) => Object.entries(o ?? {}).filter(([, n]) => n > 0).map(([k, n]) => `${k}${n}`).sort().join(",");
+  return {
+    gear: h.backpack.map(i => i.uid).sort((a, b) => a - b).join(","),
+    stats: "",
+    relics: `${ks(h.relics)}|${h.crucible ? 1 : 0}`,
+    talents: `${ks(h.talents)}|${ks(h.curses)}`,
+    extras: [h.keepsake ?? "", h.dragonHeart?.level ?? 0, (p["angelFights"] ?? 0) > 0, (p["blessFights"] ?? 0) > 0, (p["cloverChests"] ?? 0) > 0, ks(h.tonics)].join("|")
+  };
+}
+/** Tabs with something new since you last looked. */
+function newTabs(r: Run): Set<BagTab> {
+  const sig = tabSigs(r);
+  if (!r.seenTabs) r.seenTabs = { ...sig };
+  return new Set((Object.keys(sig) as BagTab[]).filter(k => r.seenTabs![k] !== undefined && r.seenTabs![k] !== sig[k] && !(bagOpen && bagTab === k)));
+}
+
 function bag(r: Run) {
   const h = r.hero;
   const inCombat = r.scene.t === "combat";
@@ -992,12 +1023,14 @@ function bag(r: Run) {
     ["talents", "🧿 Aspects", `${nTalents + nCurses ? `<i>${nTalents + nCurses}</i>` : ""}`],
     ["extras", "✨ Extras", `${blessCount + h.scrolls + h.crimsonKeys ? `<i>${blessCount + h.scrolls + h.crimsonKeys}</i>` : ""}`]
   ];
+  const fresh = newTabs(r);
+  r.seenTabs![bagTab] = tabSigs(r)[bagTab];
   const body =
     bagTab === "gear" ? `${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}<div class="row subtabs">
         <button class="small ${gearSub === "equipped" ? "primary" : ""}" data-gearsub="equipped">🛡️ Equipped</button>
         <button class="small ${gearSub === "backpack" ? "primary" : ""}" data-gearsub="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</button></div>
       ${gearSub === "equipped" ? `<div class="gear-group equipped-group solo"><div class="cards">${equipped}</div></div>`
-        : `<div class="gear-group backpack-group solo"><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div></div>`}`
+        : `${inCombat ? "" : bulkScrapRow(h)}<div class="gear-group backpack-group solo"><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div></div>`}`
     : bagTab === "stats" ? `<div class="row subtabs">
         <button class="small ${statsSub === "attributes" ? "primary" : ""}" data-statssub="attributes">📊 Attributes</button>
         <button class="small ${statsSub === "statuses" ? "primary" : ""}" data-statssub="statuses">✴️ Statuses & reactions</button></div>
@@ -1015,7 +1048,7 @@ function bag(r: Run) {
   return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
     <div class="row"><h1 class="grow">Inventory</h1><button class="closebtn" data-closebag>✕ Close</button></div>
-    <div class="bag-tabs" role="tablist">${tabs.map(([id, label, badge]) => `<button class="bag-tab ${bagTab === id ? "active" : ""}" data-bagtab="${id}" role="tab" aria-selected="${bagTab === id}"><span class="bt-ic">${label.split(" ")[0]}${badge}</span><span class="bt-lb">${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
+    <div class="bag-tabs" role="tablist">${tabs.map(([id, label, badge]) => `<button class="bag-tab ${bagTab === id ? "active" : ""}" data-bagtab="${id}" role="tab" aria-selected="${bagTab === id}"><span class="bt-ic">${label.split(" ")[0]}${badge}${fresh.has(id) ? `<b class="newdot" title="Something new"></b>` : ""}</span><span class="bt-lb">${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
     <div class="bag-body">${body}</div>
     <p class="version">${VERSION}</p>
   </div></div>`;
@@ -1745,8 +1778,18 @@ function bind() {
   on("[data-potion]", () => { say(drinkPotion(r)); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-bag]", () => { bagOpen = true; bagTab = "gear"; gearSub = "equipped"; });
   on("[data-closebag]", () => { bagOpen = false; });
-  on("[data-bagtab]", el => { bagTab = el.dataset.bagtab as BagTab; talentSub = "talents"; spoilsSub = "relics"; statsSub = "attributes"; });
+  on("[data-bagtab]", el => { bulkArmed = null; bagTab = el.dataset.bagtab as BagTab; talentSub = "talents"; spoilsSub = "relics"; statsSub = "attributes"; });
   on("[data-statssub]", el => { statsSub = el.dataset.statssub as typeof statsSub; });
+  on("[data-speedcycle]", () => { speed = speed >= 1 ? 0.5 : speed >= 0.5 ? 0.2 : 1; try { localStorage.setItem("dd2-speed", String(speed)); } catch { /* ignore */ } });
+  on("[data-bulkscrap]", el => {
+    const upTo = el.dataset.bulkscrap as "common" | "uncommon";
+    const list = bulkScrapList(r.hero, upTo);
+    if (bulkArmed !== upTo) { bulkArmed = upTo; return; }
+    bulkArmed = null;
+    let n = 0, metal = 0;
+    for (const it of list) { const before = r.hero.starmetal; n += salvage(r.hero, it.uid); metal += r.hero.starmetal - before; }
+    say(`Scrapped ${list.length} item${list.length === 1 ? "" : "s"}: +${n} ⚙️ Scrap${metal ? ` · +${metal} ✴️` : ""}`, false); sfx("hit");
+  });
   on("[data-gearsub]", el => { gearSub = el.dataset.gearsub as typeof gearSub; });
   on("[data-spoilsub]", el => { spoilsSub = el.dataset.spoilsub as typeof spoilsSub; });
   on("[data-talentsub]", el => { talentSub = el.dataset.talentsub as "talents" | "curses"; });

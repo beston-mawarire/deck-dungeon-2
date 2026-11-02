@@ -173,6 +173,8 @@ export interface Run {
   popup?: { title: string; text: string; icon: string; list?: string[]; fanfare?: string };
   /** Beat THE END on floor 26: the whole game is won. */
   finale?: boolean;
+  /** Inventory tabs as last seen (a short signature each), so new things get a dot. */
+  seenTabs?: Record<string, string>;
   /** The Daily Dungeon this run belongs to (its UTC date, YYYY-MM-DD), if any. */
   daily?: string;
   /** Ruin Shards and Vanadium Plates found this run, and how many of them are already banked on the device. */
