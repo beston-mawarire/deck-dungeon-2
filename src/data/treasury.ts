@@ -131,7 +131,7 @@ export const LEGENDARY_ITEMS: GearBase[] = [
     text: "Still beating. Still burning.", hooks: { onHit: (b, c) => applyStatus(b, c.attacker, c.defender, "burn", 3), onRoundStart: (b, f) => { other(b, f).flags["burnNoHalve"] = 1; } } }),
   legendary({ id: "lx_seraph_wing", kind: "off", slot: "off", name: "Seraph's Wing", tags: ["Holy", "Guard"],
     legendary: { minFloor: 3, asBase: "o_holy_symbol", reveal: "Holy. Your Ward returns at the start of every round." },
-    text: "A single feather, and it's enough.", hooks: { onRoundStart: (b, f) => applyStatus(b, f, f, "ward", 1) } }),
+    text: "A single feather, and it's enough.", hooks: { onRoundStart: (b, f) => { if (st(f, "ward") < 1) applyStatus(b, f, f, "ward", 1); } } }),
   legendary({ id: "lx_book_dead", kind: "off", slot: "off", barrierElement: "doom", name: "Book of the Dead", tags: ["Hex", "Kill"],
     legendary: { minFloor: 4, asBase: "o_tome", reveal: "On a 1, 2 or 3: apply 3 Doom. Doom kills once it reaches 60% of the enemy's HP." },
     text: "The names inside are still being written.",

@@ -50,6 +50,22 @@ describe("origins and gear", () => {
     expect(b.enemy.hp).toBe(200 - 2 * (4 + Math.floor(b.player.armor / 3))); // (sword 4 + Warrior armor bonus) × crit 2
   });
 
+  it("Ward stacks: each stack blocks one negative status", () => {
+    const h = newHero("cleric");
+    const b = startBattle(h.f, dummy(), 1);
+    b.player.statuses = {};
+    applyStatus(b, b.player, b.player, "ward", 1);
+    applyStatus(b, b.player, b.player, "ward", 1);
+    expect(st(b.player, "ward")).toBe(2);
+    applyStatus(b, b.enemy, b.player, "poison", 3);
+    applyStatus(b, b.enemy, b.player, "weak", 1);
+    expect(st(b.player, "poison")).toBe(0);
+    expect(st(b.player, "weak")).toBe(0);
+    expect(st(b.player, "ward")).toBe(0);
+    applyStatus(b, b.enemy, b.player, "weak", 1);
+    expect(st(b.player, "weak")).toBe(1);
+  });
+
   it("Evade stacks: each stack makes one hit miss", () => {
     const h = newHero("warrior");
     const b = startBattle(h.f, dummy(), 1);

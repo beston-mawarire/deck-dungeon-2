@@ -1,7 +1,7 @@
 // The Abyss: Epic Crimson items (only from the bosses of floors 20, 21, 22, 23 and 24),
 // and the Legendary Crimson rewards for the impossible: Abaddon (beat DEATH) and the Cookie (beat the End).
 import type { GearBase } from "../engine/types";
-import { applyStatus, cast, CRIT, GRAZE, heal, hex, HIT, log, other } from "./helpers";
+import { applyStatus, cast, CRIT, GRAZE, heal, hex, HIT, log, other, st } from "./helpers";
 
 const ec = (d: Omit<GearBase, "rarity">): GearBase => ({ ...d, rarity: "epic_crimson" });
 
@@ -56,7 +56,7 @@ export const EPIC_CRIMSON_2: GearBase[] = [
       onKill: (b, c) => { heal(b, c.attacker, Math.ceil(c.attacker.maxHp * 0.3), "Kingsblade"); } } }),
   ec({ id: "ec_sun_reliquary", kind: "off", slot: "off", name: "Reliquary of the Unsetting Sun", tags: ["Holy", "Guard", "Blood"],
     text: "Holy. Ward returns every round. 8 Regen every round. When your Ward stops a status, deal 15% of the enemy's Max HP. Healing is doubled.",
-    hooks: { onRoundStart: (b, f) => { applyStatus(b, f, f, "ward", 1); applyStatus(b, f, f, "regen", 8); },
+    hooks: { onRoundStart: (b, f) => { if (st(f, "ward") < 1) applyStatus(b, f, f, "ward", 1); applyStatus(b, f, f, "regen", 8); },
       onWard: (b, f) => { const e = other(b, f); const n = Math.ceil(e.maxHp * 0.15); e.hp -= n; log(b, `☀️ The Unsetting Sun burns ${e.name} for ${n}.`); },
       healMult: () => 2 } })
 ];

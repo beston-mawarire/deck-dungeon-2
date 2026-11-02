@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.28.1
+- Ward now stacks. Every source adds a stack, and each stack blocks one negative status. Items whose Ward "returns every round" top you back up to one rather than piling up.
+
 ## 1.28.0
 - Dual wielding, more of it:
   - 9 new weapons that work in either hand, from Common to Epic: Shortsword, Hatchet, Sai, Moon Sickle, Parrying Dagger, Duellist's Rapier, Flicker Blade, Wyrmtooth Scimitar and Tempest Twinblade.

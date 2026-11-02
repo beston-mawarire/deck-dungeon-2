@@ -8,7 +8,7 @@ export const st = (f: Fighter, s: StatusId) => f.statuses[s] ?? 0;
 export const other = (b: Battle, f: Fighter) => (f === b.player ? b.enemy : b.player);
 
 /** Statuses that never stack above 1 (Shock can go to 2 with Conductor, set by the item). */
-const SINGLE: StatusId[] = ["stun", "focus", "ward"];
+const SINGLE: StatusId[] = ["stun", "focus"];
 /** The hero's Haste stacks without limit; enemies can bank at most this many. */
 export const ENEMY_HASTE_CAP = 4;
 
@@ -30,7 +30,7 @@ export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: s
   focus: { name: "Focus", icon: "🎲", text: "Next roll: roll twice, keep the better" },
   evade: { name: "Evade", icon: "🌀", text: "The next hit misses. Stacks: each stack makes one more hit miss" },
   spikes: { name: "Spikes", icon: "🌵", text: "When hit, deal stacks back; stacks fall by 1 each round" },
-  ward: { name: "Ward", icon: "✨", text: "Blocks the next negative status" },
+  ward: { name: "Ward", icon: "✨", text: "Blocks the next negative status. Stacks: each stack blocks one more" },
   static: { name: "Static", icon: "🔋", text: "Each action it takes (attack, spell, buff) costs a stack and 2 damage; caps at 10. Shock sets it all off at once" },
   soaked: { name: "Soaked", icon: "💧", text: "Lightning (Shock, Static) hits it twice as hard; Burn on it is halved; lasts its stacks in rounds" },
   charged: { name: "Charged", icon: "⚡", text: "Your next hit deals +2 per stack and leaves that much Static" },
@@ -312,7 +312,7 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
       t.flags[id] = Math.max(t.flags[id] ?? 0, m);
       if (id === "clarity") {
         t.statuses.focus = 0;
-        t.statuses.ward = 0;
+        t.statuses.ward = Math.max(0, st(t, "ward") - 1);
       }
       log(b, `✴️ ${name} on ${t.name}: ${REACTIONS.find(r => r.id === id)!.text}.`);
   }
