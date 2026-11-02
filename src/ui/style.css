@@ -848,7 +848,7 @@ h2.shop-title { color: #f1e4ff; font-size: 1.15rem; font-weight: 800; text-shado
 .shop-tab.active { color: #1a1408; background: linear-gradient(180deg, #f3ca63 0%, #dba73a 100%); border-color: #f0c15a; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 2px 0 rgba(90,60,10,.6); }
 
 /* Leaderboards: main tabs, stat sub-tabs, class filter */
-.lb-mains { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 8px 0 10px; }
+.lb-mains { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 8px 0 10px; }
 .lb-main { border: 1px solid #5a4b70; background: rgba(0,0,0,.25); color: #cbbfd8; padding: 10px 4px; font-weight: 800; border-radius: 0; }
 .lb-main:first-child { border-radius: 10px 0 0 10px; }
 .lb-main:last-child { border-radius: 0 10px 10px 0; }
@@ -857,3 +857,5 @@ h2.shop-title { color: #f1e4ff; font-size: 1.15rem; font-weight: 800; text-shado
 .lb-class { padding: 2px 9px; min-height: 28px; font-size: .8rem; background: transparent; box-shadow: none; color: #b9aecb; }
 .lb-class.active { color: #fff; border-color: #a68ae6; background: rgba(166,138,230,.22); }
 .lb-note { color: #cfc4dc; }
+.lb-main { font-size: .9rem; }
+@media (max-width: 400px) { .lb-main { font-size: .8rem; padding: 10px 2px; } }

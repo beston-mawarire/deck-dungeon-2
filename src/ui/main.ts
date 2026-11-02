@@ -975,7 +975,7 @@ function runStatsPanel(r: Run) {
   else if (lbResult && lbResult.verified === false) box = `<p class="lb-placed">🏆 This run couldn't be verified, so it isn't on the leaderboards. ${r.sid ? "The server couldn't confirm how it went (for example, floors cleared faster than it allows)." : "It began without a connection to the leaderboard server (offline, or before verification was added)."}</p>`;
   else if (lbResult && lbResult.ranks) {
     const rk = lbResult.ranks;
-    const named = [...SUB_BOARDS.campaign, { id: "daily" as Board, label: "Daily", icon: "📅", unit: "" }];
+    const named = [...SUB_BOARDS.campaign, { id: "abyss" as Board, label: "Abyss", icon: "🕳️", unit: "" }, { id: "daily" as Board, label: "Daily", icon: "📅", unit: "" }];
     const best = named.filter(b => (rk[b.id] ?? 99) <= 10).map(b => `${b.icon} #${rk[b.id]} ${b.label}`);
     box = `<p class="lb-placed">🏆 On the leaderboards as <b>${esc(name)}</b>${best.length ? ` · ${best.join(" · ")}` : ` · #${rk.floor} deepest`}</p>
       <div class="row"><button class="small" data-lb>See the leaderboards</button><button class="small" data-lbrename>Change name</button></div>`;
@@ -986,7 +986,7 @@ function runStatsPanel(r: Run) {
 
 function leaderboardPopup() {
   const ORIGIN_IC: Record<string, string> = { warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" };
-  const main = ([["campaign", "🏰 Campaign"], ["daily", "📅 Daily"], ["bounty", "🎯 Bounty"]] as [Scope, string][])
+  const main = ([["campaign", "🏰 Campaign"], ["daily", "📅 Daily"], ["abyss", "🕳️ Abyss"], ["bounty", "🎯 Bounty"]] as [Scope, string][])
     .map(([k, l]) => `<button class="lb-main ${lbScope === k ? "active" : ""}" data-lbscope="${k}">${l}</button>`).join("");
   const subs = lbScope === "bounty" ? [] : SUB_BOARDS[lbScope];
   const unit = subs.find(b => b.id === lbBoard);
@@ -1961,7 +1961,7 @@ function bind() {
   on("[data-togglemusic]", () => toggleMusic());
   on("[data-startmusic]", () => playMusic(run ? "game" : "title"));
   // Leaderboards (title screen and end of run).
-  on("[data-lb]", () => { lbOpen = true; if (run?.daily && run.scene.t === "over") { lbScope = "daily"; lbBoard = "floor"; } loadBoard(lbBoard); });
+  on("[data-lb]", () => { lbOpen = true; if (run?.scene.t === "over" && (run.daily || run.mode === "abyss")) { lbScope = run.daily ? "daily" : "abyss"; lbBoard = "floor"; } loadBoard(lbBoard); });
   on("[data-lbclose]", () => { lbOpen = false; });
   on("[data-lbboard]", el => { loadBoard(el.dataset.lbboard as Board); });
   on("[data-lbscope]", el => { lbScope = el.dataset.lbscope as Scope; loadBoard("floor"); });

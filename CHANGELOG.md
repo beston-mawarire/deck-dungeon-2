@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.29.1
+- Leaderboards: the Abyss is now its own main tab (🏰 Campaign · 📅 Daily · 🕳️ Abyss · 🎯 Bounty), with Deepest, Elites, Champions, Damage, Biggest hit and Gold for Abyss runs, and the class filter. After an Abyss run, See the leaderboards opens there.
+
 ## 1.29.0
 - Leaderboards reorganised into three main tabs:
   - 🏰 Campaign: Deepest, Elites, Champions, Damage, Biggest hit, Gold and Abyss, as before.

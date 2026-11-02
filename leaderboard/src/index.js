@@ -2,7 +2,7 @@
 //   POST /session                      a run starts: the server opens its own record of it (returns a session id)
 //   POST /session/floor                the run reached a floor: the server checks the step and the pace, and records it
 //   POST /runs                         a finished run: checked against the server's record; anything off is kept but hidden
-//   GET  /leaderboard?board=..&scope=campaign|daily|dailyall&origin=..&pid=..  the top players on a board (each player's best verified run), plus your own place
+//   GET  /leaderboard?board=..&scope=campaign|daily|dailyall|abyss&origin=..&pid=..  the top players on a board (each player's best verified run), plus your own place
 //   GET  /killers                      the Bounty board: the foes that have ended the most runs
 //   POST /vault                        back up a player's progress: Ruin Shards, Vanadium Plates and the whole save (the device is in charge)
 //   GET  /vault?pid=..                 fetch that backup (to restore it on a new device)
@@ -85,6 +85,7 @@ function discrepancy(row, s, now) {
 function boardFilter(board, day, scope, origin) {
   let f = scope === "dailyall" ? "daily IS NOT NULL"
     : scope === "daily" ? `daily = '${DAY.test(day ?? "") ? day : utcDay()}'`
+    : scope === "abyss" ? "mode = 'abyss'"
     : scope === "campaign" ? (board === "abyss" ? "mode = 'abyss'" : "mode != 'abyss' AND daily IS NULL")
     : modeFilter(board, day);
   if (ORIGINS.includes(origin)) f += ` AND origin = '${origin}'`;
@@ -187,7 +188,7 @@ async function getBoard(url, env) {
       FROM runs WHERE suspect = 0 AND ${where})
     SELECT pid, name, title, origin, floor, plates, daily, value, created_at FROM best WHERE rn = 1 ORDER BY value DESC, created_at ASC`;
   const { results } = await env.DB.prepare(`${best} LIMIT ?`).bind(limit).all();
-  const rows = results.map((r, i) => ({ rank: i + 1, name: r.name, title: r.title ?? undefined, value: r.value, origin: r.origin, floor: r.floor, plates: board === "abyss" ? r.plates ?? 0 : undefined, day: scope === "dailyall" ? r.daily ?? undefined : undefined, you: r.pid === pid || undefined }));
+  const rows = results.map((r, i) => ({ rank: i + 1, name: r.name, title: r.title ?? undefined, value: r.value, origin: r.origin, floor: r.floor, plates: board === "abyss" || scope === "abyss" ? r.plates ?? 0 : undefined, day: scope === "dailyall" ? r.daily ?? undefined : undefined, you: r.pid === pid || undefined }));
   let me = null;
   if (pid && !rows.some(r => r.you)) {
     const mine = await env.DB.prepare(`SELECT MAX(${col}) AS v FROM runs WHERE pid = ? AND suspect = 0 AND ${where}`).bind(pid).first();
