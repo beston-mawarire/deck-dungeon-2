@@ -375,7 +375,7 @@ function enterRoom(run: Run, room: RoomType) {
       setGenLuck(genLuck(run));
       const sg = rollSigilDrop(run, 0.06, 0.1);
       const woodOdds = useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden;
-      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, heatOdds(run, woodOdds), luckFloor(run)), depth(run), run.rng)], gold: (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0, sigils: sg ? [sg] : undefined };
+      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, heatOdds(run, woodOdds), luckFloor(run)), depth(run), run.rng)], gold: (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
       return;
     }
     case "iron": {
@@ -760,14 +760,14 @@ function afterFight(run: Run) {
   setGenLuck(genLuck(run) * ({ normal: 1, elite: 1.25, champion: 1.6, crimson: 2, boss: run.scene.uber ? 2.6 : 2 } as Record<string, number>)[rank] * (then === "unique" || then === "dragon" || then === "nemesis" ? 1.5 : 1));
   const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, heatOdds(run, odds), luckFloor(run)), depth(run), run.rng);
   if (rank === "normal" && run.rng() < 0.2) items.push(roll(T.drop));
-  if (rank === "normal" && run.rng() < 0.1) potions++;
+  if (rank === "normal" && run.rng() < 0.04) potions++;
   // Potion gear: a sober win brews a potion (the Alembic always, the Vial sometimes); the Grail refills one per boss.
   const sober = !b.player.flags["potionsDrunk"];
   if (sober && (h.f.items["lx_endless_alembic"] ?? 0) > 0) potions++;
   else if (sober && (h.f.items["pc_vial_of_plenty"] ?? 0) > 0 && run.rng() < 0.3) potions++;
   if (rank === "boss" && (h.f.items["pc_grail"] ?? 0) > 0) potions++;
   if (rank === "boss" && potions) gainPotions(h, potions); // (boss rewards come as a pick, not a loot screen)
-  if ((rank === "normal" && run.rng() < 0.05) || (rank === "elite" && run.rng() < 0.15)) {
+  if ((rank === "normal" && run.rng() < 0.03) || (rank === "elite" && run.rng() < 0.08)) {
     h.manaPotions++;
     run.message = "You find a Mana Potion. 🔷";
   }

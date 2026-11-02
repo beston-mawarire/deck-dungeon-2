@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.42.2
+- Potions are rarer finds: Healing Potions turn up far less often after fights and in Wooden Chests, and Mana Potions less often after fights and Elites.
+
 ## 1.42.1
 - Campaign boss picks grow richer as you go deeper: early bosses mostly offer Uncommons, and a Rare is a treat. Richer picks come from floor 4, and the full boss table from floor 15.
 
