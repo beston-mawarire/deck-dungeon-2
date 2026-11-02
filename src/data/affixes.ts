@@ -42,7 +42,7 @@ export const BONUSES: HookDef[] = [
   bonus({ id: "b_exposed", name: "Exposure", affix: "of Exposure", tags: ["Hex"], text: "On a 1: apply {n+1} Exposed", hooks: { face: [on(1, (b, c, n) => applyStatus(b, c.attacker, c.defender, "exposed", n + 1))] } }),
   bonus({ id: "b_weak", name: "Withering", affix: "of Withering", tags: ["Hex"], text: "On a 3: apply {n} Weak", hooks: { face: [on(3, (b, c, n) => applyStatus(b, c.attacker, c.defender, "weak", n))] } }),
   bonus({ id: "b_focus", name: "Insight", affix: "of Insight", tags: ["Luck"], text: "Start fights with Focus", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "focus", 1) } }),
-  bonus({ id: "b_alchemy", name: "Alchemy", affix: "of Alchemy", tags: ["Arcane", "Hex"], text: "Reactions deal +{25n}%", hooks: { reactionMult: (_b, _f, n) => 1 + 0.25 * n } }),
+  bonus({ id: "b_alchemy", name: "Alchemy", affix: "of Alchemy", tags: ["Arcane", "Hex"], text: "Reactions deal +{4n+10}%", hooks: { reactionMult: (_b, _f, n) => 1 + (4 * n + 10) / 100 } }),
   bonus({ id: "b_static", name: "Crackle", affix: "of Crackling", tags: ["Storm", "Thorns"], text: "When hit, the attacker gains {n+1} Static", hooks: { whenHit: (b, c, n) => applyStatus(b, c.defender, c.attacker, "static", n + 1) } }),
   bonus({ id: "b_spikes", name: "Bristling", affix: "of Bristling", tags: ["Thorns"], text: "On a 4: gain {n+1} Spikes", hooks: { face: [on(4, (b, c, n) => applyStatus(b, c.attacker, c.attacker, "spikes", n + 1))] } }),
   // Rare+ only: twists borrowed from the old classes.

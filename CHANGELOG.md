@@ -5,6 +5,13 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.35.0
+- Loot is a little stingier: Rare, Epic and Legendary drops are about 20% less likely from monsters, Elites, Champions, bosses, Iron chests, the Merchant and Resplendent chests, and Fortune grows more slowly past floor 5. Abyss chests and foes are trimmed a little too. Lucky runs still happen.
+- Generated gear is less overloaded: smaller power budgets from Uncommon up, fewer triggered effects per item (Rares get one, Epics one or two, Legendaries two or three), Greater grades are rarer, and the strongest tiers open more slowly with depth.
+- "of Alchemy" no longer grows out of control with item level: it's +(4 × level + 10)% to reactions (a level 13 item gives +62%, not +325%).
+- The Abyss hits harder: every foe starts 15% tougher and grows faster with each depth, so Vanadium Plates matter.
+- DEATH's farewell line is new.
+
 ## 1.34.2
 - Leaderboards: a run that skipped a floor check-in (a dropped connection, or the old bug after delving deeper) was marked unverified for the rest of the run. The server now accepts several floors at once when enough time has passed for them, and only flags a pace no one could play at. The run this hid is back on the boards.
 

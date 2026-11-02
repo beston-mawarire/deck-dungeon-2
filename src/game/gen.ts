@@ -15,20 +15,20 @@ export const GEN_MATERIAL_MAP = new Map<string, GenMaterial>([...GEN_MATERIALS, 
 /** Share of drops of each rarity that come from the generator (the rest are hand-made). */
 export const GEN_SHARE: Partial<Record<Rarity, number>> = { common: 0.5, uncommon: 0.5, rare: 0.5, epic: 0.5, legendary: 0.35, crimson: 0.4 };
 /** Power budget per rarity (tier points). */
-const BUDGET: Partial<Record<Rarity, number>> = { common: 3, uncommon: 7, rare: 12, epic: 20, legendary: 30, crimson: 42 };
+const BUDGET: Partial<Record<Rarity, number>> = { common: 3, uncommon: 6, rare: 10, epic: 16, legendary: 25, crimson: 35 };
 /** Slots don't all carry the same power (a weapon does the most). */
 const SLOT_MOD: Record<Slot, number> = { main: 1, off: 0.8, armour: 0.9, trinket: 0.75 };
 /** How many of each part, [min, max]. */
 const COUNTS: Partial<Record<Rarity, { minor: [number, number]; major: [number, number]; sig: [number, number] }>> = {
   common: { minor: [0, 1], major: [0, 0], sig: [0, 0] },
   uncommon: { minor: [1, 2], major: [0, 1], sig: [0, 0] },
-  rare: { minor: [1, 2], major: [1, 2], sig: [0, 0] },
-  epic: { minor: [1, 2], major: [2, 3], sig: [1, 1] },
-  legendary: { minor: [2, 2], major: [3, 4], sig: [1, 2] },
-  crimson: { minor: [2, 3], major: [3, 4], sig: [1, 2] }
+  rare: { minor: [1, 2], major: [1, 1], sig: [0, 0] },
+  epic: { minor: [1, 2], major: [1, 2], sig: [1, 1] },
+  legendary: { minor: [1, 2], major: [2, 3], sig: [1, 1] },
+  crimson: { minor: [2, 2], major: [2, 3], sig: [1, 2] }
 };
 /** Chance that each module rolls Greater (and, more rarely, Grand or Mythic). */
-const GREATER: Partial<Record<Rarity, number>> = { common: 0.02, uncommon: 0.03, rare: 0.04, epic: 0.05, legendary: 0.07, crimson: 0.09 };
+const GREATER: Partial<Record<Rarity, number>> = { common: 0.012, uncommon: 0.018, rare: 0.024, epic: 0.03, legendary: 0.045, crimson: 0.06 };
 export const GRADE_MULT = [1, 1.5, 2, 3];
 export const GRADE_MARK = ["", "✦", "✦✦", "✦✦✦"];
 export const GRADE_NAME = ["", "Greater", "Grand", "Mythic"];
@@ -73,7 +73,7 @@ export function generate(base: GearBase, rarity: Rarity, level: number, depth: n
   const material = rarity === "crimson" ? VEINED : pickW(rng, mats, m => (m.weight ?? 1) * affinity(m.tags, want, build)) ?? GEN_MATERIALS[0];
   for (const t of material.tags) want.add(t);
   const rankBonus = Math.max(0, RANK.indexOf(rarity) - 1);
-  const maxTier = Math.min(7, 2 + Math.floor(depth / 3) + rankBonus + (broken ? 2 : 0));
+  const maxTier = Math.min(7, 2 + Math.floor(depth / 4) + rankBonus + (broken ? 2 : 0));
   let budget = (BUDGET[rarity] ?? 12) * SLOT_MOD[slot] * (broken ? 2.5 : 1);
   const recipe: GenRecipe = { m: material.id, mods: [], name: "" };
   const groups = new Set<string>();

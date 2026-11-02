@@ -910,7 +910,7 @@ describe("class actions and new stats", () => {
   it("floor 20–24 bosses offer an Epic Crimson; DEATH drops Abaddon; beating the End wins with a cookie", () => {
     const run = newRun("warrior", 31);
     run.mode = "endless";
-    for (const [floor, check] of [[22, "epic_crimson"], [25, "lc_abaddon"]] as const) {
+    for (const [floor, check] of [[20, "epic_crimson"], [21, "epic_crimson"], [22, "epic_crimson"], [23, "epic_crimson"], [24, "epic_crimson"], [25, "lc_abaddon"]] as const) {
       run.floor = floor; run.step = STEPS_PER_FLOOR; run.scene = { t: "map" } as typeof run.scene; run.choices = ["boss"];
       chooseRoom(run, "boss");
       const sc = run.scene as { t: string; battle?: { enemy: { hp: number }; over?: string } };
@@ -921,7 +921,7 @@ describe("class actions and new stats", () => {
       const pk = run.scene as { t: string; items?: { rarity: string; base: string }[] };
       if (pk.t !== "pick" || !pk.items) throw new Error(`no pick: ${pk.t}`);
       if (check === "epic_crimson") expect(pk.items[0].rarity).toBe("epic_crimson");
-      else { expect(pk.items[0].base).toBe("lc_abaddon"); expect(run.popup?.text).toMatch(/R600/); }
+      else { expect(pk.items[0].base).toBe("lc_abaddon"); expect(run.popup?.title).toMatch(/DEATH IS DEAD/); }
     }
     // Abaddon one-shots
     const h = newHero("warrior");

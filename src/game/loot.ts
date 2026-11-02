@@ -11,33 +11,33 @@ export type Odds = Partial<Record<Rarity, number>>;
 
 export const TABLES = {
   wooden: { common: 70, uncommon: 30 },
-  iron: { uncommon: 70, rare: 30 },
-  drop: { common: 65, uncommon: 28, rare: 7 },
-  elite: { uncommon: 67, rare: 32, epic: 1 },
-  champion: { uncommon: 10, rare: 79, epic: 9, legendary: 2 },
-  boss: { rare: 89, epic: 9, legendary: 2 },
+  iron: { uncommon: 76, rare: 24 },
+  drop: { common: 66.5, uncommon: 28, rare: 5.5 },
+  elite: { uncommon: 73, rare: 26.2, epic: 0.8 },
+  champion: { uncommon: 25, rare: 66.2, epic: 7.2, legendary: 1.6 },
+  boss: { rare: 91.2, epic: 7.2, legendary: 1.6 },
   /** Crimson Elites: harder, better loot (and sometimes a Crimson Key). */
-  crimson: { rare: 62, epic: 32, legendary: 6 },
-  shop: { common: 15, uncommon: 50, rare: 33.5, epic: 1.5 }
+  crimson: { rare: 69, epic: 26, legendary: 5 },
+  shop: { common: 15, uncommon: 56.8, rare: 27, epic: 1.2 }
 } satisfies Record<string, Odds>;
 
 /** Abyss drop tables: far richer than the campaign, and richest from the toughest foes (Champions, bosses, Uber bosses). */
 export const ABYSS_TABLES = {
   ...TABLES,
-  wooden: { uncommon: 40, rare: 50, epic: 10 },
-  iron: { rare: 55, epic: 38, legendary: 7 },
-  elite: { uncommon: 40, rare: 50, epic: 9, legendary: 1 },
-  champion: { rare: 55, epic: 35, legendary: 10 },
-  boss: { rare: 30, epic: 50, legendary: 20 },
-  uber: { epic: 55, legendary: 45 },
-  crimson: { rare: 40, epic: 45, legendary: 15 }
+  wooden: { uncommon: 48, rare: 44, epic: 8 },
+  iron: { rare: 63, epic: 31, legendary: 6 },
+  elite: { uncommon: 48, rare: 44, epic: 7.2, legendary: 0.8 },
+  champion: { rare: 63, epic: 29, legendary: 8 },
+  boss: { rare: 40, epic: 44, legendary: 16 },
+  uber: { epic: 63, legendary: 37 },
+  crimson: { rare: 48, epic: 40, legendary: 12 }
 } satisfies Record<string, Odds>;
 
 /** Resplendent card odds: Epic and Legendary grow with depth, and are rare early on. */
 export function resplendentOdds(floor: number): Odds {
-  const legendary = Math.min(8, 0.5 + 0.7 * (floor - 1));
-  const epic = Math.min(22, 2.5 + 1.8 * (floor - 1));
-  const rare = 40;
+  const legendary = Math.min(6.5, 0.4 + 0.55 * (floor - 1));
+  const epic = Math.min(18, 2 + 1.45 * (floor - 1));
+  const rare = 34;
   return { uncommon: 100 - legendary - epic - rare, rare, epic, legendary };
 }
 
@@ -45,7 +45,7 @@ export function resplendentOdds(floor: number): Odds {
  * Fortune: the deeper you go, the better every find. The boost is small (a few % per floor on Rare and up),
  * but the game tells you about it, to make delving deeper feel worth it.
  */
-export const fortune = (floor: number) => 1 + 0.03 * Math.min(floor - 1, 4) + 0.015 * Math.max(0, floor - 5);
+export const fortune = (floor: number) => 1 + 0.03 * Math.min(floor - 1, 4) + 0.01 * Math.max(0, floor - 5);
 /** Fortune shown to the player: one ✦ per floor reached, up to ten. */
 export const fortunePips = (floor: number) => Math.min(10, floor);
 

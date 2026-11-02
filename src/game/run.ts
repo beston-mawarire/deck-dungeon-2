@@ -67,7 +67,9 @@ const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Reco
   return out;
 };
 /** Abyss: every floor down, everything gets this much tougher on top of its depth. */
-export const ABYSS_GROWTH = 1.06;
+export const ABYSS_GROWTH = 1.08;
+/** Everything in the Abyss starts this much tougher than its Campaign self (Vanadium Plates are how you keep up). */
+export const ABYSS_BASE = 1.15;
 /** From this floor on (outside the Abyss), bosses drop Ruin Shards, and sometimes a Vanadium Plate. */
 export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
@@ -444,7 +446,7 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
     enemy.items["m_ambush"] = 1;
   }
   if (run.mode === "abyss") {
-    const g = Math.pow(ABYSS_GROWTH, run.floor - 1);
+    const g = ABYSS_BASE * Math.pow(ABYSS_GROWTH, run.floor - 1);
     enemy.maxHp = enemy.hp = Math.round(enemy.hp * g);
     enemy.damage = Math.round(enemy.damage * g);
     if (uber) makeUber(enemy, F, run.rng);
@@ -793,7 +795,7 @@ function afterFight(run: Run) {
     }
     // DEATH: its scythe is the only reward.
     if ((b.enemy.items["m_death"] ?? 0) > 0) {
-      run.popup = { icon: "☠️", title: "DEATH IS DEAD", text: "Damn, that's crazy! Tell Beston he owes you R600…", fanfare: "legendary_crimson" };
+      run.popup = { icon: "☠️", title: "DEATH IS DEAD", text: "Its scythe falls from bony fingers. Nothing in the dark will ever frighten you again.", fanfare: "legendary_crimson" };
       run.scene = { t: "pick", title: "DEATH falls. Its scythe is yours", items: [makeRewardItem(h, "lc_abaddon", run.floor)] };
       run.message = `+${bossGold} Gold${ruinNote}`;
       return;
