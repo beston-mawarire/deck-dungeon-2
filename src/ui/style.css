@@ -786,3 +786,7 @@ button.closebtn:hover:not(:disabled) { filter: brightness(1.12); }
 .compare .cmp-fx li { margin: 2px 0; }
 .compare .cmp-fx li.up { color: #7ff0a8; } .compare .cmp-fx li.down { color: #ff9aa9; }
 .compare .cmp-fx li .sub { color: var(--muted); }
+/* Auto-fight from the map */
+.room-wrap { display: flex; flex-direction: column; gap: 6px; }
+.room-wrap > .room { width: 100%; }
+.auto-room { align-self: flex-end; margin-top: -2px; color: #ffe39a; border-color: #8a6534; background: rgba(232,184,74,.08); }

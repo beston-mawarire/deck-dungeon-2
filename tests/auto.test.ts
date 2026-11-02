@@ -48,11 +48,11 @@ it("never offered against bosses", () => {
   expect(canAutoBattle(run)).toBe(false);
 });
 
-it("not before floor 2", () => {
+it("works from floor 1", () => {
   const run = newRun("warrior", 25);
   chooseRoom(run, "fight");
   const sc = S(run);
   if (sc.t !== "combat") throw new Error("no fight");
   sc.battle.enemy.hp = 1;
-  expect(canAutoBattle(run)).toBe(false);
+  expect(canAutoBattle(run)).toBe(true);
 });

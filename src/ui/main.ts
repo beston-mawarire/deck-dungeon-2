@@ -22,7 +22,7 @@ import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
-  ROOM_INFO, ABYSS_ROOM_INFO, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
+  ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -513,13 +513,16 @@ function codexScreen() {
 
 // ---------- Scenes ----------
 
+/** Map rooms that can be auto-fought (if the fight inside turns out to be one you can't lose). */
+const AUTO_ROOMS: string[] = ["fight", "elite", "champion"];
+
 function mapScene(r: Run) {
   const pips = fortunePips(depth(r));
   const abyss = r.mode === "abyss";
   return `<div class="floorname ${abyss ? "abyss-name" : ""}">${abyss ? `🕳️ The Abyss · Depth ${r.floor}` : `Floor ${r.floor} · ${esc(floorName(r.floor))}`}</div><div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>
   <h2>${r.step >= STEPS_PER_FLOOR ? (r.mode === "abyss" ? "The Uber boss awaits" : r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits") : "Choose your path"}</h2>
-  <div class="cards">${r.choices.map(c => `<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : c === "nemesis" ? "nemesis-room" : ""}" data-room="${c}">${(() => { const g = c === "crossroads" ? CROSSROADS_GUISES[r.crossroadsGuise ?? 0] : null; const info = g ? { icon: g.icon, name: g.title, text: g.room } : c === "nemesis" && r.nemesis ? { ...ROOM_INFO.nemesis, text: `${r.nemesis.name}. It killed you last time, and it remembers. A bounty for its head.` } : (r.mode === "abyss" && ABYSS_ROOM_INFO[c]) || ROOM_INFO[c];
-    return `<span class="ic">${c === "boss" && r.floor >= FLOORS && r.mode !== "abyss" ? "💀" : info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>`).join("")}</div>`;
+  <div class="cards">${r.choices.map(c => `${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR ? `<div class="room-wrap">` : ""}<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : c === "nemesis" ? "nemesis-room" : ""}" data-room="${c}">${(() => { const g = c === "crossroads" ? CROSSROADS_GUISES[r.crossroadsGuise ?? 0] : null; const info = g ? { icon: g.icon, name: g.title, text: g.room } : c === "nemesis" && r.nemesis ? { ...ROOM_INFO.nemesis, text: `${r.nemesis.name}. It killed you last time, and it remembers. A bounty for its head.` } : (r.mode === "abyss" && ABYSS_ROOM_INFO[c]) || ROOM_INFO[c];
+    return `<span class="ic">${c === "boss" && r.floor >= FLOORS && r.mode !== "abyss" ? "💀" : info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR ? `<button class="small auto-room" data-autoroom="${c}" title="Go in and let the fight play itself out — only if it's one you can't lose">⚡ Auto-fight</button></div>` : ""}`).join("")}</div>`;
 }
 
 function dieBox(who: "player" | "enemy", label: string) {
@@ -2085,6 +2088,13 @@ function bind() {
   on("[data-jmode]", el => { jewelMode(r, el.dataset.jmode as "fuse" | "infuse"); });
   on("[data-jclear]", el => { jewelClear(r, el.dataset.jclear as "left" | "right"); });
   on("[data-jfuse]", () => { const res = jewelFuse(r); say(res.msg, !res.ok); if (res.ok) celebrate("epic", res.made, true); else sfx("miss"); });
+  on("[data-autoroom]", el => {
+    r.message = "";
+    chooseRoom(r, el.dataset.autoroom as never);
+    if (r.scene.t !== "combat") return;
+    if (canAutoBattle(r)) { const note = autoBattle(r); sfx("crit"); if (note) say(note, false); }
+    else say("⚠️ Too dangerous to auto-fight: this one's yours to fight.", true);
+  });
   on("[data-auto]", () => { const note = autoBattle(r); sfx("crit"); if (note) say(note, false); });
   on("[data-takebounty]", el => { takeBounty(r, Number(el.dataset.takebounty)); sfx("chest"); });
   on("[data-bounty]", () => { bountyOpen = true; });

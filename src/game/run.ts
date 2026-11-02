@@ -489,7 +489,7 @@ export function combatAction(run: Run, action: Action) {
   if (b.over) afterFight(run);
 }
 
-export const AUTO_BATTLE_FLOOR = 2;
+export const AUTO_BATTLE_FLOOR = 1;
 /** Auto-battle is offered against normal foes, Elites and Champions (not bosses, dragons, goblins or named foes)
  *  once plain attacks are sure to win. */
 export function canAutoBattle(run: Run): boolean {
