@@ -14,12 +14,17 @@ export const ENEMY_HASTE_CAP = 4;
 /** The hero can bank at most this many Haste (extra actions). */
 export const PLAYER_HASTE_CAP = 3;
 /** Barrier the hero gains is scaled by this, and capped at this share of Max HP. */
-export const BARRIER_GAIN = 0.75;
-export const BARRIER_CAP = 0.4;
+export const BARRIER_GAIN = 0.65;
+export const BARRIER_CAP = 0.35;
+/** Regen the hero gains is a quarter weaker, and never stacks past this. */
+export const REGEN_GAIN = 0.75;
+export const REGEN_CAP = 10;
+/** The hero's elemental and bleeding statuses land 20% lighter on foes. */
+const DOT_STATUSES: StatusId[] = ["burn", "poison", "bleed", "chill", "static", "soaked", "smoulder", "fracture"];
 
 export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: string }> = {
-  causality: { name: "Causality Mirror", icon: "🪞", text: "The first hit it takes is reflected back in full, past any Evade or Dodge. It can't be removed" },
-  truestrike: { name: "True Strike", icon: "🎯", text: "Its attacks ignore Blind, Evade and Dodge. It can't be removed" },
+  causality: { name: "Causality Mirror", icon: "🪞", text: "The next hit it takes is reflected back in full, past any Evade or Dodge. Reforms 4 rounds after use. It can't be removed" },
+  truestrike: { name: "True Strike", icon: "🎯", text: "Its next attack ignores Blind, Dazzle, Evade and Dodge. Recharges 3 rounds after use. It can't be removed" },
   bleed: { name: "Bleed", icon: "🩸", text: "Lose 1 HP per stack at end of round; stacks fall by 1" },
   burn: { name: "Burn", icon: "🔥", text: "Take damage equal to stacks at start of turn; stacks halve" },
   poison: { name: "Poison", icon: "☠️", text: "Lose 1 HP per stack each round; doesn't fade during the fight" },
@@ -30,8 +35,8 @@ export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: s
   blind: { name: "Blind", icon: "🌫️", text: "Faces 1 and 2 miss completely; lasts its stacks in rounds" },
   stun: { name: "Stun", icon: "💫", text: "Skips its next action" },
   doom: { name: "Doom", icon: "💀", text: "Dies when Doom stacks reach its current HP" },
-  regen: { name: "Regen", icon: "💚", text: "Heal 1 per stack at end of round; stacks fall by 1" },
-  barrier: { name: "Barrier", icon: "🛡️", text: "Absorbs damage before HP; half of it fades at the end of each round. Yours holds at most 40% of your Max HP" },
+  regen: { name: "Regen", icon: "💚", text: "Heal 1 per stack at end of round; stacks fall by 1. Yours stacks up to 10" },
+  barrier: { name: "Barrier", icon: "🛡️", text: "Absorbs damage before HP; half of it fades at the end of each round. Yours holds at most 35% of your Max HP" },
   might: { name: "Might", icon: "💪", text: "+1 Damage per stack this fight" },
   haste: { name: "Haste", icon: "💨", text: "An extra action on your turn. Stacks (up to 3): one is used each turn" },
   focus: { name: "Focus", icon: "🎲", text: "Next roll: roll twice, keep the better" },
@@ -134,6 +139,13 @@ export function loseHp(b: Battle, f: Fighter, amount: number): number {
 
 export function heal(b: Battle, f: Fighter, amount: number, why = "") {
   if (amount <= 0 || f.hp <= 0) return 0;
+  // Foes that sour healing: Grievous halves yours while you fight it; Blighting hits stop it for a round.
+  if (f === b.player) {
+    const foe = other(b, f);
+    if ((f.flags["blighted"] ?? 0) > 0 && f.flags["blighted"] >= b.round) return 0;
+    if ((foe.items["x_grievous"] ?? 0) > 0) amount = Math.floor(amount / 2);
+    if (amount <= 0) return 0;
+  }
   eachHook(f, "healMult", (h, s) => (amount = Math.floor(amount * h(s))));
   const before = f.hp;
   f.hp = Math.min(f.maxHp, f.hp + amount);
@@ -153,10 +165,12 @@ export function heal(b: Battle, f: Fighter, amount: number, why = "") {
   return got;
 }
 
+/** Reactions the hero causes hit 30% softer than before, and every reaction bonus counts half. */
+export const REACTION_BASE = 0.7;
 function reactionMult(b: Battle, source: Fighter | null) {
   let m = 1;
   if (source) eachHook(source, "reactionMult", (h, s) => (m *= h(b, source, s)));
-  return m;
+  return source === b.player ? REACTION_BASE * (1 + (m - 1) * 0.5) : m;
 }
 
 /**
@@ -177,6 +191,11 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
     // Smite: the enemy's own spite, turned back. Your next Holy hit will Smite.
     if (source && source !== target) target.flags["smiteReady"] = 1;
     eachHook(target, "onWard", (h, s) => h(b, target, id, amount, s));
+    return;
+  }
+  // Dispelled (a boss's Dispel): no positive status can take hold for a few rounds.
+  if (!isNegative(id) && target === b.player && (target.flags["dispelled"] ?? 0) > 0 && target.flags["dispelled"] >= b.round) {
+    fx(b, { who: target.id, kind: "block", text: `Dispelled ${STATUS_INFO[id].name}`, icon: "🌑" });
     return;
   }
   // Nullifying (a rare Elite/boss trait): the first positive status you'd gain each round fizzles.
@@ -205,6 +224,8 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   else if (id === "shock") target.statuses.shock = Math.max(st(target, "shock"), amount);
   else if (id === "static") target.statuses.static = Math.min(staticCap(source), st(target, "static") + amount);
   else if (id === "dazzled") target.statuses.dazzled = Math.min(4, Math.max(st(target, "dazzled"), amount));
+  else if (id === "regen" && target === b.player) target.statuses.regen = Math.min(REGEN_CAP, st(target, "regen") + Math.max(1, Math.round(amount * REGEN_GAIN)));
+  else if (DOT_STATUSES.includes(id) && source === b.player && target !== b.player) target.statuses[id] = st(target, id) + (amount >= 2 ? Math.max(1, Math.round(amount * 0.8)) : amount);
   else if (id === "haste") target.statuses.haste = Math.min(target === b.player ? PLAYER_HASTE_CAP : ENEMY_HASTE_CAP, st(target, "haste") + amount);
   // Barrier on the hero: a quarter weaker than it says, and never more than 40% of your Max HP at once.
   else if (id === "barrier" && target === b.player) target.statuses.barrier = Math.min(Math.max(1, Math.round(target.maxHp * BARRIER_CAP)), st(target, "barrier") + Math.max(1, Math.round(amount * BARRIER_GAIN)));
@@ -342,6 +363,8 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
 
 /** Status damage on `f` is boosted by its foe's Status damage (robes and the like). */
 export function dotMult(b: Battle, f: Fighter) {
+  // The hero's Burn, Poison and Bleed tick 20% softer, and Status damage bonuses count half.
+  if (f !== b.player) return 0.8 * (1 + (other(b, f).dotAmp ?? 0) / 200);
   return 1 + (other(b, f).dotAmp ?? 0) / 100;
 }
 

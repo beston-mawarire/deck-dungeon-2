@@ -7,7 +7,7 @@ import { CROSSROADS_GUISES, crossroadsEvent, EVENTS, type GameEvent } from "../d
 import { FUSION_RECIPES } from "../data/fusions";
 import { findRecipe, TRINKET_RECIPES } from "../data/jeweller";
 import { makeDragon, makeGoblin, makeMonster, makeNemesis, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
-import { type Action, actionToll, BLESSINGS, playRound, startBattle } from "../engine/combat";
+import { type Action, actionToll, BLESSINGS, isUnholy, playRound, startBattle } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
 import { applyStatus, heal as healF } from "../engine/statuses";
@@ -70,7 +70,7 @@ const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Reco
 /** Abyss: every floor down, everything gets this much tougher on top of its depth. */
 /** The Abyss is the endgame: every foe starts far tougher than its Campaign self and grows with every depth
  *  (Vanadium Plates are how you keep up). HP and damage scale separately, and Armor creeps up too. */
-export const ABYSS_GROWTH = 1.14;
+export const ABYSS_GROWTH = 1.2;
 /** From this Campaign floor on, foes scale harder every floor. */
 export const DEEP_FLOOR = 15;
 /** In the Abyss, the 7th Elite fight in a row is a boss instead. */
@@ -80,7 +80,7 @@ const BOSS_IMMUNITIES = ["x_fireproof", "x_antitoxic", "x_bloodless", "x_insulat
 /** Abyss Merchants charge far more. */
 export const ABYSS_PRICE_MULT = 2;
 export const ABYSS_BASE = 1.35;
-export const ABYSS_DMG_GROWTH = 1.11;
+export const ABYSS_DMG_GROWTH = 1.15;
 export const ABYSS_DMG_BASE = 1.25;
 /** From this floor on (outside the Abyss), bosses drop Ruin Shards, and sometimes a Vanadium Plate. */
 export const RUIN_FLOOR = 20;
@@ -474,12 +474,17 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && !special && run.rng() < 0.06));
   // A rare gold thief sometimes turns up in place of a normal monster.
   const thief = rank === "normal" && !then && run.rng() < 0.04;
-  const enemy = then === "nemesis" && run.nemesis ? makeNemesis(run.nemesis, F) : then === "death" ? makeDeath() : then === "dragon" ? makeDragon(run.rng, F, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, F) : then === "unique" ? makeUnique(run.rng, F, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(depth(run), run.rng) : rank === "boss" ? makeBoss(F, run.rng, run.seenBosses) : thief ? makeThief(run.rng, F) : makeMonster(run.rng, F, rank, defName);
+  let enemy = then === "nemesis" && run.nemesis ? makeNemesis(run.nemesis, F) : then === "death" ? makeDeath() : then === "dragon" ? makeDragon(run.rng, F, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, F) : then === "unique" ? makeUnique(run.rng, F, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(depth(run), run.rng) : rank === "boss" ? makeBoss(F, run.rng, run.seenBosses) : thief ? makeThief(run.rng, F) : makeMonster(run.rng, F, rank, defName);
+  // The Abyss holds fewer Unholy things (Undead, vampires, cursers): most of them are turned away for something else.
+  if (run.mode === "abyss" && !then && !crimsonBoss && rank !== "boss" && !thief)
+    for (let k = 0; k < 3 && isUnholy(enemy) && run.rng() < 0.65; k++) enemy = makeMonster(run.rng, F, rank, defName);
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
   }
   if (run.mode === "abyss") {
+    // The Abyss wears your Armor down: 10% less at every depth (to at most 60% less).
+    run.hero.f.persist["armorDecay"] = Math.min(60, 10 * (run.floor - 1));
     const g = ABYSS_BASE * Math.pow(ABYSS_GROWTH, run.floor - 1);
     enemy.maxHp = enemy.hp = Math.round(enemy.hp * g);
     enemy.damage = Math.round(enemy.damage * ABYSS_DMG_BASE * Math.pow(ABYSS_DMG_GROWTH, run.floor - 1));
@@ -496,6 +501,9 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
     if (uber || (run.floor >= 2 && roll(0.35))) enemy.items[pick] = 1;
     if (roll(uber ? 0.4 : run.floor >= 3 ? 0.2 : 0)) enemy.items["x_truestrike"] = 1;
     if (roll(uber ? 0.4 : run.floor >= 4 ? 0.12 : 0)) enemy.items["x_mirror"] = 1;
+    // Some bosses strip your blessings for a while, and some sour your healing.
+    if (roll(uber ? 0.45 : run.floor >= 2 ? 0.25 : 0)) enemy.items["x_dispelling"] = 1;
+    if (roll(uber ? 0.35 : run.floor >= 3 ? 0.15 : 0)) enemy.items[run.rng() < 0.5 ? "x_grievous" : "x_blighting"] = 1;
   }
   // Deeper foes wear more Armor, in every mode (bosses most of all). DEATH is its own thing.
   if (then !== "death") enemy.armor += Math.floor((F - 1) / 3) + (rank === "boss" ? Math.floor(F / 5) : 0);

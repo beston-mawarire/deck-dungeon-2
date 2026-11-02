@@ -1,6 +1,7 @@
 // Monsters: four families, Elite affixes, and the three floor bosses.
 import { PLAIN_FACES } from "../engine/combat";
-import type { FaceSpec, Fighter, HookDef, StatusId } from "../engine/types";
+import { POSITIVE_STATUSES, type FaceSpec, type Fighter, type HookDef, type StatusId } from "../engine/types";
+const POSITIVES = POSITIVE_STATUSES as readonly StatusId[];
 import { applyStatus, CRIT, GRAZE, heal, hex, HIT, log, MISS, other, parch, ping, spell } from "./helpers";
 
 const trait = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "trait", ...d });
@@ -78,14 +79,33 @@ export const TRAITS: HookDef[] = [
   immune("x_insulated", "Insulated", ["Storm"], ["shock", "static"]),
   immune("x_frostproof", "Frostproof", ["Frost"], ["chill", "soaked"]),
   immune("x_hexproof", "Hexproof", ["Hex"], ["weak", "exposed", "doom"]),
-  trait({ id: "x_truestrike", name: "True Strike", tags: ["Strike"], text: "Its attacks ignore Blind, Evade and Dodge", hooks: { onFightStart: (_b, f) => { f.statuses.truestrike = 1; } } }),
-  trait({ id: "x_mirror", name: "Causality Mirror", tags: ["Guard"], text: "The first hit it takes is reflected back at you in full, past Evade and Dodge. It can't be removed", hooks: { onFightStart: (_b, f) => { f.statuses.causality = 1; } } }),
+  trait({ id: "x_truestrike", name: "True Strike", tags: ["Strike"], text: "Its attacks ignore Blind, Dazzle, Evade and Dodge. Once that saves an attack, it recharges for 3 rounds",
+    hooks: { onFightStart: (_b, f) => { f.statuses.truestrike = 1; }, onRoundStart: (b, f) => {
+      if (f.flags["trueUsed"]) { f.flags["trueUsed"] = 0; f.flags["trueBack"] = b.round + 3; }
+      if (f.flags["trueBack"] && b.round >= f.flags["trueBack"]) { f.flags["trueBack"] = 0; f.statuses.truestrike = 1; }
+    } } }),
+  trait({ id: "x_mirror", name: "Causality Mirror", tags: ["Guard"], text: "The first hit it takes is reflected back at you in full, past Evade and Dodge. It reforms 4 rounds after it's used. It can't be removed",
+    hooks: { onFightStart: (_b, f) => { f.statuses.causality = 1; }, onRoundStart: (b, f) => { if (f.flags["mirrorBack"] && b.round >= f.flags["mirrorBack"]) { f.flags["mirrorBack"] = 0; f.statuses.causality = 1; } } } }),
+  trait({ id: "x_grievous", name: "Grievous", tags: ["Blood", "Hex"], text: "While you fight it, your healing is halved", hooks: {} }), // statuses.ts heal()
+  trait({ id: "x_blighting", name: "Blighting", tags: ["Hex"], text: "Its hits stop your healing until the end of the next round", hooks: { onHit: (b, c) => { if (c.dealt > 0 && c.defender === b.player) c.defender.flags["blighted"] = b.round + 1; } } }),
+  trait({ id: "x_punishing", name: "Punishing", tags: ["Strike"], text: "Deals +15% damage for each different positive status you have",
+    hooks: { modifyAttack: (b, c) => { if (c.defender !== b.player) return; const n = POSITIVES.filter(x => (c.defender.statuses[x] ?? 0) > 0).length; if (n) c.mult *= 1 + 0.15 * n; } } }),
+  trait({ id: "x_dispelling", name: "Dispelling", tags: ["Hex"], text: "Every 4th round it Dispels you: your positive statuses are stripped, and none can take hold for 2 rounds",
+    hooks: { onRoundStart: (b, f) => {
+      if (b.round % 4 !== 0) return;
+      const p = other(b, f);
+      const gone = POSITIVES.filter(x => (p.statuses[x] ?? 0) > 0);
+      for (const x of gone) p.statuses[x] = 0;
+      p.flags["dispelled"] = b.round + 1;
+      log(b, `🌑 ${f.name} Dispels you${gone.length ? `: ${gone.length} blessing${gone.length === 1 ? "" : "s"} stripped` : ""}. Nothing good can take hold for 2 rounds.`);
+      b.fx.push({ who: "player", kind: "text", text: "Dispelled", icon: "🌑" });
+    } } }),
   trait({ id: "x_regenerating", name: "Regenerating", tags: ["Blood"], text: "Heals 2 at the end of every round", hooks: { onRoundEnd: (b, f) => { heal(b, f, 2, "Regenerating"); } } }),
 ];
 
-export const ELITE_AFFIX_IDS = ["x_bulwark", "x_tormenting", "x_accursed", "x_parching", "x_smouldering", "x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying", "x_fireproof", "x_antitoxic", "x_bloodless", "x_insulated", "x_frostproof", "x_hexproof", "x_truestrike", "x_mirror"];
+export const ELITE_AFFIX_IDS = ["x_bulwark", "x_tormenting", "x_accursed", "x_parching", "x_smouldering", "x_blazing", "x_venomous", "x_armored", "x_vampiric", "x_swift", "x_spiteful", "x_warded", "x_regenerating", "x_concussive", "x_nullifying", "x_fireproof", "x_antitoxic", "x_bloodless", "x_insulated", "x_frostproof", "x_hexproof", "x_truestrike", "x_mirror", "x_grievous", "x_blighting", "x_punishing"];
 /** How often each affix rolls (Nullifying is rare). */
-export const AFFIX_WEIGHT: Record<string, number> = { x_fireproof: 0.5, x_antitoxic: 0.5, x_bloodless: 0.5, x_insulated: 0.5, x_frostproof: 0.5, x_hexproof: 0.4, x_truestrike: 0.6, x_mirror: 0.35, x_parching: 0.4, x_nullifying: 0.35, x_concussive: 0.8, x_smouldering: 0.6, x_accursed: 0.4, x_tormenting: 0.5 };
+export const AFFIX_WEIGHT: Record<string, number> = { x_grievous: 0.6, x_blighting: 0.5, x_punishing: 0.6, x_fireproof: 0.5, x_antitoxic: 0.5, x_bloodless: 0.5, x_insulated: 0.5, x_frostproof: 0.5, x_hexproof: 0.4, x_truestrike: 0.6, x_mirror: 0.35, x_parching: 0.4, x_nullifying: 0.35, x_concussive: 0.8, x_smouldering: 0.6, x_accursed: 0.4, x_tormenting: 0.5 };
 
 interface MonsterDef { name: string; family: string; hp: number; power: number; armor?: number; traits: string[]; faces?: FaceSpec[] }
 
@@ -96,7 +116,7 @@ export const MONSTERS: MonsterDef[] = [
   { name: "Boar", family: "Beast", hp: 14, power: 3, armor: 1, traits: [], faces: [GRAZE, HIT, HIT, HIT, HIT, spell("Gore", "crit", hex("bleed", 2))] },
   { name: "Giant Spider", family: "Beast", hp: 9, power: 2, traits: ["m_venom_bite"] },
   { name: "Skeleton", family: "Undead", hp: 11, power: 3, armor: 2, traits: ["m_brittle"] },
-  { name: "Ghoul", family: "Undead", hp: 13, power: 3, traits: ["m_rot_claws"] },
+  { name: "Ghoul", family: "Undead", hp: 13, power: 3, traits: ["m_rot_claws", "x_grievous"] },
   { name: "Vampire Spawn", family: "Undead", hp: 12, power: 3, traits: ["m_lifedrink"] },
   { name: "Wraith", family: "Undead", hp: 9, power: 3, traits: ["m_incorporeal", "m_grave_chill"] },
   { name: "Acolyte", family: "Cultist", hp: 10, power: 2, traits: [], faces: [MISS, spell("Cinder", "hit", hex("burn", 2)), HIT, spell("Cinder", "hit", hex("burn", 2)), HIT, CRIT] },
@@ -107,7 +127,10 @@ export const MONSTERS: MonsterDef[] = [
   { name: "Stone Golem", family: "Construct", hp: 18, power: 3, armor: 3, traits: [], faces: [MISS, MISS, HIT, HIT, HIT, spell("Crush", "crit", hex("stun", 1))] },
   { name: "Storm Wisp", family: "Construct", hp: 10, power: 3, traits: ["m_crackle", "m_incorporeal"] },
   { name: "Forge Golem", family: "Construct", hp: 17, power: 3, armor: 3, traits: ["m_forge"], faces: [MISS, HIT, HIT, HIT, HIT, spell("Hammerfall", "crit", hex("stun", 1))] },
-  { name: "Sentry", family: "Construct", hp: 12, power: 3, armor: 1, traits: ["m_static"] }
+  { name: "Sentry", family: "Construct", hp: 12, power: 3, armor: 1, traits: ["m_static"] },
+  { name: "Rot Leech", family: "Beast", hp: 11, power: 2, traits: ["x_grievous"], faces: [GRAZE, HIT, HIT, HIT, HIT, spell("Latch", "crit", hex("bleed", 2))] },
+  { name: "Blight Priest", family: "Cultist", hp: 11, power: 3, traits: ["x_blighting"] },
+  { name: "Gloomcaller", family: "Cultist", hp: 12, power: 3, traits: ["x_punishing"] }
 ];
 
 /** Elite- and Champion-only foes: they never turn up as ordinary monsters. Each one taxes every action you take. */

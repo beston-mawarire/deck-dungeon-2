@@ -68,7 +68,9 @@ export const isUnholy = (f: Fighter) =>
 
 /** How many times Smite can land per fight, and how hard (fraction of the enemy's Max HP). */
 const smiteLimit = (a: Fighter) => (stacksOf(a, "l_dawnbringer") > 0 ? 99 : 1 + stacksOf(a, "r_halo_retribution"));
-const smitePct = (a: Fighter) => (stacksOf(a, "r_halo_retribution") > 0 ? 0.3 : 0.2);
+const smitePct = (a: Fighter) => (stacksOf(a, "r_halo_retribution") > 0 ? 0.18 : 0.12);
+/** Holy weapons against Unholy foes (Undead, vampires, Crimson things, cursers): a real edge, not a wipe. */
+export const HOLY_VS_UNHOLY = 1.25;
 
 function trySmite(b: Battle, a: Fighter, d: Fighter) {
   if (!a.flags["smiteReady"] || d.hp <= 0 || !wieldsHoly(a) || (a.flags["smites"] ?? 0) >= smiteLimit(a)) return;
@@ -86,10 +88,10 @@ function purify(b: Battle, ctx: AttackCtx) {
   const { attacker: a, defender: d } = ctx;
   const removed = (NEGATIVE_STATUSES as readonly StatusId[]).filter(s => st(d, s) > 0);
   for (const s of removed) d.statuses[s] = 0;
-  const perStatus = (stacksOf(a, "l_font_absolution") > 0 ? 3 : 2) * (damageOf(a, ctx.offhand) + ctx.bonus) + [0, 1, 2, 3][Math.min(3, stacksOf(a, "t_absolution"))];
+  const perStatus = (stacksOf(a, "l_font_absolution") > 0 ? 2 : 1.4) * (damageOf(a, ctx.offhand) + ctx.bonus) + [0, 1, 2, 3][Math.min(3, stacksOf(a, "t_absolution"))];
   let raw = perStatus * removed.length * ctx.mult;
   if (st(a, "weak") > 0) raw *= 0.75;
-  if (wieldsHoly(a) && isUnholy(d)) raw *= 1.5;
+  if (wieldsHoly(a) && isUnholy(d)) raw *= HOLY_VS_UNHOLY;
   raw = Math.max(0, Math.round(raw));
   ctx.raw = raw;
   if (!removed.length) {
@@ -207,6 +209,9 @@ export function armorOf(f: Fighter): number {
   let a = f.armor;
   // Guarding doubles Armor (Fortress Heart: triples); "+Armor while Guarding" effects add on top.
   if (f.flags["guarding"]) a = a * (stacksOf(f, "r_fortress_heart") > 0 ? 3 : 2) + (f.flags["guardArmor"] ?? 0);
+  // The Abyss wears the hero's Armor down the deeper you go.
+  const decay = f.id === "player" ? f.persist["armorDecay"] ?? 0 : 0;
+  if (decay > 0) a = Math.floor(a * (1 - decay / 100));
   return Math.max(0, a);
 }
 
@@ -236,6 +241,7 @@ export function attack(b: Battle, a: Fighter, d: Fighter, offhand = false) {
 }
 
 export function resolveFace(b: Battle, a: Fighter, d: Fighter, face: number, offhand = false) {
+  a.flags["tsNow"] = 0; // True Strike, once spent on this attack, covers all of it
   const prev = b.rollFrom;
   b.rollFrom = a.id;
   try { resolveRolledFace(b, a, d, face, offhand); } finally { b.rollFrom = prev; }
@@ -254,13 +260,13 @@ function resolveRolledFace(b: Battle, a: Fighter, d: Fighter, face: number, offh
     p["bestMissStreak"] = Math.max(p["bestMissStreak"] ?? 0, p["streakMiss"]);
     p["bestCritStreak"] = Math.max(p["bestCritStreak"] ?? 0, p["streakCrit"]);
   }
-  if (st(a, "dazzled") > 0 && !a.flags["counterHit"]) {
+  if (st(a, "dazzled") > 0 && !a.flags["counterHit"] && !useTrueStrike(a)) {
     log(b, `${a.name} is Dazzled and misses.`);
     fx(b, { who: d.id, kind: "miss", text: "Dazzled — miss" });
     breakStreak(b, a);
     return;
   }
-  if (st(a, "blind") > 0 && face <= 2 && !(st(a, "truestrike") > 0)) {
+  if (st(a, "blind") > 0 && face <= 2 && !useTrueStrike(a)) {
     log(b, `${a.name} is Blind and misses.`);
     fx(b, { who: d.id, kind: "miss", text: "Blind — miss" });
     breakStreak(b, a);
@@ -321,11 +327,11 @@ function strike(b: Battle, ctx: AttackCtx) {
   if (ctx.spec.cleanse) return purify(b, ctx);
   let raw = (damageOf(a, ctx.offhand) + ctx.bonus) * ctx.mult;
   if (st(a, "weak") > 0) raw *= 0.75;
-  if (wieldsHoly(a) && isUnholy(d)) raw *= 1.5;
+  if (wieldsHoly(a) && isUnholy(d)) raw *= HOLY_VS_UNHOLY;
   // Consecrated: Holy weapons hit 30% harder against a Consecrated foe, and 30% harder while you're Consecrated.
   if (wieldsHoly(a)) {
-    if (st(d, "consecrated") > 0) raw *= 1.3;
-    if (st(a, "consecrated") > 0) raw *= 1.3;
+    if (st(d, "consecrated") > 0) raw *= 1.2;
+    if (st(a, "consecrated") > 0) raw *= 1.2;
   }
   if (st(d, "exposed") > 0) raw += 2;
   // Overpower (reaction): you have Might and the enemy is Weak — +2 per Might, and it shakes off 1 Weak.
@@ -412,6 +418,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   // Causality Mirror: the first hit it takes comes straight back at the attacker, in full. Evade and Dodge can't stop it.
   if (st(d, "causality") > 0 && raw > 0) {
     d.statuses.causality = 0;
+    d.flags["mirrorBack"] = b.round + MIRROR_RECHARGE;
     log(b, `🪞 Causality Mirror! ${a.name}'s blow comes back at them: ${raw}.`);
     fx(b, { who: d.id, kind: "block", text: "Reflected", icon: "🪞" });
     loseHp(b, a, raw);
@@ -419,9 +426,8 @@ function strike(b: Battle, ctx: AttackCtx) {
     breakStreak(b, a);
     return afterStrike(b, ctx);
   }
-  // True Strike: nothing can make its attacks miss.
-  const sure = st(a, "truestrike") > 0;
-  if (st(d, "evade") > 0 && !sure) {
+  // True Strike: nothing can make its attacks miss (it's spent when it matters, and recharges).
+  if (st(d, "evade") > 0 && !useTrueStrike(a)) {
     d.statuses.evade = st(d, "evade") - 1;
     log(b, `${d.name} evades!`);
     fx(b, { who: d.id, kind: "miss", text: "Evaded" });
@@ -431,7 +437,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   // Dodge (a % chance; Countering adds 20%). It's not Evade: Evade bonuses don't fire, Dodge ones do.
   const countering = d.flags["counter"] === b.round;
   const dodgeChance = Math.min(DODGE_CAP, (d.dodge ?? 0) + (countering ? 20 : 0));
-  if (dodgeChance > 0 && !sure && b.rng() * 100 < dodgeChance) {
+  if (dodgeChance > 0 && b.rng() * 100 < dodgeChance && !useTrueStrike(a)) {
     log(b, `${d.name} dodges!`);
     fx(b, { who: d.id, kind: "miss", text: "Dodged" });
     breakStreak(b, a);
@@ -623,6 +629,18 @@ function tryRewind(b: Battle): boolean {
   return true;
 }
 
+/** True Strike, when it saves an attack from missing: spend it (it comes back a few rounds later). */
+export const TRUESTRIKE_RECHARGE = 3;
+export const MIRROR_RECHARGE = 4;
+function useTrueStrike(a: Fighter): boolean {
+  if (a.flags["tsNow"]) return true;
+  if (!(st(a, "truestrike") > 0)) return false;
+  a.flags["tsNow"] = 1;
+  a.statuses.truestrike = 0;
+  a.flags["trueUsed"] = 1;
+  return true;
+}
+
 function checkOver(b: Battle) {
   if (b.over) return true;
   if (b.player.hp <= 0 && tryRewind(b)) return true;
@@ -634,12 +652,13 @@ function checkOver(b: Battle) {
     fx(b, { who: "player", kind: "text", text: "Reborn!", icon: "🔥" });
     applyStatus(b, b.player, b.enemy, "burn", 15);
   }
-  if (b.enemy.hp <= 0) {
-    b.over = "won";
-    log(b, `${b.enemy.name} is defeated!`);
-  } else if (b.player.hp <= 0) {
+  // At 0 HP you're down, even if the enemy falls in the same moment: no healing or life steal from there.
+  if (b.player.hp <= 0) {
     b.over = "lost";
     log(b, `${b.player.name} falls.`);
+  } else if (b.enemy.hp <= 0) {
+    b.over = "won";
+    log(b, `${b.enemy.name} is defeated!`);
   }
   if (b.over) for (const f of [b.player, b.enemy]) eachHook(f, "onFightEnd", (h, s) => h(b, f, s));
   return !!b.over;

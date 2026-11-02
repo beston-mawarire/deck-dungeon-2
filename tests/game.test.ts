@@ -7,7 +7,7 @@ import { EVENTS } from "../src/data/events";
 import { beginRound, blessingMult, endRound, enemyPhase, heroPhase, isUnholy, playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
-import { applyStatus, endOfRound, st } from "../src/engine/statuses";
+import { applyStatus, endOfRound, heal, st } from "../src/engine/statuses";
 import { TAGS } from "../src/engine/types";
 import { baseOf, equipItem, itemName, newHero, recompute, reveal, salvage, slotsFor, weaponDamage } from "../src/game/hero";
 import { resetDropped, resplendentCards, rollItem, setGenEnabled } from "../src/game/loot";
@@ -112,8 +112,8 @@ describe("origins and gear", () => {
     const h = newHero("mage");
     const b = startBattle(h.f, dummy(), 1);
     resolveFace(b, h.f, b.enemy, 2, false);
-    // Fire Bolt 3 (+1 Arcane Spark, +1 Cloth Robes) and Ember Charm 2 (+1 Cloth Robes)
-    expect(st(b.enemy, "burn")).toBe(8);
+    // Fire Bolt 3 (+1 Arcane Spark, +1 Cloth Robes) and Ember Charm 2 (+1 Cloth Robes), each landing 20% lighter on a foe
+    expect(st(b.enemy, "burn")).toBe(7);
   });
 
   it("a two-handed weapon empties the off-hand into the backpack", () => {
@@ -181,7 +181,7 @@ describe("statuses and reactions still work", () => {
     const b = startBattle(h.f, dummy(100), 1);
     applyStatus(b, h.f, b.enemy, "poison", 4);
     applyStatus(b, h.f, b.enemy, "burn", 3);
-    expect(b.enemy.hp).toBe(93);
+    expect(b.enemy.hp).toBe(96); // the hero's statuses land 20% lighter, and reactions hit 30% softer
   });
 
   it("Bleed ticks", () => {
@@ -189,7 +189,7 @@ describe("statuses and reactions still work", () => {
     const b = startBattle(h.f, dummy(100), 1);
     applyStatus(b, h.f, b.enemy, "bleed", 3);
     endOfRound(b, b.enemy);
-    expect(b.enemy.hp).toBe(97);
+    expect(b.enemy.hp).toBe(98);
   });
 });
 
@@ -404,7 +404,7 @@ describe("relic rarity by depth and legendary relics", () => {
     applyStatus(b, h.f, b.enemy, "poison", 4);
     applyStatus(b, h.f, b.enemy, "burn", 3);
     expect(b.log.some(l => l.includes("Combustion"))).toBe(true);
-    expect(st(b.enemy, "poison")).toBeGreaterThanOrEqual(3);
+    expect(st(b.enemy, "poison")).toBeGreaterThanOrEqual(2);
     expect(st(b.enemy, "burn")).toBeGreaterThanOrEqual(3);
   });
 });
@@ -486,7 +486,7 @@ describe("holy", () => {
     const before = e.hp;
     resolveFace(b, h.f, e, 3); // a plain Purify (hit)
     expect(st(e, "weak") + st(e, "exposed") + st(e, "chill")).toBe(0);
-    expect(before - e.hp).toBe(2 * h.f.damage * 3);
+    expect(before - e.hp).toBe(Math.round(1.4 * h.f.damage * 3));
   });
 
   it("Ward blocking an enemy status readies a Smite for 20% of Max HP, once per fight", () => {
@@ -502,7 +502,7 @@ describe("holy", () => {
     expect(st(h.f, "poison")).toBe(0);
     expect(h.f.flags["smiteReady"]).toBe(1);
     resolveFace(b, h.f, e, 3);
-    expect(200 - e.hp).toBe(h.f.damage + 40);
+    expect(200 - e.hp).toBe(h.f.damage + 24); // Smite: 12% of Max HP
     // Once per fight.
     h.f.statuses.ward = 1;
     applyStatus(b, e, h.f, "poison", 3);
@@ -517,7 +517,7 @@ describe("holy", () => {
     const z = mk("Undead"), w = mk("Beast");
     const b1 = startBattle(h.f, z, 7); resolveFace(b1, h.f, z, 3);
     const b2 = startBattle(h.f, w, 7); resolveFace(b2, h.f, w, 3);
-    expect(300 - z.hp).toBe(Math.round(1.5 * (300 - w.hp)));
+    expect(300 - z.hp).toBe(Math.round(1.25 * (300 - w.hp)));
   });
 });
 
@@ -541,7 +541,7 @@ describe("static and lightning", () => {
 
   it("Static caps at 10 and ticks once per action for 2 (4 on Constructs)", () => {
     const h = newHero("mage");
-    for (const [fam, per] of [["Beast", 2], ["Construct", 4]] as const) {
+    for (const [fam, per] of [["Beast", 2], ["Construct", 3]] as const) { // (the hero's status damage ticks 20% softer)
       const e = foe(fam);
       const b = startBattle(h.f, e, 8);
       applyStatus(b, h.f, e, "static", 15);
@@ -562,7 +562,7 @@ describe("static and lightning", () => {
     const hp = e.hp;
     applyStatus(b, h.f, e, "shock", 1);
     expect(st(e, "static")).toBe(0);
-    expect(hp - e.hp).toBe(18);
+    expect(hp - e.hp).toBe(13);
     expect(h.f.persist["rx:foe:conduction"]).toBe(1);
   });
 
@@ -601,7 +601,7 @@ describe("smouldering", () => {
     h.f.statuses = {};
     applyStatus(b, h.f, e, "smoulder", 2);
     endOfRound(b, e);
-    expect(st(e, "burn")).toBe(4);
+    expect(st(e, "burn")).toBe(3);
     expect(st(h.f, "burn")).toBe(1);
     expect(st(e, "smoulder")).toBe(1);
   });
@@ -624,7 +624,7 @@ describe("smouldering", () => {
     h.f.statuses = {};
     applyStatus(b, h.f, h.f, "smoulder_soul", 3);
     playRound(b, "guard");
-    expect(500 - e.hp).toBeGreaterThanOrEqual(5); // 5 Burn landed and ticked on its turn
+    expect(500 - e.hp).toBeGreaterThanOrEqual(3); // the Burn landed and ticked on its turn
     expect(st(h.f, "smoulder_soul")).toBe(2);
   });
 
@@ -847,8 +847,8 @@ describe("class actions and new stats", () => {
     equipItem(robed, { uid: 901, base: "rb_hexweave", rarity: "uncommon", level: 1, bonuses: {}, revealed: true });
     expect(robed.f.dotAmp).toBe(15);
     const hurt = (h: ReturnType<typeof newHero>) => { const b = startBattle(h.f, dummy(), 9); b.enemy.statuses.burn = 20; const hp = b.enemy.hp; enemyPhase(b); return hp - b.enemy.hp; };
-    expect(hurt(robed)).toBe(23);
-    expect(hurt(plain)).toBe(20);
+    expect(hurt(robed)).toBe(17);
+    expect(hurt(plain)).toBe(16);
   });
 
   it("Fracture does nothing until 3 stacks, then shatters for 4 per stack", () => {
@@ -858,7 +858,7 @@ describe("class actions and new stats", () => {
     applyStatus(b, h.f, b.enemy, "fracture", 2);
     expect(b.enemy.hp).toBe(hp);
     applyStatus(b, h.f, b.enemy, "fracture", 1);
-    expect(hp - b.enemy.hp).toBe(12);
+    expect(hp - b.enemy.hp).toBe(8);
     expect(st(b.enemy, "fracture")).toBe(0);
   });
 
@@ -1004,7 +1004,7 @@ describe("class actions and new stats", () => {
     const b = startBattle(m.f, dummy(), 51);
     resolveFace(b, b.player, b.enemy, 2, false);
     // Fire Bolt 3 (+1 Arcane Spark, +1 Cloth Robes) and the Ember Charm's 2 Burn (+1 robes) twice
-    expect(st(b.enemy, "burn")).toBe(5 + 3 + 3);
+    expect(st(b.enemy, "burn")).toBe(4 + 3 + 3);
     const h = newHero("warrior");
     equipItem(h, { uid: 961, base: "ep_swelling_heart", rarity: "epic", level: 1, bonuses: {}, revealed: true });
     const max = h.f.maxHp;
@@ -1144,9 +1144,9 @@ describe("class actions and new stats", () => {
     const b2 = startBattle(g.f, dummy(), 95);
     g.f.statuses.ward = 0;
     applyStatus(b2, b2.enemy, g.f, "bleed", 2);
-    expect(st(g.f, "barrier")).toBe(2);
+    expect(st(g.f, "barrier")).toBe(1);
     applyStatus(b2, b2.enemy, g.f, "weak", 1);
-    expect(st(g.f, "barrier")).toBe(2 + 3); // Barrier the hero gains is 25% weaker
+    expect(st(g.f, "barrier")).toBe(1 + 3); // Barrier the hero gains is 35% weaker
   });
 
   it("new curses: Destitute locks Gold, Unhealing stops healing, Frostbound starts fights Chilled", () => {
@@ -1263,7 +1263,7 @@ describe("class actions and new stats", () => {
     beginRound(b);
     e.statuses.bleed = 4;
     endRound(b);
-    expect(1000 - e.hp).toBe(8);
+    expect(1000 - e.hp).toBe(6);
     expect(st(e, "bleed")).toBe(4);
   });
 
@@ -1466,12 +1466,12 @@ describe("class actions and new stats", () => {
     const h = newHero("warrior");
     const e = foe();
     const b = startBattle(h.f, e, 55);
-    applyStatus(b, h.f, e, "chill", 5);
+    applyStatus(b, h.f, e, "chill", 6); // (lands as 5)
     const hp = e.hp;
     applyStatus(b, h.f, e, "chill", 1);
     expect(st(e, "chill")).toBe(0);
-    expect(hp - e.hp).toBeGreaterThanOrEqual(18);
-    applyStatus(b, h.f, e, "bleed", 10);
+    expect(hp - e.hp).toBeGreaterThanOrEqual(12);
+    applyStatus(b, h.f, e, "bleed", 13); // (lands as 10)
     expect(st(e, "bleed")).toBe(0);
   });
 
@@ -1680,11 +1680,38 @@ describe("enemy defences", () => {
     const b2 = startBattle(newHero("rogue").f, e2, 8);
     b2.player.statuses = { evade: 5 }; b2.player.dodge = 60;
     const hp2 = b2.player.hp;
-    for (let i = 0; i < 4; i++) resolveFace(b2, b2.enemy, b2.player, 4);
+    resolveFace(b2, b2.enemy, b2.player, 4);
     expect(b2.player.hp).toBeLessThan(hp2);
     expect(st(b2.player, "evade")).toBe(5);
+    expect(st(b2.enemy, "truestrike")).toBe(0); // spent: it recharges a few rounds later
+    resolveFace(b2, b2.enemy, b2.player, 4);
+    expect(st(b2.player, "evade")).toBe(4);
     applyStatus(b2, b2.player, b2.enemy, "burn", 5);
     expect(st(b2.enemy, "burn")).toBe(0);
+  });
+});
+
+describe("healing limits and new foes", () => {
+  it("no healing at 0 HP, Regen caps at 10, Grievous halves healing, Blighting stops it, Dispelling strips blessings", () => {
+    const h = newHero("warrior");
+    const b = startBattle(h.f, dummy(500), 21);
+    b.player.statuses = {};
+    applyStatus(b, b.player, b.player, "regen", 40);
+    expect(st(b.player, "regen")).toBe(10);
+    b.player.hp = 0;
+    expect(heal(b, b.player, 10)).toBe(0);
+    b.player.hp = 10;
+    b.enemy.items = { x_grievous: 1 };
+    expect(heal(b, b.player, 10)).toBe(5);
+    b.enemy.items = {}; b.round = 3; b.player.flags["blighted"] = 4;
+    expect(heal(b, b.player, 10)).toBe(0);
+    const e = dummy(500); e.items = { x_dispelling: 1 };
+    const b2 = startBattle(newHero("rogue").f, e, 22);
+    b2.player.statuses = { might: 3, haste: 1 };
+    for (let r = 0; r < 4; r++) beginRound(b2);
+    expect(st(b2.player, "might")).toBe(0);
+    applyStatus(b2, b2.player, b2.player, "might", 2);
+    expect(st(b2.player, "might")).toBe(0);
   });
 });
 

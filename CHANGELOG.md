@@ -5,6 +5,15 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.38.0
+- True Strike also ignores Dazzle. True Strike and the Causality Mirror now recharge: once used, they come back a few rounds later.
+- Statuses and reactions are weaker across the board: Burn, Poison, Bleed, Chill, Static, Soaked, Smoulder and Fracture you put on foes land 20% lighter and tick 20% softer; reactions you cause hit 30% softer; and every bonus to reactions or status damage counts half.
+- Regen you gain is a quarter weaker and stacks to at most 10. Barrier you gain is weaker still, and yours holds at most 35% of your Max HP.
+- At 0 HP you're down, even if the enemy falls in the same moment: no healing, Regen or life steal from there.
+- Holy is toned down against Unholy foes: +25% damage (was +50%), Smite takes 12% of Max HP (was 20%), Purify deals 1.4× Damage per status (was 2×), and Consecration adds 20% (was 30%).
+- New foes and traits: Dispelling bosses strip your positive statuses and block new ones for 2 rounds; Punishing foes hit harder for every blessing you carry; Grievous foes halve your healing; Blighting hits stop it for a round. New monsters: Rot Leech, Blight Priest, Gloomcaller; Ghouls are Grievous too.
+- The Abyss: fewer Unholy foes, your Armor wears down 10% at every depth (up to 60%), and every depth scales much harder.
+
 ## 1.37.0
 - Barrier you gain is a quarter weaker, and yours holds at most 40% of your Max HP. Your Haste now caps at 3 stacks.
 - Foes wear more Armor the deeper you go, in every mode (bosses most of all). From Campaign floor 15, every floor scales harder; Abyss depths scale harder still.
