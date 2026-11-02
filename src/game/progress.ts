@@ -125,7 +125,7 @@ export const HEAT_LEVELS = [
   { level: 2, name: "Lean pickings", text: "Shop prices are 30% higher, and you get half as much Gold from everything" },
   { level: 3, name: "Dim fires", text: "All healing is halved: potions, Campfires, heals after fights, items and relics" },
   { level: 4, name: "Hungry dark", text: "No heal after winning a fight" },
-  { level: 5, name: "Elite swarm", text: "Elites and Champions turn up twice as often, and every enemy hits 20% harder" }
+  { level: 5, name: "Elite swarm", text: "Elites and Champions turn up twice as often (sometimes in place of the plain monster fight), and every enemy hits 20% harder" }
 ];
 export const HEAT_MAX = 5;
 export const HEAT_RENOWN = 0.2;

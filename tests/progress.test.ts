@@ -122,4 +122,18 @@ describe("mastery, kits, heat, Abyss twists, achievements", () => {
     d.hero.f.hp = 1; restore(d.hero, 20);
     expect(d.hero.f.hp).toBe(11);
   });
+
+  it("Heat 5 sometimes swaps the plain fight for an Elite or Champion", async () => {
+    const { genChoices } = await import("../src/game/run");
+    const r = newRun("rogue", 61);
+    r.step = 2;
+    let plain = 0;
+    for (let i = 0; i < 300; i++) if (genChoices(r).includes("fight")) plain++;
+    expect(plain).toBe(300);
+    r.heat = 5;
+    plain = 0;
+    for (let i = 0; i < 300; i++) if (genChoices(r).includes("fight")) plain++;
+    expect(plain).toBeLessThan(270);
+    expect(plain).toBeGreaterThan(120);
+  });
 });

@@ -278,6 +278,12 @@ export function genChoices(run: Run): RoomType[] {
   const out = new Set<RoomType>();
   out.add("fight");
   while (out.size < 3) out.add(pickW(run.rng, w));
+  // Heat 5: the plain monster fight is sometimes swapped for an Elite or a Champion (not on a floor's first step).
+  if (heatOf(run) >= 5 && run.step > 0 && out.has("fight")) {
+    const x = run.rng();
+    const swap: RoomType | null = x < 0.1 ? "champion" : x < 0.4 ? "elite" : null;
+    if (swap && !out.has(swap)) { out.delete("fight"); out.add(swap); }
+  }
   const rooms = [...out].sort(() => run.rng() - 0.5);
   // The Forge and the Jeweller take turns: every other time a forge would be offered, it's the Jeweller instead.
   const fi = rooms.indexOf("forge");

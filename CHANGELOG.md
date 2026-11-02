@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.25.3
+- Heat 5: the plain monster fight on the map is sometimes replaced by an Elite (about 30%) or a Champion (about 10%), from each floor's second step on.
+
 ## 1.25.2
 - Heat 2 now halves all Gold you gain (was a quarter less).
 - Heat 3 ("Dim fires") now halves all healing: potions, Campfires, heals after fights, items and relics.
