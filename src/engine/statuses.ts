@@ -112,7 +112,7 @@ export function loseHp(b: Battle, f: Fighter, amount: number): number {
     amount -= used;
   }
   f.hp -= amount;
-  if (amount > 0) f.flags["hurt"] = 1; // (Bounty Board: "win without losing HP")
+  if (amount > 0) { f.flags["hurt"] = 1; f.flags["hits"] = (f.flags["hits"] ?? 0) + 1; } // (Bounty Board: "win without losing HP"; achievements)
   // Leaderboards: damage you deal over the whole run, and your single biggest hit.
   if (amount > 0 && f.id === "enemy") {
     const p = b.player.persist;

@@ -62,4 +62,20 @@ describe("mastery, kits, heat, Abyss twists, achievements", () => {
     expect(recordRun(m, again).achievements).not.toContain("first_boss");
     expect(m.renown).toBeLessThan(renown + 20);
   });
+
+  it("the newer achievements: streaks, gear sets, class challenges, gold", () => {
+    const m: Meta = { renown: 0, runs: 0, wins: 0, bestFloor: 0, found: [] };
+    const run = newRun("warrior", 21);
+    const p = run.hero.f.persist;
+    p["bestCritStreak"] = 6; p["bestMissStreak"] = 3; p["ach_low_hp_win"] = 1; run.hero.f.gold = 2500;
+    run.floor = 6; run.scene = { t: "over", won: true };
+    const got = recordRun(m, run).achievements;
+    for (const id of ["crit3", "crit6", "miss3", "low_hp_win", "gold2k", "warrior_noguard", "common_win", "campaign_win"]) expect(got, id).toContain(id);
+    expect(got).not.toContain("gold10k");
+    // Guarding even once spoils the Warrior challenge.
+    const m2: Meta = { renown: 0, runs: 0, wins: 0, bestFloor: 0, found: [] };
+    const r2 = newRun("warrior", 22);
+    r2.hero.f.persist["act_guard"] = 1; r2.floor = 6; r2.scene = { t: "over", won: true };
+    expect(recordRun(m2, r2).achievements).not.toContain("warrior_noguard");
+  });
 });

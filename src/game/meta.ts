@@ -1,6 +1,6 @@
 // Between runs: Renown (earned from every run), unlock tiers that add items to the loot pools,
 // and the Codex of everything you've found. Stored in the browser (localStorage), per player.
-import type { Run } from "./run";
+import { trackMarks, type Run } from "./run";
 import { EQUIP_SLOTS, itemName } from "./hero";
 import { ACHIEVEMENTS, heatOf, HEAT_RENOWN, type Kit, masteryFor, masteryLevel, MASTERY_MAX } from "./progress";
 
@@ -169,10 +169,11 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
   const lv = masteryLevel(m.mastery[o] ?? 0);
   if (run.scene.t === "over" && run.scene.won && run.mode === "campaign" && !alreadyEarned) m.winsBy = { ...(m.winsBy ?? {}), [o]: (m.winsBy?.[o] ?? 0) + 1 };
   // Achievements: each once, with a Renown bonus.
+  trackMarks(run);
   const got: string[] = [];
   for (const a of ACHIEVEMENTS) {
     if (m.achievements?.includes(a.id)) continue;
-    const ok = a.id === "mastery10" ? lv >= MASTERY_MAX : a.check(run, { wins: m.wins, winsBy: m.winsBy as Record<string, number> });
+    const ok = a.id === "mastery10" ? lv >= MASTERY_MAX : a.id === "mastery_all" ? ["warrior", "rogue", "mage", "cleric"].every(c => masteryLevel(m.mastery?.[c] ?? 0) >= MASTERY_MAX) : a.check(run, { wins: m.wins, winsBy: m.winsBy as Record<string, number> });
     if (!ok) continue;
     m.achievements = [...(m.achievements ?? []), a.id];
     m.renown += a.renown;

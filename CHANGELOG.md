@@ -5,6 +5,12 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.23.0
+- **Merchant**: buys as much as you like now. New "Sell all Commons" / "Commons + Uncommons" buttons; selling something you're wearing takes a second tap.
+- **Campaign tab redesigned**: a short header with a Story button, the four classes as a compact 2×2 grid (with their mastery level), and an "Also waiting" list for the Daily Dungeon, your Nemesis and Heat. The Abyss tab uses the same layout.
+- **Heat** moved into the class popup, and each level now also makes Rare-and-better finds slightly more likely.
+- **30 new achievements** (52 in all), including: win a fight under 10% HP; wear only Legendaries / Epics / Rares; win the Campaign with a Common equipped or an empty slot; hold 2,000 / 10,000 Gold; mastery 10 with every class; beat a dragon; get a blessing; die to one hit; die without hurting the enemy; die to the floor 1 boss; 3 misses / 3 Crits / 6 Crits in a row; scrap or sell a Legendary; sell everything you wear; combine, infuse, transmute, fuse; and a no-class-move Campaign win for each class (no Guard, no Elemental Barrier, no Counter, no Penance). The Achievements list has To earn / Earned tabs.
+
 ## 1.22.0
 - **Class Mastery**: each class earns mastery from floors reached and bosses beaten (10 levels). From mastery 2 you can choose its starting weapon, off-hand and armour from the Commons; from mastery 6, from the Uncommons too. Shown in each class's popup.
 - **14 new Common items** (Woodsman's Hatchet, Boar Spear, Butcher's Knife, Chain Flail, Cracked Wand, Pilgrim's Cane, Pot Lid, Smoke Stick, Prayer Card, Scrap Mail, Fur Cloak, Rough Robe, Rabbit's Foot, Whetstone), in the loot pool and as kit choices.

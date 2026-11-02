@@ -21,7 +21,7 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, chooseRelic, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  abandonRun, smithUpgrade, runSummary, trackGold, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
+  abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { PLATE_BONUS, potionCap, potionsPerFight } from "../game/hero";
@@ -61,6 +61,7 @@ let restoreOpen = false;
 let infoOpen = false;
 let historyOpen = false;
 let achOpen = false;
+let achTab: "todo" | "earned" = "todo";
 /** Starting the Daily Dungeon over a saved run takes a second tap. */
 let dailyArmed = false;
 let restoreMsg = "";
@@ -88,6 +89,17 @@ let talentSub: "talents" | "curses" = "talents";
 let spoilsSub: "relics" | "artefacts" = "relics";
 let gearSub: "equipped" | "backpack" = "equipped";
 let statsSub: "attributes" | "statuses" = "attributes";
+/** Selling worn gear, and bulk selling, take a second tap. */
+let sellArmed: number | null = null;
+let bulkSellArmed: "common" | "uncommon" | null = null;
+function bulkSellRow(r: Run) {
+  const h = r.hero;
+  const c = bulkScrapList(h, "common"), u = bulkScrapList(h, "uncommon");
+  if (!c.length && !u.length) return "";
+  const total = (l: GearItem[]) => l.reduce((a, it) => a + sellPrice(it, h), 0);
+  const btn = (k: "common" | "uncommon", l: GearItem[], label: string) => l.length ? `<button class="small ${bulkSellArmed === k ? "danger" : ""}" data-bulksell="${k}">${bulkSellArmed === k ? `Tap again: sell ${l.length} for ${total(l)} 🪙` : label}</button>` : "";
+  return `<div class="row bulk-row">${btn("common", c, `🪙 Sell all Commons (${c.length})`)}${u.length > c.length ? btn("uncommon", u, `🪙 Commons + Uncommons (${u.length})`) : ""}</div>`;
+}
 /** Bulk scrap takes a second tap: which rarity is armed. */
 let bulkArmed: "common" | "uncommon" | null = null;
 /** Items in the bag a bulk scrap would take: up to that rarity, never hidden Legendaries. */
@@ -310,13 +322,16 @@ function titleScreen() {
   const tabs = `<div class="menu-tabs" role="tablist">
     <button class="menu-tab ${menuTab === "campaign" ? "active" : ""}" data-menutab="campaign" role="tab">🏰 Campaign</button>
     <button class="menu-tab abyss ${menuTab === "abyss" ? "active" : ""}" data-menutab="abyss" role="tab">${abyssUnlocked(meta) ? "🕳️" : "🔒"} Abyss Run</button></div>`;
-  const originCards = (abyss: boolean) => `<div class="cards origin-cards">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
+  const originCards = (abyss: boolean) => `<div class="origin-grid">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
     const og = ORIGINS[o];
-    const p = getItem(og.passive);
     const pl = meta.classPlates?.[o] ?? 0;
-    return `<button class="room origin-card ${abyss ? "abyss-card" : ""}" data-origin="${o}"><span class="ic">${ORIGIN_ICON[o]}</span><b>${og.name}</b>
-      ${abyss ? `<span class="plate-line">⬛ ${pl} Vanadium Plate${pl === 1 ? "" : "s"}${pl ? ` · +${Math.round(PLATE_BONUS * pl * 100)}% HP, Armor, Damage` : ""}</span>` : ""}
-      <span class="sub">${esc(og.blurb)}</span><p>${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p><p><b style="display:inline">${esc(p.name)}:</b> ${esc(p.text)}.</p></button>`;
+    const lv = masteryLevel(meta.mastery?.[o] ?? 0);
+    return `<button class="room origin-card compact ${abyss ? "abyss-card" : ""}" data-origin="${o}">
+      <span class="oc-top"><span class="ic">${ORIGIN_ICON[o]}</span><span class="oc-lv" title="Class Mastery">⭐${lv}</span></span>
+      <b>${og.name}</b>
+      <span class="sub">${esc(og.blurb)}</span>
+      ${abyss ? `<span class="plate-line">⬛ ${pl} plate${pl === 1 ? "" : "s"}</span>` : ""}
+    </button>`;
   }).join("")}</div>`;
   const infoRow = `<div class="menu-btns two info-row"><button class="info-btn" data-info>ℹ️ Info</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>`;
   const head = `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>`;
@@ -324,8 +339,10 @@ function titleScreen() {
     const shards = meta.ruinShards ?? 0;
     const body = !abyssUnlocked(meta)
       ? `<div class="panel abyss-locked"><p class="big">🔒 The Abyss is sealed.</p><p>Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find the way down.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p></div>`
-      : `<div class="panel abyss-intro"><p><b>Ten depths.</b> Every fight is a rank tougher than it looks from above: monsters are Elites, Elites are Champions, Champions are bosses, and every floor ends with an Uber boss. The loot is far richer, and richest from the deadliest foes.</p>
-          <div class="story-row"><span>Each run costs one Ruin Shard.</span><button class="story-btn" data-story="abyss">📖 Click to read story</button></div></div>
+      : `<div class="campaign-hero abyss-hero">
+          <div class="ch-text"><b>🕳️ The Abyss</b><span>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. The richest loot comes from the deadliest. Each run costs one Ruin Shard.</span></div>
+          <button class="story-btn small" data-story="abyss">📖 Story</button>
+        </div>
         <div class="abyss-stock">
           <div class="stile extra-tile shard-tile"><span>🪨</span><span><b>${shards}</b> Ruin Shard${shards === 1 ? "" : "s"}<span class="sub">From Campaign bosses, floor 20 and deeper.</span></span></div>
           <div class="stile extra-tile plate-tile"><span>⬛</span><span><b>${meta.plates ?? 0}</b> Vanadium Plate${(meta.plates ?? 0) === 1 ? "" : "s"} to give<span class="sub">Rare drops from the same bosses.</span></span></div>
@@ -339,44 +356,38 @@ function titleScreen() {
         ${backupPanel()}`;
     return `${head}${tabs}${infoRow}${cont}${body}<p class="version">${VERSION}</p>`;
   }
+  const today = utcDay();
+  const d = dailyFor(today);
+  const dailyDone = meta.daily?.day === today ? meta.daily : undefined;
   return `${head}${tabs}${infoRow}
   ${cont}
-  <div class="story-row"><span>🏰 ${FLOORS} floors, ${FLOORS} bosses. The Hollow King waits at the bottom, and beyond him, deeper still.</span><button class="story-btn" data-story="campaign">📖 Click to read story</button></div>
-  ${dailyPanel()}
-  ${heatPanel()}
-  ${meta.nemesis ? `<div class="panel nemesis-panel">😈 <b>Your Nemesis:</b> ${esc(meta.nemesis.name)}${meta.nemesis.level > 1 ? ` <span class="sub">(beaten you ${meta.nemesis.level}×)</span>` : ""}<br><span class="sub">It waits somewhere in your next Campaign run, from floor 2. There's a bounty on its head.</span></div>` : ""}
+  <div class="campaign-hero">
+    <div class="ch-text"><b>🏰 The Campaign</b><span>${FLOORS} floors, ${FLOORS} bosses. The Hollow King waits at the bottom — and beyond him, deeper still.</span></div>
+    <button class="story-btn small" data-story="campaign">📖 Story</button>
+  </div>
   <h2 class="bright">Choose an origin</h2>
   <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
   ${originCards(false)}
+  <h3 class="mini-head">Also waiting</h3>
+  <div class="mini-rows">
+    <div class="mini-row daily-row"><span class="mr-ic">📅</span><span class="grow"><b>Daily Dungeon</b><span class="sub">${dailyDone ? `${dailyDone.done ? `Done today: floor ${dailyDone.floor}${dailyDone.won ? " · won" : ""}` : "Today's attempt has begun"}` : `Everyone's run today, as the ${ORIGIN_ICON[d.origin]} ${ORIGINS[d.origin].name}. One try.`}</span></span>
+      ${dailyDone ? `<span class="sub mr-side">${(() => { const ms = Date.parse(`${today}T00:00:00Z`) + 864e5 - Date.now(); return `${Math.floor(ms / 3600e3)}h ${Math.floor((ms % 3600e3) / 60e3)}m`; })()}</span>` : `<button class="small primary daily-go" data-daily>${dailyArmed ? "Replace save?" : "Play"}</button>`}</div>
+    ${meta.nemesis ? `<div class="mini-row nemesis-row"><span class="mr-ic">😈</span><span class="grow"><b>Your Nemesis: ${esc(meta.nemesis.name)}</b><span class="sub">${meta.nemesis.level > 1 ? `Beaten you ${meta.nemesis.level}×. ` : ""}Waits in your next Campaign run. Bounty on its head.</span></span></div>` : ""}
+    <div class="mini-row heat-row"><span class="mr-ic">🔥</span><span class="grow"><b>Heat ${meta.wins ? (meta.heat ? meta.heat : "off") : "locked"}</b><span class="sub">${meta.wins ? "Set it when you pick your class." : "Win the Campaign once to unlock harder, richer runs."}</span></span></div>
+  </div>
   <p class="version">${VERSION}</p>`;
 }
 
-/** Heat: optional Campaign difficulty for more Renown (after your first win). */
 function heatPanel() {
   if (!meta.wins) return `<div class="panel heat-panel locked"><b>🔥 Heat</b> <span class="sub">— win the Campaign once to unlock harder runs for more Renown.</span></div>`;
   const h = meta.heat ?? 0;
   return `<div class="panel heat-panel">
-    <div class="row"><b class="grow">🔥 Heat ${h ? h : "off"}</b><span class="sub">${h ? `+${Math.round(HEAT_RENOWN * h * 100)}% Renown` : "Campaign runs only"}</span></div>
+    <div class="row"><b class="grow">🔥 Heat ${h ? h : "off"}</b><span class="sub">${h ? `+${Math.round(HEAT_RENOWN * h * 100)}% Renown · better loot` : "Harder runs, more Renown, better loot"}</span></div>
     <div class="heat-btns">${Array.from({ length: HEAT_MAX + 1 }, (_, i) => `<button class="small ${h === i ? "primary" : ""}" data-heat="${i}">${i === 0 ? "Off" : `🔥${i}`}</button>`).join("")}</div>
     ${h ? `<ul class="heat-list">${HEAT_LEVELS.filter(l => l.level <= h).map(l => `<li><b>${esc(l.name)}:</b> ${esc(l.text)}</li>`).join("")}</ul>` : ""}
   </div>`;
 }
 
-/** The Daily Dungeon: the same dungeon (seed and class) for everyone today, one attempt. */
-function dailyPanel() {
-  const today = utcDay();
-  const d = dailyFor(today);
-  const done = meta.daily?.day === today ? meta.daily : undefined;
-  const ms = Date.parse(`${today}T00:00:00Z`) + 864e5 - Date.now();
-  const left = `${Math.floor(ms / 3600e3)}h ${Math.floor((ms % 3600e3) / 60e3)}m`;
-  const og = ORIGINS[d.origin];
-  return `<div class="panel daily-panel">
-    <div class="row"><span class="daily-ic">📅</span><span class="grow"><b>Daily Dungeon</b><span class="sub"> · ${today}</span><br>
-      <span class="sub">The same dungeon for everyone today, as the <b>${ORIGIN_ICON[d.origin]} ${og.name}</b>. One attempt.</span></span></div>
-    ${done ? `<p class="daily-done">${done.done ? `Done today: ${done.won ? "🏆 won, " : ""}reached floor <b>${done.floor}</b>.` : "Today's attempt has begun."} A new dungeon in ${left}.</p>`
-      : `<div class="row" style="margin-top:8px"><button class="primary daily-go" data-daily>${dailyArmed ? "Replace your saved run?" : "▶ Start today's run"}</button></div>`}
-  </div>`;
-}
 
 /** Info: Renown and unlocks, the Codex and How to play. */
 function infoPopup() {
@@ -395,7 +406,7 @@ function infoPopup() {
 /** Achievements: what you've earned, what's left, and the title you show on the leaderboards. */
 function achievementsPopup() {
   const got = new Set(meta.achievements ?? []);
-  const rows = ACHIEVEMENTS.map(a => `<div class="ach ${got.has(a.id) ? "got" : ""}">
+  const rows = ACHIEVEMENTS.filter(a => (achTab === "earned") === got.has(a.id)).map(a => `<div class="ach ${got.has(a.id) ? "got" : ""}">
     <div class="row"><b class="grow">${got.has(a.id) ? "🏆" : "🔒"} ${esc(a.name)}</b><span class="sub">+${a.renown} Renown</span></div>
     <p class="sub">${esc(a.text)}</p>
     ${a.title ? `<div class="row">${got.has(a.id) ? `<button class="small ${meta.title === a.title ? "primary" : ""}" data-title="${esc(a.title)}">${meta.title === a.title ? "✓ " : ""}Title: “${esc(a.title)}”</button>` : `<span class="sub">Title: “${esc(a.title)}”</span>`}</div>` : ""}
@@ -403,7 +414,8 @@ function achievementsPopup() {
   return `<div class="overlay"><div class="inner ach-pop">
     <div class="row"><h1 class="grow">🏆 Achievements</h1><button class="closebtn" data-closeach>✕ Close</button></div>
     <p class="sub">${got.size}/${ACHIEVEMENTS.length} earned. ${meta.title ? `Your title on the leaderboards: <b>“${esc(meta.title)}”</b> <button class="small" data-title="">Remove</button>` : "Pick a title you've earned to show next to your name on the leaderboards."}</p>
-    ${rows}
+    <div class="row subtabs"><button class="small ${achTab === "todo" ? "primary" : ""}" data-achtab="todo">🔒 To earn (${ACHIEVEMENTS.length - got.size})</button><button class="small ${achTab === "earned" ? "primary" : ""}" data-achtab="earned">🏆 Earned (${got.size})</button></div>
+    ${rows || `<p class="sub center">${achTab === "earned" ? "Nothing yet. Every run is a chance." : "You've earned them all!"}</p>`}
   </div></div>`;
 }
 
@@ -600,8 +612,9 @@ function shopScene(r: Run) {
   }).join("")}</div>
   <p class="sub">Bought gear goes to your bag; equip it from 🎒.</p>
   <h2>Sell</h2>
-  ${r.scene.soldItem ? `<p class="sub">You sold ${esc(r.scene.soldItem)}. The Merchant won't buy anything else this visit.</p>`
-    : `<p class="sub">The Merchant will buy one item per visit, for 40% of its price.</p>${gearGroups(r, it => itemCard(it, `<button class="small" data-sell="${it.uid}">Sell · ${sellPrice(it, r.hero)} 🪙</button>`, false, equippedSlot(r, it)))}`}
+  <p class="sub">The Merchant buys anything, for 40% of its price.${r.scene.soldItem ? ` Last sold: ${esc(r.scene.soldItem)}.` : ""}</p>
+  ${bulkSellRow(r)}
+  ${gearGroups(r, it => { const worn = !!equippedSlot(r, it); return itemCard(it, `<button class="small ${worn && sellArmed === it.uid ? "danger" : ""}" data-sell="${it.uid}">${worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${sellPrice(it, r.hero)} 🪙`}</button>`, false, equippedSlot(r, it)); })}
   <div class="row" style="margin-top:12px">${r.shopRerolls >= MAX_SHOP_REROLLS ? `<button disabled>No rerolls left</button>` : `<button data-reroll>Reroll stock · ${shopRerollCost(r)} 🪙 (${MAX_SHOP_REROLLS - r.shopRerolls} left)</button>`}<button class="primary" data-leave>Leave</button></div>`;
 }
 
@@ -1231,14 +1244,14 @@ function helpGlossary() {
     row("💰", "Thieves", "Kill them within 5 rounds or they escape with 30% of your Gold; kill them and you get 60% on top"),
     row("🕯️", "Curses", "Lasting penalties from shrines, idols and cursing foes. Only something holy can lift them"),
     row("🔨", "Forge", "Upgrade or reroll gear with Scrap; sacrifice items in an Offering; Combine two of the same item"),
-    row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell one item per visit"),
+    row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell as much as you like (40% of its price)"),
     row("💍", "Jeweller", "Takes turns with the Forge; two tries per visit. Fuse: two relics (marked 🔗), or two Rare-or-better trinkets (yours to discover; costs Starmetal). A fusion that doesn't take still costs the fee. Infuse: put a same-rarity trinket into a weapon, off-hand or armour; the trinket is used up. Upgraded items can't be fused or infused"),
     row("🧪", "Healing Potions", "Heal 12. You start with 3 potion slots: carry up to 3, and drink up to 3 in one fight. Potion gear and relics add slots (more at higher rarity)")
   ].join(""))}
   ${group("📈 Between runs", [
     row("⭐", "Class Mastery", `Each class grows with play (floors reached and bosses beaten). At mastery ${KIT_COMMON_LEVEL} you can swap its starting weapon, off-hand and armour for other Commons; at ${KIT_UNCOMMON_LEVEL}, Uncommons too`),
     row("🏆", "Achievements", "Each one pays Renown once, and many give a title to show beside your name on the leaderboards (Info → Achievements)"),
-    row("🔥", "Heat", "After your first Campaign win: optional extra difficulty for more Renown, five levels that stack"),
+    row("🔥", "Heat", "After your first Campaign win: optional extra difficulty (set it when you pick a class). Five levels that stack, each giving more Renown and slightly better loot"),
     row("📅", "Daily Dungeon", "The same dungeon and class for everyone each day; one attempt, with its own leaderboard"),
     row("😈", "Nemesis", "Whatever kills your Campaign run waits in the next one, stronger each time it wins. Beat it for a bounty"),
     row("🌕", "Abyss weekly twist", "Each week the Abyss changes: some twists help, some hurt")
@@ -1404,6 +1417,7 @@ function originPopup(o: OriginId) {
     <p class="sub"><b>${esc(p.name)}:</b> ${esc(p.text)}.</p>
     <p class="sub">Starts with ${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p>
     ${masteryPanel(o)}
+    ${heatPanel()}
     ${savedSummary() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>🏰 Start Campaign</button><button data-closeorigin>Back</button></div>
   </div></div>`;
@@ -1605,6 +1619,7 @@ function render2() {
     dispHp.player = dispHp.enemy = null;
   }
   trackGold(r);
+  trackMarks(r);
   // Ruin Shards and Vanadium Plates go to the device (and the online backup) the moment they drop.
   if (bankRuin(meta, r)) backupVault(vaultOf(meta));
   // The leaderboard server keeps its own record of how far this run has got.
@@ -1847,6 +1862,7 @@ function bind() {
     on("[data-history]", () => { historyOpen = true; });
     on("[data-achievements]", () => { achOpen = true; });
     on("[data-closeach]", () => { achOpen = false; });
+    on("[data-achtab]", el => { achTab = el.dataset.achtab as typeof achTab; });
     on("[data-title]", el => { meta.title = el.dataset.title || undefined; saveMeta(meta); setPlayerTitle(meta.title ?? ""); });
     on("[data-heat]", el => { meta.heat = Number(el.dataset.heat) || 0; saveMeta(meta); });
     app.querySelectorAll<HTMLSelectElement>("[data-kit]").forEach(el => {
@@ -1999,7 +2015,22 @@ function bind() {
   on("[data-talent]", el => chooseTalent(r, el.dataset.talent!));
   on("[data-buy]", el => say(buy(r, Number(el.dataset.buy))));
   on("[data-reroll]", () => say(rerollShop(r)));
-  on("[data-sell]", el => { const err = sellItem(r, Number(el.dataset.sell)); say(err); if (!err) sfx("chest"); });
+  on("[data-sell]", el => {
+    const u = Number(el.dataset.sell);
+    const w = findItem(r.hero, u)?.where;
+    if (w && w !== "backpack" && sellArmed !== u) { sellArmed = u; return; }
+    sellArmed = null;
+    const err = sellItem(r, u); say(err); if (!err) sfx("chest");
+  });
+  on("[data-bulksell]", el => {
+    const k = el.dataset.bulksell as "common" | "uncommon";
+    if (bulkSellArmed !== k) { bulkSellArmed = k; return; }
+    bulkSellArmed = null;
+    const list = bulkScrapList(r.hero, k);
+    const before = r.hero.f.gold;
+    for (const it of list) sellItem(r, it.uid);
+    say(`Sold ${list.length} item${list.length === 1 ? "" : "s"} for ${r.hero.f.gold - before} 🪙`, false); sfx("chest");
+  });
   on("[data-leave]", () => { r.message = ""; forgeTab = "upgrade"; offerSel.clear(); advance(r); });
   on("[data-up]", el => say(forgeUpgrade(r, Number(el.dataset.up))));
   on("[data-rr]", el => say(forgeReroll(r, Number(el.dataset.rr))));

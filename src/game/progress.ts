@@ -57,6 +57,7 @@ export function applyKit(run: Run, kit: Kit | undefined, level: number) {
 export interface Achievement { id: string; name: string; text: string; renown: number; title?: string; check: (run: Run, m: { wins?: number; winsBy?: Record<string, number> }) => boolean }
 const won = (r: Run) => r.scene.t === "over" && r.scene.won;
 const P = (r: Run, k: string) => r.hero.f.persist[k] ?? 0;
+const campaignWon = (r: Run) => r.scene.t === "over" && r.scene.won && r.mode === "campaign";
 export const ACHIEVEMENTS: Achievement[] = [
   { id: "first_boss", name: "First Steps", text: "Beat a floor boss", renown: 10, title: "Delver", check: r => r.stats.bosses >= 1 },
   { id: "champ_f1", name: "Punching Up", text: "Beat a Champion on floor 1", renown: 15, title: "Upstart", check: r => P(r, "ach_champ1") > 0 },
@@ -79,7 +80,35 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "abyss5", name: "Abyss Diver", text: "Reach depth 5 of the Abyss", renown: 30, title: "Abyss Diver", check: r => r.mode === "abyss" && r.floor >= 5 },
   { id: "abyss10", name: "Rock Bottom", text: "Clear the Abyss", renown: 100, title: "Abyssal", check: r => r.mode === "abyss" && won(r) },
   { id: "all_classes", name: "Paragon", text: "Win the Campaign with every class", renown: 50, title: "Paragon", check: (_r, m) => ["warrior", "rogue", "mage", "cleric"].every(o => (m.winsBy?.[o] ?? 0) > 0) },
-  { id: "mastery10", name: "Grandmaster", text: "Reach mastery 10 with a class", renown: 50, title: "Grandmaster", check: () => false }
+  { id: "mastery10", name: "Grandmaster", text: "Reach mastery 10 with a class", renown: 50, title: "Grandmaster", check: () => false },
+  { id: "mastery_all", name: "Master of All", text: "Reach mastery 10 with every class", renown: 150, title: "Master of All", check: () => false },
+  { id: "low_hp_win", name: "By a Thread", text: "Win a fight with less than 10% of your HP left", renown: 15, check: r => P(r, "ach_low_hp_win") > 0 },
+  { id: "all_leg", name: "Legendary Wardrobe", text: "Wear only Legendaries, in every slot", renown: 40, title: "Legend-clad", check: r => P(r, "ach_all_leg") > 0 },
+  { id: "all_epic", name: "Purple Reign", text: "Wear only Epics, in every slot", renown: 25, check: r => P(r, "ach_all_epic") > 0 },
+  { id: "all_rare", name: "Feeling Blue", text: "Wear only Rares, in every slot", renown: 15, check: r => P(r, "ach_all_rare") > 0 },
+  { id: "common_win", name: "Humble Hero", text: "Win the Campaign with a Common item equipped", renown: 25, title: "the Humble", check: r => campaignWon(r) && EQUIP_SLOTS.some(sl => r.hero.equip[sl]?.rarity === "common") },
+  { id: "empty_slot_win", name: "Underdressed", text: "Win the Campaign with an empty equipment slot", renown: 25, check: r => campaignWon(r) && ["main", "off", "armour", "trinket1", "trinket2"].some(sl => !r.hero.equip[sl as "main"]) },
+  { id: "gold2k", name: "Deep Pockets", text: "Hold 2,000 Gold at once", renown: 15, check: r => P(r, "ach_max_gold") >= 2000 },
+  { id: "gold10k", name: "Dragon's Hoard", text: "Hold 10,000 Gold at once", renown: 40, title: "the Hoarder", check: r => P(r, "ach_max_gold") >= 10000 },
+  { id: "dragon", name: "Dragonslayer", text: "Beat a dragon", renown: 30, title: "Dragonslayer", check: r => P(r, "ach_dragon") > 0 },
+  { id: "blessing", name: "Blessed", text: "Receive a blessing", renown: 10, check: r => P(r, "ach_blessing") > 0 },
+  { id: "one_hit", name: "One and Done", text: "Die to a single hit", renown: 5, check: r => P(r, "ach_one_hit") > 0 },
+  { id: "no_dmg_death", name: "Pacifist", text: "Die without hurting the enemy at all", renown: 5, check: r => P(r, "ach_no_dmg_death") > 0 },
+  { id: "f1_boss_death", name: "Humbled", text: "Die to the floor 1 boss", renown: 5, check: r => P(r, "ach_f1_boss_death") > 0 },
+  { id: "miss3", name: "Butterfingers", text: "Miss 3 attacks in a row", renown: 5, check: r => P(r, "bestMissStreak") >= 3 },
+  { id: "crit3", name: "On a Roll", text: "Roll 3 Crits in a row", renown: 15, check: r => P(r, "bestCritStreak") >= 3 },
+  { id: "crit6", name: "Loaded Dice", text: "Roll 6 Crits in a row", renown: 50, title: "the Lucky", check: r => P(r, "bestCritStreak") >= 6 },
+  { id: "salvage_leg", name: "What Have I Done", text: "Scrap a Legendary", renown: 10, check: r => P(r, "ach_salvage_leg") > 0 },
+  { id: "sell_leg", name: "Cash Is King", text: "Sell a Legendary", renown: 10, check: r => P(r, "ach_sell_leg") > 0 },
+  { id: "sell_all", name: "Naked Ambition", text: "Sell every piece of gear you're wearing", renown: 10, check: r => P(r, "ach_sell_all") > 0 },
+  { id: "combine", name: "Two Become One", text: "Combine two items at the Forge", renown: 10, check: r => P(r, "ach_combine") > 0 },
+  { id: "transmute", name: "Alchemist", text: "Transmute an item with the Crucible", renown: 20, check: r => P(r, "ach_transmute") > 0 },
+  { id: "fuse", name: "Jeweller's Apprentice", text: "Fuse two things at the Jeweller", renown: 15, check: r => P(r, "ach_fuse") > 0 },
+  { id: "infuse", name: "Infused", text: "Infuse a trinket into your gear at the Jeweller", renown: 15, check: r => P(r, "ach_infuse") > 0 },
+  { id: "warrior_noguard", name: "No Shield Needed", text: "Win the Campaign as a Warrior without ever Guarding", renown: 50, title: "the Reckless", check: r => campaignWon(r) && r.hero.origin === "warrior" && P(r, "act_guard") === 0 },
+  { id: "mage_nobarrier", name: "Unshielded", text: "Win the Campaign as a Mage without ever using Elemental Barrier", renown: 50, check: r => campaignWon(r) && r.hero.origin === "mage" && P(r, "act_barrier") === 0 },
+  { id: "rogue_nocounter", name: "Straight Shooter", text: "Win the Campaign as a Rogue without ever Countering", renown: 50, check: r => campaignWon(r) && r.hero.origin === "rogue" && P(r, "act_counter") === 0 },
+  { id: "cleric_nopenance", name: "No Regrets", text: "Win the Campaign as a Cleric without ever using Penance", renown: 50, check: r => campaignWon(r) && r.hero.origin === "cleric" && P(r, "act_penance") === 0 }
 ];
 
 // ---------- Heat ----------

@@ -246,6 +246,14 @@ function resolveRolledFace(b: Battle, a: Fighter, d: Fighter, face: number, offh
   const spec = faces[Math.min(face, faces.length) - 1];
   log(b, `${a.name} rolls ${face}${offhand ? " (off-hand)" : ""}: ${faceName(spec)}.`);
   fx(b, { who: a.id, kind: "roll", face, faceName: faceName(spec), faceKind: spec.kind, sides: faces.length, offhand });
+  // Achievements: misses and crits in a row (your main die).
+  if (a.id === "player" && !offhand) {
+    const p = a.persist;
+    p["streakMiss"] = spec.kind === "miss" ? (p["streakMiss"] ?? 0) + 1 : 0;
+    p["streakCrit"] = spec.kind === "crit" ? (p["streakCrit"] ?? 0) + 1 : 0;
+    p["bestMissStreak"] = Math.max(p["bestMissStreak"] ?? 0, p["streakMiss"]);
+    p["bestCritStreak"] = Math.max(p["bestCritStreak"] ?? 0, p["streakCrit"]);
+  }
   if (st(a, "dazzled") > 0 && !a.flags["counterHit"]) {
     log(b, `${a.name} is Dazzled and misses.`);
     fx(b, { who: d.id, kind: "miss", text: "Dazzled — miss" });

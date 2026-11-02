@@ -378,6 +378,7 @@ export function salvage(h: Hero, uid: number): number {
   removeItem(h, uid);
   h.scrap += n;
   if (found.item.rarity === "legendary") h.starmetal += 2;
+  if (["legendary", "crimson", "epic_crimson", "legendary_crimson"].includes(found.item.rarity)) h.f.persist["ach_salvage_leg"] = 1;
   if (found.item.rarity === "crimson") h.starmetal += 4;
   if (found.item.rarity === "epic_crimson") h.starmetal += 10;
   if (found.item.rarity === "legendary_crimson") h.starmetal += 25;

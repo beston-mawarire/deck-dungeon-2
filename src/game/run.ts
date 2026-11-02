@@ -53,6 +53,15 @@ export const ABYSS_FLOORS = 10;
 export const depth = (run: { mode: Mode; floor: number }) => (run.mode === "abyss" ? 2 * run.floor - 1 : run.floor);
 /** The floor the loot odds use. The Abyss never has the "green floors" (where most Rares are Uncommon). */
 const luckFloor = (run: Run) => (run.mode === "abyss" ? Math.max(3, depth(run)) : run.floor);
+/** Heat: each level makes Rare-and-better finds slightly more likely. */
+export const HEAT_LOOT = 0.05;
+const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Record<Rarity, number>> => {
+  const h = heatOf(run);
+  if (!h) return odds;
+  const out = { ...odds };
+  for (const r of ["rare", "epic", "legendary"] as const) if (out[r]) out[r] = out[r]! * (1 + HEAT_LOOT * h);
+  return out;
+};
 /** Abyss: every floor down, everything gets this much tougher on top of its depth. */
 export const ABYSS_GROWTH = 1.06;
 /** From this floor on (outside the Abyss), bosses drop Ruin Shards, and sometimes a Vanadium Plate. */
@@ -317,7 +326,7 @@ function enterRoom(run: Run, room: RoomType) {
       return fight(run, "boss", "crimson");
     case "wooden":
       const woodOdds = useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden;
-      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, woodOdds, luckFloor(run)), depth(run), run.rng)], gold: (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0 };
+      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, heatOdds(run, woodOdds), luckFloor(run)), depth(run), run.rng)], gold: (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.2 ? 1 : 0 };
       return;
     case "iron": {
       const key = (h.relics["skeleton_key"] ?? 0) > 0;
@@ -326,8 +335,8 @@ function enterRoom(run: Run, room: RoomType) {
         return fight(run, "elite", "mimic");
       }
       const ironOdds = useClover(run) ? luckyOdds(tables(run).iron) : tables(run).iron;
-      const items = [rollItem(h, rollRarity(run.rng, ironOdds, luckFloor(run)), depth(run), run.rng)];
-      if (key) items.push(rollItem(h, rollRarity(run.rng, ironOdds, luckFloor(run)), depth(run), run.rng));
+      const items = [rollItem(h, rollRarity(run.rng, heatOdds(run, ironOdds), luckFloor(run)), depth(run), run.rng)];
+      if (key) items.push(rollItem(h, rollRarity(run.rng, heatOdds(run, ironOdds), luckFloor(run)), depth(run), run.rng));
       run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: (5 + run.floor * 2) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: 0 };
       return;
     }
@@ -454,6 +463,7 @@ export function combatAction(run: Run, action: Action) {
   if (!availableActions(run).includes(action)) action = "attack";
   const b = run.scene.battle;
   const before = b.enemy.hp;
+  if (action !== "attack" && action !== "flee") run.hero.f.persist[`act_${action}`] = (run.hero.f.persist[`act_${action}`] ?? 0) + 1;
   playRound(b, action);
   run.stats.bestHit = Math.max(run.stats.bestHit, before - Math.max(0, b.enemy.hp));
   if (b.over) afterFight(run);
@@ -576,6 +586,10 @@ function afterFight(run: Run) {
     if (h.f.persist["blessFights"] === 0) { delete h.f.persist["blessKind"]; run.message = "🐲 The Dragon's Blessing fades."; }
   }
   if (b.over === "lost") {
+    const p = h.f.persist;
+    if ((b.player.flags["hits"] ?? 0) === 1) p["ach_one_hit"] = 1;
+    if (b.enemy.hp >= b.enemy.maxHp) p["ach_no_dmg_death"] = 1;
+    if (run.floor === 1 && rank === "boss" && !then) p["ach_f1_boss_death"] = 1;
     // Dying anywhere ends the run, Crimson Vaults included. Remember who did it.
     const e = b.enemy;
     run.killer = {
@@ -621,6 +635,8 @@ function afterFight(run: Run) {
     h.f.gold += thiefPay;
   }
   // Achievement marks.
+  if (h.f.hp > 0 && h.f.hp < h.f.maxHp * 0.1) bump("ach_low_hp_win");
+  if (then === "dragon") bump("ach_dragon");
   if (rank === "champion" && run.floor === 1) bump("ach_champ1");
   if (then === "goblin") bump("ach_goblin");
   if (rank === "boss" && !b.player.flags["hurt"]) bump("ach_flawless_boss");
@@ -641,7 +657,7 @@ function afterFight(run: Run) {
   let relic: string | undefined;
   let keyFound = false;
   const T = tables(run);
-  const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, odds, luckFloor(run)), depth(run), run.rng);
+  const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, heatOdds(run, odds), luckFloor(run)), depth(run), run.rng);
   if (rank === "normal" && run.rng() < 0.2) items.push(roll(T.drop));
   if (rank === "normal" && run.rng() < 0.1) potions++;
   // Potion gear: a sober win brews a potion (the Alembic always, the Vial sometimes); the Grail refills one per boss.
@@ -916,7 +932,7 @@ function shopStock(run: Run): ShopEntry[] {
   const h = run.hero;
   const stock: ShopEntry[] = [];
   for (let i = 0; i < 3; i++) {
-    const item = rollItem(h, rollRarity(run.rng, TABLES.shop, luckFloor(run)), depth(run), run.rng);
+    const item = rollItem(h, rollRarity(run.rng, heatOdds(run, TABLES.shop), luckFloor(run)), depth(run), run.rng);
     stock.push({ kind: "item", item, price: Math.round(PRICE[item.rarity] * shopMult(run)) });
   }
   const shopRelic = randomRelic(run);
@@ -958,7 +974,6 @@ export const sellPrice = (item: GearItem, h?: Hero) => {
 export function sellItem(run: Run, uid: number): string | null {
   const s = run.scene;
   if (s.t !== "shop") return null;
-  if (s.soldItem) return "This Merchant has already bought something from you.";
   const h = run.hero;
   const found = findItem(h, uid);
   if (!found) return null;
@@ -968,6 +983,8 @@ export function sellItem(run: Run, uid: number): string | null {
   h.f.gold += price;
   lockGold(run);
   s.soldItem = `${baseOf(found.item.base).legendary && !found.item.revealed ? "an unrevealed Legendary" : baseName(found.item)} for ${price} Gold`;
+  if (["legendary", "crimson", "epic_crimson", "legendary_crimson"].includes(found.item.rarity)) h.f.persist["ach_sell_leg"] = 1;
+  if (found.where !== "backpack" && EQUIP_SLOTS.every(sl => !h.equip[sl])) h.f.persist["ach_sell_all"] = 1;
   return null;
 }
 
@@ -1247,6 +1264,7 @@ export function forgeCombine(run: Run, a: number, b: number): GearItem | string 
   if (wasEquipped && wasEquipped !== "backpack") equipItem(h, out, wasEquipped);
   else h.backpack.push(out);
   markFound(run, out);
+  h.f.persist["ach_combine"] = 1;
   recompute(h);
   return out;
 }
@@ -1281,6 +1299,7 @@ export function forgeTransmute(run: Run, uid: number): GearItem | string {
   if (where !== "backpack") equipItem(h, out, where);
   else if (h.backpack.length < BACKPACK_SIZE) h.backpack.push(out);
   markFound(run, out);
+  h.f.persist["ach_transmute"] = 1;
   recompute(h);
   return out;
 }
@@ -1505,6 +1524,7 @@ export function jewelFuse(run: Run): { ok: boolean; msg: string; made?: string }
     for (const id of [L.id, R.id]) { h.relics[id]--; if (!h.relics[id]) delete h.relics[id]; }
     run.stats.fusions++;
     grantRelic(run, rec.out);
+    run.hero.f.persist["ach_fuse"] = 1;
     return { ok: true, msg: `The two melt into one: ${getItem(rec.out).name}!`, made: getItem(rec.out).name };
   }
   const A = findItem(h, (L as { uid: number }).uid)!, B = findItem(h, (R as { uid: number }).uid)!;
@@ -1517,6 +1537,7 @@ export function jewelFuse(run: Run): { ok: boolean; msg: string; made?: string }
     if (!A.item.epic && t.epic) A.item.epic = t.epic;
     removeItem(h, t.uid);
     recompute(h);
+    run.hero.f.persist["ach_infuse"] = 1;
     return { ok: true, msg: `The ${tb.name} sinks into the ${itemName(A.item)} and is gone. Its power stays.`, made: itemName(A.item) };
   }
   // Two trinkets: a secret recipe.
@@ -1534,6 +1555,7 @@ export function jewelFuse(run: Run): { ok: boolean; msg: string; made?: string }
   markFound(run, out);
   recompute(h);
   run.stats.fusions++;
+  run.hero.f.persist["ach_fuse"] = 1;
   return { ok: true, msg: `The Jeweller holds it up to the light: ${baseOf(rec.out).name}!`, made: baseOf(rec.out).name };
 }
 
@@ -1767,4 +1789,22 @@ export function newDailyRun(day = utcDay()): Run {
   const run = newRun(d.origin, d.seed, "campaign", new Set());
   run.daily = day;
   return run;
+}
+
+/** Achievement marks that depend on what you hold right now (checked every screen). */
+export function trackMarks(run: Run) {
+  const h = run.hero;
+  const p = h.f.persist;
+  p["ach_max_gold"] = Math.max(p["ach_max_gold"] ?? 0, h.f.gold);
+  if ((p["angelFights"] ?? 0) > 0 || (p["blessFights"] ?? 0) > 0 || (p["cloverChests"] ?? 0) > 0) p["ach_blessing"] = 1;
+  // A full set: every slot you have filled (the off-hand may be empty behind a two-hander).
+  const main = h.equip.main;
+  const need = EQUIP_SLOTS.filter(sl => sl !== "trinket3" || h.equip.trinket3).filter(sl => !(sl === "off" && main && effectiveBase(main).twoHanded && !h.equip.off));
+  if (need.every(sl => h.equip[sl])) {
+    const rar = need.map(sl => h.equip[sl]!.rarity);
+    const top = ["legendary", "crimson", "epic_crimson", "legendary_crimson"];
+    if (rar.every(r => top.includes(r))) p["ach_all_leg"] = 1;
+    if (rar.every(r => r === "epic")) p["ach_all_epic"] = 1;
+    if (rar.every(r => r === "rare")) p["ach_all_rare"] = 1;
+  }
 }
