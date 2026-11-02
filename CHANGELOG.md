@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.26.5
+- Rooms that offer ⚡ Auto-fight now have a thin red border around both the room card and its Auto-fight button.
+
 ## 1.26.4
 - In combat, the ⚡ Auto-battle button now has its own row, with its note underneath, on every screen size.
 - The combat speed button now has the same stone fill as the Inventory button.
