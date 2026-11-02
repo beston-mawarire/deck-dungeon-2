@@ -1,4 +1,5 @@
 // A run: three floors of path choices, fights, chests, shops, forges and bosses.
+import { drawWeight } from "../data/minors";
 import { relicBonus } from "../data/basic_relics";
 import { CURSES, EPIC_POWERS, KEEPSAKES, LEGENDARIES, RELICS, TALENTS } from "../data";
 import { CAMPAIGN_FLOORS, DEATH_FLOOR, END_FLOOR, EPIC_CRIMSON_FLOORS, makeBoss, makeDeath, makeCrimsonBoss, makeUber, WALL_FLOOR } from "../data/bosses";
@@ -67,15 +68,18 @@ const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Reco
   return out;
 };
 /** Abyss: every floor down, everything gets this much tougher on top of its depth. */
-export const ABYSS_GROWTH = 1.08;
-/** Everything in the Abyss starts this much tougher than its Campaign self (Vanadium Plates are how you keep up). */
-export const ABYSS_BASE = 1.15;
+/** The Abyss is the endgame: every foe starts far tougher than its Campaign self and grows with every depth
+ *  (Vanadium Plates are how you keep up). HP and damage scale separately, and Armor creeps up too. */
+export const ABYSS_GROWTH = 1.11;
+export const ABYSS_BASE = 1.35;
+export const ABYSS_DMG_GROWTH = 1.09;
+export const ABYSS_DMG_BASE = 1.25;
 /** From this floor on (outside the Abyss), bosses drop Ruin Shards, and sometimes a Vanadium Plate. */
 export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
 const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
 
-export type RoomType = "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
+export type RoomType = "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -92,6 +96,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   sanctum: { name: "Dragon Sanctum", icon: "🐲", text: "Your Dragon Heart beats faster. Something old waits here." },
   jeweller: { name: "Jeweller", icon: "💍", text: "Two things on the bench, one comes back. For a fee." },
   crossroads: { name: "The Crossroads", icon: "🌒", text: "Two tunnels, one figure." },
+  cleansing: { name: "Cleansing", icon: "⛲", text: "Somewhere your curses could be lifted, for a price." },
   bounty: { name: "Bounty Board", icon: "📋", text: "Notices nailed to a post. Work for hire." },
   event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
@@ -228,6 +233,7 @@ export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: M
   setLocked(locked);
   resetDropped();
   run.choices = genChoices(run);
+  if (mode === "abyss") run.hero.f.persist["abyssRun"] = 1;
   if (mode === "abyss") run.popup = { icon: "🕳️", title: "The Abyss", text: "The Ruin Shard crumbles in your hand, and the floor gives way. Down here every beast is a rank deadlier than it should be, and every one of them carries something worth killing for. The strongest carry the best of it. Ten depths. Few see the bottom." };
   return run;
 }
@@ -266,6 +272,11 @@ const pickW = <T extends string>(rng: () => number, w: Partial<Record<T, number>
   return entries[0][0];
 };
 
+/** How often a cursed hero is offered a Cleansing path at each choice. */
+export const CLEANSING_PATH_CHANCE = 0.3;
+/** The curse-lifting encounters: their own path on the map, never part of Something Strange. */
+export const CLEANSING_EVENTS = ["cleansing_well", "holy_tribute"];
+
 export function genChoices(run: Run): RoomType[] {
   if (run.step >= STEPS_PER_FLOOR) return ["boss"];
   const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 9, vault: 3, altar: 3, shrine: 3, champion: 3 };
@@ -299,6 +310,8 @@ export function genChoices(run: Run): RoomType[] {
   // A Dragon Heart not yet unified: the Dragon Sanctum is very often an extra path.
   const heart = run.hero.dragonHeart;
   if (heart && !heart.unified && run.rng() < 0.7) rooms.push("sanctum");
+  // Carrying a curse: somewhere to be rid of it is often an extra path (the Well of Cleansing or a Holy Tribute).
+  if (Object.keys(run.hero.curses).length > 0 && run.rng() < CLEANSING_PATH_CHANCE) rooms.push("cleansing");
   // The Bounty Board: a rare extra path, from the first floor on.
   if (run.rng() < BOUNTY_BOARD_CHANCE) rooms.push("bounty");
   // The Crossroads, in disguise: a very rare extra path from floor 2, once per run.
@@ -382,7 +395,7 @@ function enterRoom(run: Run, room: RoomType) {
     case "event": {
       // Unique encounters (the dragon, the mirror pool) happen at most once per run.
       const cursed = Object.keys(run.hero.curses).length > 0;
-      const pool = EVENTS.filter(e => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || cursed) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e));
+      const pool = EVENTS.filter(e => !CLEANSING_EVENTS.includes(e.id) && (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || cursed) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e));
       const ev = pickW(run.rng, Object.fromEntries(pool.map(e => [e.id, e.weight ?? 1])) as Record<string, number>);
       const evDef = pool.find(e => e.id === ev)!;
       if (evDef.unique) run.seenBosses.add(`e:${evDef.id}`);
@@ -393,6 +406,13 @@ function enterRoom(run: Run, room: RoomType) {
       if (evDef.id === "crossroads") { run.scene = { t: "event", ev: crossroadsEvent(CROSSROADS_GUISES[Math.floor(run.rng() * CROSSROADS_GUISES.length)]), result: null, found: [] }; return; }
       if (evDef.id === "holy_tribute") { run.scene = { t: "tribute", paid: 0 }; return; }
       run.scene = { t: "event", ev: evDef, result: null, found: [] };
+      return;
+    }
+    case "cleansing": {
+      // The Well (rarer) or a Holy Tribute.
+      const id = run.rng() < 0.25 ? "cleansing_well" : "holy_tribute";
+      if (id === "holy_tribute") { markEncounter(run, `ev:${id}`); run.scene = { t: "tribute", paid: 0 }; return; }
+      run.scene = { t: "event", ev: EVENTS.find(e => e.id === id)!, result: null, found: [] };
       return;
     }
     case "sanctum": run.scene = { t: "sanctum" }; return;
@@ -448,7 +468,8 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   if (run.mode === "abyss") {
     const g = ABYSS_BASE * Math.pow(ABYSS_GROWTH, run.floor - 1);
     enemy.maxHp = enemy.hp = Math.round(enemy.hp * g);
-    enemy.damage = Math.round(enemy.damage * g);
+    enemy.damage = Math.round(enemy.damage * ABYSS_DMG_BASE * Math.pow(ABYSS_DMG_GROWTH, run.floor - 1));
+    enemy.armor += Math.floor(run.floor / 2);
     if (uber) makeUber(enemy, F, run.rng);
     if (abyssMod(run, "thick_hides")) enemy.maxHp = enemy.hp = Math.round(enemy.hp * 1.3);
     if (abyssMod(run, "glass_cannon")) { enemy.damage = Math.round(enemy.damage * 1.3); enemy.dmgTaken = (enemy.dmgTaken ?? 0) + 30; }
@@ -457,6 +478,12 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   // Heat: tougher foes (1), and harder hits at 5.
   const heat = heatOf(run);
   if (heat >= 1 && then !== "death") enemy.maxHp = enemy.hp = Math.round(enemy.hp * 1.3);
+  // Each Heat level also quietly toughens every foe: a little more HP, harder hits, and Armor every other level.
+  if (heat >= 1 && then !== "death") {
+    enemy.maxHp = enemy.hp = Math.round(enemy.hp * (1 + 0.06 * heat));
+    enemy.damage = Math.round(enemy.damage * (1 + 0.05 * heat));
+    enemy.armor += Math.floor(heat / 2);
+  }
   if (heat >= 5 && then !== "death") enemy.damage = Math.round(enemy.damage * 1.2);
   run.hero.f.persist["goldAtFight"] = run.hero.f.gold;
   const battle = startBattle(run.hero.f, enemy, Math.floor(run.rng() * 1e9), run.carry);
@@ -860,7 +887,7 @@ const fireRelicWeight = (r: { tags: readonly string[]; text: string }) => (r.tag
 export function randomRelic(run: Run, quality = 1): string {
   const tags = heroTags(run.hero);
   const pool = RELICS.filter(r => !isLocked(r.id));
-  const w = pool.map(r => relicRarityWeight(r.rarity ?? "common", run.floor, quality) * (1 + 0.3 * r.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * fireRelicWeight(r));
+  const w = pool.map(r => relicRarityWeight(r.rarity ?? "common", run.floor, quality) * (1 + 0.3 * r.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * fireRelicWeight(r) * drawWeight(r));
   let x = run.rng() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < pool.length; i++) {
     x -= w[i];
@@ -1373,7 +1400,7 @@ export function talentOptions(run: Run): string[] {
   const out: string[] = [];
   while (out.length < 3 && out.length < pool.length) {
     // Rare talents turn up about a third as often.
-    const w = pool.map(t => (out.includes(t.id) ? 0 : (1 + 0.4 * t.tags.reduce((s, x) => s + Math.min(tags.get(x) ?? 0, 3), 0)) * (t.rarity === "rare" ? 0.3 : 1)));
+    const w = pool.map(t => (out.includes(t.id) ? 0 : (1 + 0.4 * t.tags.reduce((s, x) => s + Math.min(tags.get(x) ?? 0, 3), 0)) * (t.rarity === "rare" ? 0.3 : 1) * drawWeight(t)));
     let x = run.rng() * w.reduce((a, b) => a + b, 0);
     for (let i = 0; i < pool.length; i++) {
       x -= w[i];

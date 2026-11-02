@@ -5,6 +5,15 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.36.0
+- Relics: 40 new small, steady relics join the pool (a point of Max HP, Damage or Armor, a few % of crit damage, Dodge, Spell Amp, healing, a little Barrier or Regen to start a fight, and so on). They turn up often, and extra copies keep adding up.
+- Relics that change the rules, set up combos or are simply powerful are now far rarer finds; useful conditional tricks sit in between.
+- Talents: 19 new small talents (Max HP, Damage, crit damage, Dodge, Spell Amp, healing, Barrier, Gold and more), offered often. Build-defining and combo talents are offered far less often.
+- Curse cleansing has its own path: while you carry a curse, a ⛲ Cleansing room (the Well of Cleansing or a Holy Tribute) is often offered on the map. They're no longer hidden inside Something Strange.
+- No more Legendaries on floor 1: anything that would be Legendary or Crimson there comes out Epic, and floor 2 lets only a few through. The Abyss is unaffected.
+- The Abyss is now a proper endgame: foes start much tougher, grow faster with each depth, hit harder and carry more Armor. Vanadium Plates are how you keep up.
+- Heat quietly makes every foe a little tougher at each level, on top of its listed effects.
+
 ## 1.35.0
 - Loot is a little stingier: Rare, Epic and Legendary drops are about 20% less likely from monsters, Elites, Champions, bosses, Iron chests, the Merchant and Resplendent chests, and Fortune grows more slowly past floor 5. Abyss chests and foes are trimmed a little too. Lucky runs still happen.
 - Generated gear is less overloaded: smaller power budgets from Uncommon up, fewer triggered effects per item (Rares get one, Epics one or two, Legendaries two or three), Greater grades are rarer, and the strongest tiers open more slowly with depth.

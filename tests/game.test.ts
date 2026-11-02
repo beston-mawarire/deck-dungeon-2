@@ -216,6 +216,7 @@ describe("loot", () => {
 
   it("Legendaries respect their earliest floor", () => {
     const h = newHero("warrior");
+    h.f.persist["floor"] = 3; // (floor 1 and 2 of a Campaign turn most Legendaries into Epics; this checks the per-item minimum floor)
     const rng = makeRng(9);
     resetDropped();
     const early = LEGENDARIES.filter(l => (l.legendary?.minFloor ?? 1) <= 1).map(l => l.id);
@@ -1658,6 +1659,20 @@ describe("dual wielding and faith weapons", () => {
     h.f.statuses = { ward: 1 };
     resolveFace(b, h.f, e, 3);
     expect(300 - e.hp).toBe(h.f.damage + 4);
+  });
+});
+
+describe("early loot", () => {
+  it("floor 1 of a Campaign never gives a Legendary or Crimson; the Abyss isn't capped", async () => {
+    const { earlyCap } = await import("../src/game/loot");
+    const h = newHero("rogue"); const rng = makeRng(3);
+    h.f.persist["floor"] = 1;
+    for (let i = 0; i < 300; i++) for (const r of ["legendary", "crimson"] as const) expect(rollItem(h, r, 1, rng).rarity).not.toMatch(/legendary|crimson/);
+    h.f.persist["floor"] = 2;
+    const two = Array.from({ length: 400 }, () => earlyCap(h, "legendary", rng));
+    expect(two.filter(r => r === "legendary").length).toBeLessThan(160);
+    h.f.persist["floor"] = 1; h.f.persist["abyssRun"] = 1;
+    expect(earlyCap(h, "legendary", rng)).toBe("legendary");
   });
 });
 

@@ -113,7 +113,19 @@ const ELEMENTAL_TAGS = ["Burn", "Frost", "Storm", "Poison"];
 const ELEMENTAL_WEIGHT = 0.5;
 const elementalW = (tags: readonly string[]) => (tags.some(t => ELEMENTAL_TAGS.includes(t)) ? ELEMENTAL_WEIGHT : 1);
 
+/** The first floors of a Campaign never give Legendaries (or Crimson): they come out Epic. Floor 2 lets a few through,
+ *  The Abyss is exempt: it's the endgame. */
+export function earlyCap(h: Hero, rarity: Rarity, rng: () => number, floor = 1): Rarity {
+  if ((h.f.persist["abyssRun"] ?? 0) > 0) return rarity;
+  const fl = h.f.persist["floor"] ?? floor;
+  const top = rarity === "legendary" || rarity === "crimson" || rarity === "epic_crimson" || rarity === "legendary_crimson";
+  if (fl <= 1 && top) return "epic";
+  if (fl === 2 && top && rng() < 0.75) return "epic";
+  return rarity;
+}
+
 export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => number): GearItem {
+  rarity = earlyCap(h, rarity, rng, floor);
   // Ill Fortune (curse): about a third of Rare, Epic and Legendary finds come out one rarity lower.
   if ((h.curses["c_ill_fortune"] ?? 0) > 0 && (rarity === "rare" || rarity === "epic" || rarity === "legendary") && rng() < 0.3)
     rarity = rarity === "legendary" ? "epic" : rarity === "epic" ? "rare" : "uncommon";

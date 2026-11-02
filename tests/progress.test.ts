@@ -39,7 +39,7 @@ describe("mastery, kits, heat, Abyss twists, achievements", () => {
     const a = newRun("rogue", 9), b = newRun("rogue", 9);
     b.heat = 1;
     const ea = fightIn(a, "fight").battle.enemy, eb = fightIn(b, "fight").battle.enemy;
-    expect(eb.maxHp).toBe(Math.round(ea.maxHp * 1.3));
+    expect(eb.maxHp).toBe(Math.round(Math.round(ea.maxHp * 1.3) * 1.06)); // +30% HP, and each Heat level quietly adds 6% more
     const ab = newRun("rogue", 10, "abyss");
     ab.abyssMod = "crimson_tide";
     expect(fightIn(ab, "elite").rank).toBe("crimson");

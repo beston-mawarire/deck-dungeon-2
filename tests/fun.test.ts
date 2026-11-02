@@ -62,3 +62,20 @@ describe("relic choice, Nemesis, lore", () => {
     for (const l of LEGENDARIES) expect(LEGENDARY_LORE[l.id], l.id).toBeTruthy();
   });
 });
+
+describe("relic and talent pools", () => {
+  it("every weighted id is real, names are unique, and small ones far outnumber strong ones in the draw", async () => {
+    const { RELICS } = await import("../src/data/relics");
+    const { TALENTS } = await import("../src/data/talents");
+    const { RELIC_WEIGHT, TALENT_WEIGHT, drawWeight, MINOR_RELICS, MINOR_TALENTS } = await import("../src/data/minors");
+    const rids = new Set(RELICS.map(r => r.id)), tids = new Set(TALENTS.map(t => t.id));
+    for (const id of Object.keys(RELIC_WEIGHT)) expect(rids.has(id), id).toBe(true);
+    for (const id of Object.keys(TALENT_WEIGHT)) expect(tids.has(id), id).toBe(true);
+    expect(new Set(MINOR_RELICS.map(r => r.name)).size).toBe(MINOR_RELICS.length);
+    expect(MINOR_RELICS.length).toBeGreaterThanOrEqual(35);
+    expect(MINOR_TALENTS.length).toBeGreaterThanOrEqual(15);
+    const share = (list: { id: string }[], pool: Parameters<typeof drawWeight>[0][]) => pool.filter(d => list.some(x => x.id === d.id)).reduce((s, d) => s + drawWeight(d), 0) / pool.reduce((s, d) => s + drawWeight(d), 0);
+    expect(share(MINOR_RELICS, RELICS)).toBeGreaterThan(0.4);
+    expect(share(MINOR_TALENTS, TALENTS)).toBeGreaterThan(0.4);
+  });
+});

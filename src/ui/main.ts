@@ -1392,6 +1392,7 @@ function helpGlossary() {
     row("💰", "Thieves", "Kill them within 5 rounds or they escape with 30% of your Gold; kill them and you get 60% on top"),
     row("🕯️", "Curses", "Lasting penalties from shrines, idols and cursing foes. Only something holy can lift them"),
     row("🔨", "Forge", "Upgrade or reroll gear with Scrap; sacrifice items in an Offering; Combine two of the same item"),
+    row("⛲", "Cleansing", "Only while you carry a curse: the Well of Cleansing or a Holy Tribute, a way to lift your curses for a price"),
     row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell as much as you like (40% of its price)"),
     row("💍", "Jeweller", "Takes turns with the Forge; two tries per visit. Fuse: two relics (marked 🔗), or two Rare-or-better trinkets (yours to discover; costs Starmetal). A fusion that doesn't take still costs the fee. Infuse: put a same-rarity trinket into a weapon, off-hand or armour; the trinket is used up. Upgraded items can't be fused or infused"),
     row("⚒", "Forged by chance", "Half of all gear is made fresh: a material (Iron, Frost-forged, Dragonscale…), a form, and effects. Rarer items get more effects, and some carry a drawback (⛓️). ✦ Greater, ✦✦ Grand and ✦✦✦ Mythic rolls are much stronger, and ⚡ Overcharged items are rare, wild and very strong"),

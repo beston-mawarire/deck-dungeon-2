@@ -233,6 +233,8 @@ export interface HookDef {
   minRarity?: Rarity;
   /** Rolled bonuses: the "of ..." suffix in the item name. Epic powers: the prefix. */
   affix?: string;
+  /** Relics and talents: how often this one is drawn (1 = normal). Small, steady ones are common; strong ones rare. */
+  weight?: number;
 }
 
 /** A base item type the loot system can roll (Iron Sword, Leather Jerkin...). */

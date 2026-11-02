@@ -61,3 +61,17 @@ it("Holy Tribute lifts one chosen curse per payment, each dearer than the last",
   expect(payTribute(run, "c_rust")).toMatch(/Gold/);
   expect(run.hero.curses["c_rust"]).toBe(1);
 });
+
+it("Cleansing is its own path for a cursed hero, and never part of Something Strange", async () => {
+  const { genChoices, CLEANSING_EVENTS } = await import("../src/game/run");
+  const run = newRun("warrior", 77);
+  let seen = 0;
+  for (let i = 0; i < 200; i++) { run.step = 1; if (genChoices(run).includes("cleansing")) seen++; }
+  expect(seen).toBe(0);
+  run.hero.curses["c_parched"] = 1;
+  for (let i = 0; i < 200; i++) { run.step = 1; if (genChoices(run).includes("cleansing")) seen++; }
+  expect(seen).toBeGreaterThan(30);
+  for (let i = 0; i < 300; i++) { run.scene = { t: "map" }; chooseRoom(run, "event"); const s = run.scene as { t: string; ev?: { id: string } }; expect(CLEANSING_EVENTS.includes(s.ev?.id ?? "")).toBe(false); expect(s.t).not.toBe("tribute"); }
+  run.scene = { t: "map" }; chooseRoom(run, "cleansing");
+  expect(["tribute", "event"]).toContain(run.scene.t);
+});
