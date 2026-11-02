@@ -48,5 +48,6 @@ CREATE TABLE IF NOT EXISTS vault (
   shards INTEGER NOT NULL DEFAULT 0,
   plates INTEGER NOT NULL DEFAULT 0,
   class_plates TEXT NOT NULL DEFAULT '{}',
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  save TEXT
 );

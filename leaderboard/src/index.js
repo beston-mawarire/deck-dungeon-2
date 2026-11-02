@@ -3,7 +3,7 @@
 //   POST /session/floor                the run reached a floor: the server checks the step and the pace, and records it
 //   POST /runs                         a finished run: checked against the server's record; anything off is kept but hidden
 //   GET  /leaderboard?board=..&pid=..  the top players on a board (each player's best verified run), plus your own place
-//   POST /vault                        back up a player's Ruin Shards and Vanadium Plates (the device is in charge)
+//   POST /vault                        back up a player's progress: Ruin Shards, Vanadium Plates and the whole save (the device is in charge)
 //   GET  /vault?pid=..                 fetch that backup (to restore it on a new device)
 //   GET  /health                       ok
 //
@@ -19,6 +19,8 @@ const ORIGINS = ["warrior", "rogue", "mage", "cleric"];
 const MAX_FLOOR = 26;
 /** No floor (7 rooms and a boss) is cleared faster than this. */
 const MIN_SECONDS_PER_FLOOR = 30;
+/** A full backup (progress + run in progress) is at most this many characters. */
+const MAX_SAVE = 900000;
 
 const cors = {
   "access-control-allow-origin": "*",
@@ -175,23 +177,30 @@ async function putVault(req, env) {
   if (shards === null || plates === null) return json({ error: "bad counts" }, 400);
   const cp = {};
   if (b.classPlates && typeof b.classPlates === "object") for (const o of ORIGINS) { const n = int(b.classPlates[o] ?? 0, 0, 100000); if (n) cp[o] = n; }
+  // The whole save (progress, settings and any run in progress), kept as the device sent it.
+  let save = null;
+  if (b.save !== undefined && b.save !== null) {
+    if (typeof b.save !== "string" || b.save.length > MAX_SAVE) return json({ error: "bad save" }, 400);
+    try { const o = JSON.parse(b.save); if (!o || typeof o !== "object") throw 0; } catch { return json({ error: "bad save" }, 400); }
+    save = b.save;
+  }
   const now = Date.now();
   const last = await env.DB.prepare("SELECT updated_at FROM vault WHERE pid = ?").bind(b.pid).first();
   if (last && now - last.updated_at < 2000) return json({ error: "slow down" }, 429);
-  await env.DB.prepare(`INSERT INTO vault (pid, shards, plates, class_plates, updated_at) VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT (pid) DO UPDATE SET shards = excluded.shards, plates = excluded.plates, class_plates = excluded.class_plates, updated_at = excluded.updated_at`)
-    .bind(b.pid, shards, plates, JSON.stringify(cp), now).run();
+  await env.DB.prepare(`INSERT INTO vault (pid, shards, plates, class_plates, updated_at, save) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT (pid) DO UPDATE SET shards = excluded.shards, plates = excluded.plates, class_plates = excluded.class_plates, updated_at = excluded.updated_at, save = COALESCE(excluded.save, vault.save)`)
+    .bind(b.pid, shards, plates, JSON.stringify(cp), now, save).run();
   return json({ ok: true });
 }
 
 async function getVault(url, env) {
   const pid = url.searchParams.get("pid") ?? "";
   if (!PID.test(pid)) return json({ error: "bad pid" }, 400);
-  const r = await env.DB.prepare("SELECT shards, plates, class_plates, updated_at FROM vault WHERE pid = ?").bind(pid).first();
+  const r = await env.DB.prepare("SELECT shards, plates, class_plates, updated_at, save FROM vault WHERE pid = ?").bind(pid).first();
   if (!r) return json({ found: false });
   let classPlates = {};
   try { classPlates = JSON.parse(r.class_plates); } catch { /* keep empty */ }
-  return json({ found: true, shards: r.shards, plates: r.plates, classPlates, updatedAt: r.updated_at });
+  return json({ found: true, shards: r.shards, plates: r.plates, classPlates, updatedAt: r.updated_at, save: r.save ?? null });
 }
 
 export default {

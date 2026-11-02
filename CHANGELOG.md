@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.27.0
+- Full online backup: all your progress (Renown, mastery, kits, achievements, titles, Heat, history, Shards, Plates, settings and the run you're on) is now backed up under your backup code, not just Shards and Plates. It syncs every half-minute when something has changed, and as you close or leave the page.
+- Restore from a code brings everything back (after clearing your browser, or on a new device). The backup panel is now in Options too, not only on the Abyss tab.
+
 ## 1.26.18
 - Leaderboards: runs that won the Campaign and then delved deeper were wrongly marked unverified (the server stopped tracking floors after the win). Fixed, and the runs it hid are back on the boards.
 

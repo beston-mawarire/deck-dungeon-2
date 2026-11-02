@@ -108,39 +108,83 @@ export async function fetchBoard(board: Board): Promise<{ rows: Row[]; me: { ran
   return (await res.json()) as { rows: Row[]; me: { rank: number; value: number } | null };
 }
 
-// ---------- Abyss items backup (Ruin Shards and Vanadium Plates) ----------
+// ---------- Backup: Ruin Shards, Vanadium Plates and the whole save ----------
 // The device is in charge; the server keeps a copy under this player's id, so it can be restored with a backup code.
 export interface Vault { shards: number; plates: number; classPlates: Partial<Record<string, number>> }
 
+/** Everything this game keeps in the browser, except what belongs to this device alone (its id, send queues, reload marks). */
+const DEVICE_ONLY = /^dd2-(pid|vault-dirty|lb-queue|reloaded-.*)$/;
+function snapshotSave(): string {
+  const keys: Record<string, string> = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("dd2-") && !DEVICE_ONLY.test(k)) keys[k] = localStorage.getItem(k) ?? "";
+    }
+  } catch { /* storage unavailable */ }
+  return JSON.stringify({ v: 1, keys });
+}
+/** Put a backed-up save in place of this device's (the page reloads afterwards). */
+export function applySave(save: string): boolean {
+  try {
+    const o = JSON.parse(save) as { v?: number; keys?: Record<string, string> };
+    if (!o || typeof o.keys !== "object") return false;
+    const drop: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith("dd2-") && !DEVICE_ONLY.test(k)) drop.push(k); }
+    for (const k of drop) localStorage.removeItem(k);
+    for (const [k, v] of Object.entries(o.keys)) if (k.startsWith("dd2-") && !DEVICE_ONLY.test(k)) localStorage.setItem(k, v);
+    lastSent = save;
+    return true;
+  } catch { return false; }
+}
+
 let vaultTimer: ReturnType<typeof setTimeout> | undefined;
 let vaultPending: Vault | null = null;
-/** Back up the vault (debounced; retried later if offline). */
+let lastSent = "";
+let lastVault: Vault | null = null;
+/** Back up now-ish (debounced; retried later if offline). */
 export function backupVault(v: Vault) {
   if (!leaderboardOn()) return;
-  vaultPending = { ...v, classPlates: { ...v.classPlates } };
+  vaultPending = lastVault = { ...v, classPlates: { ...v.classPlates } };
   store.set("dd2-vault-dirty", "1");
   clearTimeout(vaultTimer);
   vaultTimer = setTimeout(() => void sendVault(), 2500);
 }
+const payload = (v: Vault, save: string) => JSON.stringify({ pid: playerId(), ...v, save });
 async function sendVault() {
   const v = vaultPending;
   if (!v) return;
+  const save = snapshotSave();
   try {
-    const res = await fetch(`${LEADERBOARD_URL}/vault`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pid: playerId(), ...v }) });
-    if (res.ok) { vaultPending = null; store.set("dd2-vault-dirty", ""); }
+    const res = await fetch(`${LEADERBOARD_URL}/vault`, { method: "POST", headers: { "content-type": "application/json" }, body: payload(v, save) });
+    if (res.ok) { vaultPending = null; lastSent = save; store.set("dd2-vault-dirty", ""); }
     else if (res.status === 429) vaultTimer = setTimeout(() => void sendVault(), 3000);
   } catch { /* offline: sent again next time something changes, or on the next start */ }
+}
+/** Keep the online copy fresh: every half-minute if anything changed, and as the page is hidden or closed. */
+export function watchBackup(current: () => Vault) {
+  if (!leaderboardOn()) return;
+  lastSent = lastSent || "";
+  setInterval(() => { if (snapshotSave() !== lastSent) backupVault(current()); }, 30000);
+  const flush = () => {
+    const save = snapshotSave();
+    if (save === lastSent || !navigator.sendBeacon) return;
+    // A beacon survives the tab closing; plain text keeps it a simple request.
+    if (navigator.sendBeacon(`${LEADERBOARD_URL}/vault`, new Blob([payload(lastVault ?? current(), save)], { type: "text/plain" }))) lastSent = save;
+  };
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); });
+  window.addEventListener("pagehide", flush);
 }
 /** True if the last backup didn't make it to the server. */
 export const vaultDirty = () => store.get("dd2-vault-dirty") === "1";
 
 /** The server's copy for a player (this device's by default). */
-export async function fetchVault(pid = playerId()): Promise<Vault | null> {
+export async function fetchVault(pid = playerId()): Promise<(Vault & { save: string | null }) | null> {
   if (!leaderboardOn()) return null;
   const res = await fetch(`${LEADERBOARD_URL}/vault?pid=${pid}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const d = (await res.json()) as { found: boolean } & Partial<Vault>;
-  return d.found ? { shards: d.shards ?? 0, plates: d.plates ?? 0, classPlates: d.classPlates ?? {} } : null;
+  const d = (await res.json()) as { found: boolean; save?: string | null } & Partial<Vault>;
+  return d.found ? { shards: d.shards ?? 0, plates: d.plates ?? 0, classPlates: d.classPlates ?? {}, save: d.save ?? null } : null;
 }
 
 /** The backup code is the player's id: entering it on another device takes over that identity (and its backup). */

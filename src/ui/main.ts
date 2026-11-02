@@ -28,7 +28,7 @@ import {
 import { fortunePips } from "../game/loot";
 import { PLATE_BONUS, potionCap, potionsPerFight } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
-import { backupCode, backupVault, setPlayerTitle, BOARDS, type Board, fetchBoard, fetchVault, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun, useBackupCode, vaultDirty } from "./leaderboard";
+import { applySave, watchBackup, backupCode, backupVault, setPlayerTitle, BOARDS, type Board, fetchBoard, fetchVault, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun, useBackupCode, vaultDirty } from "./leaderboard";
 import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
@@ -477,13 +477,13 @@ function historyPopup() {
   </div></div>`;
 }
 
-/** Ruin Shards and Vanadium Plates are backed up to the server; the backup code restores them on another device. */
+/** All progress is backed up to the server; the backup code restores it on another device. */
 function backupPanel() {
   if (!leaderboardOn()) return "";
-  return `<div class="panel backup-panel"><p><b>🔐 Backup</b> <span class="sub">Your Shards and Plates are backed up online. Keep this code to restore them on another device:</span></p>
+  return `<div class="panel backup-panel"><p><b>🔐 Backup</b> <span class="sub">All your progress is backed up online: Renown, mastery, achievements, Shards, Plates, settings and the run you're on. Keep this code to restore it on another device or after clearing your browser:</span></p>
     <p class="backup-code">${esc(backupCode())}</p>
     ${restoreOpen ? `<div class="row"><input id="restore-code" class="grow" placeholder="Paste a backup code" maxlength="24" autocomplete="off"><button class="small primary" data-restore>Restore</button><button class="small" data-restoreclose>Cancel</button></div>
-      <p class="sub">Restoring replaces this device's Shards and Plates (and leaderboard identity) with the code's.</p>` : `<button class="small" data-restoreopen>Restore from a code</button>`}
+      <p class="sub">Restoring replaces all of this device's progress (and leaderboard identity) with the code's.</p>` : `<button class="small" data-restoreopen>Restore from a code</button>`}
     ${restoreMsg ? `<p class="sub">${esc(restoreMsg)}</p>` : ""}</div>`;
 }
 
@@ -1399,7 +1399,8 @@ function optionsPopup() {
     <h2>Combat speed</h2>
     <div class="row">${sp(1, "Normal")}${sp(0.5, "Fast")}${sp(0.2, "Very fast")}</div>
     <h2>Progress</h2>
-    <p class="sub">Renown, unlocks, the Codex and any saved run are kept in this browser.</p>
+    <p class="sub">Renown, unlocks, the Codex and any saved run are kept in this browser${leaderboardOn() ? ", with a copy online" : ""}.</p>
+    ${backupPanel()}
     <div class="row"><button class="${resetArmed ? "danger" : ""}" data-reset>${resetArmed ? "Tap again to erase everything" : "Reset all progress"}</button></div>
     <div class="row" style="justify-content:center;margin-top:14px"><button class="primary" data-closeoptions>Done</button></div>
   </div></div>`;
@@ -1959,6 +1960,20 @@ function bind() {
     };
     el.onclick = ev => ev.stopPropagation();
   });
+  on("[data-restoreopen]", () => { restoreOpen = true; restoreMsg = ""; });
+  on("[data-restoreclose]", () => { restoreOpen = false; });
+  on("[data-restore]", () => {
+    const code = app.querySelector<HTMLInputElement>("#restore-code")?.value ?? "";
+    if (!useBackupCode(code)) { restoreMsg = "That isn't a valid backup code."; return; }
+    restoreMsg = "Restoring…";
+    fetchVault().then(v => {
+      if (!v) { restoreMsg = "Nothing is backed up under that code."; render(); return; }
+      if (v.save && applySave(v.save)) { restoreMsg = "Restored everything. Reloading…"; render(); setTimeout(() => location.reload(), 600); return; }
+      meta.ruinShards = v.shards; meta.plates = v.plates; meta.classPlates = v.classPlates; saveMeta(meta);
+      restoreOpen = false; restoreMsg = `Restored: ${v.shards} Ruin Shard${v.shards === 1 ? "" : "s"}, ${v.plates + Object.values(v.classPlates).reduce((a: number, n) => a + (n ?? 0), 0)} Vanadium Plate(s).`;
+      render();
+    }).catch(() => { restoreMsg = "Couldn't reach the server. Try again when you're online."; render(); });
+  });
   if (!run) {
     on("[data-mode]", el => { mode = el.dataset.mode as Mode; });
     on("[data-story]", el => { storyOpen = el.dataset.story as Mode; });
@@ -2008,19 +2023,6 @@ function bind() {
       if (!plateArmed) { plateArmed = true; return; }
       plateArmed = false;
       if (applyPlate(meta, el.dataset.addplate!)) { backupVault(vaultOf(meta)); sfx("chest"); }
-    });
-    on("[data-restoreopen]", () => { restoreOpen = true; restoreMsg = ""; });
-    on("[data-restoreclose]", () => { restoreOpen = false; });
-    on("[data-restore]", () => {
-      const code = app.querySelector<HTMLInputElement>("#restore-code")?.value ?? "";
-      if (!useBackupCode(code)) { restoreMsg = "That isn't a valid backup code."; return; }
-      restoreMsg = "Restoring…";
-      fetchVault().then(v => {
-        if (!v) { restoreMsg = "Nothing is backed up under that code."; render(); return; }
-        meta.ruinShards = v.shards; meta.plates = v.plates; meta.classPlates = v.classPlates; saveMeta(meta);
-        restoreOpen = false; restoreMsg = `Restored: ${v.shards} Ruin Shard${v.shards === 1 ? "" : "s"}, ${v.plates + Object.values(v.classPlates).reduce((a: number, n) => a + (n ?? 0), 0)} Vanadium Plate(s).`;
-        render();
-      }).catch(() => { restoreMsg = "Couldn't reach the server. Try again when you're online."; render(); });
     });
     on("[data-daily]", () => {
       const today = utcDay();
@@ -2194,7 +2196,8 @@ window.addEventListener("online", () => { offlineOpen = false; say("📶 You're 
 
 setPlayerTitle(meta.title ?? "");
 
-// Abyss items backup: resend a backup that didn't make it; on a device that has never held any, adopt the online copy.
+// Backup: resend one that didn't make it, keep the online copy fresh; on a device that has never held any Shards, adopt the online copy.
+watchBackup(() => vaultOf(meta));
 if (vaultDirty()) backupVault(vaultOf(meta));
 else if (meta.ruinShards === undefined && meta.plates === undefined && meta.classPlates === undefined) {
   fetchVault().then(v => {
