@@ -17,7 +17,7 @@ import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
 import { GEN_MODULE_MAP, modValue } from "../game/gen";
 import { ABYSS_MODS, ACHIEVEMENTS, applyKit, currentAbyssMod, HEAT_LEVELS, HEAT_MAX, HEAT_RENOWN, heatOf, KIT_COMMON_LEVEL, KIT_SLOTS, KIT_UNCOMMON_LEVEL, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX, MASTERY_XP } from "../game/progress";
-import { ABYSS_SHARD_COST, abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
+import { ABYSS_SHARD_COST, addGem, GEM_BONUS, removeGem, abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
@@ -26,7 +26,7 @@ import {
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
-import { PLATE_BONUS, potionCap, potionsPerFight } from "../game/hero";
+import { PLATE_BONUS, plateMult, potionCap, potionsPerFight } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
 import { applySave, watchBackup, backupCode, backupVault, setPlayerTitle, SUB_BOARDS, type Board, type Scope, type KillerRow, fetchBoard, fetchKillers, fetchVault, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun, useBackupCode, vaultDirty } from "./leaderboard";
 import { CROSSROADS_GUISES } from "../data/events";
@@ -384,6 +384,7 @@ function titleScreen() {
         <div class="abyss-stock">
           <div class="stile extra-tile shard-tile"><span>🪨</span><span><b>${shards}</b> Ruin Shard${shards === 1 ? "" : "s"}<span class="sub">From Campaign bosses, floor 20 and deeper.</span></span></div>
           <div class="stile extra-tile plate-tile"><span>⬛</span><span><b>${meta.plates ?? 0}</b> Vanadium Plate${(meta.plates ?? 0) === 1 ? "" : "s"} to give<span class="sub">Rare drops from the same bosses.</span></span></div>
+          <div class="stile extra-tile gem-tile" style="grid-column: 1 / -1"><span>💎</span><span><b>${(meta.ruinGems ?? 0) + Object.values(meta.classGems ?? {}).reduce((a: number, n) => a + (n ?? 0), 0)}</b> Ruin Gem${((meta.ruinGems ?? 0) + Object.values(meta.classGems ?? {}).reduce((a: number, n) => a + (n ?? 0), 0)) === 1 ? "" : "s"} · ${meta.ruinGems ?? 0} free<span class="sub">Every Uber boss drops one. +10% base stats on any class, in every mode; open a class to move them.</span></span></div>
           <div class="stile extra-tile" style="grid-column: 1 / -1"><span>🏅</span><span>Deepest: <b>${meta.abyssBest ? `depth ${meta.abyssBest}/10` : "not yet"}</b><span class="sub">${meta.abyssRuns ?? 0} Abyss run${(meta.abyssRuns ?? 0) === 1 ? "" : "s"}</span></span></div>
         </div>
         ${(() => { const w = currentAbyssMod(); return `<div class="panel abyss-week"><b>${w.icon} This week: ${esc(w.name)}</b><br><span class="sub">${esc(w.text)}. Changes every Monday.</span></div>`; })()}
@@ -1606,6 +1607,21 @@ function kitPopup(o: OriginId, slot: KitSlot) {
   </div></div>`;
 }
 
+/** Ruin Gems on this run's class: +10% base stats each, in every mode. */
+function withGems(r: Run) {
+  r.hero.gems = meta.classGems?.[r.hero.origin] ?? 0;
+  recompute(r.hero); r.hero.f.hp = r.hero.f.maxHp;
+}
+/** The Ruin Gems panel in a class popup: what's on this class, and moving gems on or off. */
+function gemPanel(o: OriginId) {
+  const on = meta.classGems?.[o] ?? 0, free = meta.ruinGems ?? 0;
+  const total = free + Object.values(meta.classGems ?? {}).reduce((a: number, n) => a + (n ?? 0), 0);
+  if (!total) return "";
+  return `<div class="panel gem-panel"><p class="big">💎 <b>${on}</b> Ruin Gem${on === 1 ? "" : "s"} on the ${ORIGINS[o].name}</p>
+    <p class="sub">${on ? `+${Math.round(GEM_BONUS * on * 100)}% Max HP, Damage and Armor in every mode.` : "None yet."} Each gem adds ${Math.round(GEM_BONUS * 100)}%. Gems move freely between classes.</p>
+    <div class="row">${free ? `<button class="small primary" data-addgem="${o}">＋ Add a gem (${free} free)</button>` : ""}${on ? `<button class="small" data-removegem="${o}">− Take one back</button>` : ""}</div></div>`;
+}
+
 function originPopup(o: OriginId) {
   const og = ORIGINS[o];
   const p = getItem(og.passive);
@@ -1619,8 +1635,9 @@ function originPopup(o: OriginId) {
     <div class="center bigicon">${ORIGIN_ICON[o]}</div>
     <p class="center">Into the Abyss as the ${og.name}.</p>
     ${masteryPanel(o)}
+    ${gemPanel(o)}
     <div class="panel plate-panel"><p class="big">⬛ <b>${pl}</b> Vanadium Plate${pl === 1 ? "" : "s"} on the ${og.name}</p>
-      <p class="sub">${pl ? `+${Math.round(PLATE_BONUS * pl * 100)}% Max HP, Armor and Damage in the Abyss.` : "No plates yet."} Each plate adds ${Math.round(PLATE_BONUS * 100)}% more.</p>
+      <p class="sub">${pl ? `+${Math.round((plateMult(pl) - 1) * 100)}% Max HP, Armor and Damage in the Abyss.` : "No plates yet."} The first two plates add ${Math.round(PLATE_BONUS * 100)}% each; from the 3rd on, each adds 30%.</p>
       ${free ? `<button class="small ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : `＋ Give a plate (${free} to give)`}</button>` : `<p class="sub">No plates to give. Campaign bosses from floor 20 sometimes drop one.</p>`}</div>
     ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary abyss-go" data-startabyss ${shards >= ABYSS_SHARD_COST ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 ${ABYSS_SHARD_COST}</button><button data-closeorigin>Back</button></div>
@@ -1635,6 +1652,7 @@ function originPopup(o: OriginId) {
     <p class="sub"><b>${esc(p.name)}:</b> ${esc(p.text)}.</p>
     <p class="sub">Starts with ${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p>
     ${masteryPanel(o)}
+    ${gemPanel(o)}
     ${heatPanel()}
     ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>🏰 Start Campaign</button><button data-closeorigin>Back</button></div>
@@ -2144,6 +2162,8 @@ function bind() {
     });
     on("[data-origin]", el => { pendingOrigin = el.dataset.origin as OriginId; plateArmed = false; });
     on("[data-menutab]", el => { menuTab = el.dataset.menutab as typeof menuTab; restoreOpen = false; restoreMsg = ""; });
+    on("[data-addgem]", el => { if (addGem(meta, el.dataset.addgem!)) { backupVault(vaultOf(meta)); sfx("chest"); } });
+    on("[data-removegem]", el => { if (removeGem(meta, el.dataset.removegem!)) backupVault(vaultOf(meta)); });
     on("[data-addplate]", el => {
       if (!plateArmed) { plateArmed = true; return; }
       plateArmed = false;
@@ -2158,6 +2178,7 @@ function bind() {
       saveMeta(meta);
       mode = "campaign"; lbResult = null; lbNaming = false; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
       const nr = newDailyRun(today);
+      withGems(nr);
       run = nr; void startSession(nr);
     });
     on("[data-startabyss]", () => {
@@ -2169,7 +2190,7 @@ function bind() {
       nr.abyssMod = currentAbyssMod().id;
       applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0));
       nr.hero.plates = meta.classPlates?.[o] ?? 0;
-      recompute(nr.hero); nr.hero.f.hp = nr.hero.f.maxHp;
+      withGems(nr);
       run = nr; void startSession(nr);
     });
     on("[data-closeorigin]", () => { pendingOrigin = null; });
@@ -2178,7 +2199,7 @@ function bind() {
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode;
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
-    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0)); run = nr; void startSession(nr); });
+    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0)); withGems(nr); run = nr; void startSession(nr); });
     return;
   }
   const r = run;

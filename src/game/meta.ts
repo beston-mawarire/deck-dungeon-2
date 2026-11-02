@@ -34,6 +34,9 @@ export interface Meta {
   plates?: number;
   /** Plates given to each class (for good). They only count in Abyss runs. */
   classPlates?: Partial<Record<string, number>>;
+  /** Ruin Gems not on any class, and the gems on each class. Gems move freely between classes. */
+  ruinGems?: number;
+  classGems?: Partial<Record<string, number>>;
   /** The deepest Abyss depth reached, and how many Abyss runs. */
   abyssBest?: number;
   abyssRuns?: number;
@@ -68,11 +71,31 @@ export function bankRuin(m: Meta, run: Run): boolean {
   const r = run.ruin;
   if (!r) return false;
   const b = (r.banked = r.banked ?? { shards: 0, plates: 0 });
-  const ds = r.shards - b.shards, dp = r.plates - b.plates;
-  if (!ds && !dp) return false;
+  const ds = r.shards - b.shards, dp = r.plates - b.plates, dg = (r.gems ?? 0) - (b.gems ?? 0);
+  if (!ds && !dp && !dg) return false;
   m.ruinShards = (m.ruinShards ?? 0) + ds;
   m.plates = (m.plates ?? 0) + dp;
-  b.shards = r.shards; b.plates = r.plates;
+  m.ruinGems = (m.ruinGems ?? 0) + dg;
+  b.shards = r.shards; b.plates = r.plates; b.gems = r.gems ?? 0;
+  saveMeta(m);
+  return true;
+}
+
+/** Each Ruin Gem on a class: +10% to its base stats (Max HP, Damage, Armor), in every mode. */
+export const GEM_BONUS = 0.1;
+/** Put a free Ruin Gem on a class. */
+export function addGem(m: Meta, origin: string): boolean {
+  if ((m.ruinGems ?? 0) <= 0) return false;
+  m.ruinGems = (m.ruinGems ?? 0) - 1;
+  m.classGems = { ...(m.classGems ?? {}), [origin]: (m.classGems?.[origin] ?? 0) + 1 };
+  saveMeta(m);
+  return true;
+}
+/** Take a Ruin Gem back off a class (to put on another). */
+export function removeGem(m: Meta, origin: string): boolean {
+  if ((m.classGems?.[origin] ?? 0) <= 0) return false;
+  m.classGems = { ...(m.classGems ?? {}), [origin]: (m.classGems?.[origin] ?? 0) - 1 };
+  m.ruinGems = (m.ruinGems ?? 0) + 1;
   saveMeta(m);
   return true;
 }
@@ -87,7 +110,7 @@ export function applyPlate(m: Meta, origin: string): boolean {
 }
 
 /** Ruin Shards it costs to enter the Abyss. */
-export const ABYSS_SHARD_COST = 3;
+export const ABYSS_SHARD_COST = 5;
 /** Pay the Ruin Shards to enter the Abyss. */
 export function spendShard(m: Meta): boolean {
   if ((m.ruinShards ?? 0) < ABYSS_SHARD_COST) return false;

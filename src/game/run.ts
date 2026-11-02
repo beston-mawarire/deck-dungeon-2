@@ -70,7 +70,7 @@ const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Reco
 /** Abyss: every floor down, everything gets this much tougher on top of its depth. */
 /** The Abyss is the endgame: every foe starts far tougher than its Campaign self and grows with every depth
  *  (Vanadium Plates are how you keep up). HP and damage scale separately, and Armor creeps up too. */
-export const ABYSS_GROWTH = 1.2;
+export const ABYSS_GROWTH = 1.4;
 /** From this Campaign floor on, foes scale harder every floor. */
 export const DEEP_FLOOR = 15;
 /** In the Abyss, the 7th Elite fight in a row is a boss instead. */
@@ -80,7 +80,7 @@ const BOSS_IMMUNITIES = ["x_fireproof", "x_antitoxic", "x_bloodless", "x_insulat
 /** Abyss Merchants charge far more. */
 export const ABYSS_PRICE_MULT = 2;
 export const ABYSS_BASE = 1.35;
-export const ABYSS_DMG_GROWTH = 1.15;
+export const ABYSS_DMG_GROWTH = 1.3;
 export const ABYSS_DMG_BASE = 1.25;
 /** From this floor on (outside the Abyss), bosses drop Ruin Shards, and sometimes a Vanadium Plate. */
 export const RUIN_FLOOR = 20;
@@ -227,7 +227,7 @@ export interface Run {
   /** The Daily Dungeon this run belongs to (its UTC date, YYYY-MM-DD), if any. */
   daily?: string;
   /** Ruin Shards and Vanadium Plates found this run, and how many of them are already banked on the device. */
-  ruin?: { shards: number; plates: number; banked?: { shards: number; plates: number } };
+  ruin?: { shards: number; plates: number; gems?: number; banked?: { shards: number; plates: number; gems?: number } };
 }
 
 /** A foe that ended a run, remembered: it returns, stronger each time it wins. */
@@ -243,7 +243,12 @@ export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: M
   resetDropped();
   run.choices = genChoices(run);
   if (mode === "abyss") run.hero.f.persist["abyssRun"] = 1;
-  if (mode === "abyss") run.popup = { icon: "🕳️", title: "The Abyss", text: "The Ruin Shard crumbles in your hand, and the floor gives way. Down here every beast is a rank deadlier than it should be, and every one of them carries something worth killing for. The strongest carry the best of it. Ten depths. Few see the bottom." };
+  if (mode === "abyss") run.popup = { icon: "🕳️", title: "The Abyss", text: "Every foe down here is a rank deadlier, gets far stronger with each depth, and wears your Armor away. Ten depths, an Uber boss at the bottom of each.", list: [
+    "💎 Every Uber boss you beat drops a Ruin Gem.",
+    "💎 Put gems on any class in the menu: each one gives +10% Max HP, Damage and Armor, in every mode, for good.",
+    "💎 Gems aren't stuck: take one off a class and give it to another whenever you like.",
+    "⬛ Vanadium Plates are what keep you alive down here: from your 3rd plate on a class, each one adds 30%."
+  ] };
   return run;
 }
 
@@ -483,8 +488,8 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
     enemy.items["m_ambush"] = 1;
   }
   if (run.mode === "abyss") {
-    // The Abyss wears your Armor down: 10% less at every depth (to at most 60% less).
-    run.hero.f.persist["armorDecay"] = Math.min(60, 10 * (run.floor - 1));
+    // The Abyss wears your Armor down: 15% less at every depth (to at most 90% less).
+    run.hero.f.persist["armorDecay"] = Math.min(90, 15 * (run.floor - 1));
     const g = ABYSS_BASE * Math.pow(ABYSS_GROWTH, run.floor - 1);
     enemy.maxHp = enemy.hp = Math.round(enemy.hp * g);
     enemy.damage = Math.round(enemy.damage * ABYSS_DMG_BASE * Math.pow(ABYSS_DMG_GROWTH, run.floor - 1));
@@ -847,6 +852,13 @@ function afterFight(run: Run) {
         ruinNote += " · ⬛ a Vanadium Plate!";
         if (!run.popup) run.popup = { icon: "⬛", title: "A Vanadium Plate", text: "Among the remains lies a plate of dark, impossibly hard metal, cold to the touch. It's yours to keep, beyond this run. In the Abyss, it makes one of your heroes stronger.", fanfare: "epic" };
       }
+    }
+    // Every Uber boss in the Abyss leaves a Ruin Gem: put it on any class for +10% base stats in every mode.
+    if (run.mode === "abyss" && run.scene.t === "combat" && run.scene.uber) {
+      run.ruin = run.ruin ?? { shards: 0, plates: 0 };
+      run.ruin.gems = (run.ruin.gems ?? 0) + 1;
+      ruinNote += " · 💎 a Ruin Gem!";
+      if (!run.popup) run.popup = { icon: "💎", title: "A Ruin Gem", text: "The Uber boss leaves a gem that hums with stolen strength. It's yours for good: in the menu, put it on any class for +10% Max HP, Damage and Armor in every mode. You can move it to another class whenever you like." };
     }
     // THE END: nothing left to fight. The run is won, and there's a cookie.
     if ((b.enemy.items["m_the_end"] ?? 0) > 0) {

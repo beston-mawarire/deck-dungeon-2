@@ -5,6 +5,13 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.39.0
+- New: 💎 Ruin Gems. Every Uber boss in the Abyss drops one. Put gems on any class from its popup in the menu: each gives +10% Max HP, Damage and Armor in every mode, for good. Gems aren't locked in: take one off a class and give it to another whenever you like. Starting an Abyss run explains it all.
+- Vanadium Plates matter far more: the first two still add 6% each, and from the 3rd plate on, each adds 30%.
+- The Abyss costs 5 Ruin Shards, every depth adds +40% enemy HP and +30% damage (compounding), and your Armor wears down 15% per depth, up to 90%.
+- Statuses you put on foes land half as heavy and tick for half the damage; reactions you cause deal half the damage.
+- Regen you gain is half as strong and stacks to at most 8. Barrier you gain is half as strong, and yours holds at most 15% of your Max HP.
+
 ## 1.38.0
 - True Strike also ignores Dazzle. True Strike and the Causality Mirror now recharge: once used, they come back a few rounds later.
 - Statuses and reactions are weaker across the board: Burn, Poison, Bleed, Chill, Static, Soaked, Smoulder and Fracture you put on foes land 20% lighter and tick 20% softer; reactions you cause hit 30% softer; and every bonus to reactions or status damage counts half.

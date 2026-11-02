@@ -26,6 +26,10 @@ export const SIGIL_FLOORS = [3, 6, 10, 15];
 export const sigilSlots = (h: Hero) => 2 + SIGIL_FLOORS.filter(f => (h.f.persist["floor"] ?? 1) >= f).length;
 /** Each Vanadium Plate on a class (Abyss runs only): Max HP, Armor and Damage this much stronger. */
 export const PLATE_BONUS = 0.06;
+/** Vanadium Plates: the first two add 6% each; from the 3rd plate on, each adds 30% (they're what keeps you alive deep in the Abyss). */
+export const plateMult = (n: number) => 1 + PLATE_BONUS * Math.min(n, 2) + 0.3 * Math.max(0, n - 2);
+/** Ruin Gems on this class: +10% base stats each, in every mode. */
+export const GEM_STAT = 0.1;
 /** Healing Potions: 3 slots to start (potion gear adds more). */
 export const BASE_POTION_CAP = 3;
 /** Potion slots: how many Healing Potions you can carry, and also how many you can drink in one fight. */
@@ -75,6 +79,8 @@ export interface Hero {
   sigilBag?: Sigil[];
   /** Vanadium Plates this class carries into an Abyss run (set only on Abyss runs). */
   plates?: number;
+  /** Ruin Gems on this class (from the menu): base stats +10% each. */
+  gems?: number;
   xp: number;
   level: number;
   nextUid: number;
@@ -276,8 +282,14 @@ export function recompute(h: Hero) {
     s.critDmg = up(s.critDmg ?? 0); s.dotAmp = up(s.dotAmp ?? 0); s.dmgDealt = up(s.dmgDealt ?? 0);
   }
   // Vanadium Plates (Abyss runs only): Max HP, Armor and Damage grow with every plate.
+  // Ruin Gems: every mode.
+  if (h.gems) {
+    const m = 1 + GEM_STAT * h.gems;
+    const up = (n: number) => (n > 0 ? Math.round(n * m) : n);
+    s.maxHp = up(s.maxHp); s.armor = up(s.armor); s.damage = up(s.damage); s.offDamage = up(s.offDamage);
+  }
   if (h.plates) {
-    const m = 1 + PLATE_BONUS * h.plates;
+    const m = plateMult(h.plates);
     const up = (n: number) => (n > 0 ? Math.round(n * m) : n);
     s.maxHp = up(s.maxHp); s.armor = up(s.armor); s.damage = up(s.damage); s.offDamage = up(s.offDamage);
   }

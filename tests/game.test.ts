@@ -113,7 +113,7 @@ describe("origins and gear", () => {
     const b = startBattle(h.f, dummy(), 1);
     resolveFace(b, h.f, b.enemy, 2, false);
     // Fire Bolt 3 (+1 Arcane Spark, +1 Cloth Robes) and Ember Charm 2 (+1 Cloth Robes), each landing 20% lighter on a foe
-    expect(st(b.enemy, "burn")).toBe(7);
+    expect(st(b.enemy, "burn")).toBe(6);
   });
 
   it("a two-handed weapon empties the off-hand into the backpack", () => {
@@ -181,7 +181,7 @@ describe("statuses and reactions still work", () => {
     const b = startBattle(h.f, dummy(100), 1);
     applyStatus(b, h.f, b.enemy, "poison", 4);
     applyStatus(b, h.f, b.enemy, "burn", 3);
-    expect(b.enemy.hp).toBe(96); // the hero's statuses land 20% lighter, and reactions hit 30% softer
+    expect(b.enemy.hp).toBe(98); // the hero's statuses land half as heavy, and reactions hit half as hard
   });
 
   it("Bleed ticks", () => {
@@ -189,7 +189,7 @@ describe("statuses and reactions still work", () => {
     const b = startBattle(h.f, dummy(100), 1);
     applyStatus(b, h.f, b.enemy, "bleed", 3);
     endOfRound(b, b.enemy);
-    expect(b.enemy.hp).toBe(98);
+    expect(b.enemy.hp).toBe(99);
   });
 });
 
@@ -541,7 +541,7 @@ describe("static and lightning", () => {
 
   it("Static caps at 10 and ticks once per action for 2 (4 on Constructs)", () => {
     const h = newHero("mage");
-    for (const [fam, per] of [["Beast", 2], ["Construct", 3]] as const) { // (the hero's status damage ticks 20% softer)
+    for (const [fam, per] of [["Beast", 1], ["Construct", 2]] as const) { // (the hero's status damage ticks half as hard)
       const e = foe(fam);
       const b = startBattle(h.f, e, 8);
       applyStatus(b, h.f, e, "static", 15);
@@ -562,7 +562,7 @@ describe("static and lightning", () => {
     const hp = e.hp;
     applyStatus(b, h.f, e, "shock", 1);
     expect(st(e, "static")).toBe(0);
-    expect(hp - e.hp).toBe(13);
+    expect(hp - e.hp).toBe(9);
     expect(h.f.persist["rx:foe:conduction"]).toBe(1);
   });
 
@@ -599,9 +599,9 @@ describe("smouldering", () => {
     const e = foe();
     const b = startBattle(h.f, e, 12);
     h.f.statuses = {};
-    applyStatus(b, h.f, e, "smoulder", 2);
+    applyStatus(b, h.f, e, "smoulder", 4); // (lands as 2)
     endOfRound(b, e);
-    expect(st(e, "burn")).toBe(3);
+    expect(st(e, "burn")).toBe(2);
     expect(st(h.f, "burn")).toBe(1);
     expect(st(e, "smoulder")).toBe(1);
   });
@@ -624,7 +624,7 @@ describe("smouldering", () => {
     h.f.statuses = {};
     applyStatus(b, h.f, h.f, "smoulder_soul", 3);
     playRound(b, "guard");
-    expect(500 - e.hp).toBeGreaterThanOrEqual(3); // the Burn landed and ticked on its turn
+    expect(500 - e.hp).toBeGreaterThanOrEqual(2); // the Burn landed and ticked on its turn
     expect(st(h.f, "smoulder_soul")).toBe(2);
   });
 
@@ -847,18 +847,18 @@ describe("class actions and new stats", () => {
     equipItem(robed, { uid: 901, base: "rb_hexweave", rarity: "uncommon", level: 1, bonuses: {}, revealed: true });
     expect(robed.f.dotAmp).toBe(15);
     const hurt = (h: ReturnType<typeof newHero>) => { const b = startBattle(h.f, dummy(), 9); b.enemy.statuses.burn = 20; const hp = b.enemy.hp; enemyPhase(b); return hp - b.enemy.hp; };
-    expect(hurt(robed)).toBe(17);
-    expect(hurt(plain)).toBe(16);
+    expect(hurt(robed)).toBe(11);
+    expect(hurt(plain)).toBe(10);
   });
 
   it("Fracture does nothing until 3 stacks, then shatters for 4 per stack", () => {
     const h = newHero("warrior");
     const b = startBattle(h.f, dummy(), 11);
     const hp = b.enemy.hp;
-    applyStatus(b, h.f, b.enemy, "fracture", 2);
+    applyStatus(b, h.f, b.enemy, "fracture", 4); // (lands as 2)
     expect(b.enemy.hp).toBe(hp);
     applyStatus(b, h.f, b.enemy, "fracture", 1);
-    expect(hp - b.enemy.hp).toBe(8);
+    expect(hp - b.enemy.hp).toBe(6);
     expect(st(b.enemy, "fracture")).toBe(0);
   });
 
@@ -1004,7 +1004,7 @@ describe("class actions and new stats", () => {
     const b = startBattle(m.f, dummy(), 51);
     resolveFace(b, b.player, b.enemy, 2, false);
     // Fire Bolt 3 (+1 Arcane Spark, +1 Cloth Robes) and the Ember Charm's 2 Burn (+1 robes) twice
-    expect(st(b.enemy, "burn")).toBe(4 + 3 + 3);
+    expect(st(b.enemy, "burn")).toBe(8);
     const h = newHero("warrior");
     equipItem(h, { uid: 961, base: "ep_swelling_heart", rarity: "epic", level: 1, bonuses: {}, revealed: true });
     const max = h.f.maxHp;
@@ -1146,7 +1146,7 @@ describe("class actions and new stats", () => {
     applyStatus(b2, b2.enemy, g.f, "bleed", 2);
     expect(st(g.f, "barrier")).toBe(1);
     applyStatus(b2, b2.enemy, g.f, "weak", 1);
-    expect(st(g.f, "barrier")).toBe(1 + 3); // Barrier the hero gains is 35% weaker
+    expect(st(g.f, "barrier")).toBe(1 + 2); // Barrier the hero gains is half as strong
   });
 
   it("new curses: Destitute locks Gold, Unhealing stops healing, Frostbound starts fights Chilled", () => {
@@ -1263,7 +1263,7 @@ describe("class actions and new stats", () => {
     beginRound(b);
     e.statuses.bleed = 4;
     endRound(b);
-    expect(1000 - e.hp).toBe(6);
+    expect(1000 - e.hp).toBe(4);
     expect(st(e, "bleed")).toBe(4);
   });
 
@@ -1466,12 +1466,12 @@ describe("class actions and new stats", () => {
     const h = newHero("warrior");
     const e = foe();
     const b = startBattle(h.f, e, 55);
-    applyStatus(b, h.f, e, "chill", 6); // (lands as 5)
+    applyStatus(b, h.f, e, "chill", 10); // (lands as 5)
     const hp = e.hp;
     applyStatus(b, h.f, e, "chill", 1);
     expect(st(e, "chill")).toBe(0);
-    expect(hp - e.hp).toBeGreaterThanOrEqual(12);
-    applyStatus(b, h.f, e, "bleed", 13); // (lands as 10)
+    expect(hp - e.hp).toBeGreaterThanOrEqual(8);
+    applyStatus(b, h.f, e, "bleed", 20); // (lands as 10)
     expect(st(e, "bleed")).toBe(0);
   });
 
@@ -1692,12 +1692,12 @@ describe("enemy defences", () => {
 });
 
 describe("healing limits and new foes", () => {
-  it("no healing at 0 HP, Regen caps at 10, Grievous halves healing, Blighting stops it, Dispelling strips blessings", () => {
+  it("no healing at 0 HP, Regen caps at 8, Grievous halves healing, Blighting stops it, Dispelling strips blessings", () => {
     const h = newHero("warrior");
     const b = startBattle(h.f, dummy(500), 21);
     b.player.statuses = {};
     applyStatus(b, b.player, b.player, "regen", 40);
-    expect(st(b.player, "regen")).toBe(10);
+    expect(st(b.player, "regen")).toBe(8);
     b.player.hp = 0;
     expect(heal(b, b.player, 10)).toBe(0);
     b.player.hp = 10;

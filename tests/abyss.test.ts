@@ -65,8 +65,8 @@ describe("the Abyss", () => {
     expect(bankRuin(m, run)).toBe(false);
     expect(m.ruinShards).toBe(1);
     expect(abyssUnlocked(m)).toBe(true);
-    expect(spendShard(m)).toBe(false); // one shard isn't enough: the Abyss costs three
-    m.ruinShards = 4;
+    expect(spendShard(m)).toBe(false); // one shard isn't enough: the Abyss costs five
+    m.ruinShards = 6;
     expect(spendShard(m)).toBe(true);
     expect(m.ruinShards).toBe(1);
     // Floor 19 boss: nothing.
@@ -75,7 +75,8 @@ describe("the Abyss", () => {
     expect(early.ruin).toBeUndefined();
     const ab = newRun("warrior", 4, "abyss"); ab.floor = 10;
     win(ab, enter(ab, "boss", STEPS_PER_FLOOR));
-    expect(ab.ruin).toBeUndefined();
+    expect(ab.ruin?.shards ?? 0).toBe(0); // no Shards or Plates in the Abyss (its Uber boss drops a Ruin Gem instead)
+    expect(ab.ruin?.plates ?? 0).toBe(0);
   });
 
   it("Vanadium Plates go to a class for good and make it stronger", () => {
@@ -103,4 +104,24 @@ it("the 7th Elite fight in a row in the Abyss is a boss", async () => {
   chooseRoom(run, "fight");
   expect((run.scene as { rank?: string }).rank).toBe("boss");
   expect(run.normalStreak).toBe(0);
+});
+
+it("Uber bosses drop Ruin Gems; gems bank, move between classes, and add 10% base stats in any mode", async () => {
+  const { addGem, removeGem } = await import("../src/game/meta");
+  const run = newRun("mage", 66, "abyss");
+  run.popup = undefined; run.step = STEPS_PER_FLOOR;
+  chooseRoom(run, "boss");
+  if (run.scene.t !== "combat" || !run.scene.uber) throw new Error("no uber");
+  run.scene.battle.enemy.hp = 0; run.scene.battle.over = "won"; settleCombat(run);
+  expect(run.ruin?.gems).toBe(1);
+  const m: Meta = { renown: 0, runs: 0, wins: 0, bestFloor: 21, found: [] };
+  expect(bankRuin(m, run)).toBe(true);
+  expect(m.ruinGems).toBe(1);
+  expect(addGem(m, "warrior")).toBe(true);
+  expect(removeGem(m, "warrior")).toBe(true);
+  expect(addGem(m, "rogue")).toBe(true);
+  expect(m.classGems).toEqual({ warrior: 0, rogue: 1 });
+  const h = newHero("rogue"); const hp0 = h.f.maxHp;
+  h.gems = 2; recompute(h);
+  expect(h.f.maxHp).toBe(Math.round(hp0 * 1.2));
 });
