@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.59.4
+- Reverted: a Counter's Crit can be evaded or dodged again by slippery foes, as before.
+
 ## 1.59.3
 - Fixed: a Counter's Crit could itself be evaded or dodged by slippery foes (thieves, wisps), so it seemed to do nothing. It can't be evaded or dodged now: it always lands.
 
