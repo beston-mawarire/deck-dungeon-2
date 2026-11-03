@@ -1141,3 +1141,7 @@ body[data-theme] {
   background-attachment: fixed;
 }
 body[data-theme] .hud { backdrop-filter: blur(3px); }
+.bag-class { font-size: .7em; font-weight: 700; color: var(--muted); white-space: nowrap; }
+/* Reward summaries and notes take the floor's colour. */
+body[data-theme] .toast:not(.err) { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); border-color: color-mix(in srgb, var(--accent) 70%, var(--line)); }
+body[data-theme] .toast:not(.err) b { color: var(--accent); }

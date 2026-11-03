@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.55.1
+- Mastery stars appear from Mastery 2 (two stars); at Mastery 1 there are none.
+- Your Inventory shows your class (and level) at the top.
+- The reward notes after a fight or a boss ("+40 Gold · a relic to choose…", "Pick one…") take the floor theme's colour instead of gold.
+
 ## 1.55.0
 - 🧱 Runs take place in the dungeon now: a stone-brick wall and a dark vignette behind everything, tinted by the floor's theme.
 - The enemy's panel (its border, glow and fill) and its name, bosses included, take the floor theme's colour.

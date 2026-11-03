@@ -381,7 +381,7 @@ function titleScreen() {
     const lv = masteryLevel(meta.mastery?.[o] ?? 0);
     // Each class is a heraldic crest: its colours on a shield, its emblem in the middle, its name on a ribbon.
     return `<button class="crest crest-${o} ${abyss ? "abyss-card" : ""}" data-origin="${o}" aria-label="${esc(og.name)}">
-      <span class="crest-stars" title="Class Mastery ${lv} of ${MASTERY_MAX}">${lv > 6 ? `<span class="crowns">${"👑".repeat(lv - 6)}</span>` : lv > 0 ? "★".repeat(lv) : "☆"}</span>
+      <span class="crest-stars" title="Class Mastery ${lv} of ${MASTERY_MAX}">${lv > 6 ? `<span class="crowns">${"👑".repeat(lv - 6)}</span>` : lv >= 2 ? "★".repeat(lv) : ""}</span>
       <span class="crest-shield"><span class="crest-field"></span><span class="crest-emblem">${ORIGIN_ICON[o]}</span></span>
       <span class="crest-ribbon"><b>${og.name}</b></span>
       <span class="crest-blurb">${esc(og.blurb)}</span>
@@ -660,7 +660,7 @@ function pickScene(r: Run) {
   const title = `<h2 class="pick-title"><span>${esc(m ? m[1] + m[2] : s.title)}</span>${m ? "<b>Choose one reward</b>" : ""}</h2>`;
   return `${title}${sigilFound(s.sigils)}
     ${ks ? `<div class="item keepsake"><div class="meta">Keepsake · one at a time${r.hero.keepsake ? ` · replaces ${esc(getItem(r.hero.keepsake).name)}` : ""}</div><div class="nm">🕯️ ${esc(ks.name)}</div><p>${esc(ks.text)}.</p><div class="row"><button class="small primary" data-keepsake>Take the Keepsake</button></div><p class="sub">Free: it doesn't count as your pick.</p></div>` : ""}
-    ${s.items.length > 1 ? `<div class="toast">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
+    ${s.items.length > 1 ? `<div class="toast pick-note">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
     <div class="cards">${s.items.map(it => itemCard(it, s.items.length > 1 ? pickButtons(it) : takeButtons(it), true)).join("")}</div>
     ${s.passed?.length ? `<h2 class="lost-out">Lost out on</h2><div class="cards">${s.passed.map(it => itemCard(it)).join("")}</div>` : ""}
     <div class="row" style="margin-top:12px"><button class="take-pack take-none" data-finish>🚫 Take nothing</button></div>`;
@@ -1263,7 +1263,7 @@ function bag(r: Run) {
     : extras;
   return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
-    <div class="row"><h1 class="grow">Inventory</h1><button class="closebtn" data-closebag>✕ Close</button></div>
+    <div class="row"><h1 class="grow">Inventory <span class="bag-class">· ${ORIGIN_ICON[h.origin]} ${esc(ORIGINS[h.origin].name)} · Lv ${h.level}</span></h1><button class="closebtn" data-closebag>✕ Close</button></div>
     <div class="bag-tabs" role="tablist">${tabs.map(([id, label, badge]) => `<button class="bag-tab ${bagTab === id ? "active" : ""}" data-bagtab="${id}" role="tab" aria-selected="${bagTab === id}"><span class="bt-ic">${label.split(" ")[0]}${badge}${fresh.has(id) ? `<b class="newdot" title="Something new"></b>` : ""}</span><span class="bt-lb">${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
     <div class="bag-body">${body}</div>
     <p class="version">${VERSION}</p>
