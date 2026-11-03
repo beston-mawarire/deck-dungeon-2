@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.61.1
+- The Mana bar fills its row, sits under your HP line, and is labelled "Mana" (no more 3/3 count).
+
 ## 1.61.0
 - Talents: a "Take no talent" button on the talent screen.
 - 8 new Legendaries (the Snake Eyes family and the ... of the Talentless) that only join the pool when certain things have happened in your run.

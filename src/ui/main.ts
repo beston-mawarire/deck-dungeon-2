@@ -597,8 +597,8 @@ function fighterPanel(f: Fighter, who: "player" | "enemy") {
   return `<div class="panel fighter ${f.crimson ? "crimson-foe" : ""} ${stance ? `stance-${stance}` : ""}" id="fp-${who}">${stanceTag}
     <div class="row"><b>${esc(f.name)}</b>${f.title ? `<span class="sub">${esc(f.title)}</span>` : ""}<span class="grow"></span><span class="sub">${who === "enemy" ? `${f.family ?? ""}${f.crimson ? " · Crimson" : ""}${f.boss ? " · Boss" : f.champion ? " · Champion" : f.elite ? " · Elite" : ""}` : ""}</span></div>
     <div class="bar ${who === "enemy" ? "enemy" : ""}"><i style="width:${Math.min(100, Math.max(0, (hp / f.maxHp) * 100))}%"></i></div>
-    ${who === "player" && f.maxMana ? `<div class="mana-row" title="Mana: your class ability costs 1. It refills at the start of every fight (Mana Potions refill it too).">${Array.from({ length: f.maxMana }, (_, i) => `<i class="${i < (f.mana ?? 0) ? "full" : ""}"></i>`).join("")}<span class="sub">${f.mana ?? 0}/${f.maxMana} Mana</span></div>` : ""}
     <div class="sub">${big(Math.max(0, hp))}/${big(f.maxHp)} HP · ${who === "enemy" ? `Power ${f.items["m_death"] ? "☠️ most of your Max HP" : big(f.damage)}` : `Damage ${f.damage}${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}`} · Armor ${armorOf(f)}</div>
+    ${who === "player" && f.maxMana ? `<div class="mana-row" title="Mana: your class ability costs 1. It refills at the start of every fight (Mana Potions refill it too).">${Array.from({ length: f.maxMana }, (_, i) => `<i class="${i < (f.mana ?? 0) ? "full" : ""}"></i>`).join("")}</div><div class="mana-label">Mana</div>` : ""}
     <div class="chips">${guardChips(f, who)}${traits}${statusChips(f)}</div>
     ${intent ? `<div class="intent">Next: ${intent.icon} <b>${esc(intent.name)}</b> — ${esc(intent.text)}</div>` : ""}
   </div>`;
