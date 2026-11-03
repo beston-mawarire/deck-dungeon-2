@@ -5,6 +5,15 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.62.2
+- Turbo loot, much richer:
+  - Every foe drops a rank up: normal monsters drop like Elites (and 60% of the time), Elites like Champions, Champions like bosses.
+  - Bosses offer 4 picks at far better odds; the last five bosses (from floor 11) offer 5 picks, Epic and Legendary only.
+  - Wooden and Iron Chests are far richer.
+  - No more "green floors" in Turbo: Rares, Epics and Legendaries turn up from floor 1.
+  - Rare, Epic and Legendary odds raised again (×1.8, ×2.4, ×3, more past floor 5).
+- The title screen's floating text: "An early Christmas! 🎄"
+
 ## 1.62.1
 - Turbo: every fight gives 75% more XP (fewer rooms, so levels come faster).
 - Turbo: a short "how Turbo works" popup every time the game opens during the event, and whenever the Turbo tab is picked.

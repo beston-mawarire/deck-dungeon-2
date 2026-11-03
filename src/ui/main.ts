@@ -1507,7 +1507,7 @@ function splashScreen() {
     <div class="dg-torch left" aria-hidden="true"><b></b><i></i></div><div class="dg-torch right" aria-hidden="true"><b></b><i></i></div>
     <div class="dg-embers" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => `<span style="left:${(i * 37) % 100}%;animation-delay:${(i * 0.73) % 6}s;animation-duration:${6 + (i % 5)}s"></span>`).join("")}</div>
     <div class="splash-dice">🎲</div>
-    <div class="splash-head"><h1 class="splash-title">DECK DUNGEON <span>2</span></h1><span class="splash-blurb">Welcome to the dungeon!</span></div>
+    <div class="splash-head"><h1 class="splash-title">DECK DUNGEON <span>2</span></h1><span class="splash-blurb">An early Christmas! 🎄</span></div>
     <p class="splash-tag">Venture into the depths of darkness. Slay the horrors within.</p>
     <div class="splash-buttons">
       ${musicBlocked() ? `<button class="small music-hint" data-startmusic>🎵 Tap for music</button>` : ""}

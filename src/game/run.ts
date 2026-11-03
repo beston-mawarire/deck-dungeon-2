@@ -63,9 +63,9 @@ export const TURBO_STEPS = 6;
 export const TURBO_DEPTHS = [0, 1, 2, 3, 4, 5, 7, 9, 11, 13, 15, 17, 20, 22, 25, 26];
 export const TURBO_FLOORS = TURBO_DEPTHS.length - 1;
 /** Turbo: Rare, Epic and Legendary finds are this much more likely (on top of the usual "deeper is better"), more again past floor 5. */
-export const TURBO_LOOT = { rare: 1.4, epic: 1.8, legendary: 2.2 } as const;
+export const TURBO_LOOT = { rare: 1.8, epic: 2.4, legendary: 3 } as const;
 export const TURBO_DEEP_LOOT = 1.25;
-export const TURBO_DROP = 0.35;
+export const TURBO_DROP = 0.6;
 /** Turbo: fewer rooms, so every fight gives more XP. */
 export const TURBO_XP = 1.75;
 /** Rooms per floor for this run. */
@@ -86,7 +86,7 @@ export const ABYSS_FLOORS = 10;
 /** How deep the dungeon "really" is: in the Abyss each floor counts as two (enemy strength and item level). */
 export const depth = (run: { mode: Mode; floor: number }) => (run.mode === "abyss" ? 2 * run.floor - 1 : run.floor);
 /** The floor the loot odds use. The Abyss never has the "green floors" (where most Rares are Uncommon). */
-const luckFloor = (run: Run) => (run.mode === "abyss" ? Math.max(3, depth(run)) : run.floor);
+const luckFloor = (run: Run) => (run.mode === "abyss" || run.turbo ? Math.max(3, depth(run)) : run.floor);
 /** Heat: each level makes Rare-and-better finds slightly more likely. */
 export const HEAT_LOOT = 0.05;
 const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Record<Rarity, number>> => {
@@ -114,7 +114,24 @@ export const ABYSS_DMG_BASE = 1.45;
 /** From this floor on (outside the Abyss), bosses drop Ruin Shards, and sometimes a Vanadium Plate. */
 export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
-const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
+const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : run.turbo ? TURBO_TABLES : { ...TABLES, uber: TABLES.boss });
+/** Turbo loot: every foe drops a rank up (normal foes like Elites, Elites like Champions, Champions like bosses), bosses better still,
+ *  and chests a good deal richer. */
+const TURBO_BOSS = { rare: 55, epic: 33, legendary: 12 };
+/** Turbo: the last five bosses (the Horror and the bosses after it) offer this, and more of it. */
+const TURBO_HORROR = { epic: 55, legendary: 45 };
+export const TURBO_HORROR_PICKS = 5;
+const TURBO_TABLES: Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> = {
+  ...TABLES,
+  wooden: { uncommon: 45, rare: 45, epic: 10 },
+  iron: { rare: 58, epic: 34, legendary: 8 },
+  drop: TABLES.elite,
+  elite: TABLES.champion,
+  champion: TABLES.boss,
+  boss: TURBO_BOSS,
+  uber: TURBO_BOSS,
+  crimson: { rare: 40, epic: 44, legendary: 16 }
+};
 
 export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
 
@@ -1043,9 +1060,11 @@ function afterFight(run: Run) {
     const bossSigil = rollSigilDrop(run, 0.4, 0.65);
     // Crimson bosses offer a Crimson item alongside two boss finds; the bosses of floors 20–24 offer an Epic Crimson.
     const offer = b.enemy.crimson ? [rollItem(h, "crimson", depth(run), run.rng), roll(T.boss), roll(T.boss)]
-      : EPIC_CRIMSON_FLOORS.includes(run.floor) ? [rollEpicCrimson(h, depth(run), run.rng), roll(T.boss), roll(T.boss)]
+      : EPIC_CRIMSON_FLOORS.includes(run.floor) ? [rollEpicCrimson(h, depth(run), run.rng), ...Array.from({ length: run.turbo ? TURBO_HORROR_PICKS - 1 : 2 }, () => roll(run.turbo ? TURBO_HORROR : T.boss))]
       : run.scene.uber ? [roll(T.uber), roll(T.uber), roll(T.uber)]
       : run.mode === "abyss" ? [roll(T.boss), roll(T.boss), roll(T.boss)]
+      : run.turbo && shownFloor(run) > TURBO_FLOORS - 5 ? Array.from({ length: TURBO_HORROR_PICKS }, () => roll(TURBO_HORROR))
+      : run.turbo ? [roll(T.boss), roll(T.boss), roll(T.boss), roll(T.boss)]
       : [roll(bossOdds(run.floor)), roll(bossOdds(run.floor)), roll(bossOdds(run.floor))];
     // After the fifth boss, bosses sometimes leave a Keepsake behind.
     // Keepsakes are a rare find: about one boss in ten after floor 5 leaves one behind.

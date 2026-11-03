@@ -128,7 +128,7 @@ export function earlyCap(h: Hero, rarity: Rarity, rng: () => number, floor = 1):
   if ((h.f.persist["abyssRun"] ?? 0) > 0) return rarity;
   const fl = h.f.persist["floor"] ?? floor;
   const top = rarity === "legendary" || rarity === "crimson" || rarity === "epic_crimson" || rarity === "legendary_crimson";
-  if (fl <= 2 && top && rng() < (h.f.persist["turbo"] ? 0.5 : 0.75)) return "epic";
+  if (fl <= 2 && top && !h.f.persist["turbo"] && rng() < 0.75) return "epic";
   return rarity;
 }
 
