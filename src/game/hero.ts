@@ -1,5 +1,6 @@
 // The hero: origin, equipped gear, backpack, relics, talents, curses — and turning all of that into a Fighter.
 import { POTION_SLOTS } from "../data/potions";
+import { MANA_POTION_SLOTS } from "../data/classgear";
 import { ABYSS_ITEMS } from "../data/abyss";
 import { relicBonus } from "../data/basic_relics";
 import { CRIMSON, GEAR_BASES, LEGENDARIES } from "../data";
@@ -39,6 +40,19 @@ export function potionCap(h: Hero): number {
   return n;
 }
 export const potionsPerFight = potionCap;
+/** Mana Potions: carry 2 (some relics add more). */
+export const BASE_MANA_POTION_CAP = 2;
+export function manaPotionCap(h: Hero): number {
+  let n = BASE_MANA_POTION_CAP;
+  for (const [id, slots] of Object.entries(MANA_POTION_SLOTS)) n += slots * Math.max(0, h.f.items[id] ?? 0);
+  return n;
+}
+/** Add Mana Potions up to what you can carry. Returns how many you actually took. */
+export function gainManaPotions(h: Hero, n: number): number {
+  const got = Math.max(0, Math.min(n, manaPotionCap(h) - h.manaPotions));
+  h.manaPotions += got;
+  return got;
+}
 /** Add potions up to what you can carry. Returns how many you actually took. */
 export function gainPotions(h: Hero, n: number): number {
   if (n <= 0) { h.potions = Math.max(0, h.potions + n); return n; }

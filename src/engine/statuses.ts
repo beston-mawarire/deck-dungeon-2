@@ -239,7 +239,6 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
   // Keepsake of the Elements: elemental statuses you apply are 50% stronger.
   if (source && source !== target && (source.items["ks_elements"] ?? 0) > 0 && ELEMENTAL.includes(id)) amount = Math.ceil(amount * 1.5);
   // Mana Potion: statuses your spells apply get +1.
-  if (source && source !== target && source.flags["casting"] && source.flags["mana"]) amount += 1;
   if (amount <= 0) return;
   if (isNegative(id) && target.flags["penanceRound"] === b.round) target.flags["penanceStore"] = (target.flags["penanceStore"] ?? 0) + amount;
 

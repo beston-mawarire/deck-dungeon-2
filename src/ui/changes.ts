@@ -3,6 +3,20 @@ export interface PatchNote { title: string; version: string; date: string; intro
 
 export const PATCH_NOTES: PatchNote[] = [
   {
+    title: "Mana and class abilities", version: "1.60", date: "3 November 2026",
+    intro: "Class abilities now run on Mana, and each class has gear built around its ability.",
+    sections: [
+      { icon: "🔷", title: "Mana", items: [
+        ["3 Mana a fight", "War Cry, Counter, Barrier and Penance each cost 1. You start every fight with full Mana, shown under your HP bar."],
+        ["War Cry, again and again", "it's no longer once a fight. Each cry after the first gives half the Might."],
+        ["Mana Potions", "now refill your Mana. You carry up to 2, and every shop stocks them (they cost more than Healing Potions)."]] },
+      { icon: "⚔️", title: "Class gear", items: [
+        ["80 new items", "for each class ability, 5 weapons, 5 off-hands, 5 armours and 5 trinkets, Uncommon to Epic, found only by that class."],
+        ["New relics", "abilities that don't take your turn, abilities that count as a Guard, more Max Mana, and room for more Mana Potions."]] }
+    ],
+    outro: "Spend it well."
+  },
+  {
     title: "The dungeon has changed", version: "1.58", date: "3 November 2026",
     intro: "The Great Reset cleared the board, and since then the dungeon has been growing fast. Here's what's new:",
     sections: [

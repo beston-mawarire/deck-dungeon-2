@@ -67,6 +67,9 @@ export interface Fighter {
   items: Record<string, number>;
   gold: number;
   elite?: boolean;
+  /** Mana for class abilities (the hero only): refills at the start of every fight. */
+  mana?: number;
+  maxMana?: number;
   /** What the hero is swinging (for foes weak to blunt, sharp or two-handed weapons). */
   arms?: { main?: "blunt" | "sharp" | "other"; off?: "blunt" | "sharp" | "other"; twoHanded?: boolean };
   /** The Changeling Doppelgänger: a copy of the hero (its many effects are shown as one). */
@@ -206,6 +209,8 @@ export interface Hooks {
   onWard?: (b: Battle, self: Fighter, status: StatusId, amount: number, stacks: number) => void;
   /** You dodged a hit (Dodge, not Evade). */
   onDodge?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
+  /** A class ability was used: "warcry", "counter", "barrier", "penance", or what came of it ("counter_hit", "barrier_block", "penance_release"). */
+  onSkill?: (b: Battle, self: Fighter, skill: string, stacks: number) => void;
   /** Your main-hand hit Bashed (Stun and +50%). */
   onBash?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
   /** Change healing received (multiplier). */
@@ -243,6 +248,8 @@ export interface HookDef {
   affix?: string;
   /** Relics and talents: how often this one is drawn (1 = normal). Small, steady ones are common; strong ones rare. */
   weight?: number;
+  /** Class gear and relics: only found by this class (they work with its ability). */
+  forClass?: OriginId;
 }
 
 /** A base item type the loot system can roll (Iron Sword, Leather Jerkin...). */

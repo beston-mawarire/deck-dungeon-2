@@ -6,6 +6,10 @@ import { makeRng, rollDie } from "./rng";
 export const DODGE_CAP = 60;
 /** Counter (Rogue): extra Dodge this round. Penance (Cleric): what you suffered comes back this much. */
 export const COUNTER_DODGE = 35;
+/** Class abilities cost mana; every class starts each fight with this much. */
+export const MANA_COST = 1;
+export const MANA_MAX = 3;
+export const SKILLS = ["counter", "barrier", "penance", "warcry"] as const;
 export const PENANCE_RETURN = 1.5;
 export const BASH_CAP = 30;
 import { applyStatus, conductive, endOfRound, heal, loseHp, other, statusLoss, smoulderSoulAction, st, startOfTurn, staticTick } from "./statuses";
@@ -263,7 +267,7 @@ function counterStrike(b: Battle, d: Fighter, a: Fighter) {
   const critFace = faces.map(x => x.kind).lastIndexOf("crit") + 1 || faces.length;
   const hpBefore = a.hp;
   resolveFace(b, d, a, critFace, false);
-  if (a.hp < hpBefore) fx(b, { who: a.id, kind: "reaction", text: `Counter Crit! −${hpBefore - Math.max(0, a.hp)}`, src: d.id });
+  if (a.hp < hpBefore) { fx(b, { who: a.id, kind: "reaction", text: `Counter Crit! −${hpBefore - Math.max(0, a.hp)}`, src: d.id }); eachHook(d, "onSkill", (h, s) => h(b, d, "counter_hit", s)); }
   d.flags["counterHit"] = 0;
 }
 
@@ -420,8 +424,6 @@ function strike(b: Battle, ctx: AttackCtx) {
     raw *= conductive(d) ? 2 : 1.5;
     if (!stacksOf(a, "lr_eye_storm")) d.statuses.shock = st(d, "shock") - 1;
   }
-  // Mana Potion: spells hit 50% harder for the rest of the fight.
-  if (a.flags["mana"] && ctx.spec.magic) raw *= 1.5;
   // Spell Amp (gear): spells deal more.
   if (ctx.spec.magic && (a.spellAmp ?? 0) > 0) raw *= 1 + (a.spellAmp ?? 0) / 100;
   // Keepsake of the Deadeye: crits deal 50% more.
@@ -430,8 +432,12 @@ function strike(b: Battle, ctx: AttackCtx) {
   if (ctx.kind === "crit" && (a.critDmg ?? 0) !== 0) raw *= Math.max(0.5, 1 + (a.critDmg ?? 0) / 100);
   // A failed Counter leaves you off-balance for one attack (a little).
   if (a.flags["frail"]) { raw *= 0.85; a.flags["frail"] = 0; }
-  // Kneeling in Penance, you take the blows a little easier.
-  if (d.flags["penanceRound"] === b.round) raw *= 0.75;
+  // Kneeling in Penance, you take the blows a little easier (some gear: much easier).
+  if (d.flags["penanceRound"] === b.round) raw *= d.flags["penanceGuard"] ? 0.6 : 0.75;
+  // Class gear: a Counter strike that hits harder; a "next hit" bonus waiting after an ability.
+  if (a.flags["counterHit"] && a.flags["counterCritPct"]) raw *= 1 + a.flags["counterCritPct"] / 100;
+  if (!ctx.offhand && a.flags["nextHitBonus"]) { raw += a.flags["nextHitBonus"] * ctx.mult; a.flags["nextHitBonus"] = 0; }
+  if (!ctx.offhand && a.flags["nextHitMult"]) { raw *= 1 + a.flags["nextHitMult"] / 100; a.flags["nextHitMult"] = 0; }
   // Bash (main weapon only): Stun and +50%.
   let bashed = false;
   // Bash chance: gear, plus Might for some builds (mightBash: % per stack); a few pieces raise the cap.
@@ -443,8 +449,10 @@ function strike(b: Battle, ctx: AttackCtx) {
   // Penance: everything you suffered comes back in one blow.
   const penance = !ctx.offhand ? a.flags["penanceStore"] ?? 0 : 0;
   if (penance > 0) {
-    raw += Math.round(penance * PENANCE_RETURN);
+    raw += Math.round(penance * (PENANCE_RETURN + (a.flags["penanceAmp"] ?? 0) / 100)) * (a.flags["penanceCrit"] ? 2 : 1);
     a.flags["penanceStore"] = 0;
+    a.flags["lastPenance"] = penance;
+    eachHook(a, "onSkill", (h, s2) => h(b, a, "penance_release", s2));
     log(b, `✝️ Penance: ${penance} suffered, returned half as much again.`);
   }
   let shatter = false;
@@ -487,7 +495,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   }
   // Dodge (a % chance; Countering adds 20%). It's not Evade: Evade bonuses don't fire, Dodge ones do.
   const countering = d.flags["counter"] === b.round;
-  const dodgeChance = Math.min(DODGE_CAP + (d.flags["dodgeCap"] ?? 0), (d.dodge ?? 0) + (countering ? COUNTER_DODGE : 0));
+  const dodgeChance = Math.min(DODGE_CAP + (d.flags["dodgeCap"] ?? 0), (d.dodge ?? 0) + (countering ? COUNTER_DODGE + (d.flags["counterDodge"] ?? 0) : 0));
   if (dodgeChance > 0 && b.rng() * 100 < dodgeChance && !useTrueStrike(a)) {
     log(b, `${d.name} dodges!`);
     fx(b, { who: d.id, kind: "miss", text: "Dodged" });
@@ -502,7 +510,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   }
   if (countering) {
     d.flags["counter"] = 0;
-    d.flags["frail"] = 1;
+    if (!d.flags["counterNoFrail"]) d.flags["frail"] = 1;
     log(b, `${d.name}'s Counter fails: off-balance for the next attack.`);
     fx(b, { who: d.id, kind: "text", text: "Off-balance", icon: "🥀" });
   }
@@ -516,6 +524,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     fx(b, { who: d.id, kind: "block", text: tier >= 2 ? "Barrier holds" : tier >= 1 ? "Barrier bends" : "Barrier sparks", icon: "🔮" });
     log(b, `${d.name}'s Elemental Barrier ${tier >= 2 ? "blocks the whole hit" : tier >= 1 ? "takes half of it" : "can't stop the hit, but lashes back"}.`);
     if (d.barrierElement && a.hp > 0) for (const el of d.barrierElements ?? [d.barrierElement]) if (a.hp > 0) applyStatus(b, d, a, el, tier >= 2 ? 4 : 2);
+    eachHook(d, "onSkill", (h, st2) => h(b, d, tier >= 2 ? "barrier_block" : "barrier_hit", st2));
   }
   const armor = ctx.ignoreArmor ? 0 : armorOf(d);
   // Armor stops a percentage of each hit (see armorReduction); Guarding doubles Armor and lifts the cap.
@@ -748,6 +757,76 @@ export function beginRound(b: Battle): boolean {
   return first;
 }
 
+export const isSkill = (a: string): a is Skill => (SKILLS as readonly string[]).includes(a);
+export type Skill = (typeof SKILLS)[number];
+const SKILL_NAME: Record<Skill, string> = { counter: "Counter", barrier: "Barrier", penance: "Penance", warcry: "War Cry" };
+
+/** Give mana back (gear and relics), up to the cap. */
+export function gainMana(b: Battle, f: Fighter, n: number) {
+  if (f.maxMana == null) return;
+  const before = f.mana ?? 0;
+  f.mana = Math.min(f.maxMana, before + n);
+  if (f.mana > before) fx(b, { who: f.id, kind: "text", text: `+${f.mana - before} Mana`, icon: "🔷" });
+}
+
+/** A class ability: costs 1 mana (out of mana, you attack instead). Gear can make it free of your turn, count as a Guard, or hit harder. */
+function useSkill(b: Battle, skill: Skill) {
+  const p = b.player;
+  const e = b.enemy;
+  if ((p.mana ?? 0) < MANA_COST) {
+    log(b, `${p.name} is out of mana, and attacks instead.`);
+    fx(b, { who: "player", kind: "text", text: "No mana", icon: "🔷" });
+    heroAttack(b);
+    return;
+  }
+  p.mana = (p.mana ?? 0) - MANA_COST;
+  p.flags["skillsUsed"] = (p.flags["skillsUsed"] ?? 0) + 1;
+  p.flags[`used_${skill}`] = (p.flags[`used_${skill}`] ?? 0) + 1;
+  if (skill === "counter") {
+    p.flags["counter"] = b.round;
+    log(b, `${p.name} takes a Counter stance.`);
+    fx(b, { who: "player", kind: "text", text: "Counter stance", icon: "🗡️" });
+  } else if (skill === "barrier") {
+    let r = rollDie(b.rng, 6);
+    if (p.flags["barrierTwice"]) r = Math.max(r, rollDie(b.rng, 6));
+    r = Math.min(6, r + (p.flags["barrierRoll"] ?? 0));
+    const tier = r >= 5 ? 2 : r >= 3 ? 1 : 0.5;
+    p.flags["eBarrier"] = b.round;
+    p.flags["eBarrierTier"] = tier;
+    fx(b, { who: "player", kind: "roll", face: r, faceName: tier === 2 ? "Full barrier" : tier === 1 ? "Partial barrier" : "Thin barrier", faceKind: tier === 2 ? "crit" : tier === 1 ? "hit" : "graze", sides: 6 });
+    log(b, `${p.name} raises an Elemental Barrier: rolls ${r} — ${tier === 2 ? "a full block" : tier === 1 ? "it will take half" : "it won't stop a hit, but attackers still get the element"}.`);
+  } else if (skill === "penance") {
+    p.flags["penanceRound"] = b.round;
+    log(b, `${p.name} kneels in Penance. What you suffer this round is stored (${p.flags["penanceStore"] ?? 0} so far).`);
+    fx(b, { who: "player", kind: "text", text: "Penance", icon: "✝️" });
+  } else {
+    // War Cry: a big swell of Might (more the deeper you are; half as much for each cry after the first this fight), and the enemy is cowed.
+    const n = p.flags["used_warcry"];
+    const base = 3 + Math.floor((2 * (p.persist["floor"] ?? 1)) / 3) + (p.flags["warcryMight"] ?? 0);
+    applyStatus(b, p, p, "might", n > 1 && !p.flags["warcryFull"] ? Math.max(1, Math.ceil(base / 2)) : base);
+    applyStatus(b, p, e, "weak", 3);
+    applyStatus(b, p, e, "exposed", 2);
+    p.flags["warcry"] = 1;
+    log(b, `${p.name} lets out a War Cry!`);
+    fx(b, { who: "player", kind: "text", text: "War Cry!", icon: "📯" });
+  }
+  eachHook(p, "onSkill", (h, s) => h(b, p, skill, s));
+  // Counts as a Guard (some relics).
+  if (p.flags[`guard_${skill}`]) {
+    p.flags["guarding"] = 1;
+    p.flags["guardArmor"] = 0;
+    p.flags["guards"] = (p.flags["guards"] ?? 0) + 1;
+    eachHook(p, "onGuard", (h, s) => h(b, p, s));
+    log(b, `…and ${p.name} Guards as well (Armor ${armorOf(p)}).`);
+    fx(b, { who: "player", kind: "text", text: `Guard · Armor ${armorOf(p)}`, icon: "🛡️" });
+  }
+  // Doesn't take your turn (some relics): you attack too.
+  if (p.flags[`free_${skill}`] && e.hp > 0 && p.hp > 0) {
+    log(b, `${SKILL_NAME[skill]} costs no time: ${p.name} attacks too.`);
+    heroAttack(b);
+  }
+}
+
 /** The hero's turn. */
 export function heroPhase(b: Battle, action: Action) {
   if (b.over) return;
@@ -755,7 +834,7 @@ export function heroPhase(b: Battle, action: Action) {
   const e = b.enemy;
   startOfTurn(b, p);
   if (checkOver(b)) return;
-  if (action === "counter" || action === "barrier" || action === "penance" || action === "warcry") p.persist["q_skill"] = (p.persist["q_skill"] ?? 0) + 1;
+  if (isSkill(action) && (p.mana ?? 0) >= MANA_COST) p.persist["q_skill"] = (p.persist["q_skill"] ?? 0) + 1;
   if (action === "flee") {
     if (e.boss || e.elite) log(b, "You can't flee from this fight.");
     else {
@@ -772,38 +851,8 @@ export function heroPhase(b: Battle, action: Action) {
     eachHook(p, "onGuard", (h, s) => h(b, p, s));
     log(b, `${p.name} Guards (Armor ${armorOf(p)}).`);
     fx(b, { who: "player", kind: "text", text: `Guard · Armor ${armorOf(p)}`, icon: "🛡️" });
-  } else if (action === "counter") {
-    act(b, p, () => {
-      p.flags["counter"] = b.round;
-      log(b, `${p.name} takes a Counter stance.`);
-      fx(b, { who: "player", kind: "text", text: "Counter stance", icon: "🗡️" });
-    });
-  } else if (action === "barrier") {
-    act(b, p, () => {
-      const r = rollDie(b.rng, 6);
-      const tier = r >= 5 ? 2 : r >= 3 ? 1 : 0.5;
-      p.flags["eBarrier"] = b.round;
-      p.flags["eBarrierTier"] = tier;
-      fx(b, { who: "player", kind: "roll", face: r, faceName: tier === 2 ? "Full barrier" : tier === 1 ? "Partial barrier" : "Thin barrier", faceKind: tier === 2 ? "crit" : tier === 1 ? "hit" : "graze", sides: 6 });
-      log(b, `${p.name} raises an Elemental Barrier: rolls ${r} — ${tier === 2 ? "a full block" : tier === 1 ? "it will take half" : "it won't stop a hit, but attackers still get the element"}.`);
-    });
-  } else if (action === "penance") {
-    act(b, p, () => {
-      p.flags["penanceRound"] = b.round;
-      log(b, `${p.name} kneels in Penance. What you suffer this round is stored (${p.flags["penanceStore"] ?? 0} so far).`);
-      fx(b, { who: "player", kind: "text", text: "Penance", icon: "✝️" });
-    });
-  } else if (action === "warcry") {
-    act(b, p, () => {
-      if (p.flags["warcry"]) return;
-      p.flags["warcry"] = 1;
-      // War Cry: a big swell of Might (more the deeper you are), and the enemy is cowed: Weak and Exposed.
-      applyStatus(b, p, p, "might", 3 + Math.floor((2 * (p.persist["floor"] ?? 1)) / 3));
-      applyStatus(b, p, e, "weak", 3);
-      applyStatus(b, p, e, "exposed", 2);
-      log(b, `${p.name} lets out a War Cry!`);
-      fx(b, { who: "player", kind: "text", text: "War Cry!", icon: "📯" });
-    });
+  } else if (isSkill(action)) {
+    act(b, p, () => useSkill(b, action));
   } else act(b, p, () => heroAttack(b));
   checkOver(b);
 }
@@ -880,6 +929,9 @@ export function startBattle(player: Fighter, enemy: Fighter, seed: number, carry
     log(b, `🪓 ${lost} carried damage lands on ${enemy.name}.`);
   }
   for (const f of [player, enemy]) eachHook(f, "onFightStart", (h, s) => h(b, f, s));
+  // Mana for class abilities: full at the start of every fight (some relics raise it).
+  player.maxMana = MANA_MAX + (player.flags["manaMax"] ?? 0);
+  player.mana = player.maxMana;
   checkOver(b);
   return b;
 }

@@ -16,7 +16,7 @@ import type { Battle, Fighter, GearItem, OriginId, Rarity } from "../engine/type
 import { RARITIES } from "../engine/types";
 import { autoBattleWins } from "./auto";
 import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
-import { type EquipSlot, type Sigil, SIGIL_BAG_SIZE, sigilSlots, removeItem, gainPotions, potionCap, potionsPerFight, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { type EquipSlot, type Sigil, SIGIL_BAG_SIZE, sigilSlots, removeItem, gainPotions, potionCap, potionsPerFight, manaPotionCap, gainManaPotions, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { abyssMod, heatOf } from "./progress";
 import { generate, genName, setGenLuck } from "./gen";
 import { GEN_MINORS } from "../data/genparts";
@@ -666,7 +666,7 @@ export function availableActions(run: Run): Action[] {
   if (h.origin === "rogue") out.push("counter");
   if (h.origin === "mage" && h.f.barrierElement) out.push("barrier");
   if (h.origin === "cleric") out.push("penance");
-  if (h.origin === "warrior" && !h.f.flags["warcry"]) out.push("warcry");
+  if (h.origin === "warrior") out.push("warcry");
   if (!b.enemy.boss && !b.enemy.elite) out.push("flee");
   return out;
 }
@@ -711,18 +711,18 @@ export function settleCombat(run: Run) {
   if (run.scene.t === "combat" && run.scene.battle.over) afterFight(run);
 }
 
-/** Mana Potion: spells hit 50% harder, and statuses they apply get +1, for the rest of the fight. */
+/** Mana Potion: refills your mana (for class abilities). */
 export function drinkMana(run: Run): string | null {
   const h = run.hero;
   if (run.scene.t !== "combat" || run.scene.battle.over || h.f.hp <= 0) return "Mana Potions only work in a fight.";
   if (h.manaPotions <= 0) return null;
   if (isParched(h)) return "🏜️ Parched: the potion turns to dust on your tongue. You can't drink potions.";
-  if (h.f.flags["mana"]) return "You're already brimming with mana this fight.";
+  if ((h.f.mana ?? 0) >= (h.f.maxMana ?? 0)) return "Your mana is already full.";
   h.manaPotions--;
-  h.f.flags["mana"] = 1;
+  h.f.mana = h.f.maxMana;
   actionToll(run.scene.battle, h.f);
-  run.scene.battle.fx.push({ who: "player", kind: "text", text: "Mana surges!", icon: "🔷" });
-  run.scene.battle.log.push("🔷 You drink a Mana Potion: your spells surge for the rest of the fight.");
+  run.scene.battle.fx.push({ who: "player", kind: "text", text: "Mana refilled!", icon: "🔷" });
+  run.scene.battle.log.push("🔷 You drink a Mana Potion: your mana is full again.");
   return null;
 }
 
@@ -885,8 +885,7 @@ function afterFight(run: Run) {
   if (rank === "boss" && (h.f.items["pc_grail"] ?? 0) > 0) potions++;
   if (rank === "boss" && potions) gainPotions(h, potions); // (boss rewards come as a pick, not a loot screen)
   if ((rank === "normal" && run.rng() < 0.03) || (rank === "elite" && run.rng() < 0.08)) {
-    h.manaPotions++;
-    run.message = "You find a Mana Potion. 🔷";
+    if (gainManaPotions(h, 1)) run.message = "You find a Mana Potion. 🔷";
   }
   let goblinGold = 0;
   let heartLevel = 0;
@@ -1061,7 +1060,7 @@ export function relicRarityWeight(rarity: string, floor: number, quality = 1): n
 const fireRelicWeight = (r: { tags: readonly string[]; text: string }) => (r.tags.includes("Burn") || /smoulder/i.test(r.text) ? 0.8 : 1);
 export function randomRelic(run: Run, quality = 1): string {
   const tags = heroTags(run.hero);
-  const pool = RELICS.filter(r => !isLocked(r.id));
+  const pool = RELICS.filter(r => !isLocked(r.id) && (!r.forClass || r.forClass === run.hero.origin));
   const w = pool.map(r => relicRarityWeight(r.rarity ?? "common", run.floor, quality) * (1 + 0.3 * r.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * fireRelicWeight(r) * drawWeight(r));
   let x = run.rng() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < pool.length; i++) {
@@ -1175,7 +1174,7 @@ function shopStock(run: Run): ShopEntry[] {
   const shopRelic = randomRelic(run);
   stock.push({ kind: "relic", relic: shopRelic, price: Math.round((({ common: 70, uncommon: 100, rare: 150, legendary: 280 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 90) * shopMult(run)) });
   stock.push({ kind: "potion", price: Math.round(15 * shopMult(run)) });
-  if (run.rng() < 0.5) stock.push({ kind: "mana", price: Math.round(25 * shopMult(run)) });
+  stock.push({ kind: "mana", price: Math.round(35 * shopMult(run)) });
   if (run.rng() < 0.12) stock.push({ kind: "scroll", price: Math.round(100 * shopMult(run)) });
   return stock;
 }
@@ -1187,12 +1186,13 @@ export function buy(run: Run, i: number): string | null {
   if (!e || e.sold) return null;
   if (h.f.gold < e.price) return "Not enough Gold.";
   if (e.kind === "potion" && h.potions >= potionCap(h)) return `You can't carry more than ${potionCap(h)} Healing Potions.`;
+  if (e.kind === "mana" && h.manaPotions >= manaPotionCap(h)) return `You can't carry more than ${manaPotionCap(h)} Mana Potions.`;
   if (e.kind === "item" && e.item) {
     const err = addToBackpack(h, e.item);
     if (err) return err;
   }
   if (e.kind === "potion") gainPotions(h, 1);
-  if (e.kind === "mana") h.manaPotions++;
+  if (e.kind === "mana") gainManaPotions(h, 1);
   if (e.kind === "scroll") h.scrolls++;
   if (e.kind === "item" && e.item) markFound(run, e.item);
   if (e.kind === "relic" && e.relic) grantRelic(run, e.relic);

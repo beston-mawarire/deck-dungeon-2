@@ -5,7 +5,7 @@ import { FUSION_RECIPES } from "../data/fusions";
 /** Relics that fuse with a different relic (labelled; trinket recipes never are). */
 const FUSABLE_RELICS = new Set(FUSION_RECIPES.flatMap(r => [r.a, r.b]));
 import { ORIGINS } from "../data/origins";
-import { ambushPending, ambushStrike, armorOf, armorReduction, beginRound, tollOf, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly, streakOf, hasStreak, BLESSINGS } from "../engine/combat";
+import { ambushPending, ambushStrike, armorOf, armorReduction, beginRound, tollOf, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly, streakOf, hasStreak, BLESSINGS, isSkill, MANA_COST } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
@@ -27,7 +27,7 @@ import {
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
-import { PLATE_BONUS, plateMult, potionCap, potionsPerFight } from "../game/hero";
+import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
 import { applySave, watchBackup, backupCode, backupVault, setPlayerTitle, SUB_BOARDS, type Board, type Scope, type KillerRow, fetchBoard, fetchKillers, fetchVault, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun, useBackupCode, vaultDirty } from "./leaderboard";
 import { CROSSROADS_GUISES } from "../data/events";
@@ -353,7 +353,7 @@ function hud(r: Run) {
     const canDrink = h.potions > 0 && drunk < potionsPerFight(h) && f.hp > 0 && f.hp < f.maxHp && !busy && !(r.scene.t === "combat" && r.scene.battle.over);
     return `<div class="hud compact"><div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">${floorLabel(r)}</span><span class="grow"></span>
       <span class="stat">🪙 <b>${f.gold}</b></span></div>
-      <div class="row hud-split"><span class="hud-play"><button class="small potion-btn" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (${potionsPerFight(h) - drunk} more this fight)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${f.flags["mana"] || busy ? "disabled" : ""} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${h.manaPotions}</button>` : ""}${bountyBtn(r)}<button class="small bag-btn" data-bag title="Inventory">🎒</button></span><span class="hud-sys"><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu" ${busy ? "disabled" : ""}>☰</button></span></div></div>`;
+      <div class="row hud-split"><span class="hud-play"><button class="small potion-btn" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (${potionsPerFight(h) - drunk} more this fight)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${(f.mana ?? 0) >= (f.maxMana ?? 0) || busy ? "disabled" : ""} title="Mana Potion: refill your mana (${h.manaPotions}/${manaPotionCap(h)} carried)">🔷 ${h.manaPotions}</button>` : ""}${bountyBtn(r)}<button class="small bag-btn" data-bag title="Inventory">🎒</button></span><span class="hud-sys"><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu" ${busy ? "disabled" : ""}>☰</button></span></div></div>`;
   }
   return `<div class="hud">
     <div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">Lv ${h.level}</span><span class="grow"></span><span class="stat">${floorLabel(r)}</span></div>
@@ -597,6 +597,7 @@ function fighterPanel(f: Fighter, who: "player" | "enemy") {
   return `<div class="panel fighter ${f.crimson ? "crimson-foe" : ""} ${stance ? `stance-${stance}` : ""}" id="fp-${who}">${stanceTag}
     <div class="row"><b>${esc(f.name)}</b>${f.title ? `<span class="sub">${esc(f.title)}</span>` : ""}<span class="grow"></span><span class="sub">${who === "enemy" ? `${f.family ?? ""}${f.crimson ? " · Crimson" : ""}${f.boss ? " · Boss" : f.champion ? " · Champion" : f.elite ? " · Elite" : ""}` : ""}</span></div>
     <div class="bar ${who === "enemy" ? "enemy" : ""}"><i style="width:${Math.min(100, Math.max(0, (hp / f.maxHp) * 100))}%"></i></div>
+    ${who === "player" && f.maxMana ? `<div class="mana-row" title="Mana: your class ability costs 1. It refills at the start of every fight (Mana Potions refill it too).">${Array.from({ length: f.maxMana }, (_, i) => `<i class="${i < (f.mana ?? 0) ? "full" : ""}"></i>`).join("")}<span class="sub">${f.mana ?? 0}/${f.maxMana} Mana</span></div>` : ""}
     <div class="sub">${big(Math.max(0, hp))}/${big(f.maxHp)} HP · ${who === "enemy" ? `Power ${f.items["m_death"] ? "☠️ most of your Max HP" : big(f.damage)}` : `Damage ${f.damage}${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}`} · Armor ${armorOf(f)}</div>
     <div class="chips">${guardChips(f, who)}${traits}${statusChips(f)}</div>
     ${intent ? `<div class="intent">Next: ${intent.icon} <b>${esc(intent.name)}</b> — ${esc(intent.text)}</div>` : ""}
@@ -613,7 +614,7 @@ function combatScene(r: Run) {
     <div class="c-player">${fighterPanel(b.player, "player")}
     ${(b.player.statuses.stun ?? 0) > 0 ? `<div class="toast err">💫 You're Stunned: your next turn will be skipped.</div>` : ""}</div>
     <div class="c-actions"><div class="row actions ${busy ? "busy" : ""}">
-      ${availableActions(r).map(a => `<button class="${a === "attack" ? "primary" : a === "flee" ? "" : a === "guard" ? "" : "classact"}" data-act="${a}" ${busy ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(b.player)}</button>`).join("")}
+      ${availableActions(r).map(a => `<button class="${a === "attack" ? "primary" : a === "flee" ? "" : a === "guard" ? "" : "classact"}" data-act="${a}" ${busy || (isSkill(a) && (b.player.mana ?? 0) < MANA_COST) ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(b.player)}${isSkill(a) ? ` <span class="mana-cost">🔷${MANA_COST}</span>` : ""}</button>`).join("")}
     </div>
     ${!busy && quickOn && canAutoBattle(r) ? `<div class="row auto-row"><button class="auto-btn" data-auto title="This foe can't win against plain attacks. Skip to the end.">⚡ Quick Battle</button><span class="sub">You've got this one: attack until it falls.</span></div>` : ""}
     ${Object.keys(r.hero.tonics ?? {}).length ? `<div class="row tonics">${Object.entries(r.hero.tonics!).map(([id, n]) => `<button class="small tonic" data-tonic="${id}" ${busy ? "disabled" : ""} title="${esc(TONICS[id].text)}">${TONICS[id].icon} ${esc(TONICS[id].name)}${n > 1 ? ` ×${n}` : ""}</button>`).join("")}</div><p class="center sub" style="margin:2px 0">Tonics don't use your turn.</p>` : ""}
@@ -731,7 +732,7 @@ function shopScene(r: Run) {
       const cmp = e.sold ? "" : compareBtns(it);
       return itemCard(it, btn + cmp, !e.sold);
     }
-    const label = e.kind === "potion" ? "🧪 Healing Potion — heal 12" : e.kind === "mana" ? "🔷 Mana Potion — drink in a fight: your spells +50% and +1 stack for that fight" : e.kind === "scroll" ? "📜 Scroll of Revelation — reveals a Legendary" : e.relic ? `💎 ${getItem(e.relic).name} — ${getItem(e.relic).text}` : "";
+    const label = e.kind === "potion" ? "🧪 Healing Potion — heal 12" : e.kind === "mana" ? `🔷 Mana Potion — drink in a fight to refill your mana (carry ${manaPotionCap(r.hero)})` : e.kind === "scroll" ? "📜 Scroll of Revelation — reveals a Legendary" : e.relic ? `💎 ${getItem(e.relic).name} — ${getItem(e.relic).text}` : "";
     return `<div class="item"><div class="nm">${esc(label)}</div><div class="row" style="margin-top:8px">${btn}</div></div>`;
   }).join("")}</div>
   <p class="shop-text">Bought gear goes to your backpack; equip it from 🎒.</p>
@@ -1313,7 +1314,7 @@ function revealBtn(r: Run, it: GearItem) {
 
 const ORIGIN_ICON: Record<OriginId, string> = { warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" };
 const ORIGIN_PITCH: Record<OriginId, string> = {
-  warrior: "The Warrior wins by standing firm. Guarding is your craft — with a shield, or even with a two-handed weapon — and every Guard makes you hit harder. Once a fight, let loose a War Cry. Build into shields, heavy weapons and Armor and you become a wall that hits back.",
+  warrior: "The Warrior wins by standing firm. Guarding is your craft — with a shield, or even with a two-handed weapon — and every Guard makes you hit harder. Let loose a War Cry for a swell of Might. Build into shields, heavy weapons and Armor and you become a wall that hits back.",
   rogue: "The Rogue wins by never being where the blow lands. Two dice, first strikes and crits — and Counter: brace, dodge the next attack and strike back with a hit that can't miss. Stack Dodge and crit gear and you'll dance through fights untouched.",
   mage: "The Mage wins by stacking statuses until they explode. Every face can be a spell; Burn, Chill, Static and more combine into reactions and bursts. With an elemental off-hand, raise an Elemental Barrier that throws your element back at attackers. Fragile early, devastating later.",
   cleric: "The Cleric wins by outlasting. Healing, Ward and Holy weapons that Smite the wicked — and Penance: kneel, take what they give you, and return every point of it in one blow. Survives what others can't, and turns suffering into damage."
@@ -1349,9 +1350,9 @@ function helpPopup() {
       "An off-hand weapon gives you a <b>second die</b>. Daggers, throwing knives, kunai and shuriken are built for it; ordinary weapons are clumsy there (60%). Grenades are thrown from the off-hand every 3rd round."])}
     ${sec("In a fight", [
       "<b>Attack</b>: roll and strike. <b>Guard</b> (needs a shield; Warriors can also Guard with a two-hander): double your Armor this round.",
-      "Each class has its own move. <b>War Cry</b> (Warrior, once a fight): gain a lot of Might, and leave the enemy Weak and Exposed. <b>Counter</b> (Rogue): +35% Dodge this round; dodge an attack and you strike back at once with a Crit. <b>Elemental Barrier</b> (Mage, needs an elemental off-hand): roll — 5–6 blocks the hit, 3–4 halves it, 1–2 blocks nothing; every roll gives attackers your element. <b>Penance</b> (Cleric): store what you suffer this round and add it to your next attack. Used at the wrong moment, they waste your turn.",
+      "Each class has its own move, and each use costs 1 🔷 Mana: you have 3, full again at the start of every fight. <b>War Cry</b> (Warrior): gain a lot of Might (half as much for each cry after the first in a fight), and leave the enemy Weak and Exposed. <b>Counter</b> (Rogue): +35% Dodge this round; dodge an attack and you strike back at once with a Crit. <b>Elemental Barrier</b> (Mage, needs an elemental off-hand): roll — 5–6 blocks the hit, 3–4 halves it, 1–2 blocks nothing; every roll gives attackers your element. <b>Penance</b> (Cleric): store what you suffer this round and add it to your next attack. Used at the wrong moment, they waste your turn.",
       "<b>Armor</b> stops a percentage of each hit. <b>Dodge</b> is a chance to avoid a hit entirely. Bosses show their next move — plan around it.",
-      "🧪 Potions heal. 🔷 Mana Potions make your spells stronger for the fight."])}
+      "🧪 Potions heal. 🔷 Mana Potions refill your Mana (carry up to 2; shops always stock them)."])}
     ${sec("Statuses and reactions", [
       "Burn, Poison, Bleed, Chill, Shock, Static and more pile up on enemies (and on you). Two statuses on the same fighter can <b>react</b> — Burn + Poison is Combustion, Static + Shock sets off all the Static at once.",
       "Pile up enough Chill, Bleed or Poison and it <b>bursts</b>. Open 🎒 mid-fight to see what's active and what your build can set off."])}
@@ -1797,10 +1798,10 @@ function levelUpPopup(r: Run) {
 const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }> = {
   attack: { label: () => "Attack", tip: "Roll your die and strike." },
   guard: { label: () => "Guard", tip: "Double your Armor this round; Armor can stop a whole hit. Needs a shield (a Warrior can Guard with a two-hander)." },
-  counter: { label: () => "Counter", tip: "Uses your turn. +35% Dodge this round; if you Dodge an attack, you strike back at once with a Crit (no roll needed). If you're hit, you're a little off-balance for your next attack." },
-  barrier: { label: () => "Elemental Barrier", tip: "Uses your turn. Roll: 5–6 blocks every hit this round and gives attackers 4 stacks of your off-hand's element; 3–4 halves them and gives 2; 1–2 blocks nothing but still gives 2." },
-  penance: { label: p => `Penance${p.flags["penanceStore"] ? ` (${p.flags["penanceStore"]})` : ""}`, tip: "Uses your turn. You take a quarter less this round, and the damage and negative statuses you take are stored; your next attack adds half as much again. A kill with it heals you." },
-  warcry: { label: () => "War Cry", tip: "Once per fight. Uses your turn: gain a lot of Might, and leave the enemy Weak and Exposed." },
+  counter: { label: () => "Counter", tip: "Costs 1 Mana. Uses your turn. +35% Dodge this round; if you Dodge an attack, you strike back at once with a Crit (no roll needed). If you're hit, you're a little off-balance for your next attack." },
+  barrier: { label: () => "Elemental Barrier", tip: "Costs 1 Mana. Uses your turn. Roll: 5–6 blocks every hit this round and gives attackers 4 stacks of your off-hand's element; 3–4 halves them and gives 2; 1–2 blocks nothing but still gives 2." },
+  penance: { label: p => `Penance${p.flags["penanceStore"] ? ` (${p.flags["penanceStore"]})` : ""}`, tip: "Costs 1 Mana. Uses your turn. You take a quarter less this round, and the damage and negative statuses you take are stored; your next attack adds half as much again. A kill with it heals you." },
+  warcry: { label: () => "War Cry", tip: "Costs 1 Mana. Uses your turn: gain a lot of Might (half as much for each cry after the first this fight), and leave the enemy Weak and Exposed." },
   flee: { label: () => "Flee", tip: "Leave the fight (not Elites or bosses)." }
 };
 

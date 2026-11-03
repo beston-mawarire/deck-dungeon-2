@@ -2,6 +2,7 @@
 import { attack } from "../engine/combat";
 import { PATH_RELICS } from "./paths";
 import { PATH_RELICS_2 } from "./paths2";
+import { CLASS_RELICS } from "./classgear";
 import { CRIT_RELICS, DUAL_RELICS } from "./blades";
 import { DUAL_RELICS_2 } from "./dualwield";
 import { MINOR_RELICS } from "./minors";
@@ -218,7 +219,7 @@ export const STORM_RELICS: HookDef[] = [
   relic({ id: "lr_stormheart", name: "Stormheart", rarity: "legendary", tags: ["Storm"], text: "Static you apply caps at 20 instead of 10, and every Static tick deals triple", hooks: {} })
 ];
 
-export const RELICS: HookDef[] = [...PATH_RELICS, ...PATH_RELICS_2, ...MINOR_RELICS, ...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3, ...LEGENDARY_RELICS, ...GUARD_RELICS, ...HOLY_RELICS, ...STORM_RELICS, ...CRIT_RELICS, ...DUAL_RELICS, ...DUAL_RELICS_2, ...STREAK_RELICS, ...BASIC_RELICS, ...BUILD_RELICS, ...POTION_RELICS, ...JEWEL_RELICS];
+export const RELICS: HookDef[] = [...PATH_RELICS, ...PATH_RELICS_2, ...CLASS_RELICS, ...MINOR_RELICS, ...GENERAL, ...BATCH1, ...FACE_RELICS, ...STATUS_RELICS, ...BATCH3, ...LEGENDARY_RELICS, ...GUARD_RELICS, ...HOLY_RELICS, ...STORM_RELICS, ...CRIT_RELICS, ...DUAL_RELICS, ...DUAL_RELICS_2, ...STREAK_RELICS, ...BASIC_RELICS, ...BUILD_RELICS, ...POTION_RELICS, ...JEWEL_RELICS];
 
 /** The Transmuter's Crucible used to be a relic; it's an artefact now (kept registered so old saves still read). */
 export const OLD_TRANSMUTER: HookDef = relic({ id: "transmuter", name: "Transmuter's Crucible", rarity: "rare", tags: ["Luck", "Arcane"], text: "At a Forge, turn a Common item into a Legendary of the same kind for 4 Starmetal", hooks: {} });

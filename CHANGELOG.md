@@ -5,6 +5,14 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.60.0
+- Mana: class abilities (War Cry, Counter, Barrier, Penance) cost 1 Mana. Every class has 3, refilled at the start of each fight, shown as pips under your HP bar. Out of Mana, the ability button is greyed out.
+- War Cry is no longer once a fight; each cry after the first in a fight gives half the Might.
+- Mana Potions now refill your Mana (their old spell boost is gone). Carry up to 2. Every shop stocks one, at a higher price than a Healing Potion.
+- 80 class gear pieces: for each class ability, 5 weapons, 5 off-hands, 5 armours and 5 trinkets (Uncommon to Epic), found only by that class. They buff the ability, combo with it, or trigger after it.
+- New relics: for each class, one that makes its ability not take your turn (you attack too) and one that makes it count as a Guard, plus a small amp per class; Mana Pearl (+1 Max Mana); and Mana Potion carry relics (+1 Uncommon, +2 Rare, +3 Legendary).
+- New "Mana and class abilities" entry on the Changes page.
+
 ## 1.59.5
 - Counter: the strike back is plainly shown now: your main hand's crit face, the damage number, and a big "Counter Crit!" burst and shake on the enemy.
 - The Counter stance (glow, sway and tag) ends as soon as the enemy has taken its turn, whether it attacked or not.

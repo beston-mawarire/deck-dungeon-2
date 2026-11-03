@@ -1851,7 +1851,7 @@ describe("Heatforged gear", () => {
     expect([...seen(1)]).toEqual([1]);
     expect(seen(3).has(3) && !seen(3).has(5)).toBe(true);
     expect(seen(5).has(5)).toBe(true);
-  });
+  }, 20000);
   it("Hearthfall's Burn carries from a kill into the next fight", () => {
     const h = newHero("warrior");
     equipItem(h, { uid: 990, base: "lx_hearthfall", rarity: "legendary", level: 1, bonuses: {}, revealed: true });

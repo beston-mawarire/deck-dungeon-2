@@ -161,7 +161,7 @@ export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => numb
     }
   }
   const fav = new Set(AFFINITY[h.origin]);
-  const base: GearBase = weighted(rng, GEAR_BASES.filter(g => (!LOCKED.has(g.id) || (g.deep && floor > 5)) && floor >= (g.floorMin ?? 0) && (h.heat ?? 0) >= (g.heatMin ?? 0) && (!g.needsCurse || (h.f.persist["everCursed"] ?? 0) > 0) && (!g.onlyRarity || g.onlyRarity === rarity) && rank(rarity) >= rank(g.minItemRarity ?? "common")), b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1) * elementalW(b.tags));
+  const base: GearBase = weighted(rng, GEAR_BASES.filter(g => (!LOCKED.has(g.id) || (g.deep && floor > 5)) && floor >= (g.floorMin ?? 0) && (h.heat ?? 0) >= (g.heatMin ?? 0) && (!g.needsCurse || (h.f.persist["everCursed"] ?? 0) > 0) && (!g.forClass || g.forClass === h.origin) && (!g.onlyRarity || g.onlyRarity === rarity) && rank(rarity) >= rank(g.minItemRarity ?? "common")), b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1) * elementalW(b.tags));
   const nBonuses = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0, crimson: 2, epic_crimson: 3, legendary_crimson: 0 }[rarity];
   // Trinkets carry one rolled effect fewer than other gear: they were doing too much for their rarity.
   const bonuses = rollBonuses(h, rarity, base, floor, rng, base.slot === "trinket" ? Math.max(0, nBonuses - 1) : nBonuses);
@@ -177,7 +177,7 @@ export const setGenEnabled = (on: boolean) => { GEN_ON = on; };
 export function rollGenerated(h: Hero, rarity: Rarity, floor: number, rng: () => number, depth = floor): GearItem | null {
   const tags = heroTags(h);
   const fav = new Set(AFFINITY[h.origin]);
-  const pool = GEAR_BASES.filter(g => !g.legendary && (!LOCKED.has(g.id) || (g.deep && floor > 5)) && floor >= (g.floorMin ?? 0) && (h.heat ?? 0) >= (g.heatMin ?? 0) && (!g.needsCurse || (h.f.persist["everCursed"] ?? 0) > 0)
+  const pool = GEAR_BASES.filter(g => !g.legendary && (!LOCKED.has(g.id) || (g.deep && floor > 5)) && floor >= (g.floorMin ?? 0) && (h.heat ?? 0) >= (g.heatMin ?? 0) && (!g.needsCurse || (h.f.persist["everCursed"] ?? 0) > 0) && (!g.forClass || g.forClass === h.origin)
     && (g.weight ?? 1) > 0 && !g.noJewel && (!g.onlyRarity || g.onlyRarity === rarity || (rank(rarity) >= rank("rare") && rank(g.onlyRarity) <= rank("rare"))));
   if (!pool.length) return null;
   const base = weighted(rng, pool, b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1) * elementalW(b.tags));
