@@ -830,8 +830,8 @@ function clearedScene(r: Run) {
     <p class="center">${esc(s.boss)} has fallen.</p>
     <p class="center sub">${r.stats.kills} kills · level ${r.hero.level} · ${r.hero.f.hp}/${r.hero.f.maxHp} HP</p>
     <p class="center" style="margin-top:10px">Below lies <b>${r.mode === "abyss" ? `Depth ${next} of the Abyss` : `Floor ${next} — ${(() => { const th = themeOf(r, next); return th ? `${th.icon} ${esc(th.name)}` : esc(floorName(next)); })()}`}</b>.</p>
-    <div class="row" style="justify-content:center;margin-top:14px"><button class="primary big" data-descend>Descend to ${r.mode === "abyss" ? "depth" : "floor"} ${next} ↓</button></div>
-    <p class="center sub" style="margin-top:8px">Check your 🎒 gear before you go.</p>
+    <div class="row" style="justify-content:center;margin-top:14px"><button class="big dg-gold" data-descend>Descend to ${r.mode === "abyss" ? "depth" : "floor"} ${next} ↓</button></div>
+    <p class="center sub" style="margin-top:8px">Check your inventory 🎒 before you go</p>
   </div>`;
 }
 

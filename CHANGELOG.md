@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.55.2
+- The Floor Cleared panel has a backing fill so it reads clearly over the dungeon wall, and its Descend button is the title screen's gold stone slab. Its note reads: Check your inventory 🎒 before you go.
+
 ## 1.55.1
 - Mastery stars appear from Mastery 2 (two stars); at Mastery 1 there are none.
 - Your Inventory shows your class (and level) at the top.
