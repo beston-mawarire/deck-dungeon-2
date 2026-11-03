@@ -1,18 +1,25 @@
 // Between-run progress: Class Mastery (and the starting kits it unlocks), Achievements (Renown and titles),
 // Heat levels (optional Campaign difficulty) and the Abyss's weekly twist.
 import { GEAR_BASES } from "../data";
+import { AFFINITY } from "../data/origins";
 import { EVENTS } from "../data/events";
-import type { GearItem, OriginId, Rarity } from "../engine/types";
+import type { GearBase, GearItem, OriginId, Rarity } from "../engine/types";
 import { EQUIP_SLOTS, recompute } from "./hero";
 import type { Run } from "./run";
 
 // ---------- Class Mastery ----------
 /** Total mastery XP needed for each level (level 1 is free). */
-export const MASTERY_XP = [0, 0, 6, 14, 25, 40, 58, 80, 106, 136, 170];
+export const MASTERY_XP = [0, 0, 8, 22, 45, 80, 130, 200, 300, 440, 640];
 export const MASTERY_MAX = 10;
 /** Common starting-kit choices open at this mastery level; Uncommon ones at the next. */
 export const KIT_COMMON_LEVEL = 2;
 export const KIT_UNCOMMON_LEVEL = 6;
+/** At the top Mastery, Rare starting-kit choices open too. */
+export const KIT_RARE_LEVEL = 10;
+/** What each class leans towards when its starting-kit choices are drawn up. */
+const CLASS_TAGS: Record<OriginId, string[]> = { warrior: ["Guard", "Strike", "Thorns"], rogue: ["Crit", "Tempo", "Bleed", "Poison", "Kill"], mage: ["Arcane", "Burn", "Frost", "Storm", "Hex"], cleric: ["Holy", "Blood", "Guard"] };
+/** A stable shuffle key, so each class sees its own short list (the same every time). */
+const keyOf = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 
 export function masteryLevel(xp: number): number {
   let lv = 1;
@@ -30,22 +37,38 @@ export const KIT_SLOTS: KitSlot[] = ["main", "off", "armour"];
 export type Kit = Partial<Record<KitSlot, string>>;
 
 /** The plain items a class can start with in a slot: Commons (and, at high mastery, Uncommons). */
-export function kitOptions(slot: KitSlot, level: number, locked: Set<string> = new Set()): { id: string; name: string; rarity: Rarity; text: string }[] {
-  const allowed: Rarity[] = level >= KIT_UNCOMMON_LEVEL ? ["common", "uncommon"] : level >= KIT_COMMON_LEVEL ? ["common"] : [];
-  return GEAR_BASES.filter(b => b.onlyRarity && allowed.includes(b.onlyRarity) && !b.legendary && !b.heatMin && !locked.has(b.id) && (b.weight ?? 1) > 0 &&
-    (slot === "off" ? b.slot === "off" || (b.kind === "weapon" && b.offDamage !== undefined) : b.slot === slot))
-    .map(b => ({ id: b.id, name: b.name, rarity: b.onlyRarity!, text: b.text }))
-    .sort((a, b) => (a.rarity === b.rarity ? a.name.localeCompare(b.name) : a.rarity === "common" ? -1 : 1));
+export function kitOptions(slot: KitSlot, level: number, locked: Set<string> = new Set(), origin?: OriginId): { id: string; name: string; rarity: Rarity; text: string }[] {
+  const allowed: Rarity[] = level >= KIT_RARE_LEVEL ? ["common", "uncommon", "rare"] : level >= KIT_UNCOMMON_LEVEL ? ["common", "uncommon"] : level >= KIT_COMMON_LEVEL ? ["common"] : [];
+  const all = GEAR_BASES.filter(b => b.onlyRarity && allowed.includes(b.onlyRarity) && !b.legendary && !b.heatMin && !locked.has(b.id) && (b.weight ?? 1) > 0 &&
+    (slot === "off" ? b.slot === "off" || (b.kind === "weapon" && b.offDamage !== undefined) : b.slot === slot));
+  // A short list per class: per rarity, the plain kit piece, a handful that suit the class, and one wildcard.
+  let pool = all;
+  if (origin) {
+    const fav = new Set(AFFINITY[origin]);
+    const tags = CLASS_TAGS[origin];
+    const fits = (b: GearBase) => fav.has(b.id) || b.tags.some(t => tags.includes(t));
+    const order = (a: GearBase, b: GearBase) => keyOf(origin + a.id) - keyOf(origin + b.id);
+    pool = allowed.flatMap(r => {
+      const tier = all.filter(b => b.onlyRarity === r);
+      const plain = tier.filter(b => b.id.startsWith("pl_")).sort(order).slice(0, 1);
+      const own = tier.filter(b => !b.id.startsWith("pl_") && fits(b)).sort((a, b) => (fav.has(b.id) ? 1 : 0) - (fav.has(a.id) ? 1 : 0) || order(a, b)).slice(0, 3);
+      const wild = tier.filter(b => !b.id.startsWith("pl_") && !fits(b)).sort(order).slice(0, 1);
+      return [...plain, ...own, ...wild];
+    });
+  }
+  const R: Record<string, number> = { common: 0, uncommon: 1, rare: 2 };
+  return pool.map(b => ({ id: b.id, name: b.name, rarity: b.onlyRarity!, text: b.text }))
+    .sort((a, b) => (a.rarity === b.rarity ? a.name.localeCompare(b.name) : R[a.rarity] - R[b.rarity]));
 }
 
 /** Swap the chosen starting-kit items in (anything not chosen stays as the class's own). */
-export function applyKit(run: Run, kit: Kit | undefined, level: number) {
+export function applyKit(run: Run, kit: Kit | undefined, level: number, locked: Set<string> = new Set()) {
   if (!kit) return;
   const h = run.hero;
   for (const slot of KIT_SLOTS) {
     const id = kit[slot];
     if (!id) continue;
-    const opt = kitOptions(slot, level).find(o => o.id === id);
+    const opt = kitOptions(slot, level, locked, h.origin).find(o => o.id === id);
     if (!opt) continue;
     const it: GearItem = { uid: h.nextUid++, base: id, rarity: opt.rarity, level: 1, bonuses: {}, revealed: true };
     h.equip[slot] = it;

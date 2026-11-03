@@ -17,7 +17,7 @@ import {
 import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
 import { GEN_MODULE_MAP, modValue } from "../game/gen";
-import { ABYSS_MODS, ACHIEVEMENTS, applyKit, currentAbyssMod, HEAT_LEVELS, HEAT_MAX, HEAT_RENOWN, heatOf, KIT_COMMON_LEVEL, KIT_SLOTS, KIT_UNCOMMON_LEVEL, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX, MASTERY_XP } from "../game/progress";
+import { ABYSS_MODS, ACHIEVEMENTS, applyKit, currentAbyssMod, HEAT_LEVELS, HEAT_MAX, HEAT_RENOWN, heatOf, KIT_RARE_LEVEL, KIT_COMMON_LEVEL, KIT_SLOTS, KIT_UNCOMMON_LEVEL, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX, MASTERY_XP } from "../game/progress";
 import { ABYSS_SHARD_COST, addGem, GEM_BONUS, removeGem, abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
@@ -159,6 +159,18 @@ const say = (msg: string | null, bad = true) => {
   note = msg ?? "";
   noteBad = bad;
 };
+/** The Abyss tab's explainer (shown the first time you open the tab, and from its "How it works" button). */
+let abyssIntroOpen = false;
+const abyssIntro = () => storyBeat({ icon: "🕳️", title: "The Abyss", text: "A run of its own, far deadlier than the Campaign, and where your permanent power comes from.", list: [
+  `🔓 Opens once you beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.`,
+  "☠️ Ten depths. Every fight is a rank tougher, each depth ends with an Uber boss, and your Armor wears down as you go.",
+  "💰 The richest loot in the game, best from Champions, bosses and Uber bosses.",
+  "🪨 Ruin Shards (the entry fee) drop from Campaign bosses on floor 20 and deeper.",
+  "⬛ Vanadium Plates drop from the same bosses. Give them to a class for good: they make it stronger in the Abyss, far more so from the third plate on.",
+  "💎 Ruin Gems drop from Uber bosses. Put them on any class for more Max HP, Damage and Armor in the Campaign and the Abyss, and move them whenever you like.",
+  "🌕 A new twist every week, and a leaderboard for the deepest runs."
+] }, "data-closeabyssintro");
+
 /** The Great Reset just wiped this device: explain it once, on the splash screen. */
 let resetPopup = justReset;
 
@@ -385,7 +397,7 @@ function titleScreen() {
       ? `<div class="panel abyss-locked"><p class="big">🔒 The Abyss is sealed.</p><p>Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find the way down.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p></div>`
       : `<div class="campaign-hero abyss-hero">
           <div class="ch-text"><b>🕳️ The Abyss</b><span>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. The richest loot comes from the deadliest. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.</span></div>
-          <button class="story-btn small" data-story="abyss">📖 Story</button>
+          <div class="hero-btns"><button class="story-btn small" data-abyssintro>❔ How it works</button><button class="story-btn small" data-story="abyss">📖 Story</button></div>
         </div>
         <div class="abyss-stock">
           <div class="stile extra-tile shard-tile"><span>🪨</span><span><b>${shards}</b> Ruin Shard${shards === 1 ? "" : "s"}<span class="sub">From Campaign bosses, floor 20 and deeper.</span></span></div>
@@ -1409,7 +1421,7 @@ function helpGlossary() {
     row("🧪", "Healing Potions", "Heal 12. You start with 3 potion slots: carry up to 3, and drink up to 3 in one fight. Potion gear and relics add slots (more at higher rarity)")
   ].join(""))}
   ${group("📈 Between runs", [
-    row("⭐", "Class Mastery", `Each class grows with play (floors reached and bosses beaten). At mastery ${KIT_COMMON_LEVEL} you can swap its starting weapon, off-hand and armour for other Commons; at ${KIT_UNCOMMON_LEVEL}, Uncommons too`),
+    row("⭐", "Class Mastery", `Each class grows with play (floors reached and bosses beaten). Each level takes longer than the last. At mastery ${KIT_COMMON_LEVEL} you can swap its starting weapon, off-hand and armour for a short list of Commons picked for that class; at ${KIT_UNCOMMON_LEVEL}, Uncommons too; at ${KIT_RARE_LEVEL}, Rares`),
     row("🏆", "Achievements", "Each one pays Renown once, and many give a title to show beside your name on the leaderboards (Info → Achievements)"),
     row("🔥", "Heat", "After your first Campaign win: optional extra difficulty (set it when you pick a class). Five levels that stack, each giving more Renown and slightly better loot"),
     row("📅", "Daily Dungeon", "The same dungeon and class for everyone each day; one attempt, with its own leaderboard"),
@@ -1600,7 +1612,7 @@ function kitPopup(o: OriginId, slot: KitSlot) {
   const og = ORIGINS[o];
   const own = og.kit[KIT_INDEX[slot]];
   const current = meta.kits?.[o]?.[slot] ?? own;
-  const ids = [own, ...kitOptions(slot, lv, lockedIds(meta)).map(x => x.id)].filter((id, i, all) => all.indexOf(id) === i && id !== current);
+  const ids = [own, ...kitOptions(slot, lv, lockedIds(meta), o).map(x => x.id)].filter((id, i, all) => all.indexOf(id) === i && id !== current);
   const slotName: Record<KitSlot, string> = { main: "Weapon", off: "Off-hand", armour: "Armour" };
   const mk = (id: string, n: number): GearItem => ({ uid: 910000 + n, base: id, rarity: baseOf(id).onlyRarity ?? "common", level: 1, bonuses: {}, revealed: true });
   const nowCard = itemCard(mk(current, 0));
@@ -1868,7 +1880,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -2194,7 +2206,13 @@ function bind() {
       say("All progress has been reset.", false);
     });
     on("[data-origin]", el => { pendingOrigin = el.dataset.origin as OriginId; plateArmed = false; });
-    on("[data-menutab]", el => { menuTab = el.dataset.menutab as typeof menuTab; restoreOpen = false; restoreMsg = ""; });
+    on("[data-menutab]", el => {
+      menuTab = el.dataset.menutab as typeof menuTab; restoreOpen = false; restoreMsg = "";
+      // The first visit to the Abyss tab explains it.
+      if (menuTab === "abyss" && abyssUnlocked(meta)) { try { if (!localStorage.getItem("dd2-abyss-intro")) abyssIntroOpen = true; } catch { /* ignore */ } }
+    });
+    on("[data-abyssintro]", () => { abyssIntroOpen = true; });
+    on("[data-closeabyssintro]", () => { abyssIntroOpen = false; try { localStorage.setItem("dd2-abyss-intro", "1"); } catch { /* ignore */ } });
     on("[data-addgem]", el => { if (addGem(meta, el.dataset.addgem!)) { backupVault(vaultOf(meta)); sfx("chest"); } });
     on("[data-removegem]", el => { if (removeGem(meta, el.dataset.removegem!)) backupVault(vaultOf(meta)); });
     on("[data-addplate]", el => {
@@ -2220,7 +2238,7 @@ function bind() {
       mode = "abyss"; lbResult = null; lbNaming = false; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
       const nr = newRun(o, Date.now() & 0x7fffffff, "abyss", lockedIds(meta));
       nr.abyssMod = currentAbyssMod().id;
-      applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0));
+      applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta));
       nr.hero.plates = meta.classPlates?.[o] ?? 0;
       withGems(nr);
       run = nr; void startSession(nr);
@@ -2231,7 +2249,7 @@ function bind() {
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode;
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
-    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0)); withGems(nr); run = nr; void startSession(nr); });
+    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta)); withGems(nr); run = nr; void startSession(nr); });
     return;
   }
   const r = run;

@@ -16,23 +16,29 @@ const fightIn = (run: Run, room: Parameters<typeof chooseRoom>[1], step = 1) => 
 };
 
 describe("mastery, kits, heat, Abyss twists, achievements", () => {
-  it("mastery levels and kit choices (Commons, then Uncommons)", () => {
+  it("mastery levels and kit choices: a short list per class (Commons, then Uncommons, then Rares at 10)", () => {
     expect(masteryLevel(0)).toBe(1);
     expect(masteryLevel(MASTERY_XP[2])).toBe(2);
-    expect(kitOptions("main", 1).length).toBe(0);
-    const commons = kitOptions("main", 2);
-    expect(commons.length).toBeGreaterThanOrEqual(12);
+    // Each level takes longer than the last.
+    for (let l = 3; l < MASTERY_XP.length; l++) expect(MASTERY_XP[l] - MASTERY_XP[l - 1]).toBeGreaterThan(MASTERY_XP[l - 1] - MASTERY_XP[l - 2]);
+    expect(kitOptions("main", 1, new Set(), "warrior").length).toBe(0);
+    const commons = kitOptions("main", 2, new Set(), "warrior");
+    expect(commons.length).toBeGreaterThanOrEqual(3);
+    expect(commons.length).toBeLessThanOrEqual(5);
     expect(commons.every(o => o.rarity === "common")).toBe(true);
-    expect(kitOptions("main", 6).some(o => o.rarity === "uncommon")).toBe(true);
-    expect(kitOptions("off", 2).some(o => o.id === "g_butcher_knife")).toBe(true);
+    expect(kitOptions("main", 2).length).toBeGreaterThan(commons.length * 2);
+    expect(kitOptions("main", 6, new Set(), "rogue").some(o => o.rarity === "uncommon")).toBe(true);
+    expect(kitOptions("main", 9, new Set(), "mage").some(o => o.rarity === "rare")).toBe(false);
+    expect(kitOptions("main", 10, new Set(), "mage").some(o => o.rarity === "rare")).toBe(true);
     const run = newRun("warrior", 7);
-    applyKit(run, { main: "g_hatchet", armour: "g_fur_cloak" }, 2);
-    expect(run.hero.equip.main?.base).toBe("g_hatchet");
-    expect(run.hero.equip.armour?.base).toBe("g_fur_cloak");
+    const pick = commons[0].id, armour = kitOptions("armour", 2, new Set(), "warrior")[0].id;
+    applyKit(run, { main: pick, armour }, 2);
+    expect(run.hero.equip.main?.base).toBe(pick);
+    expect(run.hero.equip.armour?.base).toBe(armour);
     expect(run.hero.equip.off?.base).toBe("o_wooden_shield");
-    // Not allowed at this level: ignored.
+    // Not on this class's list at this level: ignored.
     applyKit(run, { main: "g_bastard_sword" }, 2);
-    expect(run.hero.equip.main?.base).toBe("g_hatchet");
+    expect(run.hero.equip.main?.base).toBe(pick);
   });
 
   it("Heat makes enemies tougher; an Abyss Crimson Tide turns Champions Crimson", () => {

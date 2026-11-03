@@ -1125,3 +1125,4 @@ body.dg-menu .info-row button::before { left: 5px; } body.dg-menu .info-row butt
 .crest-stars { display: block; margin-bottom: 4px; font-size: 1.15rem; min-height: 1.15rem; letter-spacing: 1px; line-height: 1; color: #ffd257; text-shadow: 0 0 6px rgba(255,190,60,.7), 0 1px 1px #000; white-space: nowrap; }
 .crest-stars .dim { color: rgba(255,255,255,.16); text-shadow: none; }
 .crest-stars .crowns { font-size: 1.05rem; letter-spacing: 2px; filter: drop-shadow(0 0 5px rgba(255,200,80,.8)); }
+.hero-btns { display: flex; flex-direction: column; gap: 6px; }

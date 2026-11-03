@@ -5,6 +5,12 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.53.0
+- ⭐ Class Mastery takes much longer to grow, and each level takes longer than the last. Every class's Mastery has been reset to 1 on every device (starting kits go back to each class's own).
+- 🎒 Starting-kit choices are a short list picked for each class: per rarity, a plain well-made piece, a few that suit the class, and one wildcard. At Mastery 10, Rares join the list.
+- 🕳️ The first time you open the Abyss tab, a short guide explains how it works and what you keep for good (Ruin Shards, Vanadium Plates, Ruin Gems). It's there any time from the new "How it works" button.
+- The Abyss is harder at every depth: more HP and harder hits from the first depth, growing faster as you go down.
+
 ## 1.52.6
 - Mastery past 6 stars turns into crowns: levels 7 to 10 (the most a class can reach) show 1 to 4 crowns above the crest instead of stars.
 

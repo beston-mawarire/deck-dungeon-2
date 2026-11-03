@@ -44,6 +44,8 @@ export interface Meta {
   daily?: { day: string; floor: number; won: boolean; done?: boolean };
   /** Class Mastery XP, and each class's chosen starting kit. */
   mastery?: Partial<Record<string, number>>;
+  /** Which Mastery reset this save has been through. */
+  masteryEpoch?: number;
   kits?: Partial<Record<string, Kit>>;
   /** Campaign wins per class. */
   winsBy?: Partial<Record<string, number>>;
@@ -133,12 +135,19 @@ const TIERS: { at: number; name: string; ids: string[] }[] = [
 /** Unlock tiers, in Renown order. */
 export const UNLOCK_TIERS = [...TIERS].sort((a, b) => a.at - b.at);
 
+/** Bumped when Class Mastery is reset for everyone (1: the slower Mastery curve). */
+export const MASTERY_EPOCH = 1;
 export function loadMeta(): Meta {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { renown: 0, runs: 0, wins: 0, bestFloor: 0, found: [], ...JSON.parse(raw) };
+    if (raw) {
+      const m: Meta = { renown: 0, runs: 0, wins: 0, bestFloor: 0, found: [], ...JSON.parse(raw) };
+      // Mastery reset: every class starts again from Mastery 1 (and its kit choices go back to the class's own).
+      if ((m.masteryEpoch ?? 0) < MASTERY_EPOCH) { m.mastery = {}; m.kits = {}; m.masteryEpoch = MASTERY_EPOCH; saveMeta(m); }
+      return m;
+    }
   } catch { /* storage unavailable */ }
-  return { renown: 0, runs: 0, wins: 0, bestFloor: 0, found: [] };
+  return { renown: 0, runs: 0, wins: 0, bestFloor: 0, found: [], masteryEpoch: MASTERY_EPOCH };
 }
 
 export function saveMeta(m: Meta) {
