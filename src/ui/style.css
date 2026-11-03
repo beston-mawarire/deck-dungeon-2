@@ -1229,3 +1229,16 @@ body:not(.dg-menu) #app { padding-top: calc(env(safe-area-inset-top, 0px) + 16px
 @media (max-width: 440px) { .lb-main, .lb-main:first-child, .lb-main:last-child { font-size: .74rem !important; letter-spacing: 0; } }
 .lb-mains { grid-template-columns: 1.5fr 1fr 1.1fr 1fr 1.15fr !important; }
 .lb-main { text-overflow: clip; padding-left: 1px !important; padding-right: 1px !important; }
+
+/* ---------- Crimson foes: magenta, so they never blend into a red floor ---------- */
+:root { --crim-hot: #ff2fa8; --crim-deep: #3a0a2c; }
+#fp-enemy.crimson-foe, .fighter.killer.crimson-foe, body[data-theme] #fp-enemy.crimson-foe {
+  border: 2px solid var(--crim-hot) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--crim-hot) 22%, var(--crim-deep)) 0%, var(--crim-deep) 100%) !important;
+  box-shadow: 0 0 18px rgba(255,47,168,.45), inset 0 0 26px rgba(255,47,168,.22) !important; animation: crimpulse 2.2s ease-in-out infinite; }
+#fp-enemy.crimson-foe > .row:first-child > b, body[data-theme] #fp-enemy.crimson-foe > .row:first-child > b, .fighter.killer.crimson-foe > .row:first-child > b { color: #ff7fd0 !important; text-shadow: 0 0 10px rgba(255,47,168,.7) !important; }
+#fp-enemy.crimson-foe .sub { color: #f0b6dc; }
+.room.crimson-room, body[data-theme] .room.crimson-room { border: 2px solid var(--crim-hot) !important; background: linear-gradient(160deg, #5a0f44 0%, var(--crim-deep) 75%) !important; box-shadow: 0 0 16px rgba(255,47,168,.4) !important; animation: crimpulse 2.2s ease-in-out infinite; }
+.room.crimson-room b { color: #ff8fd6 !important; }
+@keyframes crimpulse { 0%, 100% { box-shadow: 0 0 12px rgba(255,47,168,.35), inset 0 0 20px rgba(255,47,168,.18); } 50% { box-shadow: 0 0 24px rgba(255,47,168,.6), inset 0 0 30px rgba(255,47,168,.28); } }
+@media (prefers-reduced-motion: reduce) { #fp-enemy.crimson-foe, .room.crimson-room { animation: none; } }

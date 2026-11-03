@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.55.7
+- Crimson foes (Crimson Elites, Crimson bosses) and Crimson paths on the map are magenta now, with a deep magenta fill and a slow pulsing glow, so they stand out even on red floors.
+
 ## 1.55.6
 - Leaderboards: the main tabs are slim folder tabs sitting on the boards' shelf (the open one joins it), all on one row.
 - Music has just its volume sliders now (no separate on/off switch): slide to 0 for silence. Music you'd switched off starts at 0.
