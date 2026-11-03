@@ -63,9 +63,13 @@ export const TURBO_STEPS = 6;
 export const TURBO_DEPTHS = [0, 1, 2, 3, 4, 5, 7, 9, 11, 13, 15, 17, 20, 22, 25, 26];
 export const TURBO_FLOORS = TURBO_DEPTHS.length - 1;
 /** Turbo: Rare, Epic and Legendary finds are this much more likely (on top of the usual "deeper is better"), more again past floor 5. */
-export const TURBO_LOOT = { rare: 1.8, epic: 2.4, legendary: 3 } as const;
+export const TURBO_LOOT = { rare: 1.5, epic: 1.9, legendary: 2.2 } as const;
+/** Standard runs (not the Abyss): Rare, Epic and Legendary finds this much more likely. */
+export const STANDARD_LOOT = 1.12;
 export const TURBO_DEEP_LOOT = 1.25;
-export const TURBO_DROP = 0.6;
+export const TURBO_DROP = 0.5;
+/** Normal monsters drop an item this often (Standard). */
+export const STANDARD_DROP = 0.25;
 /** Turbo: fewer rooms, so every fight gives more XP. */
 export const TURBO_XP = 1.75;
 /** Rooms per floor for this run. */
@@ -91,9 +95,8 @@ const luckFloor = (run: Run) => (run.mode === "abyss" || run.turbo ? Math.max(3,
 export const HEAT_LOOT = 0.05;
 const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Record<Rarity, number>> => {
   const h = heatOf(run);
-  if (!h && !run.turbo) return odds;
   const out = { ...odds };
-  for (const r of ["rare", "epic", "legendary"] as const) if (out[r]) out[r] = out[r]! * (1 + HEAT_LOOT * h) * (run.turbo ? TURBO_LOOT[r] * (run.floor > 5 ? TURBO_DEEP_LOOT : 1) : 1);
+  for (const r of ["rare", "epic", "legendary"] as const) if (out[r]) out[r] = out[r]! * (1 + HEAT_LOOT * h) * (run.turbo ? TURBO_LOOT[r] * (run.floor > 5 ? TURBO_DEEP_LOOT : 1) : run.mode === "abyss" ? 1 : STANDARD_LOOT);
   return out;
 };
 /** Abyss: every floor down, everything gets this much tougher on top of its depth. */
@@ -117,20 +120,20 @@ export const PLATE_CHANCE = 0.25;
 const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : run.turbo ? TURBO_TABLES : { ...TABLES, uber: TABLES.boss });
 /** Turbo loot: every foe drops a rank up (normal foes like Elites, Elites like Champions, Champions like bosses), bosses better still,
  *  and chests a good deal richer. */
-const TURBO_BOSS = { rare: 55, epic: 33, legendary: 12 };
+const TURBO_BOSS = { rare: 63, epic: 28, legendary: 9 };
 /** Turbo: the last five bosses (the Horror and the bosses after it) offer this, and more of it. */
-const TURBO_HORROR = { epic: 55, legendary: 45 };
+const TURBO_HORROR = { rare: 20, epic: 52, legendary: 28 };
 export const TURBO_HORROR_PICKS = 5;
 const TURBO_TABLES: Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> = {
   ...TABLES,
-  wooden: { uncommon: 45, rare: 45, epic: 10 },
-  iron: { rare: 58, epic: 34, legendary: 8 },
+  wooden: { common: 10, uncommon: 50, rare: 35, epic: 5 },
+  iron: { uncommon: 15, rare: 58, epic: 22, legendary: 5 },
   drop: TABLES.elite,
   elite: TABLES.champion,
   champion: TABLES.boss,
   boss: TURBO_BOSS,
   uber: TURBO_BOSS,
-  crimson: { rare: 40, epic: 44, legendary: 16 }
+  crimson: { rare: 48, epic: 40, legendary: 12 }
 };
 
 export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
@@ -933,7 +936,7 @@ function afterFight(run: Run) {
   // Generated gear from tougher foes is more often Greater (✦) — or, very rarely, Overcharged.
   setGenLuck(genLuck(run) * ({ normal: 1, elite: 1.25, champion: 1.6, crimson: 2, boss: run.scene.uber ? 2.6 : 2 } as Record<string, number>)[rank] * (then === "unique" || then === "dragon" || then === "nemesis" ? 1.5 : 1));
   const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, heatOdds(run, odds), luckFloor(run)), depth(run), run.rng);
-  if (rank === "normal" && run.rng() < (run.turbo ? TURBO_DROP : 0.2)) items.push(roll(T.drop));
+  if (rank === "normal" && run.rng() < (run.turbo ? TURBO_DROP : run.mode === "abyss" ? 0.2 : STANDARD_DROP)) items.push(roll(T.drop));
   if (rank === "normal" && run.rng() < 0.04) potions++;
   // Potion gear: a sober win brews a potion (the Alembic always, the Vial sometimes); the Grail refills one per boss.
   const sober = !b.player.flags["potionsDrunk"];

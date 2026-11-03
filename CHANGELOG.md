@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.62.3
+- Standard loot, slightly better: Rare, Epic and Legendary finds 12% more likely, normal monsters drop an item 25% of the time (was 20%), and floors 1–2 turn fewer Rares into Uncommons.
+- Turbo loot, toned down: rarity boost ×1.5 / ×1.9 / ×2.2 (was ×1.8 / ×2.4 / ×3), normal monsters drop 50% of the time (was 60%), bosses, the last five bosses, chests and Crimson Elites a little less generous. Foes still drop a rank up.
+
 ## 1.62.2
 - Turbo loot, much richer:
   - Every foe drops a rank up: normal monsters drop like Elites (and 60% of the time), Elites like Champions, Champions like bosses.
