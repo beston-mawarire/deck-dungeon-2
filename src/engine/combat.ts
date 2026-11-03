@@ -474,7 +474,8 @@ function strike(b: Battle, ctx: AttackCtx) {
     return afterStrike(b, ctx);
   }
   // True Strike: nothing can make its attacks miss (it's spent when it matters, and recharges).
-  if (st(d, "evade") > 0 && !useTrueStrike(a)) {
+  // A Counter strike can't be evaded or dodged: it lands while they're still off-balance.
+  if (st(d, "evade") > 0 && !a.flags["counterHit"] && !useTrueStrike(a)) {
     d.statuses.evade = st(d, "evade") - 1;
     log(b, `${d.name} evades!`);
     fx(b, { who: d.id, kind: "miss", text: "Evaded" });
@@ -486,7 +487,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   // Dodge (a % chance; Countering adds 20%). It's not Evade: Evade bonuses don't fire, Dodge ones do.
   const countering = d.flags["counter"] === b.round;
   const dodgeChance = Math.min(DODGE_CAP + (d.flags["dodgeCap"] ?? 0), (d.dodge ?? 0) + (countering ? COUNTER_DODGE : 0));
-  if (dodgeChance > 0 && b.rng() * 100 < dodgeChance && !useTrueStrike(a)) {
+  if (dodgeChance > 0 && !a.flags["counterHit"] && b.rng() * 100 < dodgeChance && !useTrueStrike(a)) {
     log(b, `${d.name} dodges!`);
     fx(b, { who: d.id, kind: "miss", text: "Dodged" });
     breakStreak(b, a);
