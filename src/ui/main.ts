@@ -1008,7 +1008,8 @@ function killerPanel(r: Run) {
 function sendRun(r: Run) {
   if (!leaderboardOn() || r.submitted) return;
   lbResult = "sending";
-  void submitRun(r, VERSION).then(res => { lbResult = res; if (res) { r.lbDone = true; if (r.scene.t === "over") saveRun(r, banked); } render(); });
+  // (The answer can arrive after you've already left this run: then it must not save the old run back over the cleared one.)
+  void submitRun(r, VERSION).then(res => { if (run !== r) return; lbResult = res; if (res) { r.lbDone = true; if (r.scene.t === "over") saveRun(r, banked); } render(); });
 }
 
 const fmtN = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${(n / 1e3).toFixed(1)}k` : String(n));
