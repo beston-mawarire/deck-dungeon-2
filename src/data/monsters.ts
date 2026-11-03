@@ -107,7 +107,7 @@ export const ELITE_AFFIX_IDS = ["x_bulwark", "x_tormenting", "x_accursed", "x_pa
 /** How often each affix rolls (Nullifying is rare). */
 export const AFFIX_WEIGHT: Record<string, number> = { x_grievous: 0.6, x_blighting: 0.5, x_punishing: 0.6, x_fireproof: 0.5, x_antitoxic: 0.5, x_bloodless: 0.5, x_insulated: 0.5, x_frostproof: 0.5, x_hexproof: 0.4, x_truestrike: 0.6, x_mirror: 0.35, x_parching: 0.4, x_nullifying: 0.35, x_concussive: 0.8, x_smouldering: 0.6, x_accursed: 0.4, x_tormenting: 0.5 };
 
-interface MonsterDef { name: string; family: string; hp: number; power: number; armor?: number; traits: string[]; faces?: FaceSpec[] }
+export interface MonsterDef { name: string; family: string; hp: number; power: number; armor?: number; traits: string[]; faces?: FaceSpec[] }
 
 export const MONSTERS: MonsterDef[] = [
   { name: "Wolf", family: "Beast", hp: 10, power: 3, traits: ["m_ambush"] },
@@ -217,11 +217,20 @@ export function makeThief(rng: () => number, floor: number): Fighter {
   };
 }
 
-export function makeMonster(rng: () => number, floor: number, rank: MonsterRank, defName?: string): Fighter {
-  // A quarter of Elites and Champions are one of the elite-only Tormentors.
-  const pool = (rank === "elite" || rank === "champion") && rng() < 0.25 ? ELITE_ONLY : MONSTERS;
-  const forced = defName ? [...MONSTERS, ...ELITE_ONLY].find(d => d.name === defName) : undefined;
-  const def = forced ?? pool[Math.floor(rng() * pool.length)];
+/** A floor theme's say in who turns up: its own foes, and families that are more common there. */
+export interface MonsterTheme { families: string[]; monsters: MonsterDef[]; elites: MonsterDef[] }
+export function makeMonster(rng: () => number, floor: number, rank: MonsterRank, defName?: string, theme?: MonsterTheme): Fighter {
+  // A quarter of Elites and Champions are one of the elite-only Tormentors (or the theme's own Elites).
+  const tough = (rank === "elite" || rank === "champion") && rng() < 0.25;
+  const pool = tough ? [...ELITE_ONLY, ...(theme?.elites ?? []), ...(theme?.elites ?? [])] : MONSTERS;
+  const forced = defName ? [...MONSTERS, ...ELITE_ONLY, ...(theme?.monsters ?? []), ...(theme?.elites ?? [])].find(d => d.name === defName) : undefined;
+  let def = forced ?? pool[Math.floor(rng() * pool.length)];
+  // Themed floors: their own monsters turn up often, and their families more than others.
+  if (!forced && !tough && theme) {
+    const all = [...MONSTERS.map(d => ({ d, w: theme.families.includes(d.family) ? 2 : 1 })), ...theme.monsters.map(d => ({ d, w: 5 }))];
+    let x = rng() * all.reduce((s, o) => s + o.w, 0);
+    def = all.find(o => (x -= o.w) < 0)?.d ?? def;
+  }
   let hp = Math.round(def.hp * monsterHpMult(floor));
   let power = def.power + monsterPowerAdd(floor);
   const items: Record<string, number> = {};

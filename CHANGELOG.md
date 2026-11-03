@@ -5,6 +5,14 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.49.0
+- 🗺️ Floor themes: every run deals floors 1–7 a theme each, drawn at random from ten (no repeats), and deeper floors reuse them in turn, so no two runs look or play the same. Each theme recolours the whole game, brings its own monsters, Elites and boss, makes some families more common, marks some of its foes with its own trait, and twists their attributes a little:
+  - 🌋 The Smouldering Depths · ⚰️ The Dark Catacombs · 🌿 The Overgrown Pathways · ❄️ The Icy Labyrinth · ⚙️ The Corridor of Constructs
+  - ⛓️ The Underkeep Prison · 🏚️ The Necropolis · 🕳️ The Endless Chasm · 🌊 The Drowned Ruins · 🏰 The Sunken Stronghold
+  - 30 new foes (two monsters and an Elite per theme) and 10 new bosses, with new traits: Cinder-touched, Rime-touched, Doom-bearer, Drenched, Jailer, Thornhide, Plated, Lurker, Garrisoned and Deathless.
+  - The Daily Dungeon's themes are the same for everyone that day. The Abyss keeps its own look.
+- 🛡️ Plain kits: four tiers of well-made gear with no special effects, just strong numbers: Fine (Common), Tempered (Uncommon), Masterwork (Rare) and Exalted (Epic) Longswords, Greatswords, Daggers, Quarterstaves, Heater Shields, Leathers, Plate and Signets. The Fine and Tempered pieces can also be chosen as starting kit.
+
 ## 1.48.0
 - 🧭 A big batch of new ways to build, at the usual odds: 46 new items across weapons, off-hands, armour and trinkets (Common to Epic), 5 Legendaries, 12 relics, 13 talents and 6 new Talisman sets.
   - 👊 Brawler (Bash, Stun, Might): Knuckle Club, Bashing Shield, Brawler's Wraps, Skullsplitter Mace, Concussion Charm, War Gauntlet, Earthshaker Maul, Gladiator's Harness, the Fist of the Mountain; Brass Knuckles, Iron Jaw; Haymaker, Pummel, Heavy Hands, Bloodied Knuckles; the Iron Fist set.

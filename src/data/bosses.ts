@@ -55,7 +55,7 @@ export const MOVE_LIBRARY: Record<string, (p: number) => Move> = {
   drain: () => ({ name: "Life Drain", icon: "🦇", text: "Attacks and heals what it deals", act: (b, s, f) => { const before = f.hp; hit(b, s, f); const n = Math.max(0, before - f.hp); if (n) heal(b, s, n, "Life Drain"); } })
 };
 
-interface BossDef { name: string; title: string; family: string; moves: string[]; traits?: string[]; armor?: number; faces?: FaceSpec[]; hpMult?: number }
+export interface BossDef { name: string; title: string; family: string; moves: string[]; traits?: string[]; armor?: number; faces?: FaceSpec[]; hpMult?: number }
 
 /** Named bosses. The campaign draws five (Hollow King last); the rest return in Endless. */
 export const NAMED_BOSSES: Record<string, BossDef> = {
@@ -155,6 +155,9 @@ export function makeCrimsonBoss(floor: number, rng: () => number): Fighter {
   f.title = `${f.title} · ${traits.map(t => TRAITS.find(x => x.id === t)!.name).join(", ")}`;
   return f;
 }
+
+/** A floor theme's own boss, built like any named boss for this depth. */
+export const makeThemeBoss = (def: BossDef, floor: number) => build(def, floor);
 
 export function makeBoss(floor: number, rng: () => number, seen: Set<string> = new Set()): Fighter {
   if (floor <= CAMPAIGN_POOLS.length) {

@@ -2,7 +2,8 @@
 import { drawWeight } from "../data/minors";
 import { relicBonus } from "../data/basic_relics";
 import { CURSES, EPIC_POWERS, KEEPSAKES, LEGENDARIES, RELICS, TALENTS } from "../data";
-import { CAMPAIGN_FLOORS, DEATH_FLOOR, END_FLOOR, EPIC_CRIMSON_FLOORS, makeBoss, makeDeath, makeCrimsonBoss, makeUber, WALL_FLOOR } from "../data/bosses";
+import { CAMPAIGN_FLOORS, DEATH_FLOOR, END_FLOOR, EPIC_CRIMSON_FLOORS, makeBoss, makeDeath, makeCrimsonBoss, makeThemeBoss, makeUber, WALL_FLOOR } from "../data/bosses";
+import { THEMED_FLOORS, THEMES, themeById, type FloorTheme } from "../data/themes";
 import { CROSSROADS_GUISES, crossroadsEvent, EVENTS, type GameEvent } from "../data/events";
 import { FUSION_RECIPES } from "../data/fusions";
 import { findRecipe, TRINKET_RECIPES } from "../data/jeweller";
@@ -223,6 +224,8 @@ export interface Run {
   finale?: boolean;
   /** Two relics to choose between (one is yours), waiting for the player. */
   relicChoice?: string[];
+  /** This run's floor themes (floors 1–7; later floors reuse them in turn). */
+  themes?: string[];
   /** Heat level (optional Campaign difficulty) and this run's Abyss twist. */
   heat?: number;
   abyssMod?: string;
@@ -251,7 +254,10 @@ export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: M
   };
   setLocked(locked);
   resetDropped();
+  if (mode !== "abyss") run.themes = dealThemes(seed);
   run.choices = genChoices(run);
+  const th = themeOf(run);
+  if (th) run.message = `${th.icon} Floor 1 — ${th.name}. ${th.text}`;
   if (mode === "abyss") run.hero.f.persist["abyssRun"] = 1;
   if (mode === "abyss") run.popup = { icon: "🕳️", title: "The Abyss", text: "Every foe down here is a rank deadlier, gets far stronger with each depth, and wears your Armor away. Ten depths, an Uber boss at the bottom of each.", list: [
     "💎 Every Uber boss you beat drops a Ruin Gem.",
@@ -404,6 +410,20 @@ export function chooseRoom(run: Run, room: RoomType) {
   enterRoom(run, room);
 }
 
+/** Deal a run its floor themes: seven different ones from the pool, in a random order (from the run's seed). */
+export function dealThemes(seed: number): string[] {
+  const rng = makeRng((seed ^ 0x7e3a11) >>> 0);
+  const ids = THEMES.map(t => t.id);
+  for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+  return ids.slice(0, THEMED_FLOORS);
+}
+/** This floor's theme (none in the Abyss, which is its own place). */
+export function themeOf(run: Run, floor = run.floor): FloorTheme | undefined {
+  if (run.mode === "abyss") return undefined;
+  if (!run.themes?.length) run.themes = dealThemes(run.seed);
+  return themeById(run.themes[(Math.max(1, floor) - 1) % run.themes.length]);
+}
+
 /** The Changeling Doppelgänger: you, exactly as you are walking in (HP, stats, statuses, gear, passives, talents and relics). */
 function makeDoppel(h: Hero): Fighter {
   const f = h.f;
@@ -547,12 +567,22 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && !special && run.rng() < 0.06));
   // A rare gold thief sometimes turns up in place of a normal monster.
   const thief = rank === "normal" && !then && run.rng() < 0.04;
-  let enemy = then === "doppel" ? makeDoppel(run.hero) : then === "nemesis" && run.nemesis ? makeNemesis(run.nemesis, F) : then === "death" ? makeDeath() : then === "dragon" ? makeDragon(run.rng, F, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, F) : then === "unique" ? makeUnique(run.rng, F, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(depth(run), run.rng) : rank === "boss" ? makeBoss(F, run.rng, run.seenBosses) : thief ? makeThief(run.rng, F) : makeMonster(run.rng, F, rank, defName);
+  let enemy = then === "doppel" ? makeDoppel(run.hero) : then === "nemesis" && run.nemesis ? makeNemesis(run.nemesis, F) : then === "death" ? makeDeath() : then === "dragon" ? makeDragon(run.rng, F, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, F) : then === "unique" ? makeUnique(run.rng, F, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(depth(run), run.rng) : rank === "boss" ? makeBoss(F, run.rng, run.seenBosses) : thief ? makeThief(run.rng, F) : makeMonster(run.rng, F, rank, defName, themeOf(run));
   // The Abyss holds fewer Unholy things (Undead, vampires, cursers): most of them are turned away for something else.
   if (run.mode === "abyss" && !then && !crimsonBoss && rank !== "boss" && !thief)
     for (let k = 0; k < 3 && isUnholy(enemy) && run.rng() < 0.65; k++) enemy = makeMonster(run.rng, F, rank, defName);
   // The Changeling sometimes strikes from your own shadow before you can act.
   if (then === "doppel" && run.rng() < DOPPEL_AMBUSH) enemy.items["m_ambush"] = 1;
+  // The floor's theme: sometimes its own boss holds the floor (not the Hollow King's, nor the endgame's), and its foes carry its marks.
+  const theme = themeOf(run);
+  if (theme && rank === "boss" && !then && !crimsonBoss && !special && run.floor !== CAMPAIGN_FLOORS && !run.seenBosses.has(`t:${theme.id}`) && run.rng() < 0.5) {
+    run.seenBosses.add(`t:${theme.id}`);
+    enemy = makeThemeBoss(theme.boss, F);
+  }
+  if (theme && !exact && enemy.name !== "DEATH" && enemy.name !== "THE END" && !special) {
+    if (rank !== "boss" && !thief && run.rng() < theme.traitChance) enemy.items[theme.trait] = 1;
+    theme.tweak?.(enemy);
+  }
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
@@ -1574,7 +1604,11 @@ export function advance(run: Run, fromTalent = false) {
         if (run.floor > ABYSS_FLOORS) { run.scene = { t: "over", won: true }; return; }
         run.message = `Abyss depth ${run.floor}. Everything down here is stronger — and so is what it carries.`;
         run.popup = { icon: "🕳️", title: `The Abyss — Depth ${run.floor}`, text: ABYSS_LINES[(run.floor - 2) % ABYSS_LINES.length] };
-      } else if (run.floor !== FLOORS) run.popup = { icon: "⬇️", title: `Floor ${run.floor} — ${floorName(run.floor)}`, text: `${FLOOR_LINES[(run.floor - 2) % FLOOR_LINES.length]} The deeper you go, the deadlier it gets — and the richer the loot.` };
+      } else if (run.floor !== FLOORS) {
+        const th = themeOf(run);
+        run.popup = th ? { icon: th.icon, title: `Floor ${run.floor} — ${th.name}`, text: `${th.text} ${th.hint}. The deeper you go, the deadlier it gets — and the richer the loot.` }
+          : { icon: "⬇️", title: `Floor ${run.floor} — ${floorName(run.floor)}`, text: `${FLOOR_LINES[(run.floor - 2) % FLOOR_LINES.length]} The deeper you go, the deadlier it gets — and the richer the loot.` };
+      }
       if (run.floor === FLOORS && run.mode !== "abyss") run.popup = { icon: "🕳️", title: `Floor ${FLOORS} — The Source of the Darkness`, text: "You are close now. The darkness here is thick enough to taste, and every step pulls at you. A cold despair settles in your chest, whispering that the gate cannot be closed, that no one walks back out. Somewhere below, the gate breathes." };
       if (run.floor > FLOORS && run.mode === "campaign") {
         run.scene = { t: "over", won: true };

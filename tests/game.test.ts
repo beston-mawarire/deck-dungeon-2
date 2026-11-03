@@ -2027,3 +2027,30 @@ describe("more build options", () => {
     void bc;
   });
 });
+
+describe("floor themes", () => {
+  it("each run deals floors 1–7 seven different themes, floor 8 on reuse them, and their foes turn up", async () => {
+    const { dealThemes, themeOf } = await import("../src/game/run");
+    const { THEMES } = await import("../src/data/themes");
+    const a = dealThemes(123), b2 = dealThemes(456);
+    expect(new Set(a).size).toBe(7);
+    expect(a.join()).not.toBe(b2.join());
+    const run = newRun("warrior", 321);
+    expect(run.themes?.length).toBe(7);
+    expect(themeOf(run, 8)?.id).toBe(themeOf(run, 1)?.id);
+    expect(themeOf(newRun("warrior", 321, "abyss"))).toBeUndefined();
+    // A themed floor's own monsters show up in its fights.
+    const th = themeOf(run)!;
+    const own = new Set(th.monsters.map(m => m.name));
+    let seen = 0;
+    for (let i = 0; i < 300; i++) { run.scene = { t: "map" } as typeof run.scene; run.step = 1; run.choices = ["fight"]; chooseRoom(run, "fight"); const sc = run.scene as { t: string; battle?: { enemy: { name: string } } }; if (sc.battle && [...own].some(n => sc.battle!.enemy.name.endsWith(n))) seen++; }
+    expect(seen).toBeGreaterThan(30);
+    expect(THEMES.length).toBeGreaterThanOrEqual(10);
+  });
+  it("plain kits: no special effects, strong numbers", () => {
+    const sword = baseOf("pl_rare_sword"), plate = baseOf("pl_epic_plate");
+    expect(Object.keys(sword.hooks).length).toBe(0);
+    expect(sword.damage).toBeGreaterThan(5);
+    expect(plate.armor).toBeGreaterThanOrEqual(8);
+  });
+});
