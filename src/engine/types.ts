@@ -67,6 +67,8 @@ export interface Fighter {
   items: Record<string, number>;
   gold: number;
   elite?: boolean;
+  /** The Changeling Doppelgänger: a copy of the hero (its many effects are shown as one). */
+  doppel?: boolean;
   champion?: boolean;
   boss?: boolean;
   /** Mage: the element the off-hand's Elemental Barrier throws back. */

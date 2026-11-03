@@ -770,7 +770,11 @@ export function enemyPhase(b: Battle) {
       log(b, `${e.name} uses ${move.name}.`);
       fx(b, { who: "enemy", kind: "text", text: move.name, icon: move.icon });
       move.act(b, e, p);
-    } else attack(b, e, p);
+    } else {
+      attack(b, e, p);
+      // A copy of you (the Changeling) swings its off-hand too.
+      if (e.offFaces && p.hp > 0 && e.hp > 0) attack(b, e, p, true);
+    }
   });
   if (e.moves?.length) e.intent = ((e.intent ?? 0) + 1) % e.moves.length;
   checkOver(b);

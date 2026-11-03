@@ -177,7 +177,7 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
   // Your Nemesis: beaten, it's gone; killed by something (in the Campaign), that's the new one (stronger if it's the same foe again).
   if (run.nemesisBeaten) m.nemesis = undefined;
   const k = run.killer;
-  if (run.scene.t === "over" && !run.scene.won && k && !run.abandoned && run.mode !== "abyss" && !run.daily && k.name !== "DEATH" && k.name !== "THE END") {
+  if (run.scene.t === "over" && !run.scene.won && k && !run.abandoned && run.mode !== "abyss" && !run.daily && k.name !== "DEATH" && k.name !== "THE END" && k.name !== "Changeling Doppelgänger") {
     const again = k.nemesis || m.nemesis?.name === k.name;
     m.nemesis = { name: k.name, family: k.family, traits: (k.traitIds ?? []).filter(t => /^(m_|x_)/.test(t) && t !== "m_death" && t !== "m_the_end" && t !== "m_goblin" && t !== "m_thief"), level: again ? (m.nemesis?.level ?? 1) + 1 : 1 };
   }

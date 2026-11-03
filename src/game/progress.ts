@@ -66,6 +66,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "flawless_boss", name: "Untouched", text: "Beat a boss without taking a hit", renown: 20, title: "Untouchable", check: r => P(r, "ach_flawless_boss") > 0 },
   { id: "campaign_win", name: "Gatecloser", text: "Win the Campaign", renown: 30, title: "Gatecloser", check: r => won(r) && r.mode === "campaign" },
   { id: "teetotal", name: "Teetotal", text: "Win the Campaign without drinking a single potion", renown: 40, title: "Teetotaller", check: r => won(r) && r.mode === "campaign" && P(r, "potsDrunk") === 0 },
+  { id: "doppel", name: "Know Thyself", text: "Beat the Changeling Doppelgänger", renown: 25, title: "the Unmirrored", check: r => P(r, "ach_doppel") > 0 },
   // Heat
   { id: "heat_first", name: "Feel the Heat", text: "Win the Campaign at Heat 1 or higher", renown: 20, title: "Kindled", group: "Heat", check: r => campaignWon(r) && (r.heat ?? 0) >= 1 },
   { id: "hot_win", name: "Trial by Fire", text: "Win the Campaign at Heat 3 or higher", renown: 50, title: "Firewalker", group: "Heat", check: r => won(r) && r.mode === "campaign" && (r.heat ?? 0) >= 3 },

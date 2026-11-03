@@ -1925,3 +1925,26 @@ describe("event rooms and quiet steps", () => {
     }
   });
 });
+
+describe("the Changeling Doppelgänger", () => {
+  it("from floor 5 only; it's an exact copy of you and always leaves a Legendary", () => {
+    const run = newRun("warrior", 55);
+    run.hero.f.gold = 0; run.floor = 4; run.step = 2;
+    for (let i = 0; i < 2000; i++) expect(genChoices(run)).not.toContain("doppelganger");
+    run.floor = 5; let seen = false;
+    for (let i = 0; i < 3000 && !seen; i++) seen = genChoices(run).includes("doppelganger");
+    expect(seen).toBe(true);
+    run.hero.f.hp = 20;
+    run.scene = { t: "map" } as typeof run.scene; run.choices = ["doppelganger"];
+    chooseRoom(run, "doppelganger");
+    const sc = run.scene as { t: string; battle?: { enemy: { hp: number; maxHp: number; armor: number; damage: number; items: Record<string, number>; elite?: boolean }; over?: string } };
+    if (sc.t !== "combat" || !sc.battle) throw new Error("no fight");
+    const e = sc.battle.enemy, f = run.hero.f;
+    expect([e.hp, e.maxHp, e.armor, e.damage, e.elite]).toEqual([20, f.maxHp, f.armor, f.damage, true]);
+    expect(e.items["o_warrior"]).toBe(f.items["o_warrior"]);
+    e.hp = 0; sc.battle.over = "won";
+    settleCombat(run);
+    const loot = run.scene as { t: string; items?: { rarity: string }[] };
+    expect(loot.items?.some(i => i.rarity === "legendary")).toBe(true);
+  });
+});

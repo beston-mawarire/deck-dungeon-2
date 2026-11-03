@@ -11,7 +11,7 @@ import { type Action, actionToll, BLESSINGS, isUnholy, playRound, startBattle } 
 import { eachHook, getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
 import { applyStatus, heal as healF } from "../engine/statuses";
-import type { Battle, GearItem, OriginId, Rarity } from "../engine/types";
+import type { Battle, Fighter, GearItem, OriginId, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { autoBattleWins } from "./auto";
 import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
@@ -87,7 +87,7 @@ export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
 const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
 
-export type RoomType = "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
+export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -112,6 +112,10 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   fortune_teller: { name: "Fortune Teller", icon: "🔮", text: "She sees gold in your future… for a price." },
   mirror_pool: { name: "The Mirror Pool", icon: "🪞", text: "Still black water. Your reflection doesn't blink." },
   card_sharp: { name: "Card Sharp", icon: "🃏", text: "A grinning rogue, a worn deck, and a wager." },
+  doppelganger: { name: "The Changeling", icon: "🎭", text: "Something wearing your face, your gear, your tricks. Beat yourself for a Legendary." },
+  sacred_spring: { name: "Sacred Spring", icon: "💧", text: "Clear water glowing in a hidden grotto." },
+  fallen_adventurer: { name: "A Fallen Adventurer", icon: "⚰️", text: "Someone who got this far and no further. Their pack is still full." },
+  starving_pilgrim: { name: "Starving Pilgrim", icon: "🧎", text: "A thin traveller with an outstretched hand." },
   bounty: { name: "Bounty Board", icon: "📋", text: "Notices nailed to a post. Work for hire." },
   event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
@@ -134,7 +138,7 @@ export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "reli
 
 export type Scene =
   | { t: "map" }
-  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" | "nemesis"; uber?: boolean }
+  | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" | "nemesis" | "doppel"; uber?: boolean }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; /** Talisman sigils found (names). */ sigils?: string[]; potions: number; then?: "resplendent"; crimsonKey?: boolean; /** A Bounty Board payout (closing it doesn't use a step). */ bounty?: boolean; /** A Dragon Heart was torn from the dragon (its level now). */ dragonHeart?: number; /** The Transmuter's Crucible dropped. */ crucible?: boolean }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
   | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** Talisman sigils found (names). */ sigils?: string[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
@@ -298,13 +302,18 @@ export const CLEANSING_PATH_CHANCE = 0.3;
 export const CLEANSING_EVENTS = ["cleansing_well", "holy_tribute"];
 /** Encounters with their own path on the map, never part of Something Strange. */
 /** Events that are their own paths on the map (out of Something Strange). */
-export const EVENT_ROOMS: Partial<Record<RoomType, string>> = { alchemist: "alchemist", blacksmith: "blacksmith", gambling_den: "dice", fortune_teller: "teller", mirror_pool: "mirror", card_sharp: "card_sharp" };
+export const EVENT_ROOMS: Partial<Record<RoomType, string>> = { alchemist: "alchemist", blacksmith: "blacksmith", gambling_den: "dice", fortune_teller: "teller", mirror_pool: "mirror", card_sharp: "card_sharp",
+  sacred_spring: "spring", fallen_adventurer: "fallen", starving_pilgrim: "pilgrim" };
+/** Minor encounters offered only on quiet steps (no fights ahead). */
+const QUIET_ROOMS: RoomType[] = ["sacred_spring", "fallen_adventurer", "starving_pilgrim"];
+/** The Changeling Doppelgänger: an Elite copy of you, from floor 5. */
+export const DOPPEL_FLOOR = 5;
 export const OWN_PATH_EVENTS = [...CLEANSING_EVENTS, "sanguine_altar", ...Object.values(EVENT_ROOMS) as string[]];
 /** Can this event happen right now (once-a-run ones not yet met, enough Gold, deep enough)? */
 const eventOpen = (run: Run, e: GameEvent) => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || Object.keys(run.hero.curses).length > 0) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e);
 /** A quiet stretch: from floor 1, some steps offer no fights at all. */
 export const PEACEFUL_CHANCE = 0.15;
-const COMBAT_ROOMS: RoomType[] = ["fight", "elite", "champion", "vault", "crimson_elite", "unique", "goblin", "nemesis", "crimson_vault"];
+const COMBAT_ROOMS: RoomType[] = ["doppelganger", "fight", "elite", "champion", "vault", "crimson_elite", "unique", "goblin", "nemesis", "crimson_vault"];
 
 /** Gauntlets: from floor 3, 15% of steps offer only hard fights (a Guarded Vault is a Champion before a Resplendent chest). */
 export const GAUNTLET_FLOOR = 3;
@@ -318,7 +327,9 @@ export const GAUNTLETS: RoomType[][] = [
 export function genChoices(run: Run): RoomType[] {
   if (run.step >= STEPS_PER_FLOOR) return ["boss"];
   const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 6, vault: 3, altar: 3, shrine: 3, champion: 3, sanguine: 2,
-    alchemist: 0.8, blacksmith: 1, gambling_den: 1.4, fortune_teller: 1.4, mirror_pool: 0.8, card_sharp: 1.4 };
+    alchemist: 0.8, blacksmith: 1, gambling_den: 1.4, fortune_teller: 1.4, mirror_pool: 0.8, card_sharp: 1.4,
+    sacred_spring: 3, fallen_adventurer: 3, starving_pilgrim: 3 };
+  if (run.floor >= DOPPEL_FLOOR) w.doppelganger = 1.5;
   // Event rooms only show up when their encounter can happen.
   for (const [room, id] of Object.entries(EVENT_ROOMS) as [RoomType, string][]) { const e = EVENTS.find(x => x.id === id); if (!e || !eventOpen(run, e)) w[room] = 0; }
   // After the fifth boss (Endless), Crimson Elites start to appear; they drop the keys to Crimson Vaults.
@@ -332,7 +343,7 @@ export function genChoices(run: Run): RoomType[] {
   if (heatOf(run) >= 5) { w.elite = (w.elite ?? 0) * 2; w.champion = (w.champion ?? 0) * 2; }
   // Your Nemesis: from floor 2, about as often as a Strange Presence, once per run.
   if (run.nemesis && run.floor >= 2 && !run.seenBosses.has("nemesis")) w.nemesis = 2.5;
-  if (run.step === 0) { w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; w.unique = 0; w.nemesis = 0; }
+  if (run.step === 0) { w.doppelganger = 0; w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; w.unique = 0; w.nemesis = 0; }
   // A gauntlet: from floor 3 (not on a floor's first step), sometimes every path is a hard fight, and nothing else.
   if (run.floor >= GAUNTLET_FLOOR && run.step > 0 && run.rng() < GAUNTLET_CHANCE) {
     const set = GAUNTLETS[Math.floor(run.rng() * GAUNTLETS.length)];
@@ -345,8 +356,9 @@ export function genChoices(run: Run): RoomType[] {
     const calm = Object.fromEntries(Object.entries(w).filter(([k, v]) => !COMBAT_ROOMS.includes(k as RoomType) && (v ?? 0) > 0)) as Partial<Record<RoomType, number>>;
     while (out.size < 3) out.add(pickW(run.rng, calm));
   } else {
+    const busy = { ...w }; for (const q of QUIET_ROOMS) busy[q] = 0;
     out.add("fight");
-    while (out.size < 3) out.add(pickW(run.rng, w));
+    while (out.size < 3) out.add(pickW(run.rng, busy));
   }
   // Heat 5: the plain monster fight is sometimes swapped for an Elite or a Champion (not on a floor's first step).
   if (heatOf(run) >= 5 && run.step > 0 && out.has("fight")) {
@@ -389,6 +401,17 @@ export function chooseRoom(run: Run, room: RoomType) {
     return;
   }
   enterRoom(run, room);
+}
+
+/** The Changeling Doppelgänger: you, exactly as you are walking in (HP, stats, statuses, gear, passives, talents and relics). */
+function makeDoppel(h: Hero): Fighter {
+  const f = h.f;
+  return {
+    ...f, id: "enemy", name: "Changeling Doppelgänger", title: "Wearing your face", elite: true, doppel: true, gold: 0,
+    statuses: { ...f.statuses }, flags: {}, persist: { ...f.persist }, items: { ...f.items },
+    faces: [...f.faces], offFaces: f.offFaces ? [...f.offFaces] : undefined,
+    barrierElements: f.barrierElements ? [...f.barrierElements] : undefined
+  } as Fighter;
 }
 
 /** Begin an encounter (from Something Strange or its own path). */
@@ -463,7 +486,8 @@ function enterRoom(run: Run, room: RoomType) {
       const ev = pickW(run.rng, Object.fromEntries(pool.map(e => [e.id, e.weight ?? 1])) as Record<string, number>);
       return startEvent(run, pool.find(e => e.id === ev)!);
     }
-    case "alchemist": case "blacksmith": case "gambling_den": case "fortune_teller": case "mirror_pool": case "card_sharp":
+    case "doppelganger": return fight(run, "elite", "doppel");
+    case "alchemist": case "blacksmith": case "gambling_den": case "fortune_teller": case "mirror_pool": case "card_sharp": case "sacred_spring": case "fallen_adventurer": case "starving_pilgrim":
       return startEvent(run, EVENTS.find(e => e.id === EVENT_ROOMS[room])!);
     case "sanguine": run.scene = { t: "event", ev: EVENTS.find(e => e.id === "sanguine_altar")!, result: null, found: [] }; return;
     case "cleansing": {
@@ -500,9 +524,11 @@ function openResplendent(run: Run) {
 
 // ---------- Combat ----------
 
-function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" | "nemesis", defName?: string) {
+function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" | "nemesis" | "doppel", defName?: string) {
   run.hero.f.persist["floor"] = run.floor;
   const F = depth(run);
+  // DEATH and the Changeling are exactly what they are: no depth, Heat or Abyss toughening.
+  const exact = then === "death" || then === "doppel";
   // The Abyss: every plain fight is a rank tougher. Monsters become Elites, Elites Champions, Champions bosses, and the floor boss an Uber boss.
   let uber = false;
   if (run.mode === "abyss" && !then) {
@@ -520,7 +546,7 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   const crimsonBoss = rank === "boss" && (then === "crimson" || (crimsonActive(run) && !special && run.rng() < 0.06));
   // A rare gold thief sometimes turns up in place of a normal monster.
   const thief = rank === "normal" && !then && run.rng() < 0.04;
-  let enemy = then === "nemesis" && run.nemesis ? makeNemesis(run.nemesis, F) : then === "death" ? makeDeath() : then === "dragon" ? makeDragon(run.rng, F, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, F) : then === "unique" ? makeUnique(run.rng, F, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(depth(run), run.rng) : rank === "boss" ? makeBoss(F, run.rng, run.seenBosses) : thief ? makeThief(run.rng, F) : makeMonster(run.rng, F, rank, defName);
+  let enemy = then === "doppel" ? makeDoppel(run.hero) : then === "nemesis" && run.nemesis ? makeNemesis(run.nemesis, F) : then === "death" ? makeDeath() : then === "dragon" ? makeDragon(run.rng, F, defName ?? "The Chained Dragon", defName ? "Woken, and furious" : "Awake, and furious") : then === "goblin" ? makeGoblin(run.rng, F) : then === "unique" ? makeUnique(run.rng, F, run.seenBosses) : crimsonBoss ? makeCrimsonBoss(depth(run), run.rng) : rank === "boss" ? makeBoss(F, run.rng, run.seenBosses) : thief ? makeThief(run.rng, F) : makeMonster(run.rng, F, rank, defName);
   // The Abyss holds fewer Unholy things (Undead, vampires, cursers): most of them are turned away for something else.
   if (run.mode === "abyss" && !then && !crimsonBoss && rank !== "boss" && !thief)
     for (let k = 0; k < 3 && isUnholy(enemy) && run.rng() < 0.65; k++) enemy = makeMonster(run.rng, F, rank, defName);
@@ -528,7 +554,7 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
   }
-  if (run.mode === "abyss") {
+  if (run.mode === "abyss" && then !== "doppel") {
     // The Abyss wears your Armor down: 15% less at every depth (to at most 90% less).
     run.hero.f.persist["armorDecay"] = Math.min(90, 15 * (run.floor - 1));
     const g = ABYSS_BASE * Math.pow(ABYSS_GROWTH, run.floor - 1);
@@ -538,10 +564,10 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
     if (uber) makeUber(enemy, F, run.rng);
     if (abyssMod(run, "thick_hides")) enemy.maxHp = enemy.hp = Math.round(enemy.hp * 1.3);
     if (abyssMod(run, "glass_cannon")) { enemy.damage = Math.round(enemy.damage * 1.3); enemy.dmgTaken = (enemy.dmgTaken ?? 0) + 30; }
-    if (abyssMod(run, "blood_moon") && then !== "death") enemy.items["x_crimson"] = 1;
+    if (abyssMod(run, "blood_moon") && !exact) enemy.items["x_crimson"] = 1;
   }
   // Bosses and Uber bosses sometimes shrug off a kind of status, strike true, or carry a Causality Mirror. Uber bosses always have something.
-  if (rank === "boss" && then !== "death" && enemy.name !== "DEATH") {
+  if (rank === "boss" && !exact && enemy.name !== "DEATH") {
     const roll = (p: number) => run.rng() < p;
     const pick = BOSS_IMMUNITIES[Math.floor(run.rng() * BOSS_IMMUNITIES.length)];
     if (uber || (run.floor >= 2 && roll(0.35))) enemy.items[pick] = 1;
@@ -552,23 +578,23 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
     if (roll(uber ? 0.35 : run.floor >= 3 ? 0.15 : 0)) enemy.items[run.rng() < 0.5 ? "x_grievous" : "x_blighting"] = 1;
   }
   // Deeper foes wear more Armor, in every mode (bosses most of all). DEATH is its own thing.
-  if (then !== "death") enemy.armor += Math.floor((F - 1) / 3) + (rank === "boss" ? Math.floor(F / 5) : 0);
+  if (!exact) enemy.armor += Math.floor((F - 1) / 3) + (rank === "boss" ? Math.floor(F / 5) : 0);
   // From floor 15 of a Campaign, every floor is a good deal deadlier than the last.
-  if (run.mode !== "abyss" && run.floor >= DEEP_FLOOR && then !== "death") {
+  if (run.mode !== "abyss" && run.floor >= DEEP_FLOOR && !exact) {
     const k = run.floor - DEEP_FLOOR + 1;
     enemy.maxHp = enemy.hp = Math.round(enemy.hp * Math.pow(1.07, k));
     enemy.damage = Math.round(enemy.damage * Math.pow(1.05, k));
   }
   // Heat: tougher foes (1), and harder hits at 5.
   const heat = heatOf(run);
-  if (heat >= 1 && then !== "death") enemy.maxHp = enemy.hp = Math.round(enemy.hp * 1.3);
+  if (heat >= 1 && !exact) enemy.maxHp = enemy.hp = Math.round(enemy.hp * 1.3);
   // Each Heat level also quietly toughens every foe: a little more HP, harder hits, and Armor every other level.
-  if (heat >= 1 && then !== "death") {
+  if (heat >= 1 && !exact) {
     enemy.maxHp = enemy.hp = Math.round(enemy.hp * (1 + 0.06 * heat));
     enemy.damage = Math.round(enemy.damage * (1 + 0.05 * heat));
     enemy.armor += Math.floor(heat / 2);
   }
-  if (heat >= 5 && then !== "death") enemy.damage = Math.round(enemy.damage * 1.2);
+  if (heat >= 5 && !exact) enemy.damage = Math.round(enemy.damage * 1.2);
   run.hero.f.persist["goldAtFight"] = run.hero.f.gold;
   const battle = startBattle(run.hero.f, enemy, Math.floor(run.rng() * 1e9), run.carry);
   // Angelic Blessing: heal 2 as the fight begins.
@@ -843,6 +869,13 @@ function afterFight(run: Run) {
     if (run.rng() < 0.1) items.push(rollItem(h, "legendary", depth(run), run.rng));
     if (run.rng() < 0.35) scrolls++;
     run.message = "💰 The Treasure Goblin bursts open. Everything it carried is yours.";
+  } else if (then === "doppel") {
+    // The Changeling: beating yourself is worth a Legendary, a purse and a scroll.
+    items.push(rollItem(h, "legendary", depth(run), run.rng));
+    goblinGold = 20 + 6 * run.floor;
+    scrolls++;
+    h.f.persist["ach_doppel"] = 1;
+    run.message = "🎭 The Changeling comes apart like smoke. It leaves something of yours behind… no, better than yours.";
   } else if (then === "unique") {
     // Unique foes: always an Epic (sometimes a Legendary), a good relic and a fat purse.
     items.push(rollItem(h, run.rng() < 0.15 ? "legendary" : "epic", depth(run), run.rng));

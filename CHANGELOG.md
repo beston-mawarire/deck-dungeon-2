@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.46.0
+- 🎭 New Elite: the Changeling Doppelgänger, from floor 5. It's you, exactly as you walk in: your HP, stats, statuses, gear, passives, talents and relics (and your off-hand). Beat it and it always leaves a Legendary, plus Gold and a Scroll of Revelation. New achievement: Know Thyself.
+- Quiet stretches have three encounters of their own: the Sacred Spring, a Fallen Adventurer and the Starving Pilgrim (out of Something Strange).
+
 ## 1.45.0
 - 🗺️ Six encounters have their own paths on the map now, out of Something Strange: the Alchemist, the Wandering Blacksmith, the Gambling Den, the Fortune Teller, the Mirror Pool and the Card Sharp. They're only offered when they can happen (once-a-run ones until you've met them, Gold ones when you can pay).
 - 🌿 Quiet stretches: from floor 1 on, now and then no path ahead is a fight: only chests, shops, camps, shrines and encounters.
