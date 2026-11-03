@@ -5,6 +5,13 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.54.0
+- ⭐ Mastery XP per run is about half what it was: winning the Campaign is worth about 6.
+- 📯 War Cry (Warrior) is much stronger: a bigger swell of Might, and the enemy is left Weak for longer and Exposed too.
+- 🗡️ Counter (Rogue) is stronger: +35% Dodge (was +20%), the strike back lands 50% harder, and a failed Counter leaves you only a little off-balance.
+- ✝️ Penance (Cleric) is stronger: you take a quarter less while kneeling, and what you suffered comes back half as much again.
+- The Mage's Elemental Barrier is unchanged.
+
 ## 1.53.0
 - ⭐ Class Mastery takes much longer to grow, and each level takes longer than the last. Every class's Mastery has been reset to 1 on every device (starting kits go back to each class's own).
 - 🎒 Starting-kit choices are a short list picked for each class: per rarity, a plain well-made piece, a few that suit the class, and one wildcard. At Mastery 10, Rares join the list.

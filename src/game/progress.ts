@@ -26,10 +26,11 @@ export function masteryLevel(xp: number): number {
   for (let l = 2; l <= MASTERY_MAX; l++) if (xp >= MASTERY_XP[l]) lv = l;
   return lv;
 }
-/** Mastery XP a run earns for its class: floors reached plus bosses beaten. */
+/** Mastery XP a run earns for its class: from floors reached plus bosses beaten (a Campaign win is worth about 6). */
 export function masteryFor(run: Run): number {
   const won = run.scene.t === "over" && run.scene.won;
-  return Math.max(0, run.floor - 1 + (won ? 1 : 0)) + run.stats.bosses;
+  // About 6 for winning the Campaign (floor 5's boss); deeper runs earn more.
+  return Math.round(0.55 * (Math.max(0, run.floor - 1 + (won ? 1 : 0)) + run.stats.bosses));
 }
 
 export type KitSlot = "main" | "off" | "armour";

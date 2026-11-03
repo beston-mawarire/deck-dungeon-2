@@ -61,7 +61,7 @@ describe("mastery, kits, heat, Abyss twists, achievements", () => {
     abandonRun(run);
     const res = recordRun(m, run);
     expect(res.achievements).toContain("first_boss");
-    expect(m.mastery?.mage).toBe(3);
+    expect(m.mastery?.mage).toBe(2);
     const renown = m.renown;
     const again = newRun("mage", 12);
     again.stats.bosses = 1; abandonRun(again);

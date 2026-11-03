@@ -4,6 +4,9 @@ import { makeRng, rollDie } from "./rng";
 
 /** Dodge is capped at 60%; Bash at 30%. */
 export const DODGE_CAP = 60;
+/** Counter (Rogue): extra Dodge this round. Penance (Cleric): what you suffered comes back this much. */
+export const COUNTER_DODGE = 35;
+export const PENANCE_RETURN = 1.5;
 export const BASH_CAP = 30;
 import { applyStatus, conductive, endOfRound, heal, loseHp, other, statusLoss, smoulderSoulAction, st, startOfTurn, staticTick } from "./statuses";
 import type { AttackCtx, Battle, FaceGroup, FaceKind, FaceSpec, Fighter, StatusId, Statuses } from "./types";
@@ -388,8 +391,12 @@ function strike(b: Battle, ctx: AttackCtx) {
   if (ctx.kind === "crit" && stacksOf(a, "ks_deadeye") > 0) raw *= 1.5;
   // Crit damage (gear): Crits hit this much harder.
   if (ctx.kind === "crit" && (a.critDmg ?? 0) !== 0) raw *= Math.max(0.5, 1 + (a.critDmg ?? 0) / 100);
-  // A failed Counter leaves you off-balance for one attack.
-  if (a.flags["frail"]) { raw *= 0.75; a.flags["frail"] = 0; }
+  // A failed Counter leaves you off-balance for one attack (a little).
+  if (a.flags["frail"]) { raw *= 0.85; a.flags["frail"] = 0; }
+  // A Counter strike lands hard.
+  if (a.flags["counterMult"]) raw *= 1.5;
+  // Kneeling in Penance, you take the blows a little easier.
+  if (d.flags["penanceRound"] === b.round) raw *= 0.75;
   // Bash (main weapon only): Stun and +50%.
   let bashed = false;
   // Bash chance: gear, plus Might for some builds (mightBash: % per stack); a few pieces raise the cap.
@@ -401,9 +408,9 @@ function strike(b: Battle, ctx: AttackCtx) {
   // Penance: everything you suffered comes back in one blow.
   const penance = !ctx.offhand ? a.flags["penanceStore"] ?? 0 : 0;
   if (penance > 0) {
-    raw += penance;
+    raw += Math.round(penance * PENANCE_RETURN);
     a.flags["penanceStore"] = 0;
-    log(b, `✝️ Penance: ${penance} suffered, returned in full.`);
+    log(b, `✝️ Penance: ${penance} suffered, returned half as much again.`);
   }
   let shatter = false;
   if (d.flags["shatter"]) {
@@ -443,7 +450,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   }
   // Dodge (a % chance; Countering adds 20%). It's not Evade: Evade bonuses don't fire, Dodge ones do.
   const countering = d.flags["counter"] === b.round;
-  const dodgeChance = Math.min(DODGE_CAP + (d.flags["dodgeCap"] ?? 0), (d.dodge ?? 0) + (countering ? 20 : 0));
+  const dodgeChance = Math.min(DODGE_CAP + (d.flags["dodgeCap"] ?? 0), (d.dodge ?? 0) + (countering ? COUNTER_DODGE : 0));
   if (dodgeChance > 0 && b.rng() * 100 < dodgeChance && !useTrueStrike(a)) {
     log(b, `${d.name} dodges!`);
     fx(b, { who: d.id, kind: "miss", text: "Dodged" });
@@ -453,7 +460,9 @@ function strike(b: Battle, ctx: AttackCtx) {
       log(b, `${d.name} counters!`);
       fx(b, { who: d.id, kind: "text", text: "Counter!", icon: "🗡️" });
       d.flags["counterHit"] = 1;
+      d.flags["counterMult"] = 1;
       attack(b, d, a);
+      d.flags["counterMult"] = 0;
       d.flags["counterHit"] = 0;
     }
     return afterStrike(b, ctx);
@@ -754,8 +763,10 @@ export function heroPhase(b: Battle, action: Action) {
     act(b, p, () => {
       if (p.flags["warcry"]) return;
       p.flags["warcry"] = 1;
-      applyStatus(b, p, p, "might", 2 + Math.floor((p.persist["floor"] ?? 1) / 2));
-      applyStatus(b, p, e, "weak", 2);
+      // War Cry: a big swell of Might (more the deeper you are), and the enemy is cowed: Weak and Exposed.
+      applyStatus(b, p, p, "might", 3 + Math.floor((2 * (p.persist["floor"] ?? 1)) / 3));
+      applyStatus(b, p, e, "weak", 3);
+      applyStatus(b, p, e, "exposed", 2);
       log(b, `${p.name} lets out a War Cry!`);
       fx(b, { who: "player", kind: "text", text: "War Cry!", icon: "📯" });
     });
