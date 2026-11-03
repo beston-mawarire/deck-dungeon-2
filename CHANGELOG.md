@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.52.0
+- 🛡️ The classes in the menu are heraldic crests now: each one a shield in its own colours (Warrior crimson and steel, Rogue forest and black, Mage royal blue and violet, Cleric white and gold), its emblem in the middle, its Mastery on the corner and its name on a ribbon.
+
 ## 1.51.1
 - The Victory and Floor Cleared panels (their border, glow, title and buttons) take on the floor's theme colours instead of always being gold.
 - When a relic popup appears, the loot fanfares wait: they play one after another once you close it, instead of behind it.

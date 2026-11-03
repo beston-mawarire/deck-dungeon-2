@@ -367,10 +367,11 @@ function titleScreen() {
     const og = ORIGINS[o];
     const pl = meta.classPlates?.[o] ?? 0;
     const lv = masteryLevel(meta.mastery?.[o] ?? 0);
-    return `<button class="room origin-card compact ${abyss ? "abyss-card" : ""}" data-origin="${o}">
-      <span class="oc-top"><span class="ic">${ORIGIN_ICON[o]}</span><span class="oc-lv" title="Class Mastery">⭐${lv}</span></span>
-      <b>${og.name}</b>
-      <span class="sub">${esc(og.blurb)}</span>
+    // Each class is a heraldic crest: its colours on a shield, its emblem in the middle, its name on a ribbon.
+    return `<button class="crest crest-${o} ${abyss ? "abyss-card" : ""}" data-origin="${o}" aria-label="${esc(og.name)}">
+      <span class="crest-shield"><span class="crest-field"></span><span class="crest-emblem">${ORIGIN_ICON[o]}</span><span class="crest-lv" title="Class Mastery">⭐${lv}</span></span>
+      <span class="crest-ribbon"><b>${og.name}</b></span>
+      <span class="crest-blurb">${esc(og.blurb)}</span>
       ${abyss ? `<span class="plate-line">⬛ ${pl} plate${pl === 1 ? "" : "s"}</span>` : ""}
     </button>`;
   }).join("")}</div>`;
