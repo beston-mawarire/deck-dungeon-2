@@ -369,7 +369,7 @@ function titleScreen() {
     const lv = masteryLevel(meta.mastery?.[o] ?? 0);
     // Each class is a heraldic crest: its colours on a shield, its emblem in the middle, its name on a ribbon.
     return `<button class="crest crest-${o} ${abyss ? "abyss-card" : ""}" data-origin="${o}" aria-label="${esc(og.name)}">
-      <span class="crest-stars" title="Class Mastery ${lv} of ${MASTERY_MAX}">${lv > 0 ? "★".repeat(lv) : "☆"}</span>
+      <span class="crest-stars" title="Class Mastery ${lv} of ${MASTERY_MAX}">${lv > 6 ? `<span class="crowns">${"👑".repeat(lv - 6)}</span>` : lv > 0 ? "★".repeat(lv) : "☆"}</span>
       <span class="crest-shield"><span class="crest-field"></span><span class="crest-emblem">${ORIGIN_ICON[o]}</span></span>
       <span class="crest-ribbon"><b>${og.name}</b></span>
       <span class="crest-blurb">${esc(og.blurb)}</span>

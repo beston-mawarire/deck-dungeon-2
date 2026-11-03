@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.52.6
+- Mastery past 6 stars turns into crowns: levels 7 to 10 (the most a class can reach) show 1 to 4 crowns above the crest instead of stars.
+
 ## 1.52.5
 - The title screen's line now says: Welcome to the dungeon!
 
