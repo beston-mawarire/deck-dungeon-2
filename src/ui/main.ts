@@ -1503,6 +1503,13 @@ function comparePopup(r: Run): string {
   </div></div>`;
 }
 
+/** Options as a page of its own (from the title screen). */
+function optionsPage() {
+  return optionsPopup()
+    .replace('<div class="overlay popup-wrap"><div class="popup options-pop">', '<div class="options-page"><div class="row opt-head"><button class="small dg-stone" data-closeoptions>← Back</button><h1 class="grow dg-carved">⚙️ Options</h1></div><div class="options-pop as-page">')
+    .replace('<button class="small closex closebtn" data-closeoptions aria-label="Close">✕</button>', '')
+    .replace('<h1 class="center bigname">⚙️ Options</h1>', '');
+}
 function optionsPopup() {
   const sp = (v: number, label: string) => `<button class="small ${speed === v ? "primary" : ""}" data-speed="${v}">${label}</button>`;
   // One setting per line: what it is on the left, its control on the right.
@@ -1882,7 +1889,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${optionsOpen ? optionsPopup() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }

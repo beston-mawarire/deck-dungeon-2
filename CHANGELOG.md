@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.55.5
+- Options opens as its own page from the title screen (with a Back button), not a popup.
+- Leaderboards: the main tabs are big stone banners (the open one gold), and the boards under them are small chips on a gold-lined shelf, so it's clear which is which.
+- In a run, everything sits a little lower, clear of the top of the screen, and the bar with your inventory, potions, help, sound and menu buttons uses the dungeon's stone buttons.
+
 ## 1.55.4
 - Shops, the Forge, the Jeweller and every encounter use the dungeon's buttons: stone slabs, gold slabs for the main actions, and a gold rim on the open tab.
 - On small screens, Leave (and Move on / Continue) buttons fill their row, studs and all.
