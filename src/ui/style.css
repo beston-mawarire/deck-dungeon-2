@@ -1242,3 +1242,12 @@ body:not(.dg-menu) #app { padding-top: calc(env(safe-area-inset-top, 0px) + 16px
 .room.crimson-room b { color: #ff8fd6 !important; }
 @keyframes crimpulse { 0%, 100% { box-shadow: 0 0 12px rgba(255,47,168,.35), inset 0 0 20px rgba(255,47,168,.18); } 50% { box-shadow: 0 0 24px rgba(255,47,168,.6), inset 0 0 30px rgba(255,47,168,.28); } }
 @media (prefers-reduced-motion: reduce) { #fp-enemy.crimson-foe, .room.crimson-room { animation: none; } }
+
+/* ---------- The Inventory keeps its own look on every floor (no theme colours inside it) ---------- */
+body[data-theme] .bag-overlay { --bg: #13111a; --panel: #1d1926; --panel2: #251f30; --line: #3a3046; --muted: #a99bb8; --gold: #e8b84a;
+  --btn: #2a2233; --chip: #2b2333; --track: #2b2330; --accent: #e8b84a; --tint: transparent; }
+body[data-theme] .bag-overlay .panel { border-color: var(--line); }
+body[data-theme] .bag-overlay h2 { color: var(--muted); }
+body[data-theme] .bag-overlay button.primary { background: linear-gradient(180deg, #f3ca63 0%, #dba73a 100%); border-color: #f0c15a; color: #1a1408; }
+body[data-theme] .bag-overlay .toast:not(.err) { background: #3a2f22; border-color: var(--gold); }
+body[data-theme] .bag-overlay .toast:not(.err) b { color: inherit; }

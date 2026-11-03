@@ -1261,7 +1261,7 @@ function bag(r: Run) {
       ${talentSub === "talents" ? list(h.talents, "talent-line")
         : `${nCurses ? list(h.curses, "curse-line") : `<p class="sub">You carry no curses. Shrines, cursing foes and dark magic can lay them on you, and only something holy can lift them.</p>`}`}`
     : extras;
-  return `<div class="overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
+  return `<div class="overlay bag-overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
     <div class="row"><h1 class="grow">Inventory <span class="bag-class">· ${ORIGIN_ICON[h.origin]} ${esc(ORIGINS[h.origin].name)} · Lv ${h.level}</span></h1><button class="closebtn" data-closebag>✕ Close</button></div>
     <div class="bag-tabs" role="tablist">${tabs.map(([id, label, badge]) => `<button class="bag-tab ${bagTab === id ? "active" : ""}" data-bagtab="${id}" role="tab" aria-selected="${bagTab === id}"><span class="bt-ic">${label.split(" ")[0]}${badge}${fresh.has(id) ? `<b class="newdot" title="Something new"></b>` : ""}</span><span class="bt-lb">${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
