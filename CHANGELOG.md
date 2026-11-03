@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.58.1
+- More variety in every class's starting-kit choices: the Rogue can start with a Rapier, Sickle, Throwing Knife, Sai or Leather Jerkin; the Mage with Frost and Storm Wands, a Frost Orb or Tome of Hexes, or a Leather Jerkin; the Cleric with a Mace, Censer Flail or Leather Jerkin.
+
 ## 1.58.0
 - 🗡️ Counter: dodge the attack and you strike back at once with a Crit (your die's crit face, no roll), before your next turn.
 - Stances show: while Guarding your panel glows steel-blue with a shield and your Armor; while Countering it sways with a teal shimmer and says what a dodge will do.

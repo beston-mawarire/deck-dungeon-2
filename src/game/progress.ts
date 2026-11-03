@@ -18,8 +18,13 @@ export const KIT_UNCOMMON_LEVEL = 6;
 export const KIT_RARE_LEVEL = 10;
 /** What each class leans towards when its starting-kit choices are drawn up. */
 const CLASS_TAGS: Record<OriginId, string[]> = { warrior: ["Guard", "Strike", "Thorns"], rogue: ["Crit", "Tempo", "Bleed", "Poison", "Kill"], mage: ["Arcane", "Burn", "Frost", "Storm", "Hex"], cleric: ["Holy", "Blood", "Guard"] };
-/** Hand-picked starting-kit extras: the Warrior can start with a one-handed axe or a short sword in the off-hand (clumsy there). */
-const KIT_EXTRAS: Partial<Record<OriginId, Partial<Record<KitSlot, Partial<Record<Rarity, string[]>>>>>> = { warrior: { off: { common: ["w_hatchet", "w_shortsword"] } } };
+/** Hand-picked starting-kit extras, for more variety: e.g. the Warrior can start with a one-handed axe or a short sword in the off-hand (clumsy there), the Mage with other wands and elemental off-hands. */
+const KIT_EXTRAS: Partial<Record<OriginId, Partial<Record<KitSlot, Partial<Record<Rarity, string[]>>>>>> = {
+  warrior: { off: { common: ["w_hatchet", "w_shortsword"] } },
+  rogue: { main: { common: ["w_rapier", "w_sickle"] }, off: { common: ["w_throwing_knife", "w_sai"] }, armour: { common: ["a_leather"] } },
+  mage: { main: { common: ["w_frost_wand", "w_storm_wand"] }, off: { common: ["o_frost_orb", "o_tome"] }, armour: { common: ["a_leather"] } },
+  cleric: { main: { common: ["w_mace", "w_censer_flail"] }, armour: { common: ["a_leather"] } }
+};
 /** A stable shuffle key, so each class sees its own short list (the same every time). */
 const keyOf = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 
