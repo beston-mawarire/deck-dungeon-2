@@ -5,9 +5,13 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.57.1
+- The Abyss is harder again: tougher, harder-hitting foes from the first depth, growing a little faster as you go down.
+- A path to a cleansing is rarer still after you pick up a curse.
+- HP-costing choices are back to how they were (options you can't afford were already greyed out).
+
 ## 1.57.0
 - Elites and Champions drop better loot: Rare, Epic and Legendary finds are a little more likely from both.
-- The Sanguine Altar, the Blood Fountain and other HP-costing choices show exactly how much HP they'll take (worked out from your Max HP), and tell you plainly when you don't have enough. The Blood Altar shows how much Max HP it will take.
 - A path to a cleansing is a little rarer after you pick up a curse.
 - New achievement: Walking Curse (carry 5 or more curses at once).
 - A found trinket gets an Equip button for each trinket slot (and says which are empty).

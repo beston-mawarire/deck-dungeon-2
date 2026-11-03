@@ -71,7 +71,7 @@ const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Reco
 /** Abyss: every floor down, everything gets this much tougher on top of its depth. */
 /** The Abyss is the endgame: every foe starts far tougher than its Campaign self and grows with every depth
  *  (Vanadium Plates are how you keep up). HP and damage scale separately, and Armor creeps up too. */
-export const ABYSS_GROWTH = 1.43;
+export const ABYSS_GROWTH = 1.46;
 /** From this Campaign floor on, foes scale harder every floor. */
 export const DEEP_FLOOR = 15;
 /** In the Abyss, the 7th Elite fight in a row is a boss instead. */
@@ -80,9 +80,9 @@ export const ABYSS_ELITE_STREAK = 7;
 const BOSS_IMMUNITIES = ["x_fireproof", "x_antitoxic", "x_bloodless", "x_insulated", "x_frostproof", "x_hexproof"];
 /** Abyss Merchants charge far more. */
 export const ABYSS_PRICE_MULT = 2;
-export const ABYSS_BASE = 1.5;
-export const ABYSS_DMG_GROWTH = 1.32;
-export const ABYSS_DMG_BASE = 1.35;
+export const ABYSS_BASE = 1.65;
+export const ABYSS_DMG_GROWTH = 1.34;
+export const ABYSS_DMG_BASE = 1.45;
 /** From this floor on (outside the Abyss), bosses drop Ruin Shards, and sometimes a Vanadium Plate. */
 export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
@@ -303,7 +303,7 @@ const pickW = <T extends string>(rng: () => number, w: Partial<Record<T, number>
 };
 
 /** How often a cursed hero is offered a Cleansing path at each choice. */
-export const CLEANSING_PATH_CHANCE = 0.22;
+export const CLEANSING_PATH_CHANCE = 0.18;
 /** The curse-lifting encounters: their own path on the map, never part of Something Strange. */
 export const CLEANSING_EVENTS = ["cleansing_well", "holy_tribute"];
 /** Encounters with their own path on the map, never part of Something Strange. */
