@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.55.12
+- The top bar is a plain near-black band, edge to edge (no stone texture).
+- In a fight, the potion, mana, bounty and inventory buttons sit together on the left, and sound and menu on the far right.
+
 ## 1.55.11
 - The top bar is a slab of dungeon stone brick, edge to edge, darkened so everything on it stays easy to read. The floor's colours only start below it, at the floor name and Fortune row.
 - In a fight, the sound and menu buttons sit apart from the potion and inventory buttons.

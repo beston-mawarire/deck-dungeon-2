@@ -349,8 +349,8 @@ function hud(r: Run) {
     const drunk = f.flags["potionsDrunk"] ?? 0;
     const canDrink = h.potions > 0 && drunk < potionsPerFight(h) && f.hp > 0 && f.hp < f.maxHp && !busy && !(r.scene.t === "combat" && r.scene.battle.over);
     return `<div class="hud compact"><div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">${floorLabel(r)}</span><span class="grow"></span>
-      <span class="stat">🪙 <b>${f.gold}</b></span>
-      <button class="small potion-btn" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (${potionsPerFight(h) - drunk} more this fight)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${f.flags["mana"] || busy ? "disabled" : ""} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${h.manaPotions}</button>` : ""}${bountyBtn(r)}<button class="small bag-btn" data-bag title="Inventory">🎒</button><span class="hud-gap" aria-hidden="true"></span><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu" ${busy ? "disabled" : ""}>☰</button></div></div>`;
+      <span class="stat">🪙 <b>${f.gold}</b></span></div>
+      <div class="row hud-split"><span class="hud-play"><button class="small potion-btn" data-potion ${canDrink ? "" : "disabled"} title="Drink a potion (${potionsPerFight(h) - drunk} more this fight)">🧪 ${h.potions}</button>${h.manaPotions ? `<button class="small" data-mana ${f.flags["mana"] || busy ? "disabled" : ""} title="Mana Potion: spells +50% and +1 stack for this fight">🔷 ${h.manaPotions}</button>` : ""}${bountyBtn(r)}<button class="small bag-btn" data-bag title="Inventory">🎒</button></span><span class="hud-sys"><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu" ${busy ? "disabled" : ""}>☰</button></span></div></div>`;
   }
   return `<div class="hud">
     <div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">Lv ${h.level}</span><span class="grow"></span><span class="stat">${floorLabel(r)}</span></div>
