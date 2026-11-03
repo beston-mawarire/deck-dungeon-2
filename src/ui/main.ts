@@ -1520,7 +1520,6 @@ function optionsPopup() {
     <h1 class="center bigname">⚙️ Options</h1>
     ${sec("🔊", "Sound", `
       ${opt("Sound effects", "", `<button class="small ${isMuted() ? "" : "primary"}" data-mute>${isMuted() ? "🔇 Off" : "🔊 On"}</button>`)}
-      ${opt("Music", "", `<button class="small ${isMusicOff() ? "" : "primary"}" data-togglemusic>${isMusicOff() ? "🎵 Off" : "🎵 On"}</button>`)}
       ${musicSliders(undefined, false)}`)}
     ${sec("⚔️", "Gameplay", `
       ${opt("Quick Battle", "Fights you can't lose can play themselves out, from the map or mid-fight.", `<div class="seg"><button class="small ${quickOn ? "primary" : ""}" data-quick="1">On</button><button class="small ${quickOn ? "" : "primary"}" data-quick="0">Off</button></div>`)}
@@ -1568,7 +1567,7 @@ function runMenu(r: Run) {
     <div class="col" style="gap:8px;display:flex;flex-direction:column">
       <button class="big dg-gold" data-closemenu>▶ Resume</button>
       <button class="big dg-stone" data-mainmenu>🏠 Main menu</button>
-      ${musicSliders("game")}
+      ${musicSliders("game", false)}
       <p class="sub center">${over ? "This run is over." : atMap ? "Your run is saved here; pick it up with Continue." : "Your run is saved at the last path choice; Continue picks it up from there."}</p>
       ${over ? "" : `<button class="big dg-stone ${endArmed ? "danger" : ""}" data-endrun>${endArmed ? "Tap again to end this run" : "🏳️ End run"}</button>
       <p class="sub center">Ending the run counts as a death: you keep the Renown you've earned, but the run is gone.</p>`}

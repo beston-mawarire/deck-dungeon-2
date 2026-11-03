@@ -992,7 +992,7 @@ body[data-theme="stronghold"] { --bg: #131215; --panel: #1d1b20; --panel2: #2623
   --tint: linear-gradient(180deg, rgba(226,194,90,.06), transparent 40%); }
 body[data-theme] .room:not(.crimson-room):not(.goblin-room):not(.bounty-room):not(.nemesis-room) { background: linear-gradient(170deg, color-mix(in srgb, var(--accent) 14%, var(--panel2)) 0%, var(--panel) 75%); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
 body[data-theme] .floorname { color: var(--accent); }
-body[data-theme] .panel, body[data-theme] .item { border-color: color-mix(in srgb, var(--accent) 18%, var(--line)); }
+body[data-theme] .panel { border-color: color-mix(in srgb, var(--accent) 18%, var(--line)); }
 body[data-theme="fungal"] { --bg: #0f0c16; --panel: #181424; --panel2: #201a30; --line: #3b2f55; --muted: #b3a6cf; --btn: #221c33; --chip: #251e37; --track: #251e37; --accent: #6fe3c8;
   --tint: radial-gradient(circle at 20% 80%, rgba(111,227,200,.12), transparent 35%), radial-gradient(circle at 85% 30%, rgba(180,120,255,.12), transparent 35%); }
 body[data-theme="pits"] { --bg: #170d0c; --panel: #231412; --panel2: #2d1a17; --line: #53302a; --muted: #c4a29c; --btn: #2f1b18; --chip: #331d1a; --track: #331d1a; --accent: #e2556a;
@@ -1217,3 +1217,15 @@ body:not(.dg-menu) #app { padding-top: calc(env(safe-area-inset-top, 0px) + 16px
   box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 0 rgba(0,0,0,.45), 0 2px 5px rgba(0,0,0,.55) !important; text-shadow: 0 1px 2px #000; }
 .hud button:not(:disabled):hover { filter: brightness(1.12); }
 .hud button:disabled { opacity: .5; }
+
+/* Leaderboard main tabs: slim folder tabs on the shelf, not buttons. */
+.lb-mains { grid-template-columns: repeat(5, 1fr) !important; gap: 3px !important; margin: 10px 0 0 !important; align-items: end; }
+.lb-main, .lb-main:first-child, .lb-main:last-child { padding: 6px 2px 5px !important; font-size: .82rem !important; font-weight: 700; min-height: 0 !important;
+  border-radius: 9px 9px 0 0 !important; border: 1px solid #3a332e !important; border-bottom: none !important; background: rgba(40,35,31,.85) !important; color: #b9ab96 !important; box-shadow: none !important; text-shadow: none; }
+.lb-main.active { background: #2b2420 !important; color: #ffe39a !important; border-color: #c98f26 !important; padding-top: 9px !important; position: relative; z-index: 1; margin-bottom: -3px; padding-bottom: 8px !important; }
+.lb-tabs { border-top: 3px solid #c98f26; background: #2b2420 !important; }
+@media (max-width: 400px) { .lb-main, .lb-main:first-child, .lb-main:last-child { font-size: .72rem !important; } }
+.lb-main { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 440px) { .lb-main, .lb-main:first-child, .lb-main:last-child { font-size: .74rem !important; letter-spacing: 0; } }
+.lb-mains { grid-template-columns: 1.5fr 1fr 1.1fr 1fr 1.15fr !important; }
+.lb-main { text-overflow: clip; padding-left: 1px !important; padding-right: 1px !important; }

@@ -27,6 +27,8 @@ let mctx: AudioContext | null = null;
 let gain: GainNode | null = null;
 let musicOff = false;
 try { musicOff = localStorage.getItem("dd2-music-off") === "1"; } catch { /* ignore */ }
+// Music used to have an on/off switch as well as sliders; now the sliders do it all. Music that was switched off becomes sliders at 0.
+if (musicOff) { musicOff = false; try { localStorage.setItem("dd2-music-off", "0"); for (const k of Object.keys(vol) as Track[]) { vol[k] = 0; localStorage.setItem(`dd2-music-${k}`, "0"); } } catch { /* ignore */ } }
 export const isMusicOff = () => musicOff;
 export function toggleMusic() {
   musicOff = !musicOff;
@@ -64,6 +66,8 @@ function tryPlay() {
 export const musicVolume = (k: Track) => vol[k];
 export function setMusicVolume(k: Track, v: number) {
   vol[k] = Math.min(1, Math.max(0, v));
+  // The slider is the only music control now: turning it up brings the music back.
+  if (vol[k] > 0 && musicOff) { musicOff = false; try { localStorage.setItem("dd2-music-off", "0"); } catch { /* ignore */ } if (music?.paused) tryPlay(); }
   try { localStorage.setItem(`dd2-music-${k}`, String(vol[k])); } catch { /* ignore */ }
   applyVolume();
 }

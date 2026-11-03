@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.55.6
+- Leaderboards: the main tabs are slim folder tabs sitting on the boards' shelf (the open one joins it), all on one row.
+- Music has just its volume sliders now (no separate on/off switch): slide to 0 for silence. Music you'd switched off starts at 0.
+- Items in your Inventory keep their own look on every floor.
+
 ## 1.55.5
 - Options opens as its own page from the title screen (with a Back button), not a popup.
 - Leaderboards: the main tabs are big stone banners (the open one gold), and the boards under them are small chips on a gold-lined shelf, so it's clear which is which.
