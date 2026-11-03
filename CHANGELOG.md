@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.58.0
+- 🗡️ Counter: dodge the attack and you strike back at once with a Crit (your die's crit face, no roll), before your next turn.
+- Stances show: while Guarding your panel glows steel-blue with a shield and your Armor; while Countering it sways with a teal shimmer and says what a dodge will do.
+
 ## 1.57.2
 - Fixed: starting a new run straight after a death could leave a "Continue" button on the menu that led back to the old run's results (a late leaderboard reply saved the finished run again).
 

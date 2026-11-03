@@ -1266,3 +1266,15 @@ body[data-theme] .bag-overlay .toast:not(.err) b { color: inherit; }
 .hud-split { justify-content: space-between; flex-wrap: nowrap; margin-top: 6px; }
 .hud-play, .hud-sys { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .hud-sys { margin-left: auto; flex-wrap: nowrap; }
+
+/* ---------- Stances: Guarding and Countering show on your panel ---------- */
+.stance-tag { margin: -2px 0 6px; padding: 3px 10px; border-radius: 999px; font-size: .82rem; font-weight: 800; letter-spacing: .02em; display: inline-block; }
+.stance-tag.guard { background: rgba(120,170,230,.18); border: 1px solid #7fb0e8; color: #cfe3ff; }
+.stance-tag.counter { background: rgba(120,230,200,.16); border: 1px solid #6fe3c8; color: #c9fff2; }
+#fp-player.stance-guard { border: 2px solid #7fb0e8 !important; box-shadow: 0 0 0 2px rgba(127,176,232,.25), 0 0 18px rgba(127,176,232,.45), inset 0 0 24px rgba(127,176,232,.15) !important; }
+#fp-player.stance-guard::after { content: "🛡️"; position: absolute; right: 10px; bottom: 6px; font-size: 2.4rem; opacity: .22; pointer-events: none; }
+#fp-player.stance-counter { border: 2px solid #6fe3c8 !important; box-shadow: 0 0 18px rgba(111,227,200,.45) !important; animation: counterSway 1.1s ease-in-out infinite; }
+#fp-player.stance-counter::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(100deg, transparent 30%, rgba(111,227,200,.14) 50%, transparent 70%); background-size: 200% 100%; animation: counterShimmer 1.4s linear infinite; }
+@keyframes counterSway { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@keyframes counterShimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+@media (prefers-reduced-motion: reduce) { #fp-player.stance-counter, #fp-player.stance-counter::after { animation: none; } }

@@ -406,8 +406,6 @@ function strike(b: Battle, ctx: AttackCtx) {
   if (ctx.kind === "crit" && (a.critDmg ?? 0) !== 0) raw *= Math.max(0.5, 1 + (a.critDmg ?? 0) / 100);
   // A failed Counter leaves you off-balance for one attack (a little).
   if (a.flags["frail"]) { raw *= 0.85; a.flags["frail"] = 0; }
-  // A Counter strike lands hard.
-  if (a.flags["counterMult"]) raw *= 1.5;
   // Kneeling in Penance, you take the blows a little easier.
   if (d.flags["penanceRound"] === b.round) raw *= 0.75;
   // Bash (main weapon only): Stun and +50%.
@@ -472,10 +470,12 @@ function strike(b: Battle, ctx: AttackCtx) {
     if (countering && a.hp > 0 && d.hp > 0) {
       log(b, `${d.name} counters!`);
       fx(b, { who: d.id, kind: "text", text: "Counter!", icon: "🗡️" });
+      // The Counter: the moment the blow misses, you strike back, and it's a Crit (your die's crit face, no roll).
       d.flags["counterHit"] = 1;
-      d.flags["counterMult"] = 1;
-      attack(b, d, a);
-      d.flags["counterMult"] = 0;
+      const faces = d.faces ?? PLAIN_FACES;
+      const critFace = faces.map(x => x.kind).lastIndexOf("crit") + 1 || faces.length;
+      fx(b, { who: d.id, kind: "roll", face: critFace, faceName: "Counter", faceKind: "crit", sides: faces.length });
+      resolveFace(b, d, a, critFace, false);
       d.flags["counterHit"] = 0;
     }
     return afterStrike(b, ctx);
