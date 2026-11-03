@@ -1865,6 +1865,8 @@ function render() {
   const th = run ? themeOf(run) : undefined;
   if (th) document.body.dataset.theme = th.id; else delete document.body.dataset.theme;
   document.body.classList.toggle("dg-menu", !run);
+  // Shops, forges and encounters: the dungeon's stone buttons (in any floor theme).
+  document.body.classList.toggle("dg-scene", !!run && ["shop", "forge", "jeweller", "event", "smith", "alchemist", "tribute", "sanctum", "bounty", "rest", "confirm"].includes(run.scene.t));
   render2();
   // Fanfares that waited for a relic popup play now, one after another.
   setTimeout(releaseFanfares, 200);

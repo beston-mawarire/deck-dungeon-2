@@ -1176,3 +1176,19 @@ button.dg-stone.danger { background: linear-gradient(180deg, #8a2c34 0%, #66202a
   -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 0 #000); }
 body .popup.dg-popup button:not(.dg-gold):not(.dg-stone) { background: linear-gradient(180deg, #4a423b 0%, #362f2a 55%, #2a2420 100%); border: 2px solid #1a1613; color: #eee4d4; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 5px rgba(0,0,0,.5); }
 .popup.dg-popup input[type=range] { accent-color: #d39a2c; }
+
+/* ---------- Leave buttons fill their row on small screens ---------- */
+@media (max-width: 520px) { #app button[data-leave] { flex: 1 1 100%; width: 100%; } }
+
+/* ---------- Shops, forges and encounters: stone-slab buttons ---------- */
+body.dg-scene #app button:not(.crest):not(.danger):not(.take-scrap):not(.crimson-btn):not(.closebtn):not(.dg-gold):not(.dg-stone):not(.take-equip):not(.primary):not(.active) {
+  background: linear-gradient(180deg, #4a423b 0%, #362f2a 55%, #2a2420 100%); border: 2px solid #1a1613; color: #eee4d4;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -3px 0 rgba(0,0,0,.45), 0 3px 8px rgba(0,0,0,.6); text-shadow: 0 1px 2px #000; }
+body.dg-scene #app button.primary:not(.crest), body.dg-scene #app button.take-equip { background: linear-gradient(180deg, #f3c45b 0%, #d39a2c 55%, #a8721b 100%); border: 2px solid #5c3c0c; color: #2a1804;
+  text-shadow: 0 1px 0 rgba(255,255,255,.35); box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -3px 0 rgba(0,0,0,.3), 0 3px 8px rgba(0,0,0,.6); }
+body.dg-scene #app button.active:not(.crest) { background: linear-gradient(180deg, #6a5538 0%, #3b3024 100%); border: 2px solid #c9a24a; color: #ffe39a; box-shadow: inset 0 1px 0 rgba(255,220,140,.3), 0 0 12px rgba(232,170,60,.3); }
+body.dg-scene #app button:not(:disabled):hover { filter: brightness(1.1); }
+/* The big leave/continue buttons wear the studs. */
+body.dg-scene #app button[data-leave] { position: relative; padding-left: 30px; padding-right: 30px; }
+body.dg-scene #app button[data-leave]::before, body.dg-scene #app button[data-leave]::after { content: ""; position: absolute; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #9a9086, #3f3934 70%); box-shadow: 0 1px 1px #000; }
+body.dg-scene #app button[data-leave]::before { left: 11px; } body.dg-scene #app button[data-leave]::after { right: 11px; }

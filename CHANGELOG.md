@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.55.4
+- Shops, the Forge, the Jeweller and every encounter use the dungeon's buttons: stone slabs, gold slabs for the main actions, and a gold rim on the open tab.
+- On small screens, Leave (and Move on / Continue) buttons fill their row, studs and all.
+
 ## 1.55.3
 - Floor Cleared: bigger text, the fallen boss's name in red and the next floor's name in gold, and a brighter "Check your inventory" note.
 - The in-run Menu is a slab of dungeon wall: carved title, gold Resume slab and stone buttons with iron studs.
