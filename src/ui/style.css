@@ -1105,3 +1105,20 @@ body.dg-menu .menu-btns button.lb-btn:not(.crest) { color: #ffe39a !important; }
 body.dg-menu .panel, body.dg-menu .campaign-hero, body.dg-menu .abyss-hero { background: linear-gradient(180deg, rgba(48,42,37,.92), rgba(30,26,23,.92)); border: 2px solid #1a1613; box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 4px 12px rgba(0,0,0,.55); }
 body.dg-menu h2 { color: #c9b9a0; text-shadow: 0 1px 2px #000; }
 body.dg-menu #app > .row h1 span, body.dg-menu h1 span { color: #f0b84a; }
+
+/* Menus: room for phone notches and status bars at the top. */
+body.dg-menu #app { padding-top: calc(env(safe-area-inset-top, 0px) + 22px); }
+@media (max-width: 520px) { body.dg-menu #app { padding-top: calc(env(safe-area-inset-top, 0px) + 34px); } }
+#app { padding-top: max(12px, env(safe-area-inset-top, 0px)); }
+/* Menu buttons wear the title screen's iron studs too. */
+body.dg-menu .menu-btns button, body.dg-menu button.menu-tab, body.dg-menu .overlay .row > button.primary, body.dg-menu .overlay .row > button[data-closeorigin] { position: relative; padding-left: 26px; padding-right: 26px; }
+body.dg-menu .menu-btns button::before, body.dg-menu .menu-btns button::after,
+body.dg-menu button.menu-tab::before, body.dg-menu button.menu-tab::after { content: ""; position: absolute; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #9a9086, #3f3934 70%); box-shadow: 0 1px 1px #000; }
+body.dg-menu .menu-btns button::before, body.dg-menu button.menu-tab::before { left: 9px; }
+body.dg-menu .menu-btns button::after, body.dg-menu button.menu-tab::after { right: 9px; }
+body.dg-menu .menu-btns button, body.dg-menu button.menu-tab { font-weight: 700; letter-spacing: .03em; }
+body.dg-menu .info-row button { padding-left: 16px; padding-right: 16px; font-size: .92rem; white-space: nowrap; }
+body.dg-menu .info-row button::before { left: 5px; } body.dg-menu .info-row button::after { right: 5px; }
+@media (max-width: 400px) { body.dg-menu .info-row button { font-size: .82rem; padding-left: 13px; padding-right: 13px; } }
+@media (max-width: 520px) { body.dg-menu .info-row button { padding-left: 6px; padding-right: 6px; font-size: .86rem; } body.dg-menu .info-row button::before, body.dg-menu .info-row button::after { display: none; } }
