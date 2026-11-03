@@ -51,6 +51,32 @@ const ABYSS_LINES = [
   "The last depth. Whatever rules the Abyss is waiting."
 ];
 export const STEPS_PER_FLOOR = 7;
+// ---------- Turbo (a limited-time event) ----------
+/** The Turbo event runs between these times (UTC). A run started as Turbo keeps its rules to the end, even after the event closes. */
+export const TURBO_START = Date.UTC(2026, 10, 3, 0, 0);
+export const TURBO_END = Date.UTC(2026, 10, 17, 18, 0);
+export const turboLive = (now = Date.now()) => now >= TURBO_START && now < TURBO_END;
+/** Turbo floors are shorter: 6 rooms (and the boss). */
+export const TURBO_STEPS = 6;
+/** Turbo compresses the whole dungeon into 15 floors. Each Turbo floor stands for this "real" floor (foe strength, item level,
+ *  and where the Horror, DEATH and THE END wait): the Campaign is the same five floors, then each floor goes about two deeper. */
+export const TURBO_DEPTHS = [0, 1, 2, 3, 4, 5, 7, 9, 11, 13, 15, 17, 20, 22, 25, 26];
+export const TURBO_FLOORS = TURBO_DEPTHS.length - 1;
+/** Turbo: Rare, Epic and Legendary finds are this much more likely (on top of the usual "deeper is better"), more again past floor 5. */
+export const TURBO_LOOT = { rare: 1.4, epic: 1.8, legendary: 2.2 } as const;
+export const TURBO_DEEP_LOOT = 1.25;
+export const TURBO_DROP = 0.35;
+/** Rooms per floor for this run. */
+export const stepsOf = (run: { turbo?: boolean }) => (run.turbo ? TURBO_STEPS : STEPS_PER_FLOOR);
+/** The floor number the player sees (Turbo floors 1–15; otherwise the floor itself). */
+export const shownFloor = (run: { turbo?: boolean; floor: number }) => {
+  if (!run.turbo) return run.floor;
+  let i = 0;
+  while (i + 1 < TURBO_DEPTHS.length && TURBO_DEPTHS[i + 1] <= run.floor) i++;
+  return Math.max(1, i);
+};
+/** Content held back until a floor: in Turbo, anything for floors 1–4 is open from the start, and anything deeper from floor 5. */
+export const reached = (run: { turbo?: boolean; floor: number }, n: number) => (run.turbo ? n <= 4 || run.floor >= 5 : run.floor >= n);
 export { DEATH_FLOOR, END_FLOOR, WALL_FLOOR };
 export type Mode = "campaign" | "endless" | "abyss";
 /** Abyss runs: ten floors, every foe a rank tougher, far richer drops. */
@@ -63,9 +89,9 @@ const luckFloor = (run: Run) => (run.mode === "abyss" ? Math.max(3, depth(run)) 
 export const HEAT_LOOT = 0.05;
 const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Record<Rarity, number>> => {
   const h = heatOf(run);
-  if (!h) return odds;
+  if (!h && !run.turbo) return odds;
   const out = { ...odds };
-  for (const r of ["rare", "epic", "legendary"] as const) if (out[r]) out[r] = out[r]! * (1 + HEAT_LOOT * h);
+  for (const r of ["rare", "epic", "legendary"] as const) if (out[r]) out[r] = out[r]! * (1 + HEAT_LOOT * h) * (run.turbo ? TURBO_LOOT[r] * (run.floor > 5 ? TURBO_DEEP_LOOT : 1) : 1);
   return out;
 };
 /** Abyss: every floor down, everything gets this much tougher on top of its depth. */
@@ -206,6 +232,10 @@ export interface Run {
   /** Whatever killed your last Campaign run, waiting somewhere in this one (from floor 2), and whether you've beaten it. */
   nemesis?: Nemesis;
   nemesisBeaten?: boolean;
+  /** A Turbo event run: shorter floors, 15 floors in all, richer loot, no Quick Battles. */
+  turbo?: boolean;
+  /** The end-of-run Turbo poll has been answered. */
+  polled?: boolean;
   /** Relics (by id) and scrolls ("scroll:N") just gained, waiting for their popup. */
   relicNews?: string[];
   /** Who ended the run (shown on the death screen). */
@@ -268,6 +298,14 @@ export function newRun(origin: OriginId, seed = Date.now() & 0x7fffffff, mode: M
   return run;
 }
 
+/** Make a fresh Campaign run a Turbo one (before its first step). */
+export function makeTurbo(run: Run) {
+  if (run.mode !== "campaign" || run.daily) return;
+  run.turbo = true;
+  run.hero.f.persist["turbo"] = 1;
+  run.choices = genChoices(run);
+}
+
 /** After beating the campaign, keep delving: floors 11+ with generated bosses. */
 export function continueEndless(run: Run) {
   run.mode = "endless";
@@ -284,7 +322,7 @@ export function continueEndless(run: Run) {
       "💎 Keepsakes: fallen bosses sometimes leave one behind. A rare charm with its own slot beside your trinkets, it stays with you for the rest of the run.",
       "✨ Blessings: dragons, angels and lucky finds may bless you for a few fights or a few chests. Your active Blessings are listed under Extras in your Inventory.",
       "⚠️ Every floor hits harder than the last, and somewhere far below waits a Horror.",
-      "🎲 There's no last floor to win. Go as deep as you dare."
+      run.turbo ? `⚡ Turbo: the dungeon ends on floor ${TURBO_FLOORS}. Each floor down goes about two deeper than usual.` : "🎲 There's no last floor to win. Go as deep as you dare."
     ]
   };
   run.choices = genChoices(run);
@@ -320,7 +358,7 @@ export const UNHOLY_REROLL = 0.4;
 export const DOPPEL_AMBUSH = 0.35;
 export const OWN_PATH_EVENTS = [...CLEANSING_EVENTS, "sanguine_altar", ...Object.values(EVENT_ROOMS) as string[]];
 /** Can this event happen right now (once-a-run ones not yet met, enough Gold, deep enough)? */
-const eventOpen = (run: Run, e: GameEvent) => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || Object.keys(run.hero.curses).length > 0) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e);
+const eventOpen = (run: Run, e: GameEvent) => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || Object.keys(run.hero.curses).length > 0) && reached(run, e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e);
 /** A quiet stretch: from floor 1, some steps offer no fights at all. */
 export const PEACEFUL_CHANCE = 0.15;
 const COMBAT_ROOMS: RoomType[] = ["doppelganger", "fight", "elite", "champion", "vault", "crimson_elite", "unique", "goblin", "nemesis", "crimson_vault"];
@@ -335,27 +373,27 @@ export const GAUNTLETS: RoomType[][] = [
   ["elite", "champion", "vault"]
 ];
 export function genChoices(run: Run): RoomType[] {
-  if (run.step >= STEPS_PER_FLOOR) return ["boss"];
+  if (run.step >= stepsOf(run)) return ["boss"];
   const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 6, vault: 3, altar: 3, shrine: 3, champion: 3, sanguine: 2,
     alchemist: 0.8, blacksmith: 1, gambling_den: 1.4, fortune_teller: 1.4, mirror_pool: 0.8, card_sharp: 1.4,
     sacred_spring: 3, fallen_adventurer: 3, starving_pilgrim: 3 };
-  if (run.floor >= DOPPEL_FLOOR) w.doppelganger = 0.6;
+  if (reached(run, DOPPEL_FLOOR)) w.doppelganger = 0.6;
   // Event rooms only show up when their encounter can happen.
   for (const [room, id] of Object.entries(EVENT_ROOMS) as [RoomType, string][]) { const e = EVENTS.find(x => x.id === id); if (!e || !eventOpen(run, e)) w[room] = 0; }
   // After the fifth boss (Endless), Crimson Elites start to appear; they drop the keys to Crimson Vaults.
   if (crimsonActive(run)) w.crimson_elite = 4;
   // Named unique foes: from floor 2, rare, each one once per run.
-  if (run.floor >= 2 && UNIQUES.some(u => !run.seenBosses.has(`u:${u.id}`))) w.unique = 2;
+  if (reached(run, 2) && UNIQUES.some(u => !run.seenBosses.has(`u:${u.id}`))) w.unique = 2;
   // Treasure Goblins: from floor 3, about as rare as a Legendary drop.
-  if (run.floor >= 3) w.goblin = 0.5;
+  if (reached(run, 3)) w.goblin = 0.5;
   if (abyssMod(run, "goblin_rush")) w.goblin = 6;
   // Heat 5: Elites and Champions turn up twice as often.
   if (heatOf(run) >= 5) { w.elite = (w.elite ?? 0) * 2; w.champion = (w.champion ?? 0) * 2; }
   // Your Nemesis: from floor 2, about as often as a Strange Presence, once per run.
-  if (run.nemesis && run.floor >= 2 && !run.seenBosses.has("nemesis")) w.nemesis = 2.5;
+  if (run.nemesis && reached(run, 2) && !run.seenBosses.has("nemesis")) w.nemesis = 2.5;
   if (run.step === 0) { w.doppelganger = 0; w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; w.unique = 0; w.nemesis = 0; }
   // A gauntlet: from floor 3 (not on a floor's first step), sometimes every path is a hard fight, and nothing else.
-  if (run.floor >= GAUNTLET_FLOOR && run.step > 0 && run.rng() < GAUNTLET_CHANCE) {
+  if (reached(run, GAUNTLET_FLOOR) && run.step > 0 && run.rng() < GAUNTLET_CHANCE) {
     const set = GAUNTLETS[Math.floor(run.rng() * GAUNTLETS.length)];
     return [...set].sort(() => run.rng() - 0.5);
   }
@@ -390,7 +428,7 @@ export function genChoices(run: Run): RoomType[] {
   // The Bounty Board: a rare extra path, from the first floor on.
   if (run.rng() < BOUNTY_BOARD_CHANCE) rooms.push("bounty");
   // The Crossroads, in disguise: a very rare extra path from floor 2, once per run.
-  if (!peaceful && run.floor >= 2 && !run.seenBosses.has("e:crossroads") && run.rng() < CROSSROADS_PATH_CHANCE) {
+  if (!peaceful && reached(run, 2) && !run.seenBosses.has("e:crossroads") && run.rng() < CROSSROADS_PATH_CHANCE) {
     run.crossroadsGuise = Math.floor(run.rng() * CROSSROADS_GUISES.length);
     rooms.push("crossroads");
   }
@@ -562,7 +600,7 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   // The Abyss: every plain fight is a rank tougher. Monsters become Elites, Elites Champions, Champions bosses, and the floor boss an Uber boss.
   let uber = false;
   if (run.mode === "abyss" && !then) {
-    if (rank === "boss" && run.step >= STEPS_PER_FLOOR) uber = true;
+    if (rank === "boss" && run.step >= stepsOf(run)) uber = true;
     // Seven Elite fights in a row and the Abyss answers with something worse: a boss (a flat count).
     else if (rank === "normal" && (run.normalStreak ?? 0) >= ABYSS_ELITE_STREAK) { rank = "boss"; run.normalStreak = 0; run.message = "Something bigger heard the fighting. It came to see."; }
     else rank = ({ normal: "elite", elite: "champion", champion: "boss" } as Partial<Record<MonsterRank, MonsterRank>>)[rank] ?? rank;
@@ -620,12 +658,12 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   if (rank === "boss" && !exact && enemy.name !== "DEATH") {
     const roll = (p: number) => run.rng() < p;
     const pick = BOSS_IMMUNITIES[Math.floor(run.rng() * BOSS_IMMUNITIES.length)];
-    if (uber || (run.floor >= 2 && roll(0.35))) enemy.items[pick] = 1;
-    if (roll(uber ? 0.4 : run.floor >= 3 ? 0.2 : 0)) enemy.items["x_truestrike"] = 1;
-    if (roll(uber ? 0.4 : run.floor >= 4 ? 0.12 : 0)) enemy.items["x_mirror"] = 1;
+    if (uber || (reached(run, 2) && roll(0.35))) enemy.items[pick] = 1;
+    if (roll(uber ? 0.4 : reached(run, 3) ? 0.2 : 0)) enemy.items["x_truestrike"] = 1;
+    if (roll(uber ? 0.4 : reached(run, 4) ? 0.12 : 0)) enemy.items["x_mirror"] = 1;
     // Some bosses strip your blessings for a while, and some sour your healing.
-    if (roll(uber ? 0.45 : run.floor >= 2 ? 0.25 : 0)) enemy.items["x_dispelling"] = 1;
-    if (roll(uber ? 0.35 : run.floor >= 3 ? 0.15 : 0)) enemy.items[run.rng() < 0.5 ? "x_grievous" : "x_blighting"] = 1;
+    if (roll(uber ? 0.45 : reached(run, 2) ? 0.25 : 0)) enemy.items["x_dispelling"] = 1;
+    if (roll(uber ? 0.35 : reached(run, 3) ? 0.15 : 0)) enemy.items[run.rng() < 0.5 ? "x_grievous" : "x_blighting"] = 1;
   }
   // Deeper foes wear more Armor, in every mode (bosses most of all). DEATH is its own thing.
   if (!exact) enemy.armor += Math.floor((F - 1) / 3) + (rank === "boss" ? Math.floor(F / 5) : 0);
@@ -689,7 +727,7 @@ export function canAutoBattle(run: Run): boolean {
   const s = run.scene;
   if (s.t !== "combat" || s.battle.over) return false;
   if (!["normal", "elite", "champion"].includes(s.rank)) return false;
-  if (run.floor < AUTO_BATTLE_FLOOR) return false;
+  if (run.floor < AUTO_BATTLE_FLOOR || run.turbo) return false;
   if (s.then && ["dragon", "death", "goblin", "unique"].includes(s.then)) return false;
   return autoBattleWins(s.battle);
 }
@@ -876,7 +914,7 @@ function afterFight(run: Run) {
   // Generated gear from tougher foes is more often Greater (✦) — or, very rarely, Overcharged.
   setGenLuck(genLuck(run) * ({ normal: 1, elite: 1.25, champion: 1.6, crimson: 2, boss: run.scene.uber ? 2.6 : 2 } as Record<string, number>)[rank] * (then === "unique" || then === "dragon" || then === "nemesis" ? 1.5 : 1));
   const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, heatOdds(run, odds), luckFloor(run)), depth(run), run.rng);
-  if (rank === "normal" && run.rng() < 0.2) items.push(roll(T.drop));
+  if (rank === "normal" && run.rng() < (run.turbo ? TURBO_DROP : 0.2)) items.push(roll(T.drop));
   if (rank === "normal" && run.rng() < 0.04) potions++;
   // Potion gear: a sober win brews a potion (the Alembic always, the Vial sometimes); the Grail refills one per boss.
   const sober = !b.player.flags["potionsDrunk"];
@@ -1612,7 +1650,7 @@ export function chooseTalent(run: Run, id: string) {
 export function advance(run: Run, fromTalent = false) {
   lockGold(run);
   if (!fromTalent) {
-    if (run.step >= STEPS_PER_FLOOR) {
+    if (run.step >= stepsOf(run)) {
       // After a floor boss, stop on a "Floor cleared" screen; the player continues when ready.
       // (Not after the campaign's final boss: that goes straight to the victory.)
       const finalBoss = (run.mode === "campaign" && run.floor >= FLOORS) || (run.mode === "abyss" && run.floor >= ABYSS_FLOORS);
@@ -1621,20 +1659,20 @@ export function advance(run: Run, fromTalent = false) {
         run.scene = { t: "cleared", floor: run.floor, boss: run.lastBoss ?? "The guardian" };
         return;
       }
-      run.floor++;
+      run.floor = run.turbo ? TURBO_DEPTHS[Math.min(TURBO_FLOORS, shownFloor(run) + 1)] + (shownFloor(run) >= TURBO_FLOORS ? 1 : 0) : run.floor + 1;
       // Floor-scaled effects (some curses) update as you go deeper.
       run.hero.f.persist["floor"] = run.floor;
       recompute(run.hero);
       run.step = 0;
-      run.message = `Floor ${run.floor}. The air is colder, and the hoards are richer: your Fortune grows.`;
+      run.message = `Floor ${shownFloor(run)}. The air is colder, and the hoards are richer: your Fortune grows.`;
       if (run.mode === "abyss") {
         if (run.floor > ABYSS_FLOORS) { run.scene = { t: "over", won: true }; return; }
         run.message = `Abyss depth ${run.floor}. Everything down here is stronger — and so is what it carries.`;
         run.popup = { icon: "🕳️", title: `The Abyss — Depth ${run.floor}`, text: ABYSS_LINES[(run.floor - 2) % ABYSS_LINES.length] };
       } else if (run.floor !== FLOORS) {
         const th = themeOf(run);
-        run.popup = th ? { icon: th.icon, title: `Floor ${run.floor} — ${th.name}`, text: `${th.text} ${th.hint}. The deeper you go, the deadlier it gets — and the richer the loot.` }
-          : { icon: "⬇️", title: `Floor ${run.floor} — ${floorName(run.floor)}`, text: `${FLOOR_LINES[(run.floor - 2) % FLOOR_LINES.length]} The deeper you go, the deadlier it gets — and the richer the loot.` };
+        run.popup = th ? { icon: th.icon, title: `Floor ${shownFloor(run)} — ${th.name}`, text: `${th.text} ${th.hint}. The deeper you go, the deadlier it gets — and the richer the loot.` }
+          : { icon: "⬇️", title: `Floor ${shownFloor(run)} — ${floorName(run.floor)}`, text: `${FLOOR_LINES[(run.floor - 2) % FLOOR_LINES.length]} The deeper you go, the deadlier it gets — and the richer the loot.` };
       }
       if (run.floor === FLOORS && run.mode !== "abyss") run.popup = { icon: "🕳️", title: `Floor ${FLOORS} — The Source of the Darkness`, text: "You are close now. The darkness here is thick enough to taste, and every step pulls at you. A cold despair settles in your chest, whispering that the gate cannot be closed, that no one walks back out. Somewhere below, the gate breathes." };
       if (run.floor > FLOORS && run.mode === "campaign") {
@@ -1884,7 +1922,7 @@ export function runSummary(run: Run) {
   const p = run.hero.f.persist;
   trackGold(run);
   return {
-    seed: run.seed, origin: run.hero.origin, mode: run.mode, floor: run.mode === "abyss" ? Math.min(run.floor, ABYSS_FLOORS) : run.floor, won: run.scene.t === "over" && run.scene.won,
+    seed: run.seed, origin: run.hero.origin, mode: run.mode, floor: run.mode === "abyss" ? Math.min(run.floor, ABYSS_FLOORS) : shownFloor(run), turbo: run.turbo ? 1 : undefined, won: run.scene.t === "over" && run.scene.won,
     plates: run.hero.plates ?? 0, daily: run.daily, heat: heatOf(run) || undefined,
     level: run.hero.level, kills: run.stats.kills, elites: p["q_elites"] ?? 0, champions: p["q_champions"] ?? 0,
     damage: Math.round(p["t_dmg"] ?? 0), bestHit: Math.round(Math.max(p["t_best"] ?? 0, run.stats.bestHit)), gold: run.goldEarned ?? 0,

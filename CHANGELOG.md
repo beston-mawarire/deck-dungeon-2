@@ -5,6 +5,16 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.62.0
+- ⚡ Turbo, a limited-time event (until 17 November 2026, 18:00 UTC). The class menu has two top tabs, Turbo and Standard; Standard is the usual game.
+  - Turbo runs: 6 rooms a floor and 15 floors in all: the same 5-floor Campaign, then Endless goes about two floors deeper each time, with the Horror on floor 12, DEATH on 14 and THE END on 15.
+  - Content held back to floors 1–4 is open from floor 1; anything deeper opens from floor 5.
+  - Much richer loot: Rare, Epic and Legendary finds are far more likely, more again past floor 5, and normal fights drop items more often. Deeper is still better.
+  - No Quick Battles.
+  - Its own leaderboard, and a 👍 / 👎 poll at the end of each Turbo run. The Daily Dungeon and the Abyss stay Standard.
+  - A run started in Turbo keeps Turbo rules to its end, even after the event closes.
+- The leaderboard server now records how many runs of each kind (Standard, Turbo, Daily, Abyss) are played and for how long (GET /stats).
+
 ## 1.61.1
 - The Mana bar fills its row, sits under your HP line, and is labelled "Mana" (no more 3/3 count).
 

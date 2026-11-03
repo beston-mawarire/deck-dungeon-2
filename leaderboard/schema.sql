@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS runs (
   title TEXT,
   killer TEXT,
   heat INTEGER NOT NULL DEFAULT 0,
+  turbo INTEGER NOT NULL DEFAULT 0,
   UNIQUE (pid, seed)
 );
 CREATE INDEX IF NOT EXISTS runs_pid_time ON runs (pid, created_at);
@@ -40,7 +41,9 @@ CREATE TABLE IF NOT EXISTS sessions (
   floor_at INTEGER NOT NULL,
   flagged TEXT,
   ended INTEGER NOT NULL DEFAULT 0,
-  posted_floor INTEGER
+  posted_floor INTEGER,
+  kind TEXT,
+  last_seen INTEGER
 );
 CREATE INDEX IF NOT EXISTS sessions_pid_time ON sessions (pid, started_at);
 
@@ -52,4 +55,14 @@ CREATE TABLE IF NOT EXISTS vault (
   class_plates TEXT NOT NULL DEFAULT '{}',
   updated_at INTEGER NOT NULL,
   save TEXT
+);
+
+-- The end-of-run poll for event runs (Turbo): one vote per run.
+CREATE TABLE IF NOT EXISTS polls (
+  sid TEXT PRIMARY KEY,
+  pid TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  vote INTEGER NOT NULL,
+  floor INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
 );

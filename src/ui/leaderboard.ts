@@ -1,6 +1,6 @@
 // Leaderboards: finished runs go to a small Cloudflare Worker (see /leaderboard), boards come back from it.
 // Until LEADERBOARD_URL is set, everything here quietly does nothing.
-import { runSummary, type Run } from "../game/run";
+import { runSummary, shownFloor, type Run } from "../game/run";
 import { RESET_EPOCH } from "./reset";
 
 /** The Worker's address, e.g. "https://deck-dungeon-leaderboard.<you>.workers.dev". Empty: leaderboards off. */
@@ -8,7 +8,7 @@ export const LEADERBOARD_URL = "https://deck-dungeon-leaderboard.bestondeveloper
 
 export type Board = "floor" | "elites" | "champions" | "damage" | "besthit" | "gold" | "abyss" | "daily" | "alltime";
 /** Main tabs: the Campaign's boards, the Daily Dungeon's, the Abyss's, and the Bounty board of deadliest foes. */
-export type Scope = "campaign" | "daily" | "abyss" | "heat" | "bounty";
+export type Scope = "campaign" | "daily" | "abyss" | "heat" | "turbo" | "bounty";
 const STAT_BOARDS: { id: Board; label: string; icon: string; unit: string }[] = [
   { id: "floor", label: "Deepest", icon: "🕳️", unit: "floor" },
   { id: "elites", label: "Elites", icon: "💀", unit: "elites" },
@@ -21,6 +21,7 @@ const STAT_BOARDS: { id: Board; label: string; icon: string; unit: string }[] = 
 export const SUB_BOARDS: Record<Exclude<Scope, "bounty">, { id: Board; label: string; icon: string; unit: string }[]> = {
   campaign: STAT_BOARDS,
   heat: [{ id: "floor", label: "Deepest", icon: "🔥", unit: "floor reached in a Campaign at Heat 1 or higher" }],
+  turbo: STAT_BOARDS.map(b => (b.id === "floor" ? { ...b, unit: "Turbo floor reached (of 15)" } : { ...b, unit: `${b.unit}, in Turbo` })),
   abyss: STAT_BOARDS.map(b => (b.id === "floor" ? { ...b, unit: "depth reached in the Abyss" } : { ...b, unit: `${b.unit}, in the Abyss` })),
   daily: [{ id: "alltime", label: "All time", icon: "🏛️", unit: "floor, deepest Daily runs ever" }, ...STAT_BOARDS.map(b => ({ ...b, unit: `${b.unit}, today` }))]
 };
@@ -69,7 +70,8 @@ async function post(body: unknown): Promise<{ ranks?: Partial<Record<Board, numb
 export async function startSession(run: Run) {
   if (!leaderboardOn() || run.sid) return;
   try {
-    const res = await fetch(`${LEADERBOARD_URL}/session`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pid: playerId(), seed: run.seed, epoch: RESET_EPOCH }) });
+    const kind = run.turbo ? "turbo" : run.daily ? "daily" : run.mode === "abyss" ? "abyss" : "standard";
+    const res = await fetch(`${LEADERBOARD_URL}/session`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pid: playerId(), seed: run.seed, kind, epoch: RESET_EPOCH }) });
     if (!res.ok) return;
     const d = (await res.json()) as { sid?: string };
     if (d.sid) { run.sid = d.sid; run.reportedFloor = 1; }
@@ -88,7 +90,7 @@ export function reportFloor(run: Run): Promise<void> {
   const floor = run.floor;
   floorInFlight = (async () => {
     try {
-      const res = await fetch(`${LEADERBOARD_URL}/session/floor`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sid: run.sid, pid: playerId(), floor, epoch: RESET_EPOCH }), signal: timed(8000) });
+      const res = await fetch(`${LEADERBOARD_URL}/session/floor`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sid: run.sid, pid: playerId(), floor: shownFloor(run), epoch: RESET_EPOCH }), signal: timed(8000) });
       if (res.ok) run.reportedFloor = floor;
     } catch { /* try again later */ } finally { floorInFlight = null; }
   })();
@@ -223,4 +225,16 @@ export function useBackupCode(code: string): boolean {
   if (!/^[0-9a-f]{24}$/.test(c)) return false;
   store.set("dd2-pid", c);
   return true;
+}
+
+/** Play time: while a run is on screen, tell the server now and then that it's still being played (how long Turbo and Standard runs last). */
+export function pingSession(run: Run) {
+  if (!leaderboardOn() || !run.sid) return;
+  void fetch(`${LEADERBOARD_URL}/session/ping`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sid: run.sid, pid: playerId(), epoch: RESET_EPOCH }), signal: timed(8000) }).catch(() => { /* offline */ });
+}
+
+/** The end-of-run Turbo poll: did you enjoy it? */
+export function sendPoll(run: Run, vote: 1 | -1) {
+  if (!leaderboardOn()) return;
+  void fetch(`${LEADERBOARD_URL}/poll`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pid: playerId(), sid: run.sid, kind: "turbo", vote, floor: shownFloor(run), epoch: RESET_EPOCH }), signal: timed(8000) }).catch(() => { /* offline */ });
 }

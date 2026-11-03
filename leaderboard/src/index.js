@@ -6,6 +6,9 @@
 //   GET  /killers                      the Bounty board: the foes that have ended the most runs
 //   POST /vault                        back up a player's progress: Ruin Shards, Vanadium Plates and the whole save (the device is in charge)
 //   GET  /vault?pid=..                 fetch that backup (to restore it on a new device)
+//   POST /session/ping                 the run is still being played (play time, for Turbo vs Standard)
+//   POST /poll                         the end-of-run Turbo poll (👍 / 👎)
+//   GET  /stats?since=..               plays and play time per kind (standard, turbo, daily, abyss), and the Turbo poll
 //   GET  /health                       ok
 //
 // The browser can't be trusted, so the server never takes the game's word for how far a run got:
@@ -14,7 +17,10 @@ const BOARDS = { floor: "floor", elites: "elites", champions: "champions", damag
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const utcDay = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
 /** Abyss runs only go on the Abyss board, Daily Dungeon runs only on that day's Daily board; every other board is the campaign's. */
-const modeFilter = (board, day) => (board === "abyss" ? "mode = 'abyss'" : board === "daily" ? `daily = '${DAY.test(day ?? "") ? day : utcDay()}'` : "mode != 'abyss' AND daily IS NULL");
+const modeFilter = (board, day) => (board === "abyss" ? "mode = 'abyss'" : board === "daily" ? `daily = '${DAY.test(day ?? "") ? day : utcDay()}'` : "mode != 'abyss' AND daily IS NULL AND turbo = 0");
+/** Turbo (a limited-time event): 15 floors, each standing for a deeper "real" floor (the checks below use that one). */
+const TURBO_DEPTHS = [0, 1, 2, 3, 4, 5, 7, 9, 11, 13, 15, 17, 20, 22, 25, 26];
+const KINDS = ["standard", "turbo", "daily", "abyss"];
 const ABYSS_FLOORS = 10;
 const ORIGINS = ["warrior", "rogue", "mage", "cleric"];
 const MAX_FLOOR = 26;
@@ -55,12 +61,14 @@ function validate(b) {
     plates: int(b.plates ?? 0, 0, 10000) ?? 0,
     // The Heat a Campaign run was played at (0: none; never for the Abyss or the Daily).
     heat: b.mode === "abyss" || b.daily ? 0 : int(b.heat ?? 0, 0, 10) ?? 0,
+    turbo: b.turbo && b.mode !== "abyss" && !b.daily ? 1 : 0,
     title: typeof b.title === "string" ? b.title.replace(/[^\p{L}\p{N} _.\-']/gu, "").trim().slice(0, 24) || null : null,
     // What ended the run (a death, not a win or giving up): for the Bounty board.
     killer: !b.won && typeof b.killer === "string" ? b.killer.replace(/[^\p{L}\p{N} _.,\-'’!]/gu, "").trim().slice(0, 48) || null : null,
     // A Daily Dungeon run: only today's (or yesterday's, for a run finished after midnight) counts.
     daily: typeof b.daily === "string" && DAY.test(b.daily) && [utcDay(), utcDay(Date.now() - 864e5)].includes(b.daily) && b.mode !== "abyss" ? b.daily : null
   };
+  if (row.turbo && row.floor > TURBO_DEPTHS.length - 1) return "bad floor";
   for (const [k, v] of Object.entries(row)) if (v === null && k !== "version" && k !== "sid" && k !== "daily" && k !== "title" && k !== "killer") return `bad ${k}`;
   return row;
 }
@@ -76,7 +84,7 @@ function discrepancy(row, s, now) {
   if (s.flagged) return `flagged during the run: ${s.flagged}`;
   const secs = (now - s.started_at) / 1000;
   if (secs < MIN_SECONDS_PER_FLOOR * (row.floor - 1)) return `floor ${row.floor} in ${Math.round(secs)}s`;
-  const F = row.floor;
+  const F = row.turbo ? TURBO_DEPTHS[row.floor] ?? row.floor : row.floor;
   if (row.elites + row.champions > row.kills) return "more Elites/Champions than kills";
   if (row.kills > 14 * F + 6) return `${row.kills} kills by floor ${F}`;
   if (row.best_hit > row.damage) return "biggest hit above total damage";
@@ -90,14 +98,16 @@ function boardFilter(board, day, scope, origin) {
   let f = scope === "dailyall" ? "daily IS NOT NULL"
     : scope === "daily" ? `daily = '${DAY.test(day ?? "") ? day : utcDay()}'`
     : scope === "abyss" ? "mode = 'abyss'"
-    : scope === "heat" ? "mode != 'abyss' AND daily IS NULL AND heat >= 1"
-    : scope === "campaign" ? (board === "abyss" ? "mode = 'abyss'" : "mode != 'abyss' AND daily IS NULL")
+    : scope === "heat" ? "mode != 'abyss' AND daily IS NULL AND heat >= 1 AND turbo = 0"
+    : scope === "turbo" ? "mode != 'abyss' AND daily IS NULL AND turbo = 1"
+    : scope === "campaign" ? (board === "abyss" ? "mode = 'abyss'" : "mode != 'abyss' AND daily IS NULL AND turbo = 0")
     : modeFilter(board, day);
   if (ORIGINS.includes(origin)) f += ` AND origin = '${origin}'`;
   return f;
 }
 
 async function placeOf(db, board, value, day, scope, origin) {
+  // (The ranks a Turbo run gets are on the Turbo board.)
   const col = BOARDS[board];
   const r = await db.prepare(`SELECT COUNT(*) AS n FROM (SELECT pid, MAX(${col}) AS v FROM runs WHERE suspect = 0 AND ${boardFilter(board, day, scope, origin)} GROUP BY pid) WHERE v > ?`).bind(value).first();
   return (r?.n ?? 0) + 1;
@@ -120,7 +130,8 @@ async function startSession(req, env) {
   const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM sessions WHERE pid = ? AND started_at > ?").bind(b.pid, now - 60000).first();
   if ((recent?.n ?? 0) >= 6) return json({ error: "slow down" }, 429);
   const sid = newId();
-  await env.DB.prepare("INSERT INTO sessions (sid, pid, seed, started_at, floor, max_floor, floor_at) VALUES (?, ?, ?, ?, 1, 1, ?)").bind(sid, b.pid, seed, now, now).run();
+  const kind = KINDS.includes(b.kind) ? b.kind : "standard";
+  await env.DB.prepare("INSERT INTO sessions (sid, pid, seed, started_at, floor, max_floor, floor_at, kind, last_seen) VALUES (?, ?, ?, ?, 1, 1, ?, ?, ?)").bind(sid, b.pid, seed, now, now, kind, now).run();
   return json({ sid });
 }
 
@@ -142,8 +153,8 @@ async function floorReached(req, env) {
   if (gap >= 1 && floor > s.max_floor && secs < MIN_SECONDS_PER_FLOOR * gap) flag = gap > 1 ? `jumped from floor ${s.floor} to ${floor} in ${Math.round(secs)}s` : `floor ${floor} after ${Math.round(secs)}s`;
   // A flagged step isn't believed: the server's floor only moves on believable steps.
   const believed = flag ? s.floor : floor;
-  await env.DB.prepare("UPDATE sessions SET floor = ?, max_floor = MAX(max_floor, ?), floor_at = ?, flagged = COALESCE(flagged, ?) WHERE sid = ?")
-    .bind(believed, believed, now, flag, b.sid).run();
+  await env.DB.prepare("UPDATE sessions SET floor = ?, max_floor = MAX(max_floor, ?), floor_at = ?, flagged = COALESCE(flagged, ?), last_seen = ? WHERE sid = ?")
+    .bind(believed, believed, now, flag, now, b.sid).run();
   return json({ ok: true });
 }
 
@@ -161,21 +172,21 @@ async function postRun(req, env) {
   const followUp = s && s.ended && s.pid === row.pid && row.floor >= (s.posted_floor ?? 0);
   const why = discrepancy(row, followUp ? { ...s, ended: 0 } : s, now);
   const suspect = why ? 1 : 0;
-  await env.DB.prepare(`INSERT INTO runs (pid, name, seed, origin, mode, floor, won, level, kills, elites, champions, damage, best_hit, gold, version, created_at, sid, suspect, reason, plates, daily, title, killer, heat)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  await env.DB.prepare(`INSERT INTO runs (pid, name, seed, origin, mode, floor, won, level, kills, elites, champions, damage, best_hit, gold, version, created_at, sid, suspect, reason, plates, daily, title, killer, heat, turbo)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT (pid, seed) DO UPDATE SET mode = excluded.mode, floor = MAX(floor, excluded.floor), won = MAX(won, excluded.won), level = MAX(level, excluded.level),
       kills = MAX(kills, excluded.kills), elites = MAX(elites, excluded.elites), champions = MAX(champions, excluded.champions), damage = MAX(damage, excluded.damage),
       best_hit = MAX(best_hit, excluded.best_hit), gold = MAX(gold, excluded.gold), version = excluded.version, created_at = excluded.created_at, heat = MAX(heat, excluded.heat),
       sid = excluded.sid, killer = CASE WHEN excluded.floor >= runs.floor THEN excluded.killer ELSE runs.killer END,
       suspect = CASE WHEN excluded.floor >= runs.floor THEN excluded.suspect ELSE MAX(runs.suspect, excluded.suspect) END,
       reason = CASE WHEN excluded.floor >= runs.floor THEN excluded.reason ELSE COALESCE(excluded.reason, runs.reason) END`)
-    .bind(row.pid, row.name, row.seed, row.origin, row.mode, row.floor, row.won, row.level, row.kills, row.elites, row.champions, row.damage, row.best_hit, row.gold, row.version, now, row.sid, suspect, why, row.plates, row.daily, row.title, row.killer, row.heat).run();
-  if (s && s.pid === row.pid) await env.DB.prepare("UPDATE sessions SET ended = 1, posted_floor = ? WHERE sid = ?").bind(row.floor, row.sid).run();
+    .bind(row.pid, row.name, row.seed, row.origin, row.mode, row.floor, row.won, row.level, row.kills, row.elites, row.champions, row.damage, row.best_hit, row.gold, row.version, now, row.sid, suspect, why, row.plates, row.daily, row.title, row.killer, row.heat, row.turbo).run();
+  if (s && s.pid === row.pid) await env.DB.prepare("UPDATE sessions SET ended = 1, posted_floor = ?, last_seen = ? WHERE sid = ?").bind(row.floor, now, row.sid).run();
   await env.DB.prepare("UPDATE runs SET name = ?, title = ? WHERE pid = ?").bind(row.name, row.title, row.pid).run();
   if (suspect) return json({ ok: true, verified: false });
   const ranks = {};
   const boards = row.mode === "abyss" ? ["abyss"] : row.daily ? ["daily"] : Object.keys(BOARDS).filter(k => k !== "abyss" && k !== "daily");
-  for (const board of boards) ranks[board] = await placeOf(env.DB, board, row[BOARDS[board]], row.daily);
+  for (const board of boards) ranks[board] = await placeOf(env.DB, board, row[BOARDS[board]], row.daily, row.turbo ? "turbo" : undefined);
   return json({ ok: true, verified: true, ranks });
 }
 
@@ -203,6 +214,39 @@ async function getBoard(url, env) {
     if (mine && mine.v !== null) me = { rank: await placeOf(env.DB, board, mine.v, day, scope, origin), value: mine.v };
   }
   return json({ board, rows, me });
+}
+
+/** The run is still being played: keep its play time up to date (at most once every 30 seconds counts). */
+async function pingSession(req, env) {
+  const b = await body(req);
+  if (!b || typeof b.sid !== "string" || !SID.test(b.sid) || typeof b.pid !== "string" || !PID.test(b.pid)) return json({ error: "bad request" }, 400);
+  await env.DB.prepare("UPDATE sessions SET last_seen = ? WHERE sid = ? AND pid = ? AND (last_seen IS NULL OR last_seen < ?)").bind(Date.now(), b.sid, b.pid, Date.now() - 30000).run();
+  return json({ ok: true });
+}
+
+/** The end-of-run Turbo poll: one vote per run (the latest counts). */
+async function postPoll(req, env) {
+  const b = await body(req);
+  if (!b || typeof b.pid !== "string" || !PID.test(b.pid)) return json({ error: "bad pid" }, 400);
+  const vote = b.vote === 1 ? 1 : b.vote === -1 ? -1 : 0;
+  if (!vote) return json({ error: "bad vote" }, 400);
+  const kind = KINDS.includes(b.kind) ? b.kind : "turbo";
+  const sid = typeof b.sid === "string" && SID.test(b.sid) ? b.sid : newId();
+  await env.DB.prepare(`INSERT INTO polls (sid, pid, kind, vote, floor, created_at) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT (sid) DO UPDATE SET vote = excluded.vote, created_at = excluded.created_at`).bind(sid, b.pid, kind, vote, int(b.floor ?? 0, 0, 100) ?? 0, Date.now()).run();
+  return json({ ok: true });
+}
+
+/** How much each kind of run is played: runs started, players, and play time (a run's time stops counting after 15 quiet minutes). */
+async function getStats(url, env) {
+  const since = Number(url.searchParams.get("since")) || Date.UTC(2026, 10, 3);
+  const { results } = await env.DB.prepare(`SELECT COALESCE(kind, 'standard') AS kind, COUNT(*) AS runs, COUNT(DISTINCT pid) AS players,
+      SUM(MIN(MAX(COALESCE(last_seen, floor_at) - started_at, 0), 4 * 3600000)) AS ms, AVG(max_floor) AS floor
+    FROM sessions WHERE started_at >= ? GROUP BY COALESCE(kind, 'standard')`).bind(since).all();
+  const kinds = {};
+  for (const r of results) kinds[r.kind] = { runs: r.runs, players: r.players, minutes: Math.round((r.ms ?? 0) / 60000), avgMinutes: r.runs ? Math.round((r.ms ?? 0) / 60000 / r.runs * 10) / 10 : 0, avgFloor: Math.round((r.floor ?? 0) * 10) / 10 };
+  const p = await env.DB.prepare("SELECT SUM(vote = 1) AS up, SUM(vote = -1) AS down FROM polls WHERE kind = 'turbo' AND created_at >= ?").bind(since).first();
+  return json({ since: new Date(since).toISOString(), kinds, turboPoll: { up: p?.up ?? 0, down: p?.down ?? 0 } });
 }
 
 /** Back up a player's Ruin Shards and Vanadium Plates. The device is in charge: this just keeps the latest copy. */
@@ -256,6 +300,9 @@ export default {
       }
       if (url.pathname === "/session" && req.method === "POST") return await startSession(req, env);
       if (url.pathname === "/session/floor" && req.method === "POST") return await floorReached(req, env);
+      if (url.pathname === "/session/ping" && req.method === "POST") return await pingSession(req, env);
+      if (url.pathname === "/poll" && req.method === "POST") return await postPoll(req, env);
+      if (url.pathname === "/stats" && req.method === "GET") return await getStats(url, env);
       if (url.pathname === "/runs" && req.method === "POST") return await postRun(req, env);
       if (url.pathname === "/leaderboard" && req.method === "GET") return await getBoard(url, env);
       if (url.pathname === "/killers" && req.method === "GET") return await getKillers(env);
