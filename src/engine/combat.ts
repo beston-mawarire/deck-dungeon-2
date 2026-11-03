@@ -467,6 +467,8 @@ function strike(b: Battle, ctx: AttackCtx) {
     fx(b, { who: d.id, kind: "miss", text: "Dodged" });
     breakStreak(b, a);
     eachHook(d, "onDodge", (h, s) => h(b, ctx, s));
+    // The stance is spent the moment it's tested: one Counter per stance.
+    if (countering) d.flags["counter"] = 0;
     if (countering && a.hp > 0 && d.hp > 0) {
       log(b, `${d.name} counters!`);
       fx(b, { who: d.id, kind: "text", text: "Counter!", icon: "🗡️" });
@@ -481,6 +483,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     return afterStrike(b, ctx);
   }
   if (countering) {
+    d.flags["counter"] = 0;
     d.flags["frail"] = 1;
     log(b, `${d.name}'s Counter fails: off-balance for the next attack.`);
     fx(b, { who: d.id, kind: "text", text: "Off-balance", icon: "🥀" });

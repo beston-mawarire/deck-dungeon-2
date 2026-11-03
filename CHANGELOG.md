@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.59.1
+- The Counter stance (its glow, sway and tag) ends as soon as it's tested: right after you dodge and strike back, or the moment the hit lands.
+
 ## 1.59.0
 - 📰 New Changes page: the latest patch notes, from a Changes button on the title screen and in the Info popup. First entry: "The dungeon has changed".
 
