@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.52.5
+- The title screen's line now says: Welcome to the dungeon!
+
 ## 1.52.4
 - Class Mastery shows as stars above each crest: one star for every Mastery level.
 
