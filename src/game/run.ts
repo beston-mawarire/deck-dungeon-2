@@ -66,6 +66,8 @@ export const TURBO_FLOORS = TURBO_DEPTHS.length - 1;
 export const TURBO_LOOT = { rare: 1.4, epic: 1.8, legendary: 2.2 } as const;
 export const TURBO_DEEP_LOOT = 1.25;
 export const TURBO_DROP = 0.35;
+/** Turbo: fewer rooms, so every fight gives more XP. */
+export const TURBO_XP = 1.75;
 /** Rooms per floor for this run. */
 export const stepsOf = (run: { turbo?: boolean }) => (run.turbo ? TURBO_STEPS : STEPS_PER_FLOOR);
 /** The floor number the player sees (Turbo floors 1–15; otherwise the floor itself). */
@@ -903,7 +905,7 @@ function afterFight(run: Run) {
   // Catch your breath: a small heal after every won fight.
   restore(h, Math.ceil(h.f.maxHp * (abyssMod(run, "merciful_dark") ? 0.3 : heatOf(run) >= 4 ? 0 : 0.15)));
   const xp = { normal: 1, elite: 3, champion: 5, crimson: 7, boss: b.enemy.crimson ? 9 : 6 }[rank];
-  gainXp(run, abyssMod(run, "thick_hides") ? Math.round(xp * 1.5) : xp);
+  gainXp(run, Math.round(xp * (abyssMod(run, "thick_hides") ? 1.5 : 1) * (run.turbo ? TURBO_XP : 1)));
   const gold = { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank] * (abyssMod(run, "golden_depths") ? 2 : 1) + relicBonus(h.relics, "gold");
   const items: GearItem[] = [];
   let scrolls = 0;

@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.62.1
+- Turbo: every fight gives 75% more XP (fewer rooms, so levels come faster).
+- Turbo: a short "how Turbo works" popup every time the game opens during the event, and whenever the Turbo tab is picked.
+
 ## 1.62.0
 - ⚡ Turbo, a limited-time event (until 17 November 2026, 18:00 UTC). The class menu has two top tabs, Turbo and Standard; Standard is the usual game.
   - Turbo runs: 6 rooms a floor and 15 floors in all: the same 5-floor Campaign, then Endless goes about two floors deeper each time, with the Horror on floor 12, DEATH on 14 and THE END on 15.

@@ -169,6 +169,16 @@ const say = (msg: string | null, bad = true) => {
 };
 /** The Abyss tab's explainer (shown the first time you open the tab, and from its "How it works" button). */
 let abyssIntroOpen = false;
+/** The Turbo explainer: shown each time the game is opened while the event is on, and whenever the Turbo tab is picked. */
+let turboInfoOpen = turboLive();
+const turboInfo = () => storyBeat({ icon: "⚡", title: "Turbo: a limited-time event", text: `The whole dungeon, faster. Turbo runs until 17 November (${turboLeft()} left); Standard is unchanged.`, list: [
+  `🏰 15 floors, start to THE END. The Campaign is the same 5 floors, then every floor goes about two deeper.`,
+  "🚪 6 rooms a floor instead of 7.",
+  "🎁 Much richer loot, better still the deeper you go, and gear and encounters from later floors turn up early.",
+  "⭐ More XP from every fight.",
+  "⚔️ No Quick Battles: every fight is yours to play.",
+  "🏆 Its own leaderboard, and a 👍 / 👎 at the end of each run to tell us what you think."
+] }, "data-closeturboinfo");
 const abyssIntro = () => storyBeat({ icon: "🕳️", title: "The Abyss", text: "A run of its own, far deadlier than the Campaign, and where your permanent power comes from.", list: [
   `🔓 Opens once you beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.`,
   "☠️ Ten depths. Every fight is a rank tougher, each depth ends with an Uber boss, and your Armor wears down as you go.",
@@ -1948,7 +1958,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : turboInfoOpen ? turboInfo() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${turboInfoOpen && !pendingOrigin ? turboInfo() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -2278,6 +2288,7 @@ function bind() {
     on("[data-play]", () => { view = "title"; });
     on("[data-home]", () => { view = "splash"; });
     on("[data-closereset]", () => { resetPopup = false; });
+    on("[data-closeturboinfo]", () => { turboInfoOpen = false; });
     on("[data-options]", () => { optionsOpen = true; resetArmed = false; });
     on("[data-closeoptions]", () => { optionsOpen = false; resetArmed = false; });
     on("[data-quick]", el => { quickOn = el.dataset.quick === "1"; try { localStorage.setItem("dd2-quick", quickOn ? "1" : "0"); } catch { /* ignore */ } });
@@ -2338,7 +2349,7 @@ function bind() {
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
     on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta)); withGems(nr); if (inTurbo()) makeTurbo(nr); run = nr; void startSession(nr); });
-    on("[data-gametab]", el => { gameTab = el.dataset.gametab as typeof gameTab; if (gameTab === "turbo") menuTab = "campaign"; try { localStorage.setItem("dd2-gametab", gameTab); } catch { /* ignore */ } });
+    on("[data-gametab]", el => { gameTab = el.dataset.gametab as typeof gameTab; if (gameTab === "turbo") { menuTab = "campaign"; turboInfoOpen = true; } try { localStorage.setItem("dd2-gametab", gameTab); } catch { /* ignore */ } });
     return;
   }
   const r = run;
