@@ -1761,6 +1761,13 @@ const celebrated = new Set<number>();
 let fanfareEl: HTMLElement | null = null;
 /** Fanfares waiting their turn: a level-up and a big drop play one after the other, never on top of each other. */
 const fanfareQueue: [string, string | undefined, boolean][] = [];
+/** While a relic popup is up, fanfares wait (they'd play behind it); they play in turn once it's closed. */
+let fanfareHold = false;
+function releaseFanfares() {
+  if (fanfareHold || fanfareEl) return;
+  const next = fanfareQueue.shift();
+  if (next) playFanfare(...next);
+}
 /** DEATH arrives: a deep purple dark, and its name in red, fading in and out.
  *  Met early (the Crossroads' "future"), the screen first goes black and silent, and DEATH's floor fills it. */
 function deathIntro(early: boolean) {
@@ -1785,7 +1792,7 @@ function deathIntro(early: boolean) {
 
 function celebrate(rarity: string, label?: string, banner = true) {
   if (!["rare", "epic", "legendary", "crimson", "epic_crimson", "legendary_crimson"].includes(rarity)) return;
-  if (fanfareEl) { fanfareQueue.push([rarity, label, banner]); return; }
+  if (fanfareEl || fanfareHold) { fanfareQueue.push([rarity, label, banner]); return; }
   playFanfare(rarity, label, banner);
 }
 function playFanfare(rarity: string, label?: string, banner = true) {
@@ -1812,7 +1819,7 @@ function playFanfare(rarity: string, label?: string, banner = true) {
     if (fanfareEl === el) fanfareEl = null;
     // Next in line, after a short breath.
     const next = fanfareQueue.shift();
-    if (next) setTimeout(() => (fanfareEl ? fanfareQueue.unshift(next) : playFanfare(...next)), 250);
+    if (next) setTimeout(() => (fanfareEl || fanfareHold ? fanfareQueue.unshift(next) : playFanfare(...next)), 250);
   }, abyss ? 6500 : isCrimson ? 4300 : rarity === "rare" ? 1300 : 3500);
 }
 const RANK: Record<string, number> = { rare: 0.5, epic: 1, legendary: 2, crimson: 3, epic_crimson: 4, legendary_crimson: 5 };
@@ -1839,11 +1846,14 @@ function celebrateScene(r: Run) {
 
 function render() {
   app.classList.toggle("with-side", !!run);
+  if (!run) fanfareHold = false;
   // The floor's theme colours everything while you're in a run.
   const th = run ? themeOf(run) : undefined;
   if (th) document.body.dataset.theme = th.id; else delete document.body.dataset.theme;
   document.body.classList.toggle("dg-menu", !run);
   render2();
+  // Fanfares that waited for a relic popup play now, one after another.
+  setTimeout(releaseFanfares, 200);
   // The offline notice sits on top of everything, wherever you are.
   if (offlineOpen) {
     app.insertAdjacentHTML("beforeend", offlinePopup());
@@ -1901,6 +1911,8 @@ function render2() {
     : s.t === "jeweller" ? jewellerScene(r)
     : s.t === "bounty" ? bountyScene(r)
     : s.t === "rest" ? restScene(r) : s.t === "confirm" ? confirmScene(r) : s.t === "event" ? eventScene(r) : overScene(r);
+  // A relic popup is (or is about to be) up: hold every fanfare until it's closed.
+  fanfareHold = s.t !== "combat" && !!r.relicNews?.length;
   celebrateScene(r);
   const msg = [r.message, note].filter(Boolean);
   // Level up: once the rewards are picked, a fanfare and a popup before the talent choice.

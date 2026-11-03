@@ -1056,3 +1056,9 @@ body.dg-menu {
   box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 2px 6px rgba(0,0,0,.6); }
 @media (prefers-reduced-motion: reduce) { .dg-torch i, .dg-torch i::after, .dg-embers span { animation: none; } .dg-embers { display: none; } }
 @media (max-width: 520px) { .dg-torch { top: 3%; transform: scale(.8); } }
+/* Victory and Floor Cleared panels take the floor's colour. */
+body[data-theme] .victory { border-color: var(--accent); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, transparent), transparent 140px); box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 30%, transparent); }
+body[data-theme] .victory-title { color: var(--accent); text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 55%, transparent); }
+body[data-theme] h2 { color: color-mix(in srgb, var(--accent) 55%, var(--muted)); }
+body[data-theme] .victory button.take-equip, body[data-theme] button.primary { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff) 0%, var(--accent) 100%); border-color: var(--accent); color: #12100c; box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 2px 0 rgba(0,0,0,.45); }
+body { min-height: 100vh; }

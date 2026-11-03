@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.51.1
+- The Victory and Floor Cleared panels (their border, glow, title and buttons) take on the floor's theme colours instead of always being gold.
+- When a relic popup appears, the loot fanfares wait: they play one after another once you close it, instead of behind it.
+- The floor's colours now fill the whole screen, all the way down.
+
 ## 1.51.0
 - 🏰 The main menu is a torch-lit dungeon hall now: stone walls, a great archway, flickering torches, drifting embers, a carved-stone title and stone-slab buttons.
 - 👑 Plain Legendaries and Crimson items hit far harder: the Sovereign Blade 24 Damage, Titanfall 38, Kingsfang 16 (15 off-hand), the Unbroken Bulwark +18 Armor and +35 Max HP, Aegis of the First King +24 Armor and +60 Max HP, Windcutter Mantle +10 Armor, +20 Max HP and +22% Dodge, Heart of the Mountain +6 Damage, +7 Armor and +60 Max HP; Bloodsteel Sabre 26, the Crimson Executioner 44, Crimson Bastion +20 Armor and +45 Max HP, Bloodforged Plate +26 Armor and +70 Max HP, Heart of Crimson +8 Damage and +75 Max HP.
