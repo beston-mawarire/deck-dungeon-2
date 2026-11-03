@@ -999,3 +999,60 @@ body[data-theme="pits"] { --bg: #170d0c; --panel: #231412; --panel2: #2d1a17; --
   --tint: radial-gradient(ellipse at 50% 110%, rgba(190,90,50,.18), transparent 60%); }
 body[data-theme="reliquary"] { --bg: #15130f; --panel: #201d17; --panel2: #29251d; --line: #4d4433; --muted: #c9bea2; --btn: #2b261d; --chip: #2e2920; --track: #2e2920; --accent: #ffd98a;
   --tint: radial-gradient(ellipse at 50% -20%, rgba(255,217,138,.14), transparent 60%); }
+
+/* ---------- The main menu: a torch-lit dungeon hall ---------- */
+body.dg-menu {
+  background-color: #0e0c0b;
+  background-image:
+    radial-gradient(ellipse at 50% 30%, rgba(255,150,60,.10), transparent 55%),
+    radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,.75) 95%),
+    repeating-linear-gradient(0deg, rgba(0,0,0,.55) 0 2px, transparent 2px 44px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,.45) 0 2px, transparent 2px 88px),
+    linear-gradient(180deg, #1d1a18, #141110);
+  background-attachment: fixed;
+}
+.splash.dungeon { position: relative; overflow: hidden; background: none; isolation: isolate; }
+.splash.dungeon > * { position: relative; z-index: 2; }
+.splash.dungeon .dg-arch, .splash.dungeon .dg-torch, .splash.dungeon .dg-embers { position: absolute; z-index: 0; }
+/* A great stone doorway behind the title, darkness beyond it. */
+.dg-arch { top: 2%; left: 50%; width: min(440px, 92%); height: 68%; transform: translateX(-50%); border-radius: 50% 50% 0 0 / 34% 34% 0 0;
+  background: radial-gradient(ellipse at 50% 85%, #000 0%, #050403 55%, #0d0a09 100%);
+  border: 14px solid #3a332e; border-bottom: none;
+  box-shadow: inset 0 0 40px #000, 0 0 0 3px #1b1715, 0 0 60px rgba(0,0,0,.8);
+  background-clip: padding-box; }
+.dg-arch::before { content: ""; position: absolute; inset: -14px -14px 0; border-radius: inherit; pointer-events: none;
+  background: repeating-conic-gradient(from 270deg at 50% 100%, transparent 0 8deg, rgba(0,0,0,.55) 8deg 9deg); -webkit-mask: radial-gradient(farthest-side at 50% 100%, transparent calc(100% - 14px), #000 calc(100% - 13px)); mask: radial-gradient(farthest-side at 50% 100%, transparent calc(100% - 14px), #000 calc(100% - 13px)); }
+/* Torches on the walls either side. */
+.dg-torch { top: 30%; width: 14px; height: 60px; }
+.dg-torch.left { left: max(4px, calc(50% - 275px)); } .dg-torch.right { right: max(4px, calc(50% - 275px)); }
+.dg-torch b { position: absolute; bottom: 0; left: 2px; width: 10px; height: 44px; border-radius: 2px; background: linear-gradient(90deg, #3b2a1c, #6b4a2e, #3b2a1c); box-shadow: 0 -4px 0 -1px #5a5148; }
+.dg-torch i { position: absolute; bottom: 40px; left: -9px; width: 32px; height: 40px; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%;
+  background: radial-gradient(ellipse at 50% 75%, #fff6c8 0%, #ffd34d 25%, #ff8a1f 55%, rgba(255,60,0,0) 75%);
+  filter: drop-shadow(0 0 14px rgba(255,140,40,.9)); animation: dgflame 1.1s ease-in-out infinite alternate; transform-origin: 50% 100%; }
+.dg-torch i::after { content: ""; position: absolute; left: 50%; top: 40%; width: 220px; height: 220px; transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,150,50,.16), transparent 65%); animation: dgglow 2.3s ease-in-out infinite alternate; pointer-events: none; }
+.dg-torch.right i { animation-delay: -.5s; }
+@keyframes dgflame { 0% { transform: scale(1, 1) rotate(-2deg); } 50% { transform: scale(.92, 1.08) rotate(2deg); } 100% { transform: scale(1.05, .95) rotate(-1deg); } }
+@keyframes dgglow { from { opacity: .7; } to { opacity: 1; } }
+/* Embers drifting up out of the dark. */
+.dg-embers { inset: 0; pointer-events: none; }
+.dg-embers span { position: absolute; bottom: -10px; width: 3px; height: 3px; border-radius: 50%; background: #ffb347; box-shadow: 0 0 6px #ff8a1f; opacity: 0; animation: dgember 7s linear infinite; }
+@keyframes dgember { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: .9; } 100% { transform: translate(30px, -85vh); opacity: 0; } }
+/* Carved-stone title. */
+.splash.dungeon .splash-title { background: linear-gradient(180deg, #e9e2d6 0%, #b9ad9c 48%, #8a7e70 52%, #c9bdac 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 3px 0 #000) drop-shadow(0 0 18px rgba(0,0,0,.9)); }
+.splash.dungeon .splash-title span { background: linear-gradient(180deg, #ffe38a, #e8a93a 60%, #b86a17); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 10px rgba(255,170,60,.6)); }
+.splash.dungeon .splash-tag { color: #b8ab98; text-shadow: 0 2px 4px #000; }
+/* Stone-slab buttons with iron studs. */
+.splash.dungeon .splash-buttons button.big { position: relative; background: linear-gradient(180deg, #4a423b 0%, #362f2a 55%, #2a2420 100%); border: 2px solid #1a1613; color: #eee4d4;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -3px 0 rgba(0,0,0,.45), 0 3px 8px rgba(0,0,0,.6); text-shadow: 0 1px 2px #000; letter-spacing: .03em; }
+.splash.dungeon .splash-buttons button.big::before, .splash.dungeon .splash-buttons button.big::after { content: ""; position: absolute; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #9a9086, #3f3934 70%); box-shadow: 0 1px 1px #000; }
+.splash.dungeon .splash-buttons button.big::before { left: 10px; } .splash.dungeon .splash-buttons button.big::after { right: 10px; }
+.splash.dungeon .splash-buttons button.primary.big { background: linear-gradient(180deg, #f3c45b 0%, #d39a2c 55%, #a8721b 100%); border-color: #5c3c0c; color: #2a1804; text-shadow: 0 1px 0 rgba(255,255,255,.35); }
+.splash.dungeon .splash-buttons button.big:hover { filter: brightness(1.12); }
+.splash.dungeon .splash-buttons button.big:active { transform: translateY(1px); }
+.dg-plaque { display: inline-block; padding: 6px 16px; border-radius: 6px; background: linear-gradient(180deg, #2f2925, #221d1a); border: 1px solid #0d0b0a; color: #cdbfa9 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 2px 6px rgba(0,0,0,.6); }
+@media (prefers-reduced-motion: reduce) { .dg-torch i, .dg-torch i::after, .dg-embers span { animation: none; } .dg-embers { display: none; } }
+@media (max-width: 520px) { .dg-torch { top: 3%; transform: scale(.8); } }

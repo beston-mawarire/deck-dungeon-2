@@ -1425,9 +1425,12 @@ function helpGlossary() {
 
 function splashScreen() {
   const sv = savedSummary();
-  return `<div class="splash">
+  return `<div class="splash dungeon">
+    <div class="dg-arch" aria-hidden="true"></div>
+    <div class="dg-torch left" aria-hidden="true"><b></b><i></i></div><div class="dg-torch right" aria-hidden="true"><b></b><i></i></div>
+    <div class="dg-embers" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => `<span style="left:${(i * 37) % 100}%;animation-delay:${(i * 0.73) % 6}s;animation-duration:${6 + (i % 5)}s"></span>`).join("")}</div>
     <div class="splash-dice">🎲</div>
-    <div class="splash-head"><h1 class="splash-title">DECK DUNGEON <span>2</span></h1><span class="splash-blurb">Dungeon site seeing</span></div>
+    <div class="splash-head"><h1 class="splash-title">DECK DUNGEON <span>2</span></h1><span class="splash-blurb">Dungeon sightseeing</span></div>
     <p class="splash-tag">Venture into the depths of darkness. Slay the horrors within.</p>
     <div class="splash-buttons">
       ${musicBlocked() ? `<button class="small music-hint" data-startmusic>🎵 Tap for music</button>` : ""}
@@ -1436,7 +1439,7 @@ function splashScreen() {
       <button class="big lb-btn" data-lb>🏆 Leaderboards</button>
       <button class="big" data-options>⚙️ Options</button>
     </div>
-    <p class="sub splash-foot">🏅 ${meta.renown} Renown · ${meta.runs} runs · ${meta.wins} wins</p>
+    <p class="sub splash-foot dg-plaque">🏅 ${meta.renown} Renown · ${meta.runs} runs · ${meta.wins} wins</p>
     <p class="version">${VERSION}</p>
   </div>`;
 }
@@ -1839,6 +1842,7 @@ function render() {
   // The floor's theme colours everything while you're in a run.
   const th = run ? themeOf(run) : undefined;
   if (th) document.body.dataset.theme = th.id; else delete document.body.dataset.theme;
+  document.body.classList.toggle("dg-menu", !run);
   render2();
   // The offline notice sits on top of everything, wherever you are.
   if (offlineOpen) {
