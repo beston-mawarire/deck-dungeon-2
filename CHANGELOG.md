@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.59.5
+- Counter: the strike back is plainly shown now: your main hand's crit face, the damage number, and a big "Counter Crit!" burst and shake on the enemy.
+- The Counter stance (glow, sway and tag) ends as soon as the enemy has taken its turn, whether it attacked or not.
+
 ## 1.59.4
 - Reverted: a Counter's Crit can be evaded or dodged again by slippery foes, as before.
 

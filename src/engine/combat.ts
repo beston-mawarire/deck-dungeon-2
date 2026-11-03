@@ -258,10 +258,12 @@ function counterStrike(b: Battle, d: Fighter, a: Fighter) {
   log(b, `${d.name} counters!`);
   fx(b, { who: d.id, kind: "text", text: "Counter!", icon: "🗡️" });
   d.flags["counterHit"] = 1;
+  // Your main hand's crit face, no roll needed.
   const faces = d.faces ?? PLAIN_FACES;
   const critFace = faces.map(x => x.kind).lastIndexOf("crit") + 1 || faces.length;
-  fx(b, { who: d.id, kind: "roll", face: critFace, faceName: "Counter", faceKind: "crit", sides: faces.length });
+  const hpBefore = a.hp;
   resolveFace(b, d, a, critFace, false);
+  if (a.hp < hpBefore) fx(b, { who: a.id, kind: "reaction", text: `Counter Crit! −${hpBefore - Math.max(0, a.hp)}`, src: d.id });
   d.flags["counterHit"] = 0;
 }
 
@@ -816,6 +818,7 @@ export function enemyPhase(b: Battle) {
   // Shieldbearers spend their turn holding the guard.
   if (e.flags["guardSkip"]) {
     e.flags["guardSkip"] = 0;
+    p.flags["counter"] = 0;
     log(b, `${e.name} holds its guard.`);
     fx(b, { who: "enemy", kind: "text", text: "Holds guard", icon: "🧱" });
     checkOver(b);
@@ -833,6 +836,8 @@ export function enemyPhase(b: Battle) {
       if (e.offFaces && p.hp > 0 && e.hp > 0) attack(b, e, p, true);
     }
   });
+  // Your Counter stance lasts only until the foe has taken its turn (attack or not).
+  p.flags["counter"] = 0;
   if (e.moves?.length) e.intent = ((e.intent ?? 0) + 1) % e.moves.length;
   checkOver(b);
 }
