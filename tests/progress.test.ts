@@ -127,12 +127,13 @@ describe("mastery, kits, heat, Abyss twists, achievements", () => {
     const { genChoices } = await import("../src/game/run");
     const r = newRun("rogue", 61);
     r.step = 2;
-    let plain = 0;
-    for (let i = 0; i < 300; i++) if (genChoices(r).includes("fight")) plain++;
+    // (Quiet steps offer no fights at all: they're left out here.)
+    const COMBAT = ["fight", "elite", "champion", "vault", "unique", "goblin", "nemesis"];
+    const count = () => { let n = 0, k = 0; while (k < 300) { const c = genChoices(r); if (!c.some(x => COMBAT.includes(x))) continue; k++; if (c.includes("fight")) n++; } return n; };
+    let plain = count();
     expect(plain).toBe(300);
     r.heat = 5;
-    plain = 0;
-    for (let i = 0; i < 300; i++) if (genChoices(r).includes("fight")) plain++;
+    plain = count();
     expect(plain).toBeLessThan(270);
     expect(plain).toBeGreaterThan(120);
   });

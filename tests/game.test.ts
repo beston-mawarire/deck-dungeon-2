@@ -1906,3 +1906,22 @@ describe("more daggers", () => {
     expect(b.log.some(l => l.includes("Crit"))).toBe(true);
   });
 });
+
+describe("event rooms and quiet steps", () => {
+  it("about 15% of steps (from floor 1) offer no fights; some events have their own paths and never come from Something Strange", () => {
+    const run = newRun("cleric", 81);
+    run.floor = 1; run.step = 1; run.hero.f.gold = 999;
+    const COMBAT = ["fight", "elite", "champion", "vault", "crimson_elite", "unique", "goblin", "nemesis", "crimson_vault"];
+    let calm = 0; const seen = new Set<string>();
+    for (let i = 0; i < 4000; i++) { const c = genChoices(run); c.forEach(x => seen.add(x)); if (!c.some(x => COMBAT.includes(x))) calm++; }
+    expect(calm / 4000).toBeGreaterThan(0.12);
+    expect(calm / 4000).toBeLessThan(0.19);
+    for (const room of ["alchemist", "blacksmith", "gambling_den", "fortune_teller", "card_sharp"]) expect(seen.has(room), room).toBe(true);
+    for (let i = 0; i < 300; i++) {
+      const r2 = newRun("cleric", 900 + i); r2.hero.f.gold = 999; r2.floor = 3;
+      chooseRoom(r2, "event");
+      const s = r2.scene as { t: string; ev?: { id: string } };
+      expect(["alchemist", "blacksmith", "dice", "teller", "mirror", "card_sharp"].includes(s.ev?.id ?? "") || s.t === "smith" || s.t === "alchemist").toBe(false);
+    }
+  });
+});

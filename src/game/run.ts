@@ -87,7 +87,7 @@ export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
 const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
 
-export type RoomType = "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
+export type RoomType = "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -106,6 +106,12 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   crossroads: { name: "The Crossroads", icon: "🌒", text: "Two tunnels, one figure." },
   cleansing: { name: "Cleansing", icon: "⛲", text: "Somewhere your curses could be lifted, for a price." },
   sanguine: { name: "Sanguine Altar", icon: "🩸", text: "Trade your own blood for power. The more you give, the more it gives back." },
+  alchemist: { name: "The Alchemist", icon: "⚗️", text: "Bubbling flasks and a crooked smile. Tonics for the fights ahead." },
+  blacksmith: { name: "Wandering Blacksmith", icon: "⚒️", text: "A portable anvil in a side passage, and a smith in a good mood." },
+  gambling_den: { name: "Gambling Den", icon: "🎲", text: "Bone dice clatter on a crate. Double or nothing." },
+  fortune_teller: { name: "Fortune Teller", icon: "🔮", text: "She sees gold in your future… for a price." },
+  mirror_pool: { name: "The Mirror Pool", icon: "🪞", text: "Still black water. Your reflection doesn't blink." },
+  card_sharp: { name: "Card Sharp", icon: "🃏", text: "A grinning rogue, a worn deck, and a wager." },
   bounty: { name: "Bounty Board", icon: "📋", text: "Notices nailed to a post. Work for hire." },
   event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
@@ -291,7 +297,14 @@ export const CLEANSING_PATH_CHANCE = 0.3;
 /** The curse-lifting encounters: their own path on the map, never part of Something Strange. */
 export const CLEANSING_EVENTS = ["cleansing_well", "holy_tribute"];
 /** Encounters with their own path on the map, never part of Something Strange. */
-export const OWN_PATH_EVENTS = [...CLEANSING_EVENTS, "sanguine_altar"];
+/** Events that are their own paths on the map (out of Something Strange). */
+export const EVENT_ROOMS: Partial<Record<RoomType, string>> = { alchemist: "alchemist", blacksmith: "blacksmith", gambling_den: "dice", fortune_teller: "teller", mirror_pool: "mirror", card_sharp: "card_sharp" };
+export const OWN_PATH_EVENTS = [...CLEANSING_EVENTS, "sanguine_altar", ...Object.values(EVENT_ROOMS) as string[]];
+/** Can this event happen right now (once-a-run ones not yet met, enough Gold, deep enough)? */
+const eventOpen = (run: Run, e: GameEvent) => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || Object.keys(run.hero.curses).length > 0) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e);
+/** A quiet stretch: from floor 1, some steps offer no fights at all. */
+export const PEACEFUL_CHANCE = 0.15;
+const COMBAT_ROOMS: RoomType[] = ["fight", "elite", "champion", "vault", "crimson_elite", "unique", "goblin", "nemesis", "crimson_vault"];
 
 /** Gauntlets: from floor 3, 15% of steps offer only hard fights (a Guarded Vault is a Champion before a Resplendent chest). */
 export const GAUNTLET_FLOOR = 3;
@@ -304,7 +317,10 @@ export const GAUNTLETS: RoomType[][] = [
 ];
 export function genChoices(run: Run): RoomType[] {
   if (run.step >= STEPS_PER_FLOOR) return ["boss"];
-  const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 9, vault: 3, altar: 3, shrine: 3, champion: 3, sanguine: 2 };
+  const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 6, vault: 3, altar: 3, shrine: 3, champion: 3, sanguine: 2,
+    alchemist: 0.8, blacksmith: 1, gambling_den: 1.4, fortune_teller: 1.4, mirror_pool: 0.8, card_sharp: 1.4 };
+  // Event rooms only show up when their encounter can happen.
+  for (const [room, id] of Object.entries(EVENT_ROOMS) as [RoomType, string][]) { const e = EVENTS.find(x => x.id === id); if (!e || !eventOpen(run, e)) w[room] = 0; }
   // After the fifth boss (Endless), Crimson Elites start to appear; they drop the keys to Crimson Vaults.
   if (crimsonActive(run)) w.crimson_elite = 4;
   // Named unique foes: from floor 2, rare, each one once per run.
@@ -323,8 +339,15 @@ export function genChoices(run: Run): RoomType[] {
     return [...set].sort(() => run.rng() - 0.5);
   }
   const out = new Set<RoomType>();
-  out.add("fight");
-  while (out.size < 3) out.add(pickW(run.rng, w));
+  // A quiet stretch (15% of steps from floor 1): no fights to pick, only everything else.
+  const peaceful = run.rng() < PEACEFUL_CHANCE;
+  if (peaceful) {
+    const calm = Object.fromEntries(Object.entries(w).filter(([k, v]) => !COMBAT_ROOMS.includes(k as RoomType) && (v ?? 0) > 0)) as Partial<Record<RoomType, number>>;
+    while (out.size < 3) out.add(pickW(run.rng, calm));
+  } else {
+    out.add("fight");
+    while (out.size < 3) out.add(pickW(run.rng, w));
+  }
   // Heat 5: the plain monster fight is sometimes swapped for an Elite or a Champion (not on a floor's first step).
   if (heatOf(run) >= 5 && run.step > 0 && out.has("fight")) {
     const x = run.rng();
@@ -336,7 +359,7 @@ export function genChoices(run: Run): RoomType[] {
   const fi = rooms.indexOf("forge");
   if (fi >= 0) { if (run.jewellerNext) rooms[fi] = "jeweller"; run.jewellerNext = !run.jewellerNext; }
   // Holding a Crimson Key: a Crimson Vault is always offered as an extra path.
-  if (crimsonActive(run) && run.hero.crimsonKeys > 0) rooms.push("crimson_vault");
+  if (crimsonActive(run) && run.hero.crimsonKeys > 0 && !peaceful) rooms.push("crimson_vault");
   // A Dragon Heart not yet unified: the Dragon Sanctum is very often an extra path.
   const heart = run.hero.dragonHeart;
   if (heart && !heart.unified && run.rng() < 0.7) rooms.push("sanctum");
@@ -345,7 +368,7 @@ export function genChoices(run: Run): RoomType[] {
   // The Bounty Board: a rare extra path, from the first floor on.
   if (run.rng() < BOUNTY_BOARD_CHANCE) rooms.push("bounty");
   // The Crossroads, in disguise: a very rare extra path from floor 2, once per run.
-  if (run.floor >= 2 && !run.seenBosses.has("e:crossroads") && run.rng() < CROSSROADS_PATH_CHANCE) {
+  if (!peaceful && run.floor >= 2 && !run.seenBosses.has("e:crossroads") && run.rng() < CROSSROADS_PATH_CHANCE) {
     run.crossroadsGuise = Math.floor(run.rng() * CROSSROADS_GUISES.length);
     rooms.push("crossroads");
   }
@@ -366,6 +389,18 @@ export function chooseRoom(run: Run, room: RoomType) {
     return;
   }
   enterRoom(run, room);
+}
+
+/** Begin an encounter (from Something Strange or its own path). */
+function startEvent(run: Run, evDef: GameEvent) {
+  if (evDef.unique) run.seenBosses.add(`e:${evDef.id}`);
+  // The Wandering Blacksmith: two free upgrades at his anvil. The Alchemist: a shop of combat tonics.
+  if (["blacksmith", "alchemist", "holy_tribute"].includes(evDef.id)) markEncounter(run, `ev:${evDef.id}`);
+  if (evDef.id === "blacksmith") { run.scene = { t: "smith", uses: 2 }; return; }
+  if (evDef.id === "alchemist") { run.scene = { t: "alchemist", stock: alchemistStock(run) }; return; }
+  if (evDef.id === "crossroads") { run.scene = { t: "event", ev: crossroadsEvent(CROSSROADS_GUISES[Math.floor(run.rng() * CROSSROADS_GUISES.length)]), result: null, found: [] }; return; }
+  if (evDef.id === "holy_tribute") { run.scene = { t: "tribute", paid: 0 }; return; }
+  run.scene = { t: "event", ev: evDef, result: null, found: [] };
 }
 
 function enterRoom(run: Run, room: RoomType) {
@@ -424,20 +459,12 @@ function enterRoom(run: Run, room: RoomType) {
     case "rest": run.scene = { t: "rest", done: false }; return;
     case "event": {
       // Unique encounters (the dragon, the mirror pool) happen at most once per run.
-      const cursed = Object.keys(run.hero.curses).length > 0;
-      const pool = EVENTS.filter(e => !OWN_PATH_EVENTS.includes(e.id) && (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || cursed) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e));
+      const pool = EVENTS.filter(e => !OWN_PATH_EVENTS.includes(e.id) && eventOpen(run, e));
       const ev = pickW(run.rng, Object.fromEntries(pool.map(e => [e.id, e.weight ?? 1])) as Record<string, number>);
-      const evDef = pool.find(e => e.id === ev)!;
-      if (evDef.unique) run.seenBosses.add(`e:${evDef.id}`);
-      // The Wandering Blacksmith: two free upgrades at his anvil. The Alchemist: a shop of combat tonics.
-      if (["blacksmith", "alchemist", "holy_tribute"].includes(evDef.id)) markEncounter(run, `ev:${evDef.id}`);
-      if (evDef.id === "blacksmith") { run.scene = { t: "smith", uses: 2 }; return; }
-      if (evDef.id === "alchemist") { run.scene = { t: "alchemist", stock: alchemistStock(run) }; return; }
-      if (evDef.id === "crossroads") { run.scene = { t: "event", ev: crossroadsEvent(CROSSROADS_GUISES[Math.floor(run.rng() * CROSSROADS_GUISES.length)]), result: null, found: [] }; return; }
-      if (evDef.id === "holy_tribute") { run.scene = { t: "tribute", paid: 0 }; return; }
-      run.scene = { t: "event", ev: evDef, result: null, found: [] };
-      return;
+      return startEvent(run, pool.find(e => e.id === ev)!);
     }
+    case "alchemist": case "blacksmith": case "gambling_den": case "fortune_teller": case "mirror_pool": case "card_sharp":
+      return startEvent(run, EVENTS.find(e => e.id === EVENT_ROOMS[room])!);
     case "sanguine": run.scene = { t: "event", ev: EVENTS.find(e => e.id === "sanguine_altar")!, result: null, found: [] }; return;
     case "cleansing": {
       // The Well (rarer) or a Holy Tribute.
