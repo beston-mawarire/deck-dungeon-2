@@ -232,11 +232,12 @@ const rel = (forClass: OriginId | undefined, rarity: "uncommon" | "rare" | "lege
 export const MANA_POTION_SLOTS: Record<string, number> = { mr_potion_sling: 1, mr_alchemist_bandolier: 2, mr_bottomless_rack: 3 };
 
 export const CLASS_RELICS: HookDef[] = [
-  // Free of your turn: you use the ability and attack too.
+  // Tempo: War Cry doesn't need the enemy, so it can skip your turn; the others pay off when the enemy acts.
   rel("warrior", "rare", { id: "mr_unbroken_horn", name: "Unbroken Horn", tags: ["Tempo", "Strike"], text: "War Cry doesn't take your turn: you attack too", hooks: flag("free_warcry", 1) }),
-  rel("rogue", "rare", { id: "mr_quickstep_anklet", name: "Quickstep Anklet", tags: ["Tempo"], text: "Counter doesn't take your turn: you attack too", hooks: flag("free_counter", 1) }),
-  rel("mage", "rare", { id: "mr_spellweaver_loop", name: "Spellweaver's Loop", tags: ["Tempo", "Arcane"], text: "Barrier doesn't take your turn: you attack too", hooks: flag("free_barrier", 1) }),
-  rel("cleric", "rare", { id: "mr_pilgrim_stride", name: "Pilgrim's Stride", tags: ["Tempo", "Holy"], text: "Penance doesn't take your turn: you attack too", hooks: flag("free_penance", 1) }),
+  rel("rogue", "rare", { id: "mr_quickstep_anklet", name: "Quickstep Anklet", tags: ["Tempo"], text: "A Counter that lands is followed by a normal attack", hooks: flag("counterFollow", 1) }),
+  rel("mage", "rare", { id: "mr_spellweaver_loop", name: "Spellweaver's Loop", tags: ["Tempo", "Arcane"], text: "When your Barrier fully blocks a hit, you strike back with a normal attack", hooks: flag("barrierRiposte", 1) }),
+  rel("cleric", "rare", { id: "mr_pilgrim_stride", name: "Pilgrim's Stride", tags: ["Tempo", "Holy"], text: "If you suffer anything while kneeling in Penance, gain 1 Haste (+1) for your next turn",
+    hooks: { onRoundEnd: (b, f, s) => { if (f === b.player && f.flags["penanceRound"] === b.round && (f.flags["penanceStore"] ?? 0) > 0) applyStatus(b, f, f, "haste", s); } } }),
   // Counts as a Guard.
   rel("warrior", "rare", { id: "mr_shieldwall_banner", name: "Shieldwall Banner", tags: ["Guard"], text: "War Cry counts as Guarding as well", hooks: flag("guard_warcry", 1) }),
   rel("rogue", "rare", { id: "mr_feinting_pin", name: "Feinting Pin", tags: ["Guard", "Tempo"], text: "Counter counts as Guarding as well", hooks: flag("guard_counter", 1) }),

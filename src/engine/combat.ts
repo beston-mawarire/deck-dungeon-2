@@ -269,6 +269,11 @@ function counterStrike(b: Battle, d: Fighter, a: Fighter) {
   resolveFace(b, d, a, critFace, false);
   if (a.hp < hpBefore) { fx(b, { who: a.id, kind: "reaction", text: `Counter Crit! −${hpBefore - Math.max(0, a.hp)}`, src: d.id }); eachHook(d, "onSkill", (h, s) => h(b, d, "counter_hit", s)); }
   d.flags["counterHit"] = 0;
+  // Quickstep Anklet: a Counter that lands is followed by a normal attack.
+  if (d.flags["counterFollow"] && a.hp < hpBefore && a.hp > 0 && d.hp > 0) {
+    log(b, `${d.name} follows the Counter with an attack.`);
+    attack(b, d, a);
+  }
 }
 
 /** Ambush: before you can act, the foe strikes (the game plays this the moment the fight opens). */
@@ -525,6 +530,13 @@ function strike(b: Battle, ctx: AttackCtx) {
     log(b, `${d.name}'s Elemental Barrier ${tier >= 2 ? "blocks the whole hit" : tier >= 1 ? "takes half of it" : "can't stop the hit, but lashes back"}.`);
     if (d.barrierElement && a.hp > 0) for (const el of d.barrierElements ?? [d.barrierElement]) if (a.hp > 0) applyStatus(b, d, a, el, tier >= 2 ? 4 : 2);
     eachHook(d, "onSkill", (h, st2) => h(b, d, tier >= 2 ? "barrier_block" : "barrier_hit", st2));
+    // Spellweaver's Loop: a full block strikes back with your main hand (once a round).
+    if (tier >= 2 && d.flags["barrierRiposte"] && d.flags["ripostedAt"] !== b.round && a.hp > 0 && d.hp > 0) {
+      d.flags["ripostedAt"] = b.round;
+      log(b, `${d.name}'s Barrier flares and they strike back.`);
+      fx(b, { who: d.id, kind: "text", text: "Riposte!", icon: "🔮" });
+      attack(b, d, a);
+    }
   }
   const armor = ctx.ignoreArmor ? 0 : armorOf(d);
   // Armor stops a percentage of each hit (see armorReduction); Guarding doubles Armor and lifts the cap.

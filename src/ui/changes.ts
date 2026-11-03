@@ -12,7 +12,7 @@ export const PATCH_NOTES: PatchNote[] = [
         ["Mana Potions", "now refill your Mana. You carry up to 2, and every shop stocks them (they cost more than Healing Potions)."]] },
       { icon: "⚔️", title: "Class gear", items: [
         ["80 new items", "for each class ability, 5 weapons, 5 off-hands, 5 armours and 5 trinkets, Uncommon to Epic, found only by that class."],
-        ["New relics", "abilities that don't take your turn, abilities that count as a Guard, more Max Mana, and room for more Mana Potions."]] }
+        ["New relics", "a War Cry that doesn't take your turn, pay-offs when a Counter, Barrier or Penance triggers, abilities that count as a Guard, more Max Mana, and room for more Mana Potions."]] }
     ],
     outro: "Spend it well."
   },

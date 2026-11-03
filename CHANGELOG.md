@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.60.1
+- Counter, Barrier and Penance need the enemy to act, so their "doesn't take your turn" relics are gone. In their place: Quickstep Anklet (a Counter that lands is followed by a normal attack), Spellweaver's Loop (a full Barrier block strikes back with a normal attack) and Pilgrim's Stride (suffer anything while kneeling in Penance and you get Haste for your next turn). War Cry keeps its Unbroken Horn.
+
 ## 1.60.0
 - Mana: class abilities (War Cry, Counter, Barrier, Penance) cost 1 Mana. Every class has 3, refilled at the start of each fight, shown as pips under your HP bar. Out of Mana, the ability button is greyed out.
 - War Cry is no longer once a fight; each cry after the first in a fight gives half the Might.

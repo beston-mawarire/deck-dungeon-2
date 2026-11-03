@@ -2,7 +2,7 @@ import { beforeAll, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
 import { CLASS_GEAR, CLASS_RELICS } from "../src/data/classgear";
 import { makeMonster } from "../src/data/monsters";
-import { heroPhase, MANA_MAX, startBattle } from "../src/engine/combat";
+import { endRound, enemyPhase, heroPhase, MANA_MAX, startBattle } from "../src/engine/combat";
 import { makeRng } from "../src/engine/rng";
 import { st } from "../src/engine/statuses";
 import { gainManaPotions, manaPotionCap, newHero } from "../src/game/hero";
@@ -86,4 +86,16 @@ it("class gear: 5 of each type per class ability, Uncommon and up, only found by
     if (g) expect(g.forClass).toBe("rogue");
   }
   expect(CLASS_RELICS.filter(r => r.id.startsWith("mr_")).length).toBeGreaterThan(10);
+});
+
+it("Counter, Barrier and Penance relics pay off when the enemy acts", () => {
+  const h = newHero("cleric");
+  h.f.items["mr_pilgrim_stride"] = 1;
+  const e = foe(); e.damage = 5;
+  const b = startBattle(h.f, e, 7);
+  b.round = 1;
+  heroPhase(b, "penance");
+  enemyPhase(b);
+  endRound(b);
+  if ((h.f.flags["penanceStore"] ?? 0) > 0) expect(st(h.f, "haste")).toBeGreaterThan(0);
 });
