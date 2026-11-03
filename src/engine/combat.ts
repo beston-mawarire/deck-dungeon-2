@@ -536,10 +536,13 @@ function afterStrike(b: Battle, ctx: AttackCtx) {
   const { attacker: a, defender: d } = ctx;
   if (!ctx.noDamage) {
     eachHook(d, "whenHit", (h, s) => h(b, ctx, s));
-    const spikes = st(d, "spikes");
+    // Spikes gear and relics make them hit harder (spikeAmp, % for the fight).
+    const spikes = Math.round(st(d, "spikes") * (1 + (d.flags["spikeAmp"] ?? 0) / 100));
     if (spikes > 0 && a.hp > 0) {
       const lost = loseHp(b, a, spikes);
       log(b, `🌵 Spikes deal ${lost} back to ${a.name}.`);
+      // The Mantle of the Briar King: every time Spikes strike back, they grow.
+      if (lost > 0 && stacksOf(d, "lx_briar_king") > 0) d.statuses.spikes = st(d, "spikes") + 1;
       if (lost > 0 && stacksOf(d, "c_carapace") > 0) heal(b, d, lost, "Crimson Carapace");
     }
   }

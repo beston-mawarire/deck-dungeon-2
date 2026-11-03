@@ -5,6 +5,14 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.47.0
+- 🧭 Four new ways to build, none of them about stacking elemental statuses. Each has gear across rarities, a Legendary, relics and talents, all at the usual odds:
+  - 🌵 Briar: Spikes that punish whatever hits you. Briar Vest, Thorned Buckler, Bramble Heart, Thornlash, Ironbark Plate, the Mantle of the Briar King; Thorn Ring and Porcupine Quill; the Barbed talent.
+  - 🪙 Mercenary: the Gold you carry is your strength. Coin Purse, Moneylender's Cudgel, Golden Aegis, Mercenary's Brigandine, Midas Blade, the Dragon's Tithe; Tax Collector's Seal and War Chest; the Mercenary talent.
+  - 🪓 Executioner: finish what's wounded. Hangman's Noose, Headsman's Axe, Reaper's Shroud, Guillotine Blade, the Final Word; Trophy Rack; the Coup de Grâce talent.
+  - 🎲 Gambler: bend your dice. Bone Charm, Weighted Dice Pouch, Gambler's Saber, Lucky Jacket, Snake-Eye Talisman, Fortune's Favour; Lucky Seven; the Loaded Dice talent.
+- 🎭 The Changeling is rarer, and sometimes it ambushes you: it strikes first.
+
 ## 1.46.0
 - 🎭 New Elite: the Changeling Doppelgänger, from floor 5. It's you, exactly as you walk in: your HP, stats, statuses, gear, passives, talents and relics (and your off-hand). Beat it and it always leaves a Legendary, plus Gold and a Scroll of Revelation. New achievement: Know Thyself.
 - Quiet stretches have three encounters of their own: the Sacred Spring, a Fallen Adventurer and the Starving Pilgrim (out of Something Strange).

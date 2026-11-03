@@ -4,7 +4,7 @@ import { makeMonster, makeThief } from "../src/data/monsters";
 import { makeBoss } from "../src/data/bosses";
 import { EPIC_CRIMSON } from "../src/data/abyss";
 import { EVENTS } from "../src/data/events";
-import { beginRound, blessingMult, endRound, enemyPhase, heroPhase, isUnholy, playRound, resolveFace, startBattle } from "../src/engine/combat";
+import { rollFor, beginRound, blessingMult, endRound, enemyPhase, heroPhase, isUnholy, playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
 import { applyStatus, endOfRound, heal, st } from "../src/engine/statuses";
@@ -1946,5 +1946,39 @@ describe("the Changeling Doppelgänger", () => {
     settleCombat(run);
     const loot = run.scene as { t: string; items?: { rarity: string }[] };
     expect(loot.items?.some(i => i.rarity === "legendary")).toBe(true);
+  });
+});
+
+describe("new build paths", () => {
+  it("Briar, Mercenary, Executioner and Gambler pieces work", () => {
+    // Briar: Bramble Heart makes Spikes hit 50% harder.
+    const h = newHero("warrior");
+    equipItem(h, { uid: 995, base: "pb_bramble_heart", rarity: "rare", level: 1, bonuses: {}, revealed: true });
+    const b = startBattle(h.f, dummy(), 9); h.f.statuses = { spikes: 4 }; h.f.dodge = 0; h.f.armor = 0;
+    const e0 = b.enemy.hp; b.enemy.damage = 1;
+    resolveFace(b, b.enemy, h.f, 3, false);
+    expect(e0 - b.enemy.hp).toBe(6);
+    // Mercenary: the Cudgel hits harder with a heavy purse.
+    const m = newHero("rogue");
+    equipItem(m, { uid: 996, base: "pm_moneylender_cudgel", rarity: "uncommon", level: 1, bonuses: {}, revealed: true });
+    m.f.critChance = 0; m.f.gold = 0;
+    const b1 = startBattle(m.f, dummy(), 10); m.f.statuses = {}; resolveFace(b1, m.f, b1.enemy, 3, false); const poor = 200 - b1.enemy.hp;
+    m.f.gold = 300;
+    const b2 = startBattle(m.f, dummy(), 10); m.f.statuses = {}; resolveFace(b2, m.f, b2.enemy, 3, false); const rich = 200 - b2.enemy.hp;
+    expect(rich - poor).toBe(5);
+    // Executioner: the Guillotine finishes a badly wounded Elite, but not a boss.
+    const x = newHero("warrior");
+    equipItem(x, { uid: 997, base: "pe_guillotine", rarity: "epic", level: 1, bonuses: {}, revealed: true });
+    const el = dummy(1000); el.elite = true; el.armor = 0;
+    const b3 = startBattle(x.f, el, 11); x.f.statuses = {}; el.hp = 100; resolveFace(b3, x.f, el, 3, false);
+    expect(el.hp).toBe(0);
+    const bo = dummy(1000); bo.boss = true; bo.armor = 0;
+    const b4 = startBattle(x.f, bo, 12); x.f.statuses = {}; bo.hp = 100; resolveFace(b4, x.f, bo, 3, false);
+    expect(bo.hp).toBeGreaterThan(0);
+    // Gambler: the Bone Charm turns 1s into 2s.
+    const g = newHero("rogue");
+    equipItem(g, { uid: 998, base: "pg_bone_charm", rarity: "common", level: 1, bonuses: {}, revealed: true });
+    const b5 = startBattle(g.f, dummy(), 13); g.f.statuses = {};
+    for (let i = 0; i < 300; i++) expect(rollFor(b5, g.f, 6)).toBeGreaterThanOrEqual(2);
   });
 });

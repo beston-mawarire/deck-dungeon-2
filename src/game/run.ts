@@ -308,6 +308,7 @@ export const EVENT_ROOMS: Partial<Record<RoomType, string>> = { alchemist: "alch
 const QUIET_ROOMS: RoomType[] = ["sacred_spring", "fallen_adventurer", "starving_pilgrim"];
 /** The Changeling Doppelgänger: an Elite copy of you, from floor 5. */
 export const DOPPEL_FLOOR = 5;
+export const DOPPEL_AMBUSH = 0.35;
 export const OWN_PATH_EVENTS = [...CLEANSING_EVENTS, "sanguine_altar", ...Object.values(EVENT_ROOMS) as string[]];
 /** Can this event happen right now (once-a-run ones not yet met, enough Gold, deep enough)? */
 const eventOpen = (run: Run, e: GameEvent) => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || Object.keys(run.hero.curses).length > 0) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e);
@@ -329,7 +330,7 @@ export function genChoices(run: Run): RoomType[] {
   const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 6, vault: 3, altar: 3, shrine: 3, champion: 3, sanguine: 2,
     alchemist: 0.8, blacksmith: 1, gambling_den: 1.4, fortune_teller: 1.4, mirror_pool: 0.8, card_sharp: 1.4,
     sacred_spring: 3, fallen_adventurer: 3, starving_pilgrim: 3 };
-  if (run.floor >= DOPPEL_FLOOR) w.doppelganger = 1.5;
+  if (run.floor >= DOPPEL_FLOOR) w.doppelganger = 0.6;
   // Event rooms only show up when their encounter can happen.
   for (const [room, id] of Object.entries(EVENT_ROOMS) as [RoomType, string][]) { const e = EVENTS.find(x => x.id === id); if (!e || !eventOpen(run, e)) w[room] = 0; }
   // After the fifth boss (Endless), Crimson Elites start to appear; they drop the keys to Crimson Vaults.
@@ -550,6 +551,8 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   // The Abyss holds fewer Unholy things (Undead, vampires, cursers): most of them are turned away for something else.
   if (run.mode === "abyss" && !then && !crimsonBoss && rank !== "boss" && !thief)
     for (let k = 0; k < 3 && isUnholy(enemy) && run.rng() < 0.65; k++) enemy = makeMonster(run.rng, F, rank, defName);
+  // The Changeling sometimes strikes from your own shadow before you can act.
+  if (then === "doppel" && run.rng() < DOPPEL_AMBUSH) enemy.items["m_ambush"] = 1;
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;
