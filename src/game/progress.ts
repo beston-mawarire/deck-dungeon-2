@@ -18,6 +18,8 @@ export const KIT_UNCOMMON_LEVEL = 6;
 export const KIT_RARE_LEVEL = 10;
 /** What each class leans towards when its starting-kit choices are drawn up. */
 const CLASS_TAGS: Record<OriginId, string[]> = { warrior: ["Guard", "Strike", "Thorns"], rogue: ["Crit", "Tempo", "Bleed", "Poison", "Kill"], mage: ["Arcane", "Burn", "Frost", "Storm", "Hex"], cleric: ["Holy", "Blood", "Guard"] };
+/** Hand-picked starting-kit extras: the Warrior can start with a one-handed axe or a short sword in the off-hand (clumsy there). */
+const KIT_EXTRAS: Partial<Record<OriginId, Partial<Record<KitSlot, Partial<Record<Rarity, string[]>>>>>> = { warrior: { off: { common: ["w_hatchet", "w_shortsword"] } } };
 /** A stable shuffle key, so each class sees its own short list (the same every time). */
 const keyOf = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 
@@ -52,13 +54,16 @@ export function kitOptions(slot: KitSlot, level: number, locked: Set<string> = n
     pool = allowed.flatMap(r => {
       const tier = all.filter(b => b.onlyRarity === r);
       const plain = tier.filter(b => b.id.startsWith("pl_")).sort(order).slice(0, 1);
-      const own = tier.filter(b => !b.id.startsWith("pl_") && fits(b)).sort((a, b) => (fav.has(b.id) ? 1 : 0) - (fav.has(a.id) ? 1 : 0) || order(a, b)).slice(0, 3);
+      let own = tier.filter(b => !b.id.startsWith("pl_") && fits(b)).sort((a, b) => (fav.has(b.id) ? 1 : 0) - (fav.has(a.id) ? 1 : 0) || order(a, b)).slice(0, 3);
+      // A few hand-picked extras (ordinary weapons that are clumsy in the off-hand) take the place of some of the class's usual picks.
+      const extra = (KIT_EXTRAS[origin]?.[slot]?.[r] ?? []).map(id => GEAR_BASES.find(b => b.id === id)).filter((b): b is GearBase => !!b && !locked.has(b.id));
+      if (extra.length) own = [...extra, ...own.slice(0, Math.max(0, own.length - extra.length))];
       const wild = tier.filter(b => !b.id.startsWith("pl_") && !fits(b)).sort(order).slice(0, 1);
       return [...plain, ...own, ...wild];
     });
   }
   const R: Record<string, number> = { common: 0, uncommon: 1, rare: 2 };
-  return pool.map(b => ({ id: b.id, name: b.name, rarity: b.onlyRarity!, text: b.text }))
+  return pool.map(b => ({ id: b.id, name: b.name, rarity: b.onlyRarity ?? "common", text: b.text }))
     .sort((a, b) => (a.rarity === b.rarity ? a.name.localeCompare(b.name) : R[a.rarity] - R[b.rarity]));
 }
 
@@ -91,6 +96,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "campaign_win", name: "Gatecloser", text: "Win the Campaign", renown: 30, title: "Gatecloser", check: r => won(r) && r.mode === "campaign" },
   { id: "teetotal", name: "Teetotal", text: "Win the Campaign without drinking a single potion", renown: 40, title: "Teetotaller", check: r => won(r) && r.mode === "campaign" && P(r, "potsDrunk") === 0 },
   { id: "doppel", name: "Know Thyself", text: "Beat the Changeling Doppelgänger", renown: 25, title: "the Unmirrored", check: r => P(r, "ach_doppel") > 0 },
+  { id: "cursed5", name: "Walking Curse", text: "Carry 5 or more curses at once", renown: 25, title: "the Accursed", check: r => P(r, "ach_curses5") > 0 },
   // Heat
   { id: "heat_first", name: "Feel the Heat", text: "Win the Campaign at Heat 1 or higher", renown: 20, title: "Kindled", group: "Heat", check: r => campaignWon(r) && (r.heat ?? 0) >= 1 },
   { id: "hot_win", name: "Trial by Fire", text: "Win the Campaign at Heat 3 or higher", renown: 50, title: "Firewalker", group: "Heat", check: r => won(r) && r.mode === "campaign" && (r.heat ?? 0) >= 3 },

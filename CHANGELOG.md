@@ -5,6 +5,14 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.57.0
+- Elites and Champions drop better loot: Rare, Epic and Legendary finds are a little more likely from both.
+- The Sanguine Altar, the Blood Fountain and other HP-costing choices show exactly how much HP they'll take (worked out from your Max HP), and tell you plainly when you don't have enough. The Blood Altar shows how much Max HP it will take.
+- A path to a cleansing is a little rarer after you pick up a curse.
+- New achievement: Walking Curse (carry 5 or more curses at once).
+- A found trinket gets an Equip button for each trinket slot (and says which are empty).
+- The Warrior's off-hand starting-kit choices include a Hatchet and a Shortsword (clumsy in the off-hand) in place of two of the shields.
+
 ## 1.56.0
 - 🎯 Foe weaknesses: a rare few foes have a weak spot, shown in their tags. Brittle-boned (blunt weapons: hammers, maces, clubs, flails, staves), Soft-hided (bladed weapons: swords, axes, daggers, spears), Ungainly (two-handers), Spell-touched (spells), Thin-blooded (Bleed) and Fragile (Fracture shatters, Lacerate and Spikes). Each favours a different kind of build, and bosses have them a little more often.
 - ✝️ Holy weapons do a little less extra damage to Unholy foes (+15%, was +25%), and Unholy foes turn up less often in the Campaign.

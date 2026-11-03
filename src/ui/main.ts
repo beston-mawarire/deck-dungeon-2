@@ -631,9 +631,13 @@ const compareBtns = (it: GearItem): string => {
 };
 const lootBtns = (it: GearItem, pick: boolean) => {
   const hands = handSlots(it);
+  // Trinkets: a button for each trinket slot (empty ones say so).
+  const tslots = run ? slotsFor(it, run.hero).filter(sl => sl.startsWith("trinket")) : [];
   const equip = hands
     ? hands.map(sl => `<button class="small take-equip" data-take="${it.uid}" data-how="equip" data-slot="${sl}">✔ Equip ${HAND_LABEL[sl]}</button>`).join("")
-    : `<button class="small take-equip" data-take="${it.uid}" data-how="equip">✔ Equip</button>`;
+    : tslots.length > 1
+      ? tslots.map(sl => `<button class="small take-equip" data-take="${it.uid}" data-how="equip" data-slot="${sl}">✔ Equip ${SLOT_LABEL[sl].replace(" ★", "")}${run!.hero.equip[sl] ? "" : " (empty)"}</button>`).join("")
+      : `<button class="small take-equip" data-take="${it.uid}" data-how="equip">✔ Equip</button>`;
   return `${equip}${compareBtns(it)}<button class="small take-pack" data-take="${it.uid}" data-how="pack">Add to backpack</button><button class="small take-scrap" data-scrapfound="${it.uid}">Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`;
 };
 const pickButtons = (it: GearItem) => lootBtns(it, true);
@@ -852,7 +856,7 @@ function eventScene(r: Run) {
   return `<h2>${s.ev.icon} ${esc(s.ev.title)}</h2><div class="panel"><p>${esc(s.ev.text)}</p>${s.found.length ? `<p class="sub">Waiting for you when you leave: <b>${s.found.length}</b> item${s.found.length > 1 ? "s" : ""}.</p>` : ""}</div>
     ${!s.result && s.note ? `<div class="toast">${esc(s.note)}</div>` : ""}
     ${s.result ? `<div class="toast">${esc(s.result)}</div><div class="row"><button class="primary" data-leave>Continue</button></div>`
-      : `<div class="cards" style="margin-top:10px">${s.ev.options.map((o, i) => `<button class="room" data-event="${i}" ${eventOptionAvailable(r, i) ? "" : "disabled"}><b>${esc(o.label)}</b>${o.hint ? `<span class="sub">${esc(o.hint)}</span>` : ""}</button>`).join("")}</div>`}`;
+      : `<div class="cards" style="margin-top:10px">${s.ev.options.map((o, i) => { const ok = eventOptionAvailable(r, i); const cost = o.hpCost?.(r.hero.f.maxHp); return `<button class="room" data-event="${i}" ${ok ? "" : "disabled"}><b>${esc(o.label)}</b>${o.hint ? `<span class="sub">${esc(o.hint)}</span>` : ""}${cost !== undefined ? `<span class="hp-cost ${ok ? "" : "short"}">🩸 Costs ${cost} HP${ok ? ` · you have ${r.hero.f.hp}` : ` · not enough HP: you have ${r.hero.f.hp}, and need more than ${cost}`}</span>` : ""}</button>`; }).join("")}</div>`}`;
 }
 
 function alchemistScene(r: Run) {
@@ -984,7 +988,8 @@ function confirmScene(r: Run) {
     return `<h2>${info.icon} ${info.name}</h2><div class="panel crimson-foe"><p>${esc(info.text)}</p><p class="sub">Crimson bosses are far harder than a floor boss. Win and you choose between a Crimson item and two boss finds. Lose and <b>your run is over</b>. You have ${r.hero.crimsonKeys} key${r.hero.crimsonKeys === 1 ? "" : "s"}.</p></div>
     <div class="row" style="margin-top:12px"><button class="primary crimson-btn" data-risk="yes">Turn the key</button><button data-risk="no">Not yet</button></div>`;
   }
-  return `<h2>${info.icon} ${info.name}</h2><div class="panel"><p>${esc(info.text)}</p><p class="sub">A Resplendent chest holds three face-down cards. Pick one; the rest are lost. Any of them could be Legendary.</p></div>
+  const altarCost = r.scene.room === "altar" ? Math.round(r.hero.f.maxHp * 0.25) : 0;
+  return `<h2>${info.icon} ${info.name}</h2><div class="panel"><p>${esc(info.text)}</p>${altarCost ? `<p class="hp-cost">🩸 It will take ${altarCost} of your ${r.hero.f.maxHp} Max HP (for the rest of the run).</p>` : ""}<p class="sub">A Resplendent chest holds three face-down cards. Pick one; the rest are lost. Any of them could be Legendary.</p></div>
   <div class="row" style="margin-top:12px"><button class="primary" data-risk="yes">Accept the risk</button><button data-risk="no">Walk away</button></div>`;
 }
 

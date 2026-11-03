@@ -1266,3 +1266,6 @@ body[data-theme] .bag-overlay .toast:not(.err) b { color: inherit; }
 .hud-split { justify-content: space-between; flex-wrap: nowrap; margin-top: 6px; }
 .hud-play, .hud-sys { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .hud-sys { margin-left: auto; flex-wrap: nowrap; }
+.hp-cost { display: block; margin-top: 4px; font-size: .85rem; font-weight: 700; color: #ff9a8a; }
+.hp-cost.short { color: #ff5a6a; }
+button:disabled .hp-cost.short { opacity: 1; }

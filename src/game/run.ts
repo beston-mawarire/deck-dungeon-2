@@ -303,7 +303,7 @@ const pickW = <T extends string>(rng: () => number, w: Partial<Record<T, number>
 };
 
 /** How often a cursed hero is offered a Cleansing path at each choice. */
-export const CLEANSING_PATH_CHANCE = 0.3;
+export const CLEANSING_PATH_CHANCE = 0.22;
 /** The curse-lifting encounters: their own path on the map, never part of Something Strange. */
 export const CLEANSING_EVENTS = ["cleansing_well", "holy_tribute"];
 /** Encounters with their own path on the map, never part of Something Strange. */
@@ -2082,6 +2082,8 @@ export function trackMarks(run: Run) {
     if (it.gen.mods.some(m => m[2] >= 1)) p["ach_greater"] = 1;
     if (it.rarity === "crimson") p["ach_veined"] = 1;
   }
+  // Five or more curses carried at once.
+  if (Object.values(h.curses).reduce((n, x) => n + (x ?? 0), 0) >= 5) p["ach_curses5"] = 1;
   // Heatforged gear: found, worn (at the end, for Ashborn), and three worn at once.
   const heatWorn = EQUIP_SLOTS.filter(sl => h.equip[sl] && baseOf(h.equip[sl]!.base).heatMin).length;
   for (const it of [...EQUIP_SLOTS.map(sl => h.equip[sl]), ...h.backpack]) if (it && baseOf(it.base).heatMin) { p["ach_heatforged"] = 1; if (baseOf(it.base).legendary) p["ach_heatlegend"] = 1; }

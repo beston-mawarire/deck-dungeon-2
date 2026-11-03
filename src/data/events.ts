@@ -53,6 +53,8 @@ export interface EventOption {
   run: (c: EventCtx) => string;
   /** The event stays open after this option (e.g. tribute again); what it finds is handed over when you leave. */
   repeat?: boolean;
+  /** HP this option costs, worked out from your Max HP (shown on the option; you need more HP than this). */
+  hpCost?: (maxHp: number) => number;
 }
 
 export interface GameEvent {
@@ -79,7 +81,7 @@ const leave: EventOption = { label: "Walk away", run: () => "You leave it be." }
 const blood = (pct: number) => (c: EventCtx) => Math.ceil(c.maxHp() * pct);
 const bleedFor = (pct: number) => (c: EventCtx) => c.hp() > blood(pct)(c);
 const sanguine = (pct: number, label: string, hint: string, run: (c: EventCtx) => string): EventOption => ({
-  label: `${label} · ${Math.round(pct * 100)}% Max HP`, hint: hint || undefined, can: bleedFor(pct),
+  label: `${label} · ${Math.round(pct * 100)}% Max HP`, hint: hint || undefined, can: bleedFor(pct), hpCost: m => Math.ceil(m * pct),
   run: c => { const n = blood(pct)(c); c.hurt(n); return `🩸 You bleed ${n} into the basin. ${run(c)}`; }
 });
 
@@ -179,7 +181,7 @@ export const EVENTS: GameEvent[] = [
     options: [{ label: "Trade a random relic for two", can: c => c.relicCount() > 0, run: c => { const lost = c.loseRelic(); const a = c.gainRelic(); const b = c.gainRelic(); return `You gave up ${lost} and received ${a} and ${b}.`; } }, leave] },
   { id: "fountain", title: "Blood Fountain", icon: "⛲", text: "Red water bubbles from cracked stone. It whispers of treasure for those who bleed.",
     options: [
-      { label: "Bleed into it (lose 8 HP)", hint: "A Rare item", can: c => c.hp() > 8, run: c => { c.hurt(8); const it = c.gainItem("rare"); return `The fountain gives up a treasure (${it.rarity}).`; } },
+      { label: "Bleed into it (lose 8 HP)", hint: "A Rare item", can: c => c.hp() > 8, hpCost: () => 8, run: c => { c.hurt(8); const it = c.gainItem("rare"); return `The fountain gives up a treasure (${it.rarity}).`; } },
       { label: "Drink from it", hint: "Heals you a little, with a chance of a curse", run: c => { c.healPct(0.3); if (c.rng() < 0.4) return `Refreshing… and wrong. Cursed: ${c.addCurse()}.`; return "Refreshing. Nothing else happens."; } },
       leave] },
   { id: "dice", title: "The Gambling Den", icon: "🎲", text: "Bone dice clatter on a crate. \"Double or nothing, friend?\"",

@@ -13,8 +13,8 @@ export const TABLES = {
   wooden: { common: 70, uncommon: 30 },
   iron: { uncommon: 76, rare: 24 },
   drop: { common: 66.5, uncommon: 28, rare: 5.5 },
-  elite: { uncommon: 73, rare: 26.2, epic: 0.8 },
-  champion: { uncommon: 25, rare: 66.2, epic: 7.2, legendary: 1.6 },
+  elite: { uncommon: 66, rare: 31, epic: 2.6, legendary: 0.4 },
+  champion: { uncommon: 19, rare: 67, epic: 11, legendary: 3 },
   boss: { rare: 91.2, epic: 7.2, legendary: 1.6 },
   /** Crimson Elites: harder, better loot (and sometimes a Crimson Key). */
   crimson: { rare: 69, epic: 26, legendary: 5 },
