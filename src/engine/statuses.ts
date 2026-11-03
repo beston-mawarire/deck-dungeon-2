@@ -269,7 +269,9 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
     target.statuses[t.status] = 0;
     fx(b, { who: target.id, kind: "reaction", text: `${t.name}!`, status: t.status, src: source?.id });
     const per = t.per + (t.id === "shatter_fx" ? source?.flags["shatterPlus"] ?? 0 : 0);
-    const lost = statusLoss(b, target, Math.round(n * per * reactionMult(b, source)));
+    // Fragile foes: Fracture shatters (and Bled Out bursts, if Thin-blooded) hit them far harder.
+    const frail = (t.id === "shatter_fx" && (target.items["x_wk_fragile"] ?? 0) > 0) || (t.id === "bledout" && (target.items["x_wk_bleed"] ?? 0) > 0) ? 1.6 : 1;
+    const lost = statusLoss(b, target, Math.round(n * per * reactionMult(b, source) * frail));
     log(b, `${t.icon} ${t.name}! ${n} ${STATUS_INFO[t.status].name} bursts: ${target.name} takes ${lost}.`);
     const key = `rx:${target.id === "player" ? "you" : "foe"}:${t.id}`;
     b.player.persist[key] = (b.player.persist[key] ?? 0) + 1;
@@ -360,7 +362,7 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
     case "lacerate": {
       const n = st(t, "fracture"), bl = st(t, "bleed");
       t.statuses.fracture = 0;
-      const lost = statusLoss(b, t, Math.round((4 * Math.max(1, n) + 2 * bl) * m));
+      const lost = statusLoss(b, t, Math.round((4 * Math.max(1, n) + 2 * bl) * m * ((t.items["x_wk_fragile"] ?? 0) > 0 ? 1.6 : 1)));
       log(b, `🩸🪨 ${name}! The wound splits wide: ${t.name} takes ${lost}.`);
       break;
     }
@@ -429,7 +431,7 @@ export function endOfRound(b: Battle, f: Fighter) {
     let ticks = f.flags["rupture"] ? 2 : 1;
     if (st(f, "chill") > 0 && (opp.items["frostbite_needle"] ?? 0) > 0) ticks *= 2;
     for (let i = 0; i < ticks; i++) {
-      const lost = statusLoss(b, f, Math.round(bleed * dotMult(b, f)));
+      const lost = statusLoss(b, f, Math.round(bleed * dotMult(b, f) * ((f.items["x_wk_bleed"] ?? 0) > 0 ? 1.6 : 1)));
       log(b, `🩸 ${f.name} bleeds for ${lost}.`);
       if (f.flags["sepsis"]) f.statuses.poison = st(f, "poison") + 1;
     }

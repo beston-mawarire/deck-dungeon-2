@@ -28,6 +28,13 @@ const trait = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "trait", ...d });
 const onFoeHit = (status: Parameters<typeof applyStatus>[3], n: number) => ({ onHit: (b: Parameters<typeof applyStatus>[0], c: { attacker: Fighter; defender: Fighter; offhand?: boolean }) => { if (c.attacker !== b.player) applyStatus(b, c.attacker, c.defender, status, n); } });
 
 export const THEME_TRAITS: HookDef[] = [
+  // ---- Rare weaknesses: each one favours a different kind of build ----
+  trait({ id: "x_wk_blunt", name: "Brittle-boned", tags: ["Strike"], text: "Takes 35% more from blunt weapons (hammers, maces, clubs, flails, staves)", hooks: {} }),
+  trait({ id: "x_wk_sharp", name: "Soft-hided", tags: ["Strike"], text: "Takes 35% more from bladed weapons (swords, axes, daggers, spears)", hooks: {} }),
+  trait({ id: "x_wk_twohand", name: "Ungainly", tags: ["Strike"], text: "Takes 35% more from two-handed weapons", hooks: {} }),
+  trait({ id: "x_wk_spell", name: "Spell-touched", tags: ["Arcane"], text: "Takes 35% more from spells (spell faces on your die)", hooks: {} }),
+  trait({ id: "x_wk_bleed", name: "Thin-blooded", tags: ["Bleed"], text: "Bleed hurts it 60% more", hooks: {} }),
+  trait({ id: "x_wk_fragile", name: "Fragile", tags: ["Hex", "Thorns"], text: "Fracture shatters, Lacerate and Spikes hurt it 60% more", hooks: {} }),
   trait({ id: "x_th_cinder", name: "Cinder-touched", tags: ["Burn"], text: "Its hits apply 1 Burn", hooks: onFoeHit("burn", 1) }),
   trait({ id: "x_th_rime", name: "Rime-touched", tags: ["Frost"], text: "Its hits apply 1 Chill", hooks: onFoeHit("chill", 1) }),
   trait({ id: "x_th_doomed", name: "Doom-bearer", tags: ["Hex"], text: "Its hits apply 1 Doom", hooks: onFoeHit("doom", 1) }),

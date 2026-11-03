@@ -314,6 +314,9 @@ export const EVENT_ROOMS: Partial<Record<RoomType, string>> = { alchemist: "alch
 const QUIET_ROOMS: RoomType[] = ["sacred_spring", "fallen_adventurer", "starving_pilgrim"];
 /** The Changeling Doppelgänger: an Elite copy of you, from floor 5. */
 export const DOPPEL_FLOOR = 5;
+/** Rare foe weaknesses (each favours a different build), and how often a Campaign Unholy foe is swapped for another. */
+export const WEAKNESSES = ["x_wk_blunt", "x_wk_sharp", "x_wk_twohand", "x_wk_spell", "x_wk_bleed", "x_wk_fragile"];
+export const UNHOLY_REROLL = 0.4;
 export const DOPPEL_AMBUSH = 0.35;
 export const OWN_PATH_EVENTS = [...CLEANSING_EVENTS, "sanguine_altar", ...Object.values(EVENT_ROOMS) as string[]];
 /** Can this event happen right now (once-a-run ones not yet met, enough Gold, deep enough)? */
@@ -589,6 +592,14 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
     if (rank !== "boss" && !thief && run.rng() < theme.traitChance) enemy.items[theme.trait] = 1;
     theme.tweak?.(enemy);
   }
+  // Unholy foes are a rarer sight in the Campaign too: some of them are turned away for something else.
+  if (run.mode !== "abyss" && !then && rank !== "boss" && !thief && !crimsonBoss && isUnholy(enemy) && run.rng() < UNHOLY_REROLL) {
+    enemy = makeMonster(run.rng, F, rank, defName, theme);
+    if (theme) { if (run.rng() < theme.traitChance) enemy.items[theme.trait] = 1; theme.tweak?.(enemy); }
+  }
+  // A rare weakness: blunt, bladed or two-handed weapons, spells, Bleed, or Fracture and Spikes hit it harder.
+  if (!exact && !special && enemy.name !== "DEATH" && enemy.name !== "THE END" && run.rng() < (rank === "boss" ? 0.12 : rank === "normal" ? 0.07 : 0.1))
+    enemy.items[WEAKNESSES[Math.floor(run.rng() * WEAKNESSES.length)]] = 1;
   if (then === "mimic") {
     enemy.name = "Mimic";
     enemy.items["m_ambush"] = 1;

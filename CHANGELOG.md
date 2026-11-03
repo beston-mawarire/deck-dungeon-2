@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.56.0
+- 🎯 Foe weaknesses: a rare few foes have a weak spot, shown in their tags. Brittle-boned (blunt weapons: hammers, maces, clubs, flails, staves), Soft-hided (bladed weapons: swords, axes, daggers, spears), Ungainly (two-handers), Spell-touched (spells), Thin-blooded (Bleed) and Fragile (Fracture shatters, Lacerate and Spikes). Each favours a different kind of build, and bosses have them a little more often.
+- ✝️ Holy weapons do a little less extra damage to Unholy foes (+15%, was +25%), and Unholy foes turn up less often in the Campaign.
+
 ## 1.55.12
 - The top bar is a plain near-black band, edge to edge (no stone texture).
 - In a fight, the potion, mana, bounty and inventory buttons sit together on the left, and sound and menu on the far right.

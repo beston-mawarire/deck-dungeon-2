@@ -74,7 +74,19 @@ export const isUnholy = (f: Fighter) =>
 const smiteLimit = (a: Fighter) => (stacksOf(a, "l_dawnbringer") > 0 ? 99 : 1 + stacksOf(a, "r_halo_retribution"));
 const smitePct = (a: Fighter) => (stacksOf(a, "r_halo_retribution") > 0 ? 0.18 : 0.12);
 /** Holy weapons against Unholy foes (Undead, vampires, Crimson things, cursers): a real edge, not a wipe. */
-export const HOLY_VS_UNHOLY = 1.25;
+export const HOLY_VS_UNHOLY = 1.15;
+/** Rare foe weaknesses: some take more from blunt, sharp or two-handed weapons, or from spells. */
+export const WEAKNESS_MULT = 1.35;
+export function weaknessMult(a: Fighter, d: Fighter, ctx: AttackCtx): number {
+  if (a.id !== "player") return 1;
+  const kind = ctx.offhand ? a.arms?.off : a.arms?.main;
+  let m = 1;
+  if ((d.items["x_wk_blunt"] ?? 0) > 0 && kind === "blunt") m *= WEAKNESS_MULT;
+  if ((d.items["x_wk_sharp"] ?? 0) > 0 && kind === "sharp") m *= WEAKNESS_MULT;
+  if ((d.items["x_wk_twohand"] ?? 0) > 0 && !ctx.offhand && a.arms?.twoHanded) m *= WEAKNESS_MULT;
+  if ((d.items["x_wk_spell"] ?? 0) > 0 && (ctx.spec.magic || ctx.spec.run)) m *= WEAKNESS_MULT;
+  return m;
+}
 
 function trySmite(b: Battle, a: Fighter, d: Fighter) {
   if (!a.flags["smiteReady"] || d.hp <= 0 || !wieldsHoly(a) || (a.flags["smites"] ?? 0) >= smiteLimit(a)) return;
@@ -336,6 +348,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   let raw = (damageOf(a, ctx.offhand) + ctx.bonus) * ctx.mult;
   if (st(a, "weak") > 0) raw *= 0.75;
   if (wieldsHoly(a) && isUnholy(d)) raw *= HOLY_VS_UNHOLY;
+  raw *= weaknessMult(a, d, ctx);
   // Consecrated: Holy weapons hit 30% harder against a Consecrated foe, and 30% harder while you're Consecrated.
   if (wieldsHoly(a)) {
     if (st(d, "consecrated") > 0) raw *= 1.2;
@@ -554,7 +567,7 @@ function afterStrike(b: Battle, ctx: AttackCtx) {
   if (!ctx.noDamage) {
     eachHook(d, "whenHit", (h, s) => h(b, ctx, s));
     // Spikes gear and relics make them hit harder (spikeAmp, % for the fight).
-    const spikes = Math.round((st(d, "spikes") + (d.flags["bristle"] && st(d, "spikes") > 0 ? st(d, "might") : 0)) * (1 + (d.flags["spikeAmp"] ?? 0) / 100));
+    const spikes = Math.round((st(d, "spikes") + (d.flags["bristle"] && st(d, "spikes") > 0 ? st(d, "might") : 0)) * (1 + (d.flags["spikeAmp"] ?? 0) / 100) * ((a.items["x_wk_fragile"] ?? 0) > 0 ? 1.6 : 1));
     if (spikes > 0 && a.hp > 0) {
       const lost = loseHp(b, a, spikes);
       log(b, `🌵 Spikes deal ${lost} back to ${a.name}.`);

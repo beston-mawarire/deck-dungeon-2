@@ -67,6 +67,8 @@ export interface Fighter {
   items: Record<string, number>;
   gold: number;
   elite?: boolean;
+  /** What the hero is swinging (for foes weak to blunt, sharp or two-handed weapons). */
+  arms?: { main?: "blunt" | "sharp" | "other"; off?: "blunt" | "sharp" | "other"; twoHanded?: boolean };
   /** The Changeling Doppelgänger: a copy of the hero (its many effects are shown as one). */
   doppel?: boolean;
   champion?: boolean;

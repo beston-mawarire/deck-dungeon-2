@@ -149,7 +149,7 @@ export function itemLines(item: GearItem): string[] {
   const armor = (eb.armor ?? 0) + (eb.armor ? Math.floor((item.level - 1) / 2) : 0);
   if (armor) lines.push(`Armor ${armor}`);
   if (eb.faces) lines.push(`Faces: ${eb.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind[0].toUpperCase() + f.kind.slice(1)}`).join(" · ")}`);
-  if (eb.kind === "weapon" && eb.tags.includes("Holy")) lines.push("✝️ Holy: +50% to Undead, vampires, Crimson foes and anything that curses or Dooms. When your Ward stops an enemy's status, your next hit Smites (20% of its Max HP, once per fight).");
+  if (eb.kind === "weapon" && eb.tags.includes("Holy")) lines.push("✝️ Holy: +15% to Undead, vampires, Crimson foes and anything that curses or Dooms. When your Ward stops an enemy's status, your next hit Smites (20% of its Max HP, once per fight).");
   if (eb.faces?.some(f => f.cleanse)) lines.push("✨ Purify: strips every negative status from the enemy and deals 2× Damage for each one (ignores Armor). Nothing on them, no damage.");
   if (eb.shield) lines.push("🛡️ Shield: lets you Guard.");
   if (eb.heavy) lines.push("🔨 Heavy: every hit builds Stagger (2 on a Crit). Fill it and the enemy loses its next action and takes double from your next hit.");
@@ -265,6 +265,19 @@ export function recompute(h: Hero) {
   }
   if ((h.heat ?? 0) >= 3) add("heat_dim");
   f.items = items;
+  // What you're swinging: some foes are weak to blunt, bladed or two-handed weapons.
+  const kindOf = (it?: GearItem): "blunt" | "sharp" | "other" | undefined => {
+    if (!it) return undefined;
+    const bs = effectiveBase(it);
+    if (bs.kind !== "weapon") return undefined;
+    const n = `${bs.id} ${bs.name}`.toLowerCase();
+    if (bs.weaponType === "grenade") return "other";
+    if (bs.weaponType || /sword|blade|axe|dagger|knife|kris|dirk|rapier|katana|sabre|saber|cutlass|spear|pike|cleaver|sickle|scythe|stiletto|fang|shiv|hatchet|glaive|halberd|carver|misericorde|edge|claw|kunai|shuriken|whisper/.test(n)) return "sharp";
+    if (/hammer|mace|maul|club|flail|cudgel|sledge|morningstar|staff|stave|rod|cane|wand|scepter|sceptre|knuckle|fist|gauntlet|pick|mallet|crusher|breaker/.test(n)) return "blunt";
+    return "other";
+  };
+  const armMain = h.equip.main, armOff = h.equip.off;
+  f.arms = { main: kindOf(armMain), off: kindOf(armOff), twoHanded: !!armMain && !!effectiveBase(armMain).twoHanded };
   s.maxHp += 3 * (h.level - 1); // every level-up: +3 Max HP
   s.maxHp -= f.persist["maxHpLoss"] ?? 0;
   // A revealed trinket with its own faces (Dice of the Damned) replaces your main die.

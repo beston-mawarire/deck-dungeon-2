@@ -2057,3 +2057,19 @@ describe("floor themes", () => {
     expect(plate.armor).toBeGreaterThanOrEqual(8);
   });
 });
+
+describe("foe weaknesses", () => {
+  it("blunt, bladed and two-handed weapons, spells and Bleed each have foes that fear them", () => {
+    const h = newHero("warrior"); // Iron Sword: bladed
+    expect(h.f.arms?.main).toBe("sharp");
+    const hit = (trait?: string) => { const e = dummy(500); e.armor = 0; if (trait) e.items[trait] = 1; const b = startBattle(h.f, e, 41); h.f.statuses = {}; h.f.critChance = 0; resolveFace(b, h.f, e, 3, false); return 500 - e.hp; };
+    expect(hit("x_wk_sharp")).toBeGreaterThan(hit());
+    expect(hit("x_wk_blunt")).toBe(hit());
+    const m = newHero("cleric"); // Blessed Mace: blunt
+    expect(m.f.arms?.main).toBe("blunt");
+    const e = dummy(500); e.statuses = { bleed: 10 }; e.items["x_wk_bleed"] = 1; const b = startBattle(m.f, e, 42); e.statuses = { bleed: 9 };
+    endOfRound(b, e);
+    const e2 = dummy(500); const b2 = startBattle(m.f, e2, 42); e2.statuses = { bleed: 9 }; endOfRound(b2, e2);
+    expect(500 - e.hp).toBeGreaterThan(500 - e2.hp);
+  });
+});
