@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.52.4
+- Class Mastery shows as stars above each crest: one star for every Mastery level.
+
 ## 1.52.3
 - Menus sit lower on the screen, so the back and sound buttons are clear of phone notches and status bars.
 - The class menu's buttons and tabs match the title screen's stone slabs, iron studs included (on wider screens for the Info row).

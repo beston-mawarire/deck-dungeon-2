@@ -1122,3 +1122,5 @@ body.dg-menu .info-row button { padding-left: 16px; padding-right: 16px; font-si
 body.dg-menu .info-row button::before { left: 5px; } body.dg-menu .info-row button::after { right: 5px; }
 @media (max-width: 400px) { body.dg-menu .info-row button { font-size: .82rem; padding-left: 13px; padding-right: 13px; } }
 @media (max-width: 520px) { body.dg-menu .info-row button { padding-left: 6px; padding-right: 6px; font-size: .86rem; } body.dg-menu .info-row button::before, body.dg-menu .info-row button::after { display: none; } }
+.crest-stars { display: block; margin-bottom: 4px; font-size: 1.15rem; min-height: 1.15rem; letter-spacing: 1px; line-height: 1; color: #ffd257; text-shadow: 0 0 6px rgba(255,190,60,.7), 0 1px 1px #000; white-space: nowrap; }
+.crest-stars .dim { color: rgba(255,255,255,.16); text-shadow: none; }
