@@ -1154,3 +1154,25 @@ button.dg-gold, body[data-theme] button.dg-gold { position: relative; min-width:
 button.dg-gold::before, button.dg-gold::after { content: ""; position: absolute; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #9a9086, #3f3934 70%); box-shadow: 0 1px 1px #000; }
 button.dg-gold::before { left: 11px; } button.dg-gold::after { right: 11px; }
 button.dg-gold:hover { filter: brightness(1.1); } button.dg-gold:active { transform: translateY(1px); }
+/* Floor Cleared text. */
+.victory.cleared .cl-big { font-size: 1.15rem; }
+.victory.cleared .cl-stats { font-size: 1rem; }
+.victory.cleared .cl-boss { color: #ff7f6e; }
+.victory.cleared .cl-next { color: #ffd98a; }
+.victory.cleared .cl-check { font-size: 1rem; color: #e9e0d0; }
+/* A stone slab with two iron studs (title-screen style), for any button. */
+button.dg-stone, body[data-theme] button.dg-stone, body.dg-menu button.dg-stone:not(.crest) { position: relative; padding-left: 26px; padding-right: 26px;
+  background: linear-gradient(180deg, #4a423b 0%, #362f2a 55%, #2a2420 100%); border: 2px solid #1a1613; color: #eee4d4; font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -3px 0 rgba(0,0,0,.45), 0 3px 8px rgba(0,0,0,.6); text-shadow: 0 1px 2px #000; }
+button.dg-stone::before, button.dg-stone::after { content: ""; position: absolute; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #9a9086, #3f3934 70%); box-shadow: 0 1px 1px #000; }
+button.dg-stone::before { left: 9px; } button.dg-stone::after { right: 9px; }
+button.dg-stone:hover { filter: brightness(1.12); } button.dg-stone:active { transform: translateY(1px); }
+button.dg-stone.danger { background: linear-gradient(180deg, #8a2c34 0%, #66202a 55%, #4a161e 100%); border-color: #2a0c10; color: #fff; }
+/* The in-run menu: a slab of the dungeon wall. */
+.popup.dg-popup { background: repeating-linear-gradient(0deg, rgba(0,0,0,.35) 0 2px, transparent 2px 40px), repeating-linear-gradient(90deg, rgba(0,0,0,.28) 0 2px, transparent 2px 80px), linear-gradient(180deg, #2e2824, #1b1714);
+  border: 3px solid #3a332e; box-shadow: 0 0 0 2px #120f0d, 0 12px 40px rgba(0,0,0,.8), inset 0 0 40px rgba(0,0,0,.6); }
+.popup.dg-popup .sub { color: #c4b6a0; }
+.dg-carved { text-align: center; font-size: 1.4rem; letter-spacing: .12em; text-transform: uppercase; background: linear-gradient(180deg, #e9e2d6 0%, #b9ad9c 48%, #8a7e70 52%, #c9bdac 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 0 #000); }
+body .popup.dg-popup button:not(.dg-gold):not(.dg-stone) { background: linear-gradient(180deg, #4a423b 0%, #362f2a 55%, #2a2420 100%); border: 2px solid #1a1613; color: #eee4d4; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 5px rgba(0,0,0,.5); }
+.popup.dg-popup input[type=range] { accent-color: #d39a2c; }

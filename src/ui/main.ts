@@ -394,10 +394,10 @@ function titleScreen() {
   if (menuTab === "abyss") {
     const shards = meta.ruinShards ?? 0;
     const body = !abyssUnlocked(meta)
-      ? `<div class="panel abyss-locked"><p class="big">🔒 The Abyss is sealed.</p><p>Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find the way down.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p><button class="story-btn small" data-abyssintro>❔ How it works</button></div>`
+      ? `<div class="panel abyss-locked"><p class="big">🔒 The Abyss is sealed.</p><p>Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find the way down.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p><button class="dg-stone small" data-abyssintro>❔ How it works</button></div>`
       : `<div class="campaign-hero abyss-hero">
           <div class="ch-text"><b>🕳️ The Abyss</b><span>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. The richest loot comes from the deadliest. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.</span></div>
-          <div class="hero-btns"><button class="story-btn small" data-abyssintro>❔ How it works</button><button class="story-btn small" data-story="abyss">📖 Story</button></div>
+          <div class="hero-btns"><button class="dg-stone small" data-abyssintro>❔ How it works</button><button class="story-btn small" data-story="abyss">📖 Story</button></div>
         </div>
         <div class="abyss-stock">
           <div class="stile extra-tile shard-tile"><span>🪨</span><span><b>${shards}</b> Ruin Shard${shards === 1 ? "" : "s"}<span class="sub">From Campaign bosses, floor 20 and deeper.</span></span></div>
@@ -827,11 +827,11 @@ function clearedScene(r: Run) {
   const next = s.floor + 1;
   return `<div class="victory cleared">
     <div class="victory-title">${r.mode === "abyss" ? `DEPTH ${s.floor} CLEARED` : `FLOOR ${s.floor} CLEARED`}</div>
-    <p class="center">${esc(s.boss)} has fallen.</p>
-    <p class="center sub">${r.stats.kills} kills · level ${r.hero.level} · ${r.hero.f.hp}/${r.hero.f.maxHp} HP</p>
-    <p class="center" style="margin-top:10px">Below lies <b>${r.mode === "abyss" ? `Depth ${next} of the Abyss` : `Floor ${next} — ${(() => { const th = themeOf(r, next); return th ? `${th.icon} ${esc(th.name)}` : esc(floorName(next)); })()}`}</b>.</p>
+    <p class="center cl-big"><b class="cl-boss">${esc(s.boss)}</b> has fallen.</p>
+    <p class="center sub cl-stats">${r.stats.kills} kills · level ${r.hero.level} · ${r.hero.f.hp}/${r.hero.f.maxHp} HP</p>
+    <p class="center cl-big" style="margin-top:10px">Below lies <b class="cl-next">${r.mode === "abyss" ? `Depth ${next} of the Abyss` : `Floor ${next} — ${(() => { const th = themeOf(r, next); return th ? `${th.icon} ${esc(th.name)}` : esc(floorName(next)); })()}`}</b>.</p>
     <div class="row" style="justify-content:center;margin-top:14px"><button class="big dg-gold" data-descend>Descend to ${r.mode === "abyss" ? "depth" : "floor"} ${next} ↓</button></div>
-    <p class="center sub" style="margin-top:8px">Check your inventory 🎒 before you go</p>
+    <p class="center cl-check" style="margin-top:8px">Check your inventory 🎒 before you go</p>
   </div>`;
 }
 
@@ -1556,14 +1556,14 @@ function offlinePopup() {
 function runMenu(r: Run) {
   const atMap = r.scene.t === "map";
   const over = r.scene.t === "over";
-  return `<div class="overlay popup-wrap"><div class="popup">
-    <h2>☰ Menu</h2>
+  return `<div class="overlay popup-wrap"><div class="popup dg-popup">
+    <h2 class="dg-carved">☰ Menu</h2>
     <div class="col" style="gap:8px;display:flex;flex-direction:column">
-      <button class="primary big" data-closemenu>▶ Resume</button>
-      <button class="big" data-mainmenu>🏠 Main menu</button>
+      <button class="big dg-gold" data-closemenu>▶ Resume</button>
+      <button class="big dg-stone" data-mainmenu>🏠 Main menu</button>
       ${musicSliders("game")}
       <p class="sub center">${over ? "This run is over." : atMap ? "Your run is saved here; pick it up with Continue." : "Your run is saved at the last path choice; Continue picks it up from there."}</p>
-      ${over ? "" : `<button class="big ${endArmed ? "danger" : ""}" data-endrun>${endArmed ? "Tap again to end this run" : "🏳️ End run"}</button>
+      ${over ? "" : `<button class="big dg-stone ${endArmed ? "danger" : ""}" data-endrun>${endArmed ? "Tap again to end this run" : "🏳️ End run"}</button>
       <p class="sub center">Ending the run counts as a death: you keep the Renown you've earned, but the run is gone.</p>`}
     </div></div></div>`;
 }
