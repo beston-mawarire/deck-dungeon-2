@@ -1864,6 +1864,7 @@ function celebrateScene(r: Run) {
   else if (best) celebrate(best.rarity);
 }
 
+let lastSceneKey = "";
 function render() {
   app.classList.toggle("with-side", !!run);
   if (!run) fanfareHold = false;
@@ -1874,6 +1875,9 @@ function render() {
   // Shops, forges and encounters: the dungeon's stone buttons (in any floor theme).
   document.body.classList.toggle("dg-scene", !!run && ["shop", "forge", "jeweller", "event", "smith", "alchemist", "tribute", "sanctum", "bounty", "rest", "confirm"].includes(run.scene.t));
   render2();
+  // A new scene (a room, a chest, a fight's rewards) starts at the top of the page, not wherever the last one was scrolled to.
+  const key = run ? `${run.scene.t}:${run.floor}:${run.step}` : view;
+  if (key !== lastSceneKey) { lastSceneKey = key; window.scrollTo(0, 0); }
   // Fanfares that waited for a relic popup play now, one after another.
   setTimeout(releaseFanfares, 200);
   // The offline notice sits on top of everything, wherever you are.

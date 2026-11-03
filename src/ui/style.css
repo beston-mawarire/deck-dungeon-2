@@ -1251,3 +1251,5 @@ body[data-theme] .bag-overlay h2 { color: var(--muted); }
 body[data-theme] .bag-overlay button.primary { background: linear-gradient(180deg, #f3ca63 0%, #dba73a 100%); border-color: #f0c15a; color: #1a1408; }
 body[data-theme] .bag-overlay .toast:not(.err) { background: #3a2f22; border-color: var(--gold); }
 body[data-theme] .bag-overlay .toast:not(.err) b { color: inherit; }
+/* The top bar sits above the page's content and scrolls away with it (no fixed bar covering the content). */
+.hud, body[data-theme] .hud { position: relative; top: auto; backdrop-filter: none; }

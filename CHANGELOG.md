@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.55.9
+- The top bar in a run sits at the top of the page and scrolls with it, instead of staying fixed over the content.
+- Every new room, chest or reward screen opens at the top of the page, so the floor name and Fortune row are never hidden.
+
 ## 1.55.8
 - The Inventory keeps its own colours on every floor: no theme colour or fill on its items, sections, tabs or buttons.
 
