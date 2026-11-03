@@ -20,7 +20,7 @@ import { GEN_MODULE_MAP, modValue } from "../game/gen";
 import { ABYSS_MODS, ACHIEVEMENTS, applyKit, currentAbyssMod, HEAT_LEVELS, HEAT_MAX, HEAT_RENOWN, heatOf, KIT_RARE_LEVEL, KIT_COMMON_LEVEL, KIT_SLOTS, KIT_UNCOMMON_LEVEL, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX, MASTERY_XP } from "../game/progress";
 import { ABYSS_SHARD_COST, addGem, GEM_BONUS, removeGem, abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
 import {
-  advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
+  advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
@@ -710,7 +710,7 @@ function talentScene(r: Run) {
     const t = getItem(id);
     const rank = (r.hero.talents[id] ?? 0) + 1;
     return `<button class="room talent" data-talent="${id}"><b>${esc(t.name)} ${"I".repeat(rank)}</b><span class="tdesc">${t.tags.join(" · ")}${t.rarity === "rare" ? " · Rare" : ""}</span><p class="teffect">${esc(t.text)}</p></button>`;
-  }).join("")}</div>`;
+  }).join("")}</div><div class="row center"><button class="small" data-skiptalent>Take no talent</button></div>`;
 }
 
 let shopTab: "buy" | "sell" = "buy";
@@ -2399,6 +2399,7 @@ function bind() {
   on("[data-closehelp]", () => { helpOpen = false; });
   on("[data-closewin]", () => { winSeen = true; });
   on("[data-talent]", el => chooseTalent(r, el.dataset.talent!));
+  on("[data-skiptalent]", () => skipTalent(r));
   on("[data-buy]", el => say(buy(r, Number(el.dataset.buy))));
   on("[data-reroll]", () => say(rerollShop(r)));
   on("[data-sell]", el => {

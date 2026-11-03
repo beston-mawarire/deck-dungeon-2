@@ -211,6 +211,8 @@ export interface Hooks {
   onDodge?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
   /** A class ability was used: "warcry", "counter", "barrier", "penance", or what came of it ("counter_hit", "barrier_block", "penance_release"). */
   onSkill?: (b: Battle, self: Fighter, skill: string, stacks: number) => void;
+  /** You rolled a 1 on a six-sided die (Snake Eyes gear). */
+  onRollOne?: (b: Battle, self: Fighter, stacks: number) => void;
   /** Your main-hand hit Bashed (Stun and +50%). */
   onBash?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
   /** Change healing received (multiplier). */
@@ -248,6 +250,8 @@ export interface HookDef {
   affix?: string;
   /** Relics and talents: how often this one is drawn (1 = normal). Small, steady ones are common; strong ones rare. */
   weight?: number;
+  /** Legendaries that only enter the pool once something has happened this run (hidden). */
+  unlock?: "snake" | "talentless";
   /** Class gear and relics: only found by this class (they work with its ability). */
   forClass?: OriginId;
 }

@@ -199,6 +199,7 @@ export function recompute(h: Hero) {
   // Older saves held the Crucible as a relic: it's an artefact now.
   if (h.relics["transmuter"]) { delete h.relics["transmuter"]; h.crucible = true; }
   const f = h.f;
+  f.persist["talentCount"] = Object.values(h.talents).reduce((a, n) => a + (n ?? 0), 0);
   // Lost Titan's Grip or the War Harness (an event can take relics): put back what no longer fits.
   if (!hasGrip(h) && h.equip.off && effectiveBase(h.equip.off).twoHanded) { h.backpack.push(h.equip.off); delete h.equip.off; }
   if (!keepsOffHand(h) && h.equip.main && effectiveBase(h.equip.main).twoHanded && h.equip.off) { h.backpack.push(h.equip.off); delete h.equip.off; }

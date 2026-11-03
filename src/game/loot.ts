@@ -122,16 +122,22 @@ const ELEMENTAL_TAGS = ["Burn", "Frost", "Storm", "Poison"];
 const ELEMENTAL_WEIGHT = 0.5;
 const elementalW = (tags: readonly string[]) => (tags.some(t => ELEMENTAL_TAGS.includes(t)) ? ELEMENTAL_WEIGHT : 1);
 
-/** The first floors of a Campaign never give Legendaries (or Crimson): they come out Epic. Floor 2 lets a few through,
+/** On the first two floors of a Campaign most Legendaries (and Crimson) come out Epic, but a few get through.
  *  The Abyss is exempt: it's the endgame. */
 export function earlyCap(h: Hero, rarity: Rarity, rng: () => number, floor = 1): Rarity {
   if ((h.f.persist["abyssRun"] ?? 0) > 0) return rarity;
   const fl = h.f.persist["floor"] ?? floor;
   const top = rarity === "legendary" || rarity === "crimson" || rarity === "epic_crimson" || rarity === "legendary_crimson";
-  if (fl <= 1 && top) return "epic";
-  if (fl === 2 && top && rng() < 0.75) return "epic";
+  if (fl <= 2 && top && rng() < 0.75) return "epic";
   return rarity;
 }
+
+/** Snake Eyes Legendaries turn up once you've rolled this many 1s in a run; the Talentless once you've turned a talent down and hold none. */
+export const SNAKE_ONES = 20;
+/** Most Legendaries can turn up from floor 1 (only the strongest wait for floor 4 or deeper). */
+const legFloor = (l: GearBase) => { const m = l.legendary?.minFloor ?? 1; return m <= 3 ? 1 : m; };
+export const unlocked = (h: Hero, l: GearBase) =>
+  !l.unlock || (l.unlock === "snake" ? (h.f.persist["onesRolled"] ?? 0) >= SNAKE_ONES : (h.f.persist["talentsSkipped"] ?? 0) > 0 && Object.values(h.talents).every(n => !n));
 
 export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => number): GearItem {
   rarity = earlyCap(h, rarity, rng, floor);
@@ -151,7 +157,7 @@ export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => numb
     return { uid: h.nextUid++, base: base.id, rarity: "crimson", level: floor, bonuses: rollBonuses(h, "rare", base, floor, rng, 2), revealed: true, bash: rollBash("crimson", base, rng) };
   }
   if (rarity === "legendary") {
-    const pool = LEGENDARIES.filter(l => (l.legendary?.minFloor ?? 1) <= floor && (h.heat ?? 0) >= (l.heatMin ?? 0) && !LOCKED.has(l.id) && !DROPPED.has(l.id));
+    const pool = LEGENDARIES.filter(l => legFloor(l) <= floor && (h.heat ?? 0) >= (l.heatMin ?? 0) && unlocked(h, l) && !LOCKED.has(l.id) && !DROPPED.has(l.id));
     if (pool.length === 0) rarity = "epic";
     else {
       // A gentle lean toward your build; Legendaries should feel like a surprise, not a fixed path.

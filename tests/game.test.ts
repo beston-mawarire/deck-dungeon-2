@@ -219,16 +219,14 @@ describe("loot", () => {
     h.f.persist["floor"] = 3; // (floor 1 and 2 of a Campaign turn most Legendaries into Epics; this checks the per-item minimum floor)
     const rng = makeRng(9);
     resetDropped();
-    const early = LEGENDARIES.filter(l => (l.legendary?.minFloor ?? 1) <= 1).map(l => l.id);
+    const early = LEGENDARIES.filter(l => (l.legendary?.minFloor ?? 1) <= 3 && !l.unlock).map(l => l.id); // (minimum floors up to 3 open from floor 1)
     const seen = new Set<string>();
-    for (let i = 0; i < early.length; i++) {
+    for (let i = 0; i < 40; i++) {
       const it = rollItem(h, "legendary", 1, rng);
       expect(early).toContain(it.base);
       expect(seen.has(it.base)).toBe(false); // never the same Legendary twice in a run
       seen.add(it.base);
     }
-    // Once the floor-1 pool is used up, a Legendary roll falls back to Epic.
-    expect(rollItem(h, "legendary", 1, rng).rarity).toBe("epic");
   });
 });
 
@@ -1716,11 +1714,12 @@ describe("healing limits and new foes", () => {
 });
 
 describe("early loot", () => {
-  it("floor 1 of a Campaign never gives a Legendary or Crimson; the Abyss isn't capped", async () => {
+  it("floors 1 and 2 of a Campaign let only a few Legendaries through; the Abyss isn't capped", async () => {
     const { earlyCap } = await import("../src/game/loot");
     const h = newHero("rogue"); const rng = makeRng(3);
     h.f.persist["floor"] = 1;
-    for (let i = 0; i < 300; i++) for (const r of ["legendary", "crimson"] as const) expect(rollItem(h, r, 1, rng).rarity).not.toMatch(/legendary|crimson/);
+    const one = Array.from({ length: 400 }, () => earlyCap(h, "legendary", rng));
+    expect(one.filter(r => r === "legendary").length).toBeLessThan(160);
     h.f.persist["floor"] = 2;
     const two = Array.from({ length: 400 }, () => earlyCap(h, "legendary", rng));
     expect(two.filter(r => r === "legendary").length).toBeLessThan(160);

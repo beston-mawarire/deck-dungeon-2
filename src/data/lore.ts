@@ -2,6 +2,15 @@
 // ever finds each one. Keyed by gear base id. Pure lore: no mechanics here.
 
 export const LEGENDARY_LORE: Record<string, string> = {
+  // --- conditional.ts ---
+  lx_snake_eyes: "Won in a dice game by a gambler who only ever rolled ones. He kept rolling. Eventually, so did the sword.",
+  lx_serpent_coil: "Its pages are scales. Each bad roll turns one, and the serpent beneath grows a little hungrier.",
+  lx_viper_skin: "The viper lived its whole life on the losing end. Its skin remembers how to come back from it.",
+  lx_eye_of_snake: "Pried from an idol of Ill Luck. The idol has been doing much better since.",
+  lx_edge_talentless: "Its smith refused every guild, every master and every secret. The axe turned out fine.",
+  lx_aegis_talentless: "Carried by a soldier who turned down every medal. Arrows seem to respect that.",
+  lx_mantle_talentless: "Spun by a hermit who said no to the gods themselves. They sulk about it still.",
+  lx_crown_talentless: "Forged for a prince who refused his inheritance. He took the kingdom anyway.",
   // --- affixes.ts ---
   l_kingsbane: "Forged to end a single tyrant. It found it liked the work, and kept going.",
   l_starfall: "Its maker begged the heavens for a sign. The heavens answered, and took the village with it.",

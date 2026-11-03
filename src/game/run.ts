@@ -22,7 +22,7 @@ import { generate, genName, setGenLuck } from "./gen";
 import { GEN_MINORS } from "../data/genparts";
 import { SIGIL_SETS } from "../data/talisman";
 const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
-import { bossOdds, isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, setLocked, TABLES, ABYSS_TABLES } from "./loot";
+import { bossOdds, isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -1551,7 +1551,7 @@ export function forgeTransmute(run: Run, uid: number): GearItem | string {
   if (!found || found.item.rarity !== "common") return "Only Common items can be transmuted.";
   if (h.starmetal < TRANSMUTE_COST) return `Needs ${TRANSMUTE_COST} Starmetal.`;
   const slot = effectiveBase(found.item).slot;
-  const pool = LEGENDARIES.filter(l => l.slot === slot && !isLocked(l.id) && (h.heat ?? 0) >= (l.heatMin ?? 0));
+  const pool = LEGENDARIES.filter(l => l.slot === slot && !isLocked(l.id) && (h.heat ?? 0) >= (l.heatMin ?? 0) && unlocked(h, l));
   const fitting = pool.filter(l => (l.legendary?.minFloor ?? 1) <= run.floor);
   const choice = (fitting.length ? fitting : pool)[Math.floor(run.rng() * (fitting.length || pool.length))];
   if (!choice) return "Nothing answers the Crucible.";
@@ -1586,6 +1586,16 @@ export function talentOptions(run: Run): string[] {
     }
   }
   return out;
+}
+
+/** Turn the talent down: take none this time (the Talentless notice). */
+export function skipTalent(run: Run) {
+  if (run.scene.t !== "talent") return;
+  run.hero.f.persist["talentsSkipped"] = (run.hero.f.persist["talentsSkipped"] ?? 0) + 1;
+  recompute(run.hero);
+  run.pendingTalents--;
+  run.scene = { t: "map" };
+  advance(run, true);
 }
 
 export function chooseTalent(run: Run, id: string) {

@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.61.0
+- Talents: a "Take no talent" button on the talent screen.
+- 8 new Legendaries (the Snake Eyes family and the ... of the Talentless) that only join the pool when certain things have happened in your run.
+- Legendaries can now turn up from floor 1: the first two floors still turn most of them into Epics, but a few get through, and only the strongest Legendaries still wait for deeper floors.
+
 ## 1.60.1
 - Counter, Barrier and Penance need the enemy to act, so their "doesn't take your turn" relics are gone. In their place: Quickstep Anklet (a Counter that lands is followed by a normal attack), Spellweaver's Loop (a full Barrier block strikes back with a normal attack) and Pilgrim's Stride (suffer anything while kneeling in Penance and you get Haste for your next turn). War Cry keeps its Unbroken Horn.
 

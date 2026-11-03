@@ -254,7 +254,13 @@ export function rollFor(b: Battle, f: Fighter, sides: number): number {
   eachHook(f, "modifyRoll", (h, s) => (r = h(b, f, r, s)));
   // Roll caps (heavy weapons, shackles): this die can't roll above the cap.
   if (f.flags["rollCap"]) r = Math.min(r, f.flags["rollCap"]);
-  return Math.max(1, Math.min(sides, r));
+  r = Math.max(1, Math.min(sides, r));
+  // Snake Eyes: the hero's 1s are counted over the run (some Legendaries only turn up after enough of them).
+  if (r === 1 && sides === 6 && f === b.player) {
+    f.persist["onesRolled"] = (f.persist["onesRolled"] ?? 0) + 1;
+    eachHook(f, "onRollOne", (h, s) => h(b, f, s));
+  }
+  return r;
 }
 
 /** The Counter: the moment the blow misses, you strike back, and it's a Crit (your die's crit face, no roll). */
