@@ -1293,3 +1293,4 @@ body[data-theme] .bag-overlay .toast:not(.err) b { color: inherit; }
 .patch-sec ul { margin: 0; padding-left: 18px; } .patch-sec li { margin: 0 0 6px; line-height: 1.45; font-size: .92rem; color: #e9e0d0; } .patch-sec li b { color: #fff1d6; }
 .patch-outro { text-align: center; font-weight: 800; color: #ffd98a; font-size: 1.05rem; margin: 6px 0 0; }
 .menu-btns.one { grid-template-columns: 1fr !important; }
+.actions.busy button { opacity: .45; filter: grayscale(.6); pointer-events: none; transition: opacity .2s; }

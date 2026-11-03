@@ -253,6 +253,28 @@ export function rollFor(b: Battle, f: Fighter, sides: number): number {
   return Math.max(1, Math.min(sides, r));
 }
 
+/** The Counter: the moment the blow misses, you strike back, and it's a Crit (your die's crit face, no roll). */
+function counterStrike(b: Battle, d: Fighter, a: Fighter) {
+  log(b, `${d.name} counters!`);
+  fx(b, { who: d.id, kind: "text", text: "Counter!", icon: "🗡️" });
+  d.flags["counterHit"] = 1;
+  const faces = d.faces ?? PLAIN_FACES;
+  const critFace = faces.map(x => x.kind).lastIndexOf("crit") + 1 || faces.length;
+  fx(b, { who: d.id, kind: "roll", face: critFace, faceName: "Counter", faceKind: "crit", sides: faces.length });
+  resolveFace(b, d, a, critFace, false);
+  d.flags["counterHit"] = 0;
+}
+
+/** Ambush: before you can act, the foe strikes (the game plays this the moment the fight opens). */
+export function ambushPending(b: Battle) { return b.round === 0 && !b.over && !!b.enemy.flags["ambush"] && !b.enemy.flags["ambushDone"]; }
+export function ambushStrike(b: Battle) {
+  if (!ambushPending(b)) return;
+  b.enemy.flags["ambushDone"] = 1;
+  log(b, `${b.enemy.name} strikes first!`);
+  fx(b, { who: "enemy", kind: "text", text: "Ambush!" });
+  enemyPhase(b);
+}
+
 /** One attack with the main die (or the off-hand die). */
 export function attack(b: Battle, a: Fighter, d: Fighter, offhand = false) {
   const faces = (offhand ? a.offFaces : a.faces) ?? PLAIN_FACES;
@@ -457,6 +479,8 @@ function strike(b: Battle, ctx: AttackCtx) {
     log(b, `${d.name} evades!`);
     fx(b, { who: d.id, kind: "miss", text: "Evaded" });
     breakStreak(b, a);
+    // Countering: an evaded blow is answered just like a dodged one.
+    if (d.flags["counter"] === b.round) { d.flags["counter"] = 0; if (a.hp > 0 && d.hp > 0) counterStrike(b, d, a); }
     return afterStrike(b, ctx);
   }
   // Dodge (a % chance; Countering adds 20%). It's not Evade: Evade bonuses don't fire, Dodge ones do.
@@ -470,15 +494,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     // The stance is spent the moment it's tested: one Counter per stance.
     if (countering) d.flags["counter"] = 0;
     if (countering && a.hp > 0 && d.hp > 0) {
-      log(b, `${d.name} counters!`);
-      fx(b, { who: d.id, kind: "text", text: "Counter!", icon: "🗡️" });
-      // The Counter: the moment the blow misses, you strike back, and it's a Crit (your die's crit face, no roll).
-      d.flags["counterHit"] = 1;
-      const faces = d.faces ?? PLAIN_FACES;
-      const critFace = faces.map(x => x.kind).lastIndexOf("crit") + 1 || faces.length;
-      fx(b, { who: d.id, kind: "roll", face: critFace, faceName: "Counter", faceKind: "crit", sides: faces.length });
-      resolveFace(b, d, a, critFace, false);
-      d.flags["counterHit"] = 0;
+      counterStrike(b, d, a);
     }
     return afterStrike(b, ctx);
   }
@@ -722,7 +738,7 @@ export function beginRound(b: Battle): boolean {
     e.flags["guardNext"] = 0;
     if (e.flags["guardHolds"]) e.flags["guardSkip"] = 1;
   }
-  const first = b.round === 1 && !!e.flags["ambush"];
+  const first = b.round === 1 && !!e.flags["ambush"] && !e.flags["ambushDone"];
   if (first) {
     log(b, `${e.name} strikes first!`);
     fx(b, { who: "enemy", kind: "text", text: "Ambush!" });

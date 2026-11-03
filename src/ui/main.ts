@@ -5,7 +5,7 @@ import { FUSION_RECIPES } from "../data/fusions";
 /** Relics that fuse with a different relic (labelled; trinket recipes never are). */
 const FUSABLE_RELICS = new Set(FUSION_RECIPES.flatMap(r => [r.a, r.b]));
 import { ORIGINS } from "../data/origins";
-import { armorOf, armorReduction, beginRound, tollOf, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly, streakOf, hasStreak, BLESSINGS } from "../engine/combat";
+import { ambushPending, ambushStrike, armorOf, armorReduction, beginRound, tollOf, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly, streakOf, hasStreak, BLESSINGS } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
@@ -613,7 +613,7 @@ function combatScene(r: Run) {
     <div class="c-player">${fighterPanel(b.player, "player")}
     ${(b.player.statuses.stun ?? 0) > 0 ? `<div class="toast err">💫 You're Stunned: your next turn will be skipped.</div>` : ""}</div>
     <div class="c-actions"><div class="row actions ${busy ? "busy" : ""}">
-      ${availableActions(r).map(a => `<button class="${a === "attack" ? "primary" : a === "flee" ? "" : a === "guard" ? "" : "classact"}" data-act="${a}" title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(b.player)}</button>`).join("")}
+      ${availableActions(r).map(a => `<button class="${a === "attack" ? "primary" : a === "flee" ? "" : a === "guard" ? "" : "classact"}" data-act="${a}" ${busy ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(b.player)}</button>`).join("")}
     </div>
     ${!busy && quickOn && canAutoBattle(r) ? `<div class="row auto-row"><button class="auto-btn" data-auto title="This foe can't win against plain attacks. Skip to the end.">⚡ Quick Battle</button><span class="sub">You've got this one: attack until it falls.</span></div>` : ""}
     ${Object.keys(r.hero.tonics ?? {}).length ? `<div class="row tonics">${Object.entries(r.hero.tonics!).map(([id, n]) => `<button class="small tonic" data-tonic="${id}" ${busy ? "disabled" : ""} title="${esc(TONICS[id].text)}">${TONICS[id].icon} ${esc(TONICS[id].name)}${n > 1 ? ` ×${n}` : ""}</button>`).join("")}</div><p class="center sub" style="margin:2px 0">Tonics don't use your turn.</p>` : ""}
@@ -1905,6 +1905,8 @@ function render() {
   // Shops, forges and encounters: the dungeon's stone buttons (in any floor theme).
   document.body.classList.toggle("dg-scene", !!run && ["shop", "forge", "jeweller", "event", "smith", "alchemist", "tribute", "sanctum", "bounty", "rest", "confirm"].includes(run.scene.t));
   render2();
+  // A foe with Ambush strikes before you can do anything.
+  if (run && run.scene.t === "combat" && ambushPending(run.scene.battle) && !busy) { const r = run, b = run.scene.battle; setTimeout(() => void playAmbush(r, b), 0); }
   // A new scene (a room, a chest, a fight's rewards) starts at the top of the page, not wherever the last one was scrolled to.
   const key = run ? `${run.scene.t}:${run.floor}:${run.step}` : view;
   if (key !== lastSceneKey) { lastSceneKey = key; window.scrollTo(0, 0); }
@@ -2108,6 +2110,24 @@ function hpOf(who: "player" | "enemy") {
 }
 
 /** Play one round beat by beat: you, then the monster, then the end of the round. */
+/** An ambush: the foe strikes the moment the fight opens; your buttons wait (dimmed) until it's done. */
+let ambushing = false;
+async function playAmbush(r: Run, b: Battle) {
+  if (ambushing || busy) return;
+  ambushing = true; busy = true;
+  dispHp.player = b.player.hp; dispHp.enemy = b.enemy.hp;
+  render();
+  await sleep(450);
+  try {
+    ambushStrike(b);
+    await playFx(b);
+  } catch (err) { console.error(err); }
+  dispHp.player = dispHp.enemy = null;
+  busy = false; ambushing = false;
+  if (b.over) { await sleep(700); settleCombat(r); }
+  render();
+}
+
 async function playTurn(action: Action) {
   if (!run || run.scene.t !== "combat" || busy) return;
   const r = run;

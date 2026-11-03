@@ -2073,3 +2073,22 @@ describe("foe weaknesses", () => {
     expect(500 - e.hp).toBeGreaterThan(500 - e2.hp);
   });
 });
+
+describe("Counter and Ambush", () => {
+  it("an evaded blow is countered with a Crit, and an Ambush strikes before round 1", async () => {
+    const { ambushPending, ambushStrike, heroPhase } = await import("../src/engine/combat");
+    const h = newHero("rogue");
+    const e = dummy(300); e.damage = 3;
+    const b = startBattle(h.f, e, 51); h.f.statuses = { evade: 1 }; h.f.dodge = 0;
+    beginRound(b); heroPhase(b, "counter"); enemyPhase(b);
+    expect(b.log.some(l => l.includes("counters"))).toBe(true);
+    expect(300 - e.hp).toBeGreaterThan(0);
+    const e2 = dummy(300); e2.flags = {};
+    const b2 = startBattle(h.f, e2, 52); e2.flags["ambush"] = 1; h.f.statuses = {};
+    expect(ambushPending(b2)).toBe(true);
+    const hp0 = h.f.hp; ambushStrike(b2);
+    expect(ambushPending(b2)).toBe(false);
+    expect(beginRound(b2)).toBe(false);
+    expect(h.f.hp).toBeLessThanOrEqual(hp0);
+  });
+});

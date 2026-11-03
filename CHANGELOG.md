@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.59.2
+- Fixed: Counter now answers an attack your Evade turns aside, not only one you Dodge: either way you strike back at once with a Crit.
+- Ambush: a foe that strikes first now does it the moment the fight opens, before you choose anything; your buttons are dimmed and locked until its attack is done.
+
 ## 1.59.1
 - The Counter stance (its glow, sway and tag) ends as soon as it's tested: right after you dodge and strike back, or the moment the hit lands.
 
