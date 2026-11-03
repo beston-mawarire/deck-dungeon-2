@@ -5,6 +5,10 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.52.1
+- The class menu matches the title screen: stone-slab buttons and tabs (the open tab rimmed in gold), stone panels, and a gold Start button.
+- The Cleric's line under its crest is one sentence, like the others.
+
 ## 1.52.0
 - 🛡️ The classes in the menu are heraldic crests now: each one a shield in its own colours (Warrior crimson and steel, Rogue forest and black, Mage royal blue and violet, Cleric white and gold), its emblem in the middle, its Mastery on the corner and its name on a ribbon.
 

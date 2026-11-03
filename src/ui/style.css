@@ -1090,3 +1090,18 @@ button.crest.crest-cleric { --c1: #f1ead8; --c2: #c99a2e; --metal: #e8c766; }
 .crest-blurb { margin-top: 6px; font-size: .8rem; line-height: 1.3; color: var(--muted); max-width: 170px; }
 button.crest .plate-line { color: #b9a8ff; font-weight: 700; font-size: .82rem; margin-top: 3px; }
 button.crest.abyss-card .crest-shield { filter: drop-shadow(0 0 10px rgba(143,108,240,.6)) drop-shadow(0 6px 8px rgba(0,0,0,.6)); }
+
+/* ---------- The class-choice menu, in the title screen's stone ---------- */
+body.dg-menu button:not(.crest):not(.primary):not(.closebtn):not(.danger) {
+  background: linear-gradient(180deg, #4a423b 0%, #362f2a 55%, #2a2420 100%); border: 2px solid #1a1613; color: #eee4d4;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -3px 0 rgba(0,0,0,.45), 0 3px 8px rgba(0,0,0,.6); text-shadow: 0 1px 2px #000; }
+body.dg-menu button:not(.crest):not(:disabled):hover { filter: brightness(1.12); }
+body.dg-menu button.primary { background: linear-gradient(180deg, #f3c45b 0%, #d39a2c 55%, #a8721b 100%); border: 2px solid #5c3c0c; color: #2a1804; text-shadow: 0 1px 0 rgba(255,255,255,.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -3px 0 rgba(0,0,0,.3), 0 3px 8px rgba(0,0,0,.6); }
+body.dg-menu .menu-tab { border-radius: 10px 10px 4px 4px; }
+body.dg-menu button.menu-tab.active:not(.crest) { background: linear-gradient(180deg, #6a5538 0%, #3b3024 100%) !important; border-color: #c9a24a !important; color: #ffe39a !important; box-shadow: inset 0 1px 0 rgba(255,220,140,.3), 0 0 14px rgba(232,170,60,.35) !important; }
+body.dg-menu button.menu-tab.abyss.active:not(.crest) { background: linear-gradient(180deg, #3a2f55, #1f1830) !important; border-color: #8f6cf0 !important; color: #d9c8ff !important; box-shadow: 0 0 14px rgba(143,108,240,.35) !important; }
+body.dg-menu .menu-btns button.lb-btn:not(.crest) { color: #ffe39a !important; }
+body.dg-menu .panel, body.dg-menu .campaign-hero, body.dg-menu .abyss-hero { background: linear-gradient(180deg, rgba(48,42,37,.92), rgba(30,26,23,.92)); border: 2px solid #1a1613; box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 4px 12px rgba(0,0,0,.55); }
+body.dg-menu h2 { color: #c9b9a0; text-shadow: 0 1px 2px #000; }
+body.dg-menu #app > .row h1 span, body.dg-menu h1 span { color: #f0b84a; }
