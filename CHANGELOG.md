@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.52.2
+- The Mastery badge on each class crest is bigger and easier to read, on a deep colour that matches its shield.
+
 ## 1.52.1
 - The class menu matches the title screen: stone-slab buttons and tabs (the open tab rimmed in gold), stone panels, and a gold Start button.
 - The Cleric's line under its crest is one sentence, like the others.

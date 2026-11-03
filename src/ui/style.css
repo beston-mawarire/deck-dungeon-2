@@ -1068,10 +1068,10 @@ body { min-height: 100vh; }
 button.crest { --c1: #8b1e24; --c2: #c9c3b8; --metal: #c9a24a; display: flex; box-shadow: none !important; background: none !important; border: none !important; flex-direction: column; align-items: center; gap: 0; padding: 4px 2px 8px; background: none; border: none; min-height: 0; text-align: center; color: var(--ink); cursor: pointer; transition: transform .15s; }
 button.crest:hover { transform: translateY(-3px); } button.crest:active { transform: translateY(1px); }
 button.crest:focus-visible { outline: 3px solid var(--metal); outline-offset: 4px; border-radius: 12px; }
-button.crest.crest-warrior { --c1: #8e1c22; --c2: #d9d2c4; --metal: #c9a24a; }
-button.crest.crest-rogue { --c1: #1d3b2a; --c2: #0f1412; --metal: #9aa7a0; }
-button.crest.crest-mage { --c1: #263a8a; --c2: #5a2d86; --metal: #b9c6ff; }
-button.crest.crest-cleric { --c1: #f1ead8; --c2: #c99a2e; --metal: #e8c766; }
+button.crest.crest-warrior { --lvbg: #4a0c11; --lvink: #ffd77a; --c1: #8e1c22; --c2: #d9d2c4; --metal: #c9a24a; }
+button.crest.crest-rogue { --lvbg: #08130d; --lvink: #d6e2db; --c1: #1d3b2a; --c2: #0f1412; --metal: #9aa7a0; }
+button.crest.crest-mage { --lvbg: #151a52; --lvink: #cfd8ff; --c1: #263a8a; --c2: #5a2d86; --metal: #b9c6ff; }
+button.crest.crest-cleric { --lvbg: #6b4708; --lvink: #fff4cf; --c1: #f1ead8; --c2: #c99a2e; --metal: #e8c766; }
 .crest-shield { position: relative; width: 104px; height: 122px; display: block;
   clip-path: path("M4 4 H100 V58 C100 92 76 110 52 120 C28 110 4 92 4 58 Z"); background: var(--metal);
   filter: drop-shadow(0 6px 8px rgba(0,0,0,.6)); }
@@ -1080,7 +1080,7 @@ button.crest.crest-cleric { --c1: #f1ead8; --c2: #c99a2e; --metal: #e8c766; }
 .crest-field::before { content: ""; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(255,255,255,.28), transparent 40%, rgba(0,0,0,.35)); }
 .crest-field::after { content: ""; position: absolute; left: 0; right: 0; top: 44%; height: 16px; background: var(--metal); opacity: .9; transform: skewY(-12deg); box-shadow: 0 1px 0 rgba(0,0,0,.4); }
 .crest-emblem { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); font-size: 2.3rem; z-index: 2; filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
-.crest-lv { position: absolute; top: 8px; right: 8px; z-index: 2; font-size: .7rem; font-weight: 800; color: #1b1406; background: var(--metal); border-radius: 6px; padding: 0 4px; box-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.crest-lv { position: absolute; top: 7px; right: 7px; z-index: 2; font-size: .88rem; font-weight: 900; line-height: 1.2; color: var(--lvink, #ffe39a); background: var(--lvbg, #3a1a0a); border: 2px solid var(--metal); border-radius: 8px; padding: 1px 6px; box-shadow: 0 2px 4px rgba(0,0,0,.7); text-shadow: 0 1px 1px rgba(0,0,0,.6); }
 .crest-ribbon { position: relative; margin-top: -16px; z-index: 3; padding: 4px 18px; background: linear-gradient(180deg, color-mix(in srgb, var(--c1) 80%, #fff 20%), var(--c1)); color: #fff;
   clip-path: polygon(0 0, 100% 0, 92% 50%, 100% 100%, 0 100%, 8% 50%); box-shadow: 0 2px 4px rgba(0,0,0,.5); }
 .crest-cleric .crest-ribbon { background: linear-gradient(180deg, #e6c35f, #b8861d); color: #241805; }
