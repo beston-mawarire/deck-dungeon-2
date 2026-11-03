@@ -100,7 +100,11 @@ export const REACTIONS = [
   { id: "conduction", name: "Conduction", a: "static", b: "shock", text: "Every Static stack goes off at once: 3 damage each (double on Constructs or Soaked foes)" },
   { id: "electrocute", name: "Electrocute", a: "soaked", b: "shock", text: "Soaked clears; takes 4 + 2 per floor and is Stunned" },
   { id: "freeze", name: "Freeze", a: "soaked", b: "chill", text: "Both clear; Frozen solid: Stunned and Exposed 2" },
-  { id: "thunderstrike", name: "Thunderstrike", a: "charged", b: "might", text: "Your next hit deals double and Shocks" }
+  { id: "thunderstrike", name: "Thunderstrike", a: "charged", b: "might", text: "Your next hit deals double and Shocks" },
+  { id: "lacerate", name: "Lacerate", a: "bleed", b: "fracture", text: "The Fracture shatters at once, and every Bleed stack adds 2 to the blast (ignores Armor)" },
+  { id: "crushed", name: "Crushed", a: "fracture", b: "weak", text: "Half its Armor is gone for the rest of the fight" },
+  { id: "hamstring", name: "Hamstring", a: "bleed", b: "weak", text: "Bleed on it never fades for the rest of the fight" },
+  { id: "bristle", name: "Bristle", a: "might", b: "spikes", text: "For the rest of the fight, your Spikes also deal your Might" }
 ] as const;
 export type ReactionId = (typeof REACTIONS)[number]["id"];
 
@@ -194,6 +198,11 @@ function reactionMult(b: Battle, source: Fighter | null) {
  */
 export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, id: StatusId, amount: number, depth = 0) {
   if (amount <= 0 || target.hp <= 0) return;
+  // Bosses, Champions and Elites steady themselves for a little while after losing a turn to a Stun.
+  if (id === "stun" && (target.flags["stunGuard"] ?? 0) > 0 && target.flags["stunGuard"] >= b.round) {
+    fx(b, { who: target.id, kind: "block", text: "Steadies itself", icon: "🧍" });
+    return;
+  }
   // Angelic Blessing: no negative status can touch you.
   if (isNegative(id) && (target.persist["angelFights"] ?? 0) > 0) {
     log(b, `👼 The Angelic Blessing turns ${STATUS_INFO[id].name} aside.`);
@@ -253,11 +262,14 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
 
   // Thresholds: some statuses burst when they pile up too high.
   for (const t of THRESHOLDS) {
-    if (id !== t.status || st(target, t.status) < t.at) continue;
+    // Fracture gear: shatter sooner (Worldbreaker: at 2) and harder (+per stack).
+    const at = t.id === "shatter_fx" && source?.flags["shatterAt2"] ? 2 : t.at;
+    if (id !== t.status || st(target, t.status) < at) continue;
     const n = st(target, t.status);
     target.statuses[t.status] = 0;
     fx(b, { who: target.id, kind: "reaction", text: `${t.name}!`, status: t.status, src: source?.id });
-    const lost = statusLoss(b, target, Math.round(n * t.per * reactionMult(b, source)));
+    const per = t.per + (t.id === "shatter_fx" ? source?.flags["shatterPlus"] ?? 0 : 0);
+    const lost = statusLoss(b, target, Math.round(n * per * reactionMult(b, source)));
     log(b, `${t.icon} ${t.name}! ${n} ${STATUS_INFO[t.status].name} bursts: ${target.name} takes ${lost}.`);
     const key = `rx:${target.id === "player" ? "you" : "foe"}:${t.id}`;
     b.player.persist[key] = (b.player.persist[key] ?? 0) + 1;
@@ -276,7 +288,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
 }
 
 /** Reactions that hurt whoever has them: the ones a "random extra reaction" may pick. */
-const HARMFUL_REACTIONS: ReactionId[] = ["combustion", "steam", "shatter", "rupture", "sepsis", "overload", "despair", "conduction", "electrocute", "freeze"];
+const HARMFUL_REACTIONS: ReactionId[] = ["lacerate", "crushed", "hamstring", "combustion", "steam", "shatter", "rupture", "sepsis", "overload", "despair", "conduction", "electrocute", "freeze"];
 
 function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, depth: number) {
   const rx = REACTIONS.find(r => r.id === id)!;
@@ -345,6 +357,18 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
       applyStatus(b, source, t, "stun", 1, depth + 1);
       break;
     }
+    case "lacerate": {
+      const n = st(t, "fracture"), bl = st(t, "bleed");
+      t.statuses.fracture = 0;
+      const lost = statusLoss(b, t, Math.round((4 * Math.max(1, n) + 2 * bl) * m));
+      log(b, `🩸🪨 ${name}! The wound splits wide: ${t.name} takes ${lost}.`);
+      break;
+    }
+    case "hamstring":
+      t.flags["hamstring"] = 1;
+      t.flags["bleedNoFade"] = 1;
+      log(b, `🦵 ${name}! ${t.name}'s Bleed won't stop.`);
+      break;
     case "freeze":
       t.statuses.soaked = 0;
       t.statuses.chill = 0;

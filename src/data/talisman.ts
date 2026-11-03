@@ -1,7 +1,7 @@
 // The Talisman: sigils that sit outside your gear slots. Plain sigils carry one small passive;
 // Set sigils carry their own passive and, worn together, unlock their set's bonuses (2, 3 and 4 pieces).
 // A sigil's strength ("stacks") is the floor it was found on, so deeper sigils are stronger.
-import type { HookDef, Tag } from "../engine/types";
+import type { AttackCtx, Battle, Fighter, HookDef, Tag } from "../engine/types";
 import { applyStatus, heal, other, st } from "../engine/statuses";
 import { on, ping } from "./helpers";
 
@@ -65,13 +65,81 @@ export const SET_BONUSES: HookDef[] = [
   bonus("sb_gamble_4", "Gambler's Hand (4)", ["Luck", "Crit"], "Crits deal +60% damage", { stats: s => { s.critDmg = (s.critDmg ?? 0) + 60; } })
 ];
 
+
+// ---------- Sets for the non-elemental builds ----------
+const mine = (b: Battle, c: AttackCtx) => c.attacker === b.player;
+const reelingFoe = (b: Battle, d: Fighter) => st(d, "stun") > 0 || st(d, "broken") > 0 || (d.flags["stunnedAt"] ?? -9) >= b.round - 1;
+const addFlag = (f: Fighter, k: string, n: number) => { f.flags[k] = (f.flags[k] ?? 0) + n; };
+const gainMight = (b: Battle, f: Fighter, n: number, cap = 99) => { const now = st(f, "might"); if (now < cap) applyStatus(b, f, f, "might", Math.min(n, cap - now)); };
+const shatteredOn = (self: Fighter, t: Fighter, s: string) => s === "fracture" && t !== self && st(t, "fracture") === 0;
+const toCrit = (c: AttackCtx) => { c.kind = "crit"; c.mult = Math.max(c.mult, 2); c.ignoreArmor = true; c.noDamage = false; };
+export const SET_PIECES_2: HookDef[] = [
+  // ---- The Iron Fist (Bash, Stun, Might) ----
+  piece("sc_fist_knuckle", "Knuckle Sigil", ["Strike"], "+{n/3}% Bash", { stats: (s, n) => { s.bash += third(n); } }),
+  piece("sc_fist_brow", "Iron Brow", ["Strike", "Tempo"], "Whenever you Stun an enemy, gain 1 Might", { onStatusApplied: (b, self, t, s) => { if (s === "stun" && t !== self && st(t, "stun") > 0) gainMight(b, self, 1); } }),
+  piece("sc_fist_wrap", "Fighter's Wrap", ["Strike"], "Your hits on reeling enemies deal +{n/3}", { modifyAttack: (b, c, n) => { if (mine(b, c) && reelingFoe(b, c.defender)) c.bonus += third(n); } }),
+  piece("sc_fist_drum", "Pit Drum", ["Strike"], "Start each fight with 1 Might", { onFightStart: (b, f) => gainMight(b, f, 1) }),
+  // ---- The Butcher's Guild (Bleed, Cleave) ----
+  piece("sc_guild_hook", "Meat Hook", ["Bleed", "Crit"], "Your crits apply {n/3} Bleed", { onCrit: (b, c, n) => applyStatus(b, c.attacker, c.defender, "bleed", third(n)) }),
+  piece("sc_guild_tally", "Guild Tally", ["Kill"], "Overkill carries into the next fight at 25%", { onKill: (b, c) => { if (mine(b, c) && c.defender.hp < 0 && !c.spec.cleave) b.carry += Math.round(-c.defender.hp * 0.25); } }),
+  piece("sc_guild_apron", "Guild Apron", ["Kill", "Blood"], "Kills heal {n/3}", { onKill: (b, c, n) => { if (mine(b, c)) heal(b, c.attacker, third(n), "Guild Apron"); } }),
+  piece("sc_guild_cleaver", "Guild Cleaver", ["Bleed", "Strike"], "Your hits deal +{n/3} to Bleeding enemies", { modifyAttack: (b, c, n) => { if (mine(b, c) && st(c.defender, "bleed") > 0) c.bonus += third(n); } }),
+  // ---- The Shadow Dance (Dodge) ----
+  piece("sc_dance_step", "Step Sigil", ["Tempo"], "+4% Dodge", { stats: s => { s.dodge += 4; } }),
+  piece("sc_dance_veil", "Veil Sigil", ["Tempo", "Blood"], "Every dodge heals {n/3}", { onDodge: (b, c, n) => heal(b, c.defender, third(n), "Veil Sigil") }),
+  piece("sc_dance_mask", "Masque Sigil", ["Tempo", "Strike"], "After a dodge, your next hit deals +{n/3}", { onDodge: (_b, c, n) => { c.defender.flags["masque"] = third(n); }, modifyAttack: (b, c) => { if (mine(b, c) && c.attacker.flags["masque"]) { c.bonus += c.attacker.flags["masque"]; c.attacker.flags["masque"] = 0; } } }),
+  piece("sc_dance_bell", "Silver Bell", ["Tempo"], "Every dodge gives 1 Might (up to 4)", { onDodge: (b, c) => gainMight(b, c.defender, 1, 4) }),
+  // ---- The Stonebreakers (Fracture) ----
+  piece("sc_stone_chisel", "Chisel Sigil", ["Hex", "Crit"], "Your crits apply 1 Fracture", { onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "fracture", 1) }),
+  piece("sc_stone_fault", "Fault Sigil", ["Hex"], "Fracture you shatter deals +1 per stack", { onFightStart: (_b, f) => addFlag(f, "shatterPlus", 1) }),
+  piece("sc_stone_mason", "Mason's Mark", ["Hex", "Guard"], "+{n/3} Armor", { stats: (s, n) => { s.armor += third(n); } }),
+  piece("sc_stone_quake", "Quake Sigil", ["Hex"], "Start each fight: the enemy gets 2 Fracture", { onFightStart: (b, f) => applyStatus(b, f, other(b, f), "fracture", 2) }),
+  // ---- The Thornwood (Spikes) ----
+  piece("sc_thorn_seed", "Thorn Seed", ["Thorns"], "Start each fight with {n/3} Spikes", { onFightStart: (b, f, n) => applyStatus(b, f, f, "spikes", third(n)) }),
+  piece("sc_thorn_bark", "Barkskin Sigil", ["Thorns", "Guard"], "+{n/3} Armor", { stats: (s, n) => { s.armor += third(n); } }),
+  piece("sc_thorn_vine", "Strangling Vine", ["Thorns", "Guard"], "When you Guard, gain 2 Spikes", { onGuard: (b, f) => applyStatus(b, f, f, "spikes", 2) }),
+  piece("sc_thorn_rose", "Blood Rose", ["Thorns", "Blood"], "Your Spikes deal 25% more", { onFightStart: (_b, f) => addFlag(f, "spikeAmp", 25) }),
+  // ---- The Gilded Hand (Gold, Kill) ----
+  piece("sc_gild_coin", "Gilded Coin", ["Gold", "Kill"], "Kills earn {n/3} Gold", { onKill: (b, c, n) => { if (mine(b, c)) c.attacker.gold += third(n); } }),
+  piece("sc_gild_scale", "Moneychanger's Scale", ["Gold", "Strike"], "Your hits deal +1 for every 100 Gold you carry (up to +5)", { modifyAttack: (b, c) => { if (mine(b, c)) c.bonus += Math.min(5, Math.floor(c.attacker.gold / 100)); } }),
+  piece("sc_gild_noose", "Gallows Sigil", ["Kill"], "Your hits on enemies below 30% HP deal +{n/3}", { modifyAttack: (b, c, n) => { if (mine(b, c) && c.defender.hp < c.defender.maxHp * 0.3) c.bonus += third(n); } }),
+  piece("sc_gild_seal", "Bounty Seal", ["Gold", "Kill"], "Elites, Champions and bosses you kill drop {n} more Gold", { onKill: (b, c, n) => { const d = c.defender; if (mine(b, c) && (d.elite || d.champion || d.boss)) c.attacker.gold += n; } })
+];
+
+export const SET_BONUSES_2: HookDef[] = [
+  bonus("sb_fist_2", "Iron Fist (2)", ["Strike"], "+6% Bash", { stats: s => { s.bash += 6; } }),
+  bonus("sb_fist_3", "Iron Fist (3)", ["Strike"], "Every Bash gives 2 Might", { onBash: (b, c) => gainMight(b, c.attacker, 2) }),
+  bonus("sb_fist_4", "Iron Fist (4)", ["Strike", "Tempo"], "You deal 30% more to reeling enemies", { modifyAttack: (b, c) => { if (mine(b, c) && reelingFoe(b, c.defender)) c.mult *= 1.3; } }),
+  bonus("sb_guild_2", "Butcher's Guild (2)", ["Bleed"], "Bleed you apply gets +1", { onStatusApplied: (_b, self, t, s) => { if (s === "bleed" && t !== self && st(t, "bleed") > 0) t.statuses.bleed = st(t, "bleed") + 1; } }),
+  bonus("sb_guild_3", "Butcher's Guild (3)", ["Kill"], "Every Crit Cleaves (its overkill carries into the next fight)", { onKill: (b, c) => { if (mine(b, c) && c.kind === "crit" && !c.spec.cleave && c.defender.hp < 0) b.carry += -c.defender.hp; } }),
+  bonus("sb_guild_4", "Butcher's Guild (4)", ["Bleed", "Kill"], "You deal 25% more to Bleeding enemies", { modifyAttack: (b, c) => { if (mine(b, c) && st(c.defender, "bleed") > 0) c.mult *= 1.25; } }),
+  bonus("sb_dance_2", "Shadow Dance (2)", ["Tempo"], "+6% Dodge", { stats: s => { s.dodge += 6; } }),
+  bonus("sb_dance_3", "Shadow Dance (3)", ["Tempo", "Strike"], "Every dodge strikes back for half your Damage", { onDodge: (b, c) => { if (c.attacker.hp > 0) ping(b, c.attacker, Math.max(1, Math.round(c.defender.damage / 2)), "Shadow Dance"); } }),
+  bonus("sb_dance_4", "Shadow Dance (4)", ["Tempo", "Crit"], "After a dodge, your next Hit is a Crit", { onDodge: (_b, c) => { c.defender.flags["danceCrit"] = 1; }, modifyAttack: (b, c) => { if (mine(b, c) && c.attacker.flags["danceCrit"] && c.kind === "hit") { c.attacker.flags["danceCrit"] = 0; toCrit(c); } } }),
+  bonus("sb_stone_2", "Stonebreakers (2)", ["Hex", "Blood"], "Each time Fracture shatters on an enemy, heal 3", { onStatusApplied: (b, self, t, s) => { if (shatteredOn(self, t, s)) heal(b, self, 3, "Stonebreakers"); } }),
+  bonus("sb_stone_3", "Stonebreakers (3)", ["Hex", "Strike"], "Each time Fracture shatters on an enemy, gain 2 Might", { onStatusApplied: (b, self, t, s) => { if (shatteredOn(self, t, s)) gainMight(b, self, 2); } }),
+  bonus("sb_stone_4", "Stonebreakers (4)", ["Hex"], "Your Fracture shatters at 2 stacks instead of 3", { onFightStart: (_b, f) => { f.flags["shatterAt2"] = 1; } }),
+  bonus("sb_thorn_2", "Thornwood (2)", ["Thorns"], "When you're hit, gain 1 Spikes", { whenHit: (b, c) => { if (!c.noDamage) applyStatus(b, c.defender, c.defender, "spikes", 1); } }),
+  bonus("sb_thorn_3", "Thornwood (3)", ["Thorns"], "Your Spikes deal 50% more", { onFightStart: (_b, f) => addFlag(f, "spikeAmp", 50) }),
+  bonus("sb_thorn_4", "Thornwood (4)", ["Thorns", "Strike"], "Your Spikes also deal your Might", { onFightStart: (_b, f) => { f.flags["bristle"] = 1; } }),
+  bonus("sb_gild_2", "Gilded Hand (2)", ["Gold"], "While you carry 150 Gold or more, you deal 10% more", { modifyAttack: (b, c) => { if (mine(b, c) && c.attacker.gold >= 150) c.mult *= 1.1; } }),
+  bonus("sb_gild_3", "Gilded Hand (3)", ["Kill"], "You deal 30% more to enemies below 30% HP", { modifyAttack: (b, c) => { if (mine(b, c) && c.defender.hp < c.defender.maxHp * 0.3) c.mult *= 1.3; } }),
+  bonus("sb_gild_4", "Gilded Hand (4)", ["Gold", "Blood"], "Every kill heals 5% of your Max HP and earns 5 Gold", { onKill: (b, c) => { if (mine(b, c)) { heal(b, c.attacker, Math.ceil(c.attacker.maxHp * 0.05), "Gilded Hand"); c.attacker.gold += 5; } } })
+];
+
 export const SIGIL_SETS: SigilSet[] = [
   { id: "ember", name: "The Ember Court", icon: "🔥", tags: ["Burn"], pieces: ["sc_ember_signet", "sc_cinder_crown", "sc_ash_sigil", "sc_flame_locket"], bonuses: [[2, "sb_ember_2"], [3, "sb_ember_3"], [4, "sb_ember_4"]] },
   { id: "frost", name: "The Frozen Saint", icon: "❄️", tags: ["Frost", "Holy"], pieces: ["sc_rime_rosary", "sc_saints_veil", "sc_glacier_heart", "sc_snow_censer"], bonuses: [[2, "sb_frost_2"], [3, "sb_frost_3"], [4, "sb_frost_4"]] },
   { id: "storm", name: "The Storm Choir", icon: "⚡", tags: ["Storm"], pieces: ["sc_choir_bell", "sc_thunder_psalm", "sc_conductor_ring", "sc_storm_score"], bonuses: [[2, "sb_storm_2"], [3, "sb_storm_3"], [4, "sb_storm_4"]] },
   { id: "tithe", name: "The Red Tithe", icon: "🩸", tags: ["Blood", "Bleed"], pieces: ["sc_tithe_fang", "sc_tithe_chalice", "sc_tithe_ledger", "sc_tithe_brand"], bonuses: [[2, "sb_tithe_2"], [3, "sb_tithe_3"], [4, "sb_tithe_4"]] },
   { id: "vigil", name: "The Iron Vigil", icon: "🛡️", tags: ["Guard"], pieces: ["sc_vigil_buckle", "sc_vigil_oath", "sc_vigil_horn", "sc_vigil_banner"], bonuses: [[2, "sb_vigil_2"], [3, "sb_vigil_3"], [4, "sb_vigil_4"]] },
-  { id: "gamble", name: "The Gambler's Hand", icon: "🎲", tags: ["Luck", "Crit"], pieces: ["sc_loaded_die", "sc_lucky_coin", "sc_marked_card", "sc_rabbit_paw"], bonuses: [[2, "sb_gamble_2"], [3, "sb_gamble_3"], [4, "sb_gamble_4"]] }
+  { id: "gamble", name: "The Gambler's Hand", icon: "🎲", tags: ["Luck", "Crit"], pieces: ["sc_loaded_die", "sc_lucky_coin", "sc_marked_card", "sc_rabbit_paw"], bonuses: [[2, "sb_gamble_2"], [3, "sb_gamble_3"], [4, "sb_gamble_4"]] },
+  { id: "fist", name: "The Iron Fist", icon: "👊", tags: ["Strike", "Tempo"], pieces: ["sc_fist_knuckle", "sc_fist_brow", "sc_fist_wrap", "sc_fist_drum"], bonuses: [[2, "sb_fist_2"], [3, "sb_fist_3"], [4, "sb_fist_4"]] },
+  { id: "guild", name: "The Butcher's Guild", icon: "🔪", tags: ["Bleed", "Kill"], pieces: ["sc_guild_hook", "sc_guild_tally", "sc_guild_apron", "sc_guild_cleaver"], bonuses: [[2, "sb_guild_2"], [3, "sb_guild_3"], [4, "sb_guild_4"]] },
+  { id: "dance", name: "The Shadow Dance", icon: "🌘", tags: ["Tempo"], pieces: ["sc_dance_step", "sc_dance_veil", "sc_dance_mask", "sc_dance_bell"], bonuses: [[2, "sb_dance_2"], [3, "sb_dance_3"], [4, "sb_dance_4"]] },
+  { id: "stone", name: "The Stonebreakers", icon: "🪨", tags: ["Hex"], pieces: ["sc_stone_chisel", "sc_stone_fault", "sc_stone_mason", "sc_stone_quake"], bonuses: [[2, "sb_stone_2"], [3, "sb_stone_3"], [4, "sb_stone_4"]] },
+  { id: "thorn", name: "The Thornwood", icon: "🌿", tags: ["Thorns"], pieces: ["sc_thorn_seed", "sc_thorn_bark", "sc_thorn_vine", "sc_thorn_rose"], bonuses: [[2, "sb_thorn_2"], [3, "sb_thorn_3"], [4, "sb_thorn_4"]] },
+  { id: "gild", name: "The Gilded Hand", icon: "💰", tags: ["Gold", "Kill"], pieces: ["sc_gild_coin", "sc_gild_scale", "sc_gild_noose", "sc_gild_seal"], bonuses: [[2, "sb_gild_2"], [3, "sb_gild_3"], [4, "sb_gild_4"]] }
 ];
 /** Heat 3: all your healing is halved (a hidden effect while the run is at Heat 3 or more). */
 export const HEAT_HOOKS: HookDef[] = [

@@ -5,6 +5,17 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.48.0
+- 🧭 A big batch of new ways to build, at the usual odds: 46 new items across weapons, off-hands, armour and trinkets (Common to Epic), 5 Legendaries, 12 relics, 13 talents and 6 new Talisman sets.
+  - 👊 Brawler (Bash, Stun, Might): Knuckle Club, Bashing Shield, Brawler's Wraps, Skullsplitter Mace, Concussion Charm, War Gauntlet, Earthshaker Maul, Gladiator's Harness, the Fist of the Mountain; Brass Knuckles, Iron Jaw; Haymaker, Pummel, Heavy Hands, Bloodied Knuckles; the Iron Fist set.
+  - 💪 Might: Iron Bracer, Sledge, Brute's Signet, Titan's Plate, Horn of the Warlord, the Colossus Blade; Ox Yoke.
+  - 🔪 Butcher (Bleed, Cleave): Meat Cleaver, Gristle Hook, Slaughterhouse Leathers, the Carver, Throwing Hatchets, Bone Saw, Abattoir Mail, Hemorrhage Seal, Gorehowl; Butcher's Ledger, Leech Hook; Rend, Carver; the Butcher's Guild set.
+  - 🌘 Duelist (Dodge): Fencer's Jerkin, Dueling Rapier, Parrying Cloak, Feather Charm, Shadowsilk Garb, Whisperwind, Mirage Lantern, the Veil of the Untouched; Dancer's Bell, Quickstep Anklet; Evasion, Blade Dance; the Shadow Dance set.
+  - 🪨 Stonebreaker (Fracture): Quarry Pick, Fault Line Ring, Masonry Mail, Rockbreaker, Tremor Stone, Shatterglass Eye, Worldbreaker; Keystone, Mason's Chisels; Fault Finder, Splinter; the Stonebreakers set.
+  - More for Briar, Mercenary, Executioner and Gambler: Briar Whip, Hedgehog Shield, Thornheart Amulet, Sellsword's Coat, Paymaster's Flail, Iron Coffer, Headsman's Knife, Executioner's Hood, Deathknell Plate, Coin-Flip Cutlass, Hustler's Deck, Jester's Motley; Bramble Crown, Loaded Purse, Headsman's Tally; Thorn Dance, Bounty Hunter, Double Down; the Thornwood and Gilded Hand sets.
+- ✴️ Four new reactions that aren't elemental: Lacerate (Bleed + Fracture), Crushed (Fracture + Weak), Hamstring (Bleed + Weak) and Bristle (Might + Spikes, on you).
+- Bosses, Champions and Elites steady themselves for a while after losing a turn to a Stun, so they can't be Stun-locked.
+
 ## 1.47.0
 - 🧭 Four new ways to build, none of them about stacking elemental statuses. Each has gear across rarities, a Legendary, relics and talents, all at the usual odds:
   - 🌵 Briar: Spikes that punish whatever hits you. Briar Vest, Thorned Buckler, Bramble Heart, Thornlash, Ironbark Plate, the Mantle of the Briar King; Thorn Ring and Porcupine Quill; the Barbed talent.

@@ -204,6 +204,8 @@ export interface Hooks {
   onWard?: (b: Battle, self: Fighter, status: StatusId, amount: number, stacks: number) => void;
   /** You dodged a hit (Dodge, not Evade). */
   onDodge?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
+  /** Your main-hand hit Bashed (Stun and +50%). */
+  onBash?: (b: Battle, ctx: AttackCtx, stacks: number) => void;
   /** Change healing received (multiplier). */
   healMult?: (stacks: number) => number;
 }

@@ -165,7 +165,7 @@ let resetPopup = justReset;
 // ---------- Small pieces ----------
 
 /** Reactions that leave a lasting effect on whoever has them (stored as fight flags). */
-const LASTING = ["rupture", "sepsis", "despair", "bastion", "frenzy", "clarity", "shatter", "thunderstrike"] as const;
+const LASTING = ["rupture", "sepsis", "despair", "bastion", "frenzy", "clarity", "shatter", "thunderstrike", "crushed", "hamstring", "bristle"] as const;
 const reactionInfo = (id: string) => REACTIONS.find(r => r.id === id)!;
 const activeReactions = (f: Fighter) => LASTING.filter(id => (f.flags[id] ?? 0) > 0);
 

@@ -30,7 +30,8 @@ export function faceMatches(g: FaceGroup, face: number): boolean {
 export const faceName = (s: FaceSpec) => s.name ?? KIND_NAME[s.kind];
 
 export function damageOf(f: Fighter, offhand = false): number {
-  return (offhand ? f.offDamage ?? 0 : f.damage) + st(f, "might");
+  // Might: +1 Damage per stack (some gear makes each stack count for more).
+  return (offhand ? f.offDamage ?? 0 : f.damage) + Math.round(st(f, "might") * (1 + (f.flags["mightPlus"] ?? 0)));
 }
 
 /** Holding a Holy weapon (either hand) or a Holy Legendary/Crimson weapon. */
@@ -210,6 +211,10 @@ export function armorOf(f: Fighter): number {
   // Guarding doubles Armor (Fortress Heart: triples); "+Armor while Guarding" effects add on top.
   if (f.flags["guarding"]) a = a * (stacksOf(f, "r_fortress_heart") > 0 ? 3 : 2) + (f.flags["guardArmor"] ?? 0);
   // The Abyss wears the hero's Armor down the deeper you go.
+  // Titan's Plate: every 3 Might is 1 more Armor.
+  if (f.flags["titan"]) a += Math.floor(st(f, "might") / 3);
+  // Crushed (Fracture + Weak): half its Armor is gone for the rest of the fight.
+  if (f.flags["crushed"]) a = Math.floor(a / 2);
   const decay = f.id === "player" ? f.persist["armorDecay"] ?? 0 : 0;
   if (decay > 0) a = Math.floor(a * (1 - decay / 100));
   return Math.max(0, a);
@@ -387,7 +392,9 @@ function strike(b: Battle, ctx: AttackCtx) {
   if (a.flags["frail"]) { raw *= 0.75; a.flags["frail"] = 0; }
   // Bash (main weapon only): Stun and +50%.
   let bashed = false;
-  if (!ctx.offhand && (a.bash ?? 0) > 0 && (ctx.kind === "hit" || ctx.kind === "crit") && b.rng() * 100 < Math.min(BASH_CAP, a.bash ?? 0)) {
+  // Bash chance: gear, plus Might for some builds (mightBash: % per stack); a few pieces raise the cap.
+  const bashChance = (a.bash ?? 0) + (a.flags["mightBash"] ? st(a, "might") * a.flags["mightBash"] : 0);
+  if (!ctx.offhand && bashChance > 0 && (ctx.kind === "hit" || ctx.kind === "crit") && b.rng() * 100 < Math.min(BASH_CAP + (a.flags["bashCap"] ?? 0), bashChance)) {
     raw *= 1.5;
     bashed = true;
   }
@@ -436,7 +443,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   }
   // Dodge (a % chance; Countering adds 20%). It's not Evade: Evade bonuses don't fire, Dodge ones do.
   const countering = d.flags["counter"] === b.round;
-  const dodgeChance = Math.min(DODGE_CAP, (d.dodge ?? 0) + (countering ? 20 : 0));
+  const dodgeChance = Math.min(DODGE_CAP + (d.flags["dodgeCap"] ?? 0), (d.dodge ?? 0) + (countering ? 20 : 0));
   if (dodgeChance > 0 && b.rng() * 100 < dodgeChance && !useTrueStrike(a)) {
     log(b, `${d.name} dodges!`);
     fx(b, { who: d.id, kind: "miss", text: "Dodged" });
@@ -505,6 +512,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     log(b, "💥 Bash!");
     fx(b, { who: d.id, kind: "text", text: "Bash!", icon: "💥" });
     applyStatus(b, a, d, "stun", 1);
+    eachHook(a, "onBash", (h, s) => h(b, ctx, s));
   }
   if (penance > 0 && d.hp <= 0) heal(b, a, Math.ceil(a.maxHp * 0.15), "Penance");
   if (ctx.dealt > 0 && charged > 0) {
@@ -537,7 +545,7 @@ function afterStrike(b: Battle, ctx: AttackCtx) {
   if (!ctx.noDamage) {
     eachHook(d, "whenHit", (h, s) => h(b, ctx, s));
     // Spikes gear and relics make them hit harder (spikeAmp, % for the fight).
-    const spikes = Math.round(st(d, "spikes") * (1 + (d.flags["spikeAmp"] ?? 0) / 100));
+    const spikes = Math.round((st(d, "spikes") + (d.flags["bristle"] && st(d, "spikes") > 0 ? st(d, "might") : 0)) * (1 + (d.flags["spikeAmp"] ?? 0) / 100));
     if (spikes > 0 && a.hp > 0) {
       const lost = loseHp(b, a, spikes);
       log(b, `🌵 Spikes deal ${lost} back to ${a.name}.`);
@@ -577,6 +585,9 @@ function act(b: Battle, f: Fighter, doIt: () => void) {
   if (f.hp <= 0 || b.over) return;
   if (st(f, "stun") > 0) {
     f.statuses.stun = 0;
+    // Reeling: it just lost a turn (Stun-build gear reads this). Bosses, Champions and Elites steady themselves for a while after.
+    f.flags["stunnedAt"] = b.round;
+    if (f.id === "enemy" && (f.boss || f.champion || f.elite || f.crimson)) f.flags["stunGuard"] = b.round + (f.boss ? 2 : 1);
     log(b, `${f.name} is Stunned and skips a turn.`);
     fx(b, { who: f.id, kind: "text", text: "Stunned", icon: "💫" });
     return;
@@ -817,6 +828,7 @@ export function startBattle(player: Fighter, enemy: Fighter, seed: number, carry
   log(b, `${enemy.name} appears: ${enemy.hp} HP, Power ${enemy.damage}${enemy.armor ? `, Armor ${enemy.armor}` : ""}.`);
   if (carry > 0) {
     const lost = loseHp(b, enemy, carry);
+    player.flags["carriedIn"] = lost;
     log(b, `🪓 ${lost} carried damage lands on ${enemy.name}.`);
   }
   for (const f of [player, enemy]) eachHook(f, "onFightStart", (h, s) => h(b, f, s));

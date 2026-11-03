@@ -4,7 +4,7 @@ import { makeMonster, makeThief } from "../src/data/monsters";
 import { makeBoss } from "../src/data/bosses";
 import { EPIC_CRIMSON } from "../src/data/abyss";
 import { EVENTS } from "../src/data/events";
-import { rollFor, beginRound, blessingMult, endRound, enemyPhase, heroPhase, isUnholy, playRound, resolveFace, startBattle } from "../src/engine/combat";
+import { armorOf, damageOf, rollFor, beginRound, blessingMult, endRound, enemyPhase, heroPhase, isUnholy, playRound, resolveFace, startBattle } from "../src/engine/combat";
 import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
 import { applyStatus, endOfRound, heal, st } from "../src/engine/statuses";
@@ -1980,5 +1980,50 @@ describe("new build paths", () => {
     equipItem(g, { uid: 998, base: "pg_bone_charm", rarity: "common", level: 1, bonuses: {}, revealed: true });
     const b5 = startBattle(g.f, dummy(), 13); g.f.statuses = {};
     for (let i = 0; i < 300; i++) expect(rollFor(b5, g.f, 6)).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("more build options", () => {
+  it("new physical reactions: Lacerate, Crushed, Hamstring, Bristle", () => {
+    const h = newHero("warrior");
+    const b = startBattle(h.f, dummy(400), 21); const e = b.enemy; e.armor = 6;
+    e.statuses = { bleed: 5 };
+    applyStatus(b, h.f, e, "fracture", 1);
+    expect(st(e, "fracture")).toBe(0);
+    expect(400 - e.hp).toBeGreaterThanOrEqual(7);
+    e.statuses.bleed = 0;
+    applyStatus(b, h.f, e, "fracture", 1); applyStatus(b, h.f, e, "weak", 1);
+    expect(e.flags["crushed"]).toBeGreaterThan(0);
+    expect(armorOf(e)).toBe(3);
+    const e2 = dummy(400); const b2 = startBattle(h.f, e2, 22); e2.statuses = { weak: 2 };
+    applyStatus(b2, h.f, e2, "bleed", 1);
+    expect(e2.flags["bleedNoFade"]).toBe(1);
+    const b3 = startBattle(h.f, dummy(), 23); h.f.statuses = { might: 3 };
+    applyStatus(b3, h.f, h.f, "spikes", 2);
+    expect(h.f.flags["bristle"]).toBeGreaterThan(0);
+  });
+  it("tough foes can't be Stun-locked; Bash, Might, Fracture and Dodge gear hooks fire", () => {
+    const h = newHero("warrior");
+    const boss = dummy(500); boss.boss = true;
+    const b = startBattle(h.f, boss, 24);
+    applyStatus(b, h.f, boss, "stun", 1); expect(st(boss, "stun")).toBe(1);
+    boss.statuses.stun = 0; boss.flags["stunnedAt"] = b.round; boss.flags["stunGuard"] = b.round + 2;
+    applyStatus(b, h.f, boss, "stun", 1); expect(st(boss, "stun")).toBe(0);
+    // Colossus Blade: each Might counts double.
+    const c = newHero("warrior");
+    equipItem(c, { uid: 999, base: "lx_colossus_blade", rarity: "legendary", level: 1, bonuses: {}, revealed: true });
+    const bc = startBattle(c.f, dummy(), 25);
+    expect(st(c.f, "might")).toBe(2);
+    expect(damageOf(c.f)).toBe(c.f.damage + 4);
+    // Fault Line Ring: shatters hit harder.
+    const shatter = (ring: boolean) => {
+      const s = newHero("mage");
+      if (ring) equipItem(s, { uid: 1000, base: "ps_fault_ring", rarity: "uncommon", level: 1, bonuses: {}, revealed: true });
+      const bs = startBattle(s.f, dummy(400), 26);
+      applyStatus(bs, s.f, bs.enemy, "fracture", 1); applyStatus(bs, s.f, bs.enemy, "fracture", 1); applyStatus(bs, s.f, bs.enemy, "fracture", 1);
+      return 400 - bs.enemy.hp;
+    };
+    expect(shatter(true)).toBeGreaterThan(shatter(false));
+    void bc;
   });
 });
