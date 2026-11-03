@@ -33,6 +33,7 @@ import { applySave, watchBackup, backupCode, backupVault, setPlayerTitle, SUB_BO
 import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
+import { PATCH_NOTES } from "./changes";
 import { holdMusic, isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
 
 loadLibrary();
@@ -49,7 +50,9 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms * speed));
 
 let meta: Meta = loadMeta();
 let run: Run | null = null;
-let view: "splash" | "title" | "codex" = "splash";
+let view: "splash" | "title" | "codex" | "changes" = "splash";
+/** Where the Changes page goes back to. */
+let changesFrom: "splash" | "title" = "splash";
 /** The Options panel is open (from the splash screen). */
 let optionsOpen = false;
 /** Reset progress needs a second tap to confirm. */
@@ -468,6 +471,7 @@ function infoPopup() {
     <div class="panel"><div class="row"><span>🏅 Renown <b>${meta.renown}</b></span><span class="sub">${meta.runs} runs · ${meta.wins} wins · best floor ${meta.bestFloor}</span></div>
       ${next ? `<p class="sub">Next unlock at ${next.at} Renown: <b>${esc(next.name)}</b> (${locked.size} items still locked)</p>` : `<p class="sub">Everything is unlocked.</p>`}</div>
     <div class="menu-btns two" style="margin-top:12px"><button data-codex>📖 Codex</button><button data-help>❓ How to play</button></div>
+    <div class="menu-btns one" style="margin-top:10px"><button data-changes>📰 Changes</button></div>
     <div class="menu-btns two" style="margin-top:10px"><button data-history>📜 Run history${meta.history?.length ? ` (${meta.history.length})` : ""}</button><button data-achievements>🏆 Achievements (${meta.achievements?.length ?? 0}/${ACHIEVEMENTS.length})</button></div>
   </div></div>`;
 }
@@ -1452,6 +1456,16 @@ function helpGlossary() {
   ].join(""))}`;
 }
 
+/** The Changes page: the latest patches, newest first. */
+function changesScreen() {
+  const notes = PATCH_NOTES.map((n, i) => `<article class="patch ${i === 0 ? "latest" : ""}">
+      <header class="patch-head"><div class="patch-kicker">${i === 0 ? "🔥 Latest patch 🔥" : `Patch ${esc(n.version)}`}</div><h2 class="patch-title">⚔️ ${esc(n.title)}</h2><div class="sub">Version ${esc(n.version)} · ${esc(n.date)}</div><p class="patch-intro">${esc(n.intro)}</p></header>
+      <div class="patch-grid">${n.sections.map(sec => `<section class="patch-sec"><h3>${sec.icon} ${esc(sec.title)}</h3><ul>${sec.items.map(([b, t]) => `<li><b>${esc(b)}</b>${t ? `: ${esc(t)}` : ""}</li>`).join("")}</ul></section>`).join("")}</div>
+      <p class="patch-outro">${esc(n.outro)}</p>
+    </article>`).join("");
+  return `<div class="changes-page"><div class="row opt-head"><button class="small dg-stone" data-changesback>← Back</button><h1 class="grow dg-carved">📰 Changes</h1></div>${notes}</div>`;
+}
+
 function splashScreen() {
   const sv = savedSummary();
   return `<div class="splash dungeon">
@@ -1466,6 +1480,7 @@ function splashScreen() {
       <button class="primary big" data-play>${sv ? "▶ Play (continue available)" : "▶ Play"}</button>
       <button class="big" data-help>❓ How to play</button>
       <button class="big lb-btn" data-lb>🏆 Leaderboards</button>
+      <button class="big" data-changes>📰 Changes</button>
       <button class="big" data-options>⚙️ Options</button>
     </div>
     <p class="sub splash-foot dg-plaque">🏅 ${meta.renown} Renown · ${meta.runs} runs · ${meta.wins} wins</p>
@@ -1907,7 +1922,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -2192,6 +2207,8 @@ function bind() {
     on("[data-story]", el => { storyOpen = el.dataset.story as Mode; });
     on("[data-closestory]", () => { storyOpen = null; });
     on("[data-codex]", () => { view = "codex"; infoOpen = false; });
+    on("[data-changes]", () => { changesFrom = view === "splash" ? "splash" : "title"; view = "changes"; infoOpen = false; optionsOpen = false; });
+    on("[data-changesback]", () => { view = changesFrom; });
     on("[data-info]", () => { infoOpen = true; });
     on("[data-closeinfo]", () => { infoOpen = false; });
     on("[data-history]", () => { historyOpen = true; });

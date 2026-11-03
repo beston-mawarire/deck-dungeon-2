@@ -5,6 +5,9 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.59.0
+- 📰 New Changes page: the latest patch notes, from a Changes button on the title screen and in the Info popup. First entry: "The dungeon has changed".
+
 ## 1.58.1
 - More variety in every class's starting-kit choices: the Rogue can start with a Rapier, Sickle, Throwing Knife, Sai or Leather Jerkin; the Mage with Frost and Storm Wands, a Frost Orb or Tome of Hexes, or a Leather Jerkin; the Cleric with a Mace, Censer Flail or Leather Jerkin.
 

@@ -1,0 +1,38 @@
+// The "Changes" page: patch notes for players, newest first.
+export interface PatchNote { title: string; version: string; date: string; intro: string; sections: { icon: string; title: string; items: [string, string][] }[]; outro: string }
+
+export const PATCH_NOTES: PatchNote[] = [
+  {
+    title: "The dungeon has changed", version: "1.58", date: "3 November 2026",
+    intro: "The Great Reset cleared the board, and since then the dungeon has been growing fast. Here's what's new:",
+    sections: [
+      { icon: "🗺️", title: "Every run feels different", items: [
+        ["13 floor themes", "the Smouldering Depths, the Icy Labyrinth, the Necropolis, the Blood Pits and more. Each one has its own look, monsters, Elites and boss."],
+        ["Map shake-ups", "gauntlets of nothing but Elites and Champions, quiet stretches with no fights at all, and more events with their own paths on the map."]] },
+      { icon: "👹", title: "New foes", items: [
+        ["40+ new monsters and 13 new bosses.", ""],
+        ["The Changeling Doppelgänger", "an exact copy of you, guarding a Legendary."],
+        ["Rare weak spots", "some enemies are especially vulnerable to blunt weapons, blades, two-handers, spells or Bleed. Check their tags."]] },
+      { icon: "🧭", title: "New ways to build", items: [
+        ["Builds beyond elemental stacking", "Brawler, Butcher, Duelist, Stonebreaker, Briar, Mercenary, Executioner and Gambler."],
+        ["New gear and powers", "100+ new items, dozens of new relics and talents, and 6 new Talisman sets."],
+        ["New reactions", "Lacerate, Crushed, Hamstring and Bristle."],
+        ["New weapons", "daggers, Heatforged gear for brave Heat runners, and stats-heavy Legendaries for builds that skip effects."]] },
+      { icon: "🔥", title: "Heat and the Abyss", items: [
+        ["Heat", "its own gear, achievements and leaderboard."],
+        ["Ruin Gems", "permanent class power from Abyss Uber bosses."],
+        ["The Abyss", "deeper, deadlier and richer than ever."]] },
+      { icon: "🛡️", title: "Classes", items: [
+        ["Stronger class skills", "War Cry, Penance and Counter all hit harder. Counter now strikes back with a Crit."],
+        ["Mastery", "slower and more meaningful, shown as stars (then crowns) on new heraldic class crests."],
+        ["Starting kits", "more variety for every class."]] },
+      { icon: "🏰", title: "A real dungeon", items: [
+        ["New look", "a torch-lit title hall, stone menus, and a dungeon around you as you play."],
+        ["Clearer fights", "visible Guard and Counter stances, and Crimson foes that glow magenta."]] },
+      { icon: "🐛", title: "Fixes", items: [
+        ["No more slowdowns", "fixed the slowdown over long sessions."],
+        ["Saves and menus", "cleaner saves and smoother menus, plus plenty of balance passes: richer Elite and Champion loot, rarer potions, and tougher bosses."]] }
+    ],
+    outro: "The dungeon is alive. See you in the depths. 🕯️"
+  }
+];
