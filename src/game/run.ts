@@ -417,11 +417,17 @@ export function dealThemes(seed: number): string[] {
   for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
   return ids.slice(0, THEMED_FLOORS);
 }
-/** This floor's theme (none in the Abyss, which is its own place). */
+/** This floor's theme (none in the Abyss, which is its own place). The first floors each have their own; deeper floors draw one at random
+ *  (fixed by the run's seed, and never the same as the floor above). */
 export function themeOf(run: Run, floor = run.floor): FloorTheme | undefined {
   if (run.mode === "abyss") return undefined;
   if (!run.themes?.length) run.themes = dealThemes(run.seed);
-  return themeById(run.themes[(Math.max(1, floor) - 1) % run.themes.length]);
+  const fl = Math.max(1, floor);
+  if (fl <= run.themes.length) return themeById(run.themes[fl - 1]);
+  const prev = themeOf(run, fl - 1)?.id;
+  const pool = THEMES.filter(t => t.id !== prev);
+  const rng = makeRng(((run.seed ^ Math.imul(fl, 2654435761)) >>> 0) || 1);
+  return pool[Math.floor(rng() * pool.length)];
 }
 
 /** The Changeling Doppelgänger: you, exactly as you are walking in (HP, stats, statuses, gear, passives, talents and relics). */

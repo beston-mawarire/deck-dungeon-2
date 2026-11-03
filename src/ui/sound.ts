@@ -95,12 +95,16 @@ function routeThroughGain(m: HTMLAudioElement) {
 export function playMusic(k: Track) {
   if (typeof Audio === "undefined") return;
   if (musicKey === k && music) { applyVolume(); if (music.paused) tryPlay(); return; }
-  if (music) { music.pause(); music.src = ""; }
   musicKey = k;
-  music = new Audio(TRACK_URL[k]);
-  music.loop = true;
-  music.preload = "auto";
-  routeThroughGain(music);
+  // One audio element for the whole session: making a new one (and a new Web Audio source) for every track change
+  // leaked memory over many runs until the page slowed to a halt.
+  if (music) { music.pause(); music.src = TRACK_URL[k]; music.load(); }
+  else {
+    music = new Audio(TRACK_URL[k]);
+    music.loop = true;
+    music.preload = "auto";
+    routeThroughGain(music);
+  }
   applyVolume();
   tryPlay();
   // Browsers (iPhones especially) only allow sound from a real tap or key press, and only some events

@@ -11,6 +11,7 @@ import { SHIELD_CRIMSON } from "./shields";
 import { ROBE_CRIMSON } from "./robes";
 import { STREAK_GEAR_2 } from "./streak";
 import { BRUTE_CRIMSON } from "./brutes";
+import { PLAIN_CRIMSON } from "./plainkit";
 import { WAR_HAMMER_CRIMSON } from "./hammers";
 import { applyStatus, cast, CRIT, GRAZE, heal, HIT, log, loseHp, other, ping, purify, st } from "./helpers";
 
@@ -109,4 +110,4 @@ export const CRIMSON: GearBase[] = [
 ];
 
 // The Treasury's Crimson items join the pool.
-CRIMSON.push(...STAFF_CRIMSON, ...CRIMSON_ITEMS, ...CHARM_CRIMSON, ...SINGLE_CHARM_CRIMSON, ...SHIELD_CRIMSON, ...ROBE_CRIMSON, ...STREAK_GEAR_2.filter(g => g.rarity === "crimson"), ...BRUTE_CRIMSON, ...WAR_HAMMER_CRIMSON);
+CRIMSON.push(...PLAIN_CRIMSON, ...STAFF_CRIMSON, ...CRIMSON_ITEMS, ...CHARM_CRIMSON, ...SINGLE_CHARM_CRIMSON, ...SHIELD_CRIMSON, ...ROBE_CRIMSON, ...STREAK_GEAR_2.filter(g => g.rarity === "crimson"), ...BRUTE_CRIMSON, ...WAR_HAMMER_CRIMSON);

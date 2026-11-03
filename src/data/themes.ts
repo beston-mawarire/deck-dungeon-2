@@ -37,6 +37,9 @@ export const THEME_TRAITS: HookDef[] = [
   trait({ id: "x_th_plated", name: "Plated", tags: ["Guard"], text: "+2 Armor", hooks: { onFightStart: (_b, f) => { f.armor += 2; } } }),
   trait({ id: "x_th_lurker", name: "Lurker", tags: ["Tempo"], text: "Strikes first", hooks: { onFightStart: (_b, f) => { f.flags["ambush"] = 1; } } }),
   trait({ id: "x_th_garrison", name: "Garrisoned", tags: ["Guard"], text: "Starts each fight with Barrier worth 15% of its Max HP", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "barrier", Math.ceil(f.maxHp * 0.15)) } }),
+  trait({ id: "x_th_frenzied", name: "Frenzied", tags: ["Strike"], text: "Gains 1 Might every round (up to 4)", hooks: { onRoundStart: (b, f) => { if ((f.statuses.might ?? 0) < 4) applyStatus(b, f, f, "might", 1); } } }),
+  trait({ id: "x_th_sanctified", name: "Sanctified", tags: ["Holy"], text: "Starts each fight with 2 Ward", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "ward", 2) } }),
+  trait({ id: "x_th_sporecloud", name: "Sporecloud", tags: ["Poison"], text: "Whatever hits it gets 1 Poison", hooks: { whenHit: (b, c) => { if (c.defender !== b.player && !c.noDamage && c.attacker.hp > 0) applyStatus(b, c.defender, c.attacker, "poison", 1); } } }),
   trait({ id: "x_th_deathless", name: "Deathless", tags: ["Blood"], text: "The first time it would die, it rises again with a quarter of its HP",
     hooks: { whenHit: (b, c) => { const d = c.defender; if (d.hp <= 0 && !d.flags["dead"] && !d.flags["risen"]) { d.flags["risen"] = 1; d.hp = Math.ceil(d.maxHp * 0.25); log(b, `💀 ${d.name} rises again!`); b.fx.push({ who: d.id, kind: "text", text: "Rises again", icon: "💀" }); } } } })
 ];
@@ -134,9 +137,36 @@ export const THEMES: FloorTheme[] = [
       { name: "Crossbowman", family: "Cultist", hp: 10, power: 3, traits: [], faces: [MISS, HIT, HIT, HIT, HIT, spell("Bolt", "crit", hex("exposed", 2))] }
     ],
     elites: [{ name: "Iron Captain", family: "Cultist", hp: 16, power: 4, armor: 3, traits: ["m_shieldwall", "x_th_garrison"] }],
-    boss: { name: "Castellan Vorn", title: "the Last Defender", family: "Cultist", moves: ["shieldwall", "guardstrike", "heavy", "enrage"], armor: 3 } }
+    boss: { name: "Castellan Vorn", title: "the Last Defender", family: "Cultist", moves: ["shieldwall", "guardstrike", "heavy", "enrage"], armor: 3 } },
+
+  { id: "fungal", name: "The Fungal Hollow", icon: "🍄", families: ["Beast"], trait: "x_th_sporecloud", traitChance: 0.3,
+    text: "Mushrooms taller than you glow in the dark, and every step lifts a cloud of spores.", hint: "Spore-choked growth that poisons whatever strikes it",
+    monsters: [
+      { name: "Sporeling", family: "Beast", hp: 9, power: 2, traits: ["x_th_sporecloud"] },
+      { name: "Glowcap Lurker", family: "Beast", hp: 12, power: 3, traits: [], faces: [GRAZE, HIT, HIT, HIT, HIT, spell("Spore Burst", "crit", hex("blind", 2))] }
+    ],
+    elites: [{ name: "The Mycelial Mind", family: "Beast", hp: 18, power: 3, traits: ["x_th_sporecloud", "x_regenerating"] }],
+    boss: { name: "The Rotting Crown", title: "Queen of the Hollow", family: "Beast", moves: ["venom", "gaze", "regrow", "strike"], traits: ["x_antitoxic"] } },
+
+  { id: "pits", name: "The Blood Pits", icon: "🩸", families: ["Beast", "Cultist"], trait: "x_th_frenzied", traitChance: 0.3,
+    text: "Sand stained dark, iron gates, and a crowd you can hear but never see. Down here, everyone fights.", hint: "Frenzied fighters who grow stronger every round",
+    monsters: [
+      { name: "Pit Fighter", family: "Cultist", hp: 12, power: 3, traits: ["x_th_frenzied"] },
+      { name: "Starved Hound", family: "Beast", hp: 10, power: 3, traits: ["m_ambush"], faces: [GRAZE, HIT, HIT, HIT, HIT, spell("Maul", "crit", hex("bleed", 2))] }
+    ],
+    elites: [{ name: "The Undefeated", family: "Cultist", hp: 17, power: 4, armor: 2, traits: ["x_th_frenzied", "m_toll"] }],
+    boss: { name: "Gorm", title: "Champion of the Pits", family: "Cultist", moves: ["enrage", "flurry", "heavy", "rend"] } },
+
+  { id: "reliquary", name: "The Shattered Reliquary", icon: "🕯️", families: ["Cultist", "Undead"], trait: "x_th_sanctified", traitChance: 0.3,
+    text: "Gilded shrines, broken saints, and candles that never go out. The faithful still keep watch.", hint: "Warded zealots who shrug off your curses",
+    monsters: [
+      { name: "Reliquary Guard", family: "Cultist", hp: 13, power: 3, armor: 2, traits: ["x_th_sanctified"] },
+      { name: "Hollow Saint", family: "Undead", hp: 11, power: 3, traits: ["m_zeal"] }
+    ],
+    elites: [{ name: "The Inquisitor", family: "Cultist", hp: 15, power: 3, traits: ["x_th_sanctified", "x_dispelling"] }],
+    boss: { name: "Mother Superior Ancel", title: "Keeper of the Last Relic", family: "Cultist", moves: ["bulwark", "hex", "heavy", "strike"], traits: ["x_hexproof"] } }
 ];
 
-/** How many floors get their own theme before they repeat. */
-export const THEMED_FLOORS = 7;
+/** How many floors get their own (different) theme; after that, floors draw themes at random. */
+export const THEMED_FLOORS = 10;
 export const themeById = (id: string | undefined) => THEMES.find(t => t.id === id);

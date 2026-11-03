@@ -1427,7 +1427,7 @@ function splashScreen() {
   const sv = savedSummary();
   return `<div class="splash">
     <div class="splash-dice">🎲</div>
-    <div class="splash-head"><h1 class="splash-title">DECK DUNGEON <span>2</span></h1><span class="splash-blurb">The Great Reset is here!!</span></div>
+    <div class="splash-head"><h1 class="splash-title">DECK DUNGEON <span>2</span></h1><span class="splash-blurb">Dungeon site seeing</span></div>
     <p class="splash-tag">Venture into the depths of darkness. Slay the horrors within.</p>
     <div class="splash-buttons">
       ${musicBlocked() ? `<button class="small music-hint" data-startmusic>🎵 Tap for music</button>` : ""}
@@ -1947,6 +1947,8 @@ function shake(who: "player" | "enemy", big = false) {
 }
 
 async function playFx(b: Battle) {
+  // A huge pile of effects (big stacking builds) would take minutes to play out: skip to the last few.
+  if (b.fx.length > 40) b.fx.splice(0, b.fx.length - 12);
   while (b.fx.length) {
     const e = b.fx.shift()!;
     buildMoment(b, e);
@@ -2040,6 +2042,9 @@ async function playTurn(action: Action) {
   if (!availableActions(r).includes(action)) return;
   const b = (r.scene as { battle: Battle }).battle;
   busy = true;
+  try { await playTurnInner(r, b, action); } catch (err) { console.error(err); busy = false; say("Something went wrong in that turn: it has been skipped.", true); render(); }
+}
+async function playTurnInner(r: Run, b: Battle, action: Action) {
   const startEnemyHp = b.enemy.hp;
   const syncHp = () => { dispHp.player = b.player.hp; dispHp.enemy = b.enemy.hp; };
   syncHp();

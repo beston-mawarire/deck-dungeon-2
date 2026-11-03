@@ -32,3 +32,24 @@ export const PLAIN_KITS: GearBase[] = TIERS.flatMap(t => [
   only(t.r, { ...T, id: slug(t, "ring"), name: `${t.p} Signet`, tags: ["Strike", "Guard"], armor: t.ring[1] || undefined, maxHp: t.ring[2],
     text: `${t.ring[0] ? `+${t.ring[0]} Damage, ` : ""}${t.ring[1] ? `+${t.ring[1]} Armor, ` : ""}+${t.ring[2]} Max HP.`, hooks: t.ring[0] ? { stats: s => { s.damage += t.ring[0]; } } : {} })
 ]);
+
+// Plain Legendaries and Crimson items: no tricks at all, just enormous numbers to make up for it.
+const leg = (asBase: string, reveal: string, d: Omit<GearBase, "rarity" | "legendary" | "hooks"> & { hooks?: GearBase["hooks"] }, minFloor = 3): GearBase =>
+  ({ hooks: {}, ...d, rarity: "legendary", legendary: { minFloor, asBase, reveal } });
+export const PLAIN_LEGENDARIES: GearBase[] = [
+  leg("w_sword", "No tricks: a sword so well made it simply hits harder than anything else.", { ...W, id: "lp_sovereign_blade", name: "The Sovereign Blade", tags: ["Strike"], damage: 16, faces: PLAIN, text: "A king's sword, and every inch of it earned." }),
+  leg("w_axe", "Two-handed, Heavy. No tricks: just a colossal blade.", { ...W, id: "lp_titanfall", name: "Titanfall", tags: ["Strike"], damage: 26, twoHanded: true, heavy: true, faces: HEAVY, text: "It was made to kill something much bigger than you." }, 4),
+  leg("w_dagger", "No tricks: the sharpest knife ever made. Works in the off-hand.", { ...W, id: "lp_kingsfang", name: "Kingsfang", weaponType: "dagger", tags: ["Crit"], damage: 11, offDamage: 10, faces: PLAIN, text: "Thin enough to slip between two heartbeats." }),
+  leg("o_kite_shield", "Shield. No tricks: +12 Armor and +15 Max HP.", { ...O, id: "lp_unbroken_bulwark", name: "The Unbroken Bulwark", shield: true, tags: ["Guard"], armor: 12, maxHp: 15, text: "It has never been breached. It has been tried." }),
+  leg("a_plate", "Heavy. No tricks: +16 Armor and +30 Max HP.", { ...A, id: "lp_aegis_first_king", name: "Aegis of the First King", tags: ["Guard"], armor: 16, maxHp: 30, text: "The first king never fell in battle. He died of boredom." }, 4),
+  leg("a_leather", "Light. No tricks: +6 Armor and +15% Dodge.", { ...A, id: "lp_windcutter", name: "Windcutter Mantle", tags: ["Tempo"], armor: 6, text: "It moves a moment before you do.", hooks: { stats: s => { s.dodge += 15; } } }),
+  leg("t_ring_might", "No tricks: +3 Damage, +4 Armor and +35 Max HP.", { ...T, id: "lp_mountain_heart", name: "Heart of the Mountain", tags: ["Strike", "Guard"], armor: 4, maxHp: 35, text: "A stone that beats.", hooks: { stats: s => { s.damage += 3; } } })
+];
+const crim = (d: Omit<GearBase, "rarity" | "hooks"> & { hooks?: GearBase["hooks"] }): GearBase => ({ hooks: {}, ...d, rarity: "crimson" });
+export const PLAIN_CRIMSON: GearBase[] = [
+  crim({ ...W, id: "cp_bloodsteel_sabre", name: "Bloodsteel Sabre", tags: ["Strike"], damage: 15, faces: PLAIN, text: "No tricks: Bloodsteel, and a great deal of it." }),
+  crim({ ...W, id: "cp_crimson_executioner", name: "The Crimson Executioner", tags: ["Strike"], damage: 30, twoHanded: true, heavy: true, faces: HEAVY, text: "Two-handed, Heavy. No tricks: the heaviest blade in the Red Vaults." }),
+  crim({ ...O, id: "cp_crimson_bastion", name: "Crimson Bastion", shield: true, tags: ["Guard"], armor: 12, maxHp: 20, text: "Shield. No tricks: +12 Armor and +20 Max HP." }),
+  crim({ ...A, id: "cp_bloodforged_plate", name: "Bloodforged Plate", tags: ["Guard"], armor: 14, maxHp: 30, text: "Heavy. No tricks: +14 Armor and +30 Max HP." }),
+  crim({ ...T, id: "cp_crimson_heart", name: "Heart of Crimson", tags: ["Strike", "Blood"], maxHp: 40, text: "No tricks: +4 Damage and +40 Max HP.", hooks: { stats: s => { s.damage += 4; } } })
+];

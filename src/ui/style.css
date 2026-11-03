@@ -313,8 +313,8 @@ button.continue { width: 100%; margin: 10px 0 2px; }
 .splash-title { font-size: clamp(2.2rem, 9vw, 3.6rem); font-weight: 900; letter-spacing: .08em; margin: 4px 0 0; text-shadow: 0 4px 0 #000, 0 0 30px rgba(232,184,74,.25); }
 .splash-title span { color: var(--gold); }
 /* A Minecraft-style splash line, tilted and pulsing off the title's corner. */
-.splash-head { position: relative; display: inline-block; margin-bottom: 18px; }
-.splash-blurb { position: absolute; right: 2%; bottom: -22px; color: #ffe94a; font-weight: 900; font-size: clamp(.95rem, 3.6vw, 1.3rem); white-space: nowrap; pointer-events: none;
+.splash-head { position: relative; display: inline-block; margin-bottom: 28px; }
+.splash-blurb { position: absolute; right: 2%; bottom: -26px; color: #ffe94a; font-weight: 900; font-size: clamp(1.1rem, 4.3vw, 1.55rem); white-space: nowrap; pointer-events: none;
   text-shadow: 2px 2px 0 #3f3a00; transform: rotate(-12deg); animation: splashpulse .55s ease-in-out infinite alternate; transform-origin: center; }
 @keyframes splashpulse { from { transform: rotate(-12deg) scale(.94); } to { transform: rotate(-12deg) scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { .splash-blurb { animation: none; } }
@@ -993,3 +993,9 @@ body[data-theme="stronghold"] { --bg: #131215; --panel: #1d1b20; --panel2: #2623
 body[data-theme] .room:not(.crimson-room):not(.goblin-room):not(.bounty-room):not(.nemesis-room) { background: linear-gradient(170deg, color-mix(in srgb, var(--accent) 14%, var(--panel2)) 0%, var(--panel) 75%); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
 body[data-theme] .floorname { color: var(--accent); }
 body[data-theme] .panel, body[data-theme] .item { border-color: color-mix(in srgb, var(--accent) 18%, var(--line)); }
+body[data-theme="fungal"] { --bg: #0f0c16; --panel: #181424; --panel2: #201a30; --line: #3b2f55; --muted: #b3a6cf; --btn: #221c33; --chip: #251e37; --track: #251e37; --accent: #6fe3c8;
+  --tint: radial-gradient(circle at 20% 80%, rgba(111,227,200,.12), transparent 35%), radial-gradient(circle at 85% 30%, rgba(180,120,255,.12), transparent 35%); }
+body[data-theme="pits"] { --bg: #170d0c; --panel: #231412; --panel2: #2d1a17; --line: #53302a; --muted: #c4a29c; --btn: #2f1b18; --chip: #331d1a; --track: #331d1a; --accent: #e2556a;
+  --tint: radial-gradient(ellipse at 50% 110%, rgba(190,90,50,.18), transparent 60%); }
+body[data-theme="reliquary"] { --bg: #15130f; --panel: #201d17; --panel2: #29251d; --line: #4d4433; --muted: #c9bea2; --btn: #2b261d; --chip: #2e2920; --track: #2e2920; --accent: #ffd98a;
+  --tint: radial-gradient(ellipse at 50% -20%, rgba(255,217,138,.14), transparent 60%); }

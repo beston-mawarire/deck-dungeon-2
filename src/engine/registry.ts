@@ -40,6 +40,8 @@ export const stacksOf = (f: Fighter, id: string) => f.items[id] ?? 0;
 
 export function log(b: Battle, msg: string) {
   b.log.push(msg);
+  // Long fights (and big builds) can log thousands of lines: keep the latest few hundred.
+  if (b.log.length > 400) b.log.splice(0, b.log.length - 300);
 }
 
 /** Queue a visual effect for the UI (floating text, rolls, numbers). */

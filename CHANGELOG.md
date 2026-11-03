@@ -5,6 +5,13 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.50.0
+- 🗺️ Three more floor themes: 🍄 The Fungal Hollow, 🩸 The Blood Pits and 🕯️ The Shattered Reliquary, each with its own foes, Elite, boss and trait (Sporecloud, Frenzied, Sanctified). Floors 1–10 now each get a different theme; past floor 10, every floor draws one at random (never the same twice in a row).
+- 👑 Plain Legendaries and Crimson items: no effects at all, just enormous numbers. The Sovereign Blade, Titanfall, Kingsfang, the Unbroken Bulwark, Aegis of the First King, Windcutter Mantle and Heart of the Mountain; Bloodsteel Sabre, the Crimson Executioner, Crimson Bastion, Bloodforged Plate and Heart of Crimson.
+- 🎒 Your backpack holds 2 more items.
+- Fixed: the game could slow down and freeze after several runs (every music change left an audio player behind). Very long fights and huge piles of effects no longer stall the screen either, and a turn that hits an error is skipped instead of locking the fight.
+- The title screen's line is bigger, and says: Dungeon site seeing.
+
 ## 1.49.0
 - 🗺️ Floor themes: every run deals floors 1–7 a theme each, drawn at random from ten (no repeats), and deeper floors reuse them in turn, so no two runs look or play the same. Each theme recolours the whole game, brings its own monsters, Elites and boss, makes some families more common, marks some of its foes with its own trait, and twists their attributes a little:
   - 🌋 The Smouldering Depths · ⚰️ The Dark Catacombs · 🌿 The Overgrown Pathways · ❄️ The Icy Labyrinth · ⚙️ The Corridor of Constructs

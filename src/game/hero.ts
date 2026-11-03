@@ -16,7 +16,7 @@ export const EQUIP_SLOTS: EquipSlot[] = ["main", "off", "armour", "trinket1", "t
 export const hasThirdTrinket = (h: Hero) => h.keepsake === "ks_collector";
 /** The slots this hero can actually use right now. */
 export const openSlots = (h: Hero) => EQUIP_SLOTS.filter(s => s !== "trinket3" || hasThirdTrinket(h));
-export const BACKPACK_SIZE = 6;
+export const BACKPACK_SIZE = 8;
 export const DRAGON_HEART_MULT = 1.5;
 /** A Talisman sigil: a set piece (its id) or a plain one (a minor module at a tier). Its level is the floor it came from. */
 export interface Sigil { uid: number; id: string; level: number; tier?: number }
