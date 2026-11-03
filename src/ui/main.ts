@@ -360,6 +360,7 @@ function hud(r: Run) {
     <div class="bar xp"><i style="width:${(h.xp / need) * 100}%"></i></div>
     <div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>
     <div class="row hud-actions" style="margin-top:6px"><button class="small bag-btn" data-bag>${newTabs(r).size ? `<b class="newdot" title="Something new in your Inventory"></b>` : ""}🎒 <span class="lbl">Inventory</span></button>${bountyBtn(r)}${h.potions && f.hp > 0 && f.hp < f.maxHp && !busy && r.scene.t !== "over" ? `<button class="small potion-btn" data-potion>🧪 <span class="lbl">Potion </span>(+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ <span class="lbl">Menu</span></button></div>
+    <div class="hud-floor">${floorHeader(r)}</div>
   </div>`;
 }
 
@@ -545,10 +546,14 @@ function codexScreen() {
 /** Map rooms that can be auto-fought (if the fight inside turns out to be one you can't lose). */
 const AUTO_ROOMS: string[] = ["fight", "elite", "champion"];
 
-function mapScene(r: Run) {
+/** The floor's name and Fortune: the last row of the top bar. */
+function floorHeader(r: Run) {
   const pips = fortunePips(depth(r));
   const abyss = r.mode === "abyss";
-  return `<div class="floorname ${abyss ? "abyss-name" : ""}">${abyss ? `🕳️ The Abyss · Depth ${r.floor}` : `Floor ${r.floor} · ${(() => { const th = themeOf(r); return th ? `${th.icon} ${esc(th.name)}` : esc(floorName(r.floor)); })()}`}</div><div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>
+  return `<div class="floorname ${abyss ? "abyss-name" : ""}">${abyss ? `🕳️ The Abyss · Depth ${r.floor}` : `Floor ${r.floor} · ${(() => { const th = themeOf(r); return th ? `${th.icon} ${esc(th.name)}` : esc(floorName(r.floor)); })()}`}</div><div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>`;
+}
+function mapScene(r: Run) {
+  return `
   <h2>${r.step >= STEPS_PER_FLOOR ? (r.mode === "abyss" ? "The Uber boss awaits" : r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits") : "Choose your path"}</h2>
   <div class="cards">${r.choices.map(c => `${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn ? `<div class="room-wrap">` : ""}<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : c === "nemesis" ? "nemesis-room" : ""}" data-room="${c}">${(() => { const g = c === "crossroads" ? CROSSROADS_GUISES[r.crossroadsGuise ?? 0] : null; const info = g ? { icon: g.icon, name: g.title, text: g.room } : c === "nemesis" && r.nemesis ? { ...ROOM_INFO.nemesis, text: `${r.nemesis.name}. It killed you last time, and it remembers. A bounty for its head.` } : (r.mode === "abyss" && ABYSS_ROOM_INFO[c]) || ROOM_INFO[c];
     return `<span class="ic">${c === "boss" && r.floor >= FLOORS && r.mode !== "abyss" ? "💀" : info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn ? `<div class="room-acts"><button class="fight-room" data-room="${c}" title="Go in and fight it yourself"><span class="ic">⚔️</span>Fight</button><button class="auto-room" data-autoroom="${c}" title="Go in and let the fight play itself out — only if it's one you can't lose"><span class="ic">⚡</span>Quick<br> Battle</button></div></div>` : ""}`).join("")}</div>`;

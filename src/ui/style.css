@@ -1253,3 +1253,6 @@ body[data-theme] .bag-overlay .toast:not(.err) { background: #3a2f22; border-col
 body[data-theme] .bag-overlay .toast:not(.err) b { color: inherit; }
 /* The top bar sits above the page's content and scrolls away with it (no fixed bar covering the content). */
 .hud, body[data-theme] .hud { position: relative; top: auto; backdrop-filter: none; }
+.hud-floor { margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.06); }
+.hud-floor .floorname { margin: 0 0 2px; }
+.hud-floor .fortune { margin: 0; }
