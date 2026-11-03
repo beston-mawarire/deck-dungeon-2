@@ -5,6 +5,11 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+## 1.55.0
+- 🧱 Runs take place in the dungeon now: a stone-brick wall and a dark vignette behind everything, tinted by the floor's theme.
+- The enemy's panel (its border, glow and fill) and its name, bosses included, take the floor theme's colour.
+- The Abyss tab's "How it works" guide is there even while the Abyss is still sealed.
+
 ## 1.54.0
 - ⭐ Mastery XP per run is about half what it was: winning the Campaign is worth about 6.
 - 📯 War Cry (Warrior) is much stronger: a bigger swell of Might, and the enemy is left Weak for longer and Exposed too.

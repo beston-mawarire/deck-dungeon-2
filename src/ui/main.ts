@@ -394,7 +394,7 @@ function titleScreen() {
   if (menuTab === "abyss") {
     const shards = meta.ruinShards ?? 0;
     const body = !abyssUnlocked(meta)
-      ? `<div class="panel abyss-locked"><p class="big">🔒 The Abyss is sealed.</p><p>Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find the way down.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p></div>`
+      ? `<div class="panel abyss-locked"><p class="big">🔒 The Abyss is sealed.</p><p>Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find the way down.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p><button class="story-btn small" data-abyssintro>❔ How it works</button></div>`
       : `<div class="campaign-hero abyss-hero">
           <div class="ch-text"><b>🕳️ The Abyss</b><span>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. The richest loot comes from the deadliest. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.</span></div>
           <div class="hero-btns"><button class="story-btn small" data-abyssintro>❔ How it works</button><button class="story-btn small" data-story="abyss">📖 Story</button></div>

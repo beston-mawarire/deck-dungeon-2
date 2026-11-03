@@ -1126,3 +1126,18 @@ body.dg-menu .info-row button::before { left: 5px; } body.dg-menu .info-row butt
 .crest-stars .dim { color: rgba(255,255,255,.16); text-shadow: none; }
 .crest-stars .crowns { font-size: 1.05rem; letter-spacing: 2px; filter: drop-shadow(0 0 5px rgba(255,200,80,.8)); }
 .hero-btns { display: flex; flex-direction: column; gap: 6px; }
+
+/* ---------- In a run: the floor's theme on the enemy, and a dungeon around you ---------- */
+body[data-theme] #fp-enemy:not(.crimson-foe) { border: 2px solid color-mix(in srgb, var(--accent) 70%, var(--line)); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, var(--panel)) 0%, color-mix(in srgb, var(--accent) 6%, var(--panel)) 100%);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 22%, transparent), inset 0 1px 0 rgba(255,255,255,.06); }
+body[data-theme] #fp-enemy > .row:first-child > b, body[data-theme] .fighter.killer > .row:first-child > b { color: var(--accent); text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent); }
+body[data-theme] {
+  background-image: var(--tint),
+    radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(0,0,0,.7) 100%),
+    repeating-linear-gradient(0deg, rgba(0,0,0,.55) 0 3px, transparent 3px 44px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,.45) 0 3px, transparent 3px 88px),
+    repeating-linear-gradient(90deg, transparent 0 44px, rgba(0,0,0,.32) 44px 46px, transparent 46px 88px),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 62%, #5a4e46), color-mix(in srgb, var(--bg) 78%, #4a403a));
+  background-attachment: fixed;
+}
+body[data-theme] .hud { backdrop-filter: blur(3px); }
