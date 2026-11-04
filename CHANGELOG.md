@@ -7,7 +7,7 @@ Versions follow MAJOR.MINOR.PATCH:
 
 ## 1.62.5
 - Early floors are no longer held back: Legendaries on floors 1–2 stay Legendary, and bosses on floors 1–3 offer the same picks as floors 4–7.
-- Fix: after an Ambush, you no longer start the fight in a Counter stance (any class). It was showing the stance, and in the opening round it could act like one.
+- Fix: after an Ambush, you no longer start the fight in a Counter stance (any class). (It was only the look: the stance did nothing.)
 
 ## 1.62.4
 - Standard: the "green floors" are gone. Floors 1 and 2 no longer turn Rare and Epic finds into Uncommons.
