@@ -24,11 +24,11 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  startCrawl, gridDanger, type RoomType,
+  startCrawl, ordinal, type RoomType,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
-import { dangerWord, LAYER_FLOORS } from "../game/grid";
+import { LAYER_FLOORS } from "../game/grid";
 import { MANA_MAX } from "../engine/combat";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap } from "../game/hero";
@@ -591,6 +591,99 @@ function mapScene(r: Run) {
     return `<span class="ic">${info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn ? `<div class="room-acts"><button class="fight-room" data-room="${c}" title="Go in and fight it yourself"><span class="ic">⚔️</span>Fight</button><button class="auto-room" data-autoroom="${c}" title="Go in and let the fight play itself out — only if it's one you can't lose"><span class="ic">⚡</span>Quick<br> Battle</button></div></div>` : ""}`).join("")}</div>`;
 }
 
+/** The HP, mana and XP bars, boxed (top left on the map; between the potions and the bag in a fight). */
+function czBars(r: Run) {
+  const h = r.hero, f = h.f;
+  const inFight = r.scene.t === "combat";
+  const hp = inFight ? dispHp.player ?? f.hp : f.hp;
+  const maxMana = f.maxMana || MANA_MAX;
+  const mana = inFight ? f.mana ?? 0 : maxMana;
+  const need = xpToLevel(h.level);
+  return `<div class="cz-bars">
+    <div class="cz-bar hp"><i style="width:${Math.max(0, Math.min(100, (hp / f.maxHp) * 100))}%"></i><span>${Math.max(0, hp)} / ${f.maxHp}</span></div>
+    <div class="cz-bar mana"><i style="width:${(mana / maxMana) * 100}%"></i><span>${mana}</span></div>
+    <div class="cz-bar xp"><i style="width:${(h.xp / need) * 100}%"></i><span>Lv ${h.level}</span></div>
+  </div>`;
+}
+
+/** The potion button and its drawer (tap to slide your potions out; tap one to drink it). */
+function potionCircle(r: Run) {
+  const h = r.hero, f = h.f;
+  const inFight = r.scene.t === "combat" && !r.scene.battle.over;
+  const drunk = f.flags["potionsDrunk"] ?? 0;
+  const canHeal = h.potions > 0 && f.hp > 0 && f.hp < f.maxHp && !busy && (!inFight || drunk < potionsPerFight(h));
+  const tonics = Object.entries(h.tonics ?? {});
+  const fightOnly = (what: string) => `data-potnote="${esc(what)} only work in a fight."`;
+  return `<button class="cz-circle" data-potdrawer aria-label="Potions">🧪${h.potions ? `<b class="cz-count">${h.potions}</b>` : ""}</button>
+    <div class="cz-drawer ${potDrawer ? "open" : ""}">
+      <button class="cz-pot" data-potion ${canHeal ? "" : "disabled"} title="Healing Potion">🧪<b>${h.potions}</b></button>
+      ${h.manaPotions ? `<button class="cz-pot ${inFight ? "" : "off"}" ${inFight ? `data-mana ${(f.mana ?? 0) >= (f.maxMana ?? 0) || busy ? "disabled" : ""}` : fightOnly("Mana Potions")} title="Mana Potion">🔷<b>${h.manaPotions}</b></button>` : ""}
+      ${tonics.map(([id, n]) => `<button class="cz-pot ${inFight ? "" : "off"}" ${inFight ? `data-tonic="${id}" ${busy ? "disabled" : ""}` : fightOnly("Tonics")} title="${esc(TONICS[id].name)}: ${esc(TONICS[id].text)}">${TONICS[id].icon}<b>${n}</b></button>`).join("")}
+    </div>`;
+}
+const bagCircle = (r: Run) => `<button class="cz-circle big" data-bag aria-label="Inventory">${newTabs(r).size ? `<b class="newdot"></b>` : ""}🎒</button>`;
+
+/** A foe's picture in a fight: by what it is, then by its family. */
+function foeIcon(f: Fighter): string {
+  const n = f.name.toLowerCase();
+  const by: [RegExp, string][] = [[/dragon|wyrm|drake/, "🐉"], [/rat\b|rats|vermin/, "🐀"], [/spider|arachn/, "🕷️"], [/bat\b|bats/, "🦇"], [/wolf|hound|jackal/, "🐺"], [/bear/, "🐻"], [/snake|serpent|viper|naga/, "🐍"],
+    [/slime|ooze|jelly/, "🟢"], [/ghost|wraith|spectre|specter|phantom|shade/, "👻"], [/zombie|ghoul|corpse/, "🧟"], [/skeleton|bone|lich/, "💀"], [/golem|statue|gargoyle/, "🗿"],
+    [/goblin/, "👺"], [/mimic/, "📦"], [/thief|rogue|bandit/, "🦹"], [/vampire|blood/, "🧛"], [/mushroom|fung|spore/, "🍄"], [/crab|crustacean/, "🦀"], [/boar|pig/, "🐗"], [/scorpion/, "🦂"], [/worm|grub/, "🪱"], [/eye\b|beholder/, "👁️"], [/fire|flame|ember/, "🔥"], [/ice|frost/, "❄️"]];
+  for (const [re, ic] of by) if (re.test(n)) return ic;
+  if (f.name === "DEATH") return "💀";
+  if (f.doppel && run) return ORIGIN_ICON[run.hero.origin];
+  const fam: Record<string, string> = { Beast: "🐾", Undead: "💀", Cultist: "🧙", Construct: "🤖" };
+  return (f.family && fam[f.family]) || (f.boss ? "👹" : "👾");
+}
+
+/** A Pokémon-style HP bar: green, then yellow below half, red below a fifth. */
+const cbHp = (hp: number, max: number) => { const p = Math.max(0, Math.min(1, hp / max)); return `<div class="cb-hp ${p <= 0.2 ? "low" : p <= 0.5 ? "mid" : ""}"><em>HP</em><span><i style="width:${p * 100}%"></i></span></div>`; };
+
+/** The Crawl's fight: a framed, Pokémon-style screen. Foe top right with its box to the left; you bottom left with yours to the right; your moves below. */
+function crawlCombat(r: Run, msg: string[], bad: boolean) {
+  if (r.scene.t !== "combat") return "";
+  const b = r.scene.battle, e = b.enemy, p = b.player;
+  const ehp = dispHp.enemy ?? e.hp;
+  const intent = e.moves?.length ? e.moves[e.intent ?? 0] : null;
+  const rnd = currentBattle?.round ?? -1;
+  const stance = p.flags["guarding"] ? "guard" : p.flags["counter"] === rnd && rnd >= 0 ? "counter" : "";
+  const rank = e.crimson ? "Crimson" : e.boss ? "Boss" : e.champion ? "Champion" : e.elite ? "Elite" : "";
+  const acts = availableActions(r);
+  const traits = guardChips(e, "enemy") + foeTraits(e) + statusChips(e);
+  return `<div class="cb-screen"><div class="cb-inner">
+    <button class="cb-menubtn" data-menu ${busy ? "disabled" : ""} aria-label="Menu">☰</button>
+    <div class="cb-row cb-foe-row">
+      <div class="cb-box foe ${e.crimson ? "crimson" : ""}">
+        <div class="cb-name"><b>${esc(e.name)}</b>${rank ? `<span class="cb-rank">${rank}</span>` : ""}</div>
+        ${e.title ? `<div class="cb-title">${esc(e.title)}</div>` : ""}
+        ${cbHp(ehp, e.maxHp)}
+        <div class="cb-nums">${big(Math.max(0, ehp))} / ${big(e.maxHp)} · Power ${e.items["m_death"] ? "☠️" : big(e.damage)} · Armor ${armorOf(e)}</div>
+        <div class="cb-chips">${traits}</div>
+      </div>
+      <div class="cb-sprite foe" id="fp-enemy"><span>${foeIcon(e)}</span></div>
+    </div>
+    ${intent ? `<div class="cb-intent">Next: ${intent.icon} <b>${esc(intent.name)}</b> — ${esc(intent.text)}</div>` : ""}
+    <div class="cb-dice">${dieBox("player", "You")}${dieBox("enemy", esc(e.name))}</div>
+    <div class="cb-row cb-hero-row">
+      <div class="cb-sprite hero ${stance ? `stance-${stance}` : ""}" id="fp-player"><span>${ORIGIN_ICON[r.hero.origin]}</span></div>
+      <div class="cb-box hero">
+        <div class="cb-name"><b>${esc(ORIGINS[r.hero.origin].name)}</b><span class="cb-rank">Lv ${r.hero.level}</span></div>
+        <div class="cb-nums">Damage ${p.damage}${p.offDamage !== undefined ? ` + ${p.offDamage}` : ""} · Armor ${armorOf(p)}</div>
+        ${stance === "guard" ? `<div class="cb-stance">🛡️ Guarding</div>` : stance === "counter" ? `<div class="cb-stance">🌀 Countering</div>` : ""}
+        <div class="cb-chips">${guardChips(p, "player")}${statusChips(p)}</div>
+      </div>
+    </div>
+    ${(p.statuses.stun ?? 0) > 0 ? `<div class="toast err">💫 You're Stunned: your next turn will be skipped.</div>` : ""}
+    ${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(m)}</div>`).join("")}
+    <div class="cb-moves ${busy ? "busy" : ""}">
+      ${acts.map(a => `<button class="cb-move ${a === "attack" ? "attack" : a === "flee" ? "flee" : a === "guard" ? "guard" : "skill"}" data-act="${a}" ${busy || (isSkill(a) && (p.mana ?? 0) < MANA_COST) ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(p)}${isSkill(a) ? ` <span class="mana-cost">🔷${MANA_COST}</span>` : ""}</button>`).join("")}
+    </div>
+    <div class="cb-extra">${!busy && quickOn && canAutoBattle(r) ? `<button class="cb-quick" data-auto title="This foe can't win against plain attacks. Skip to the end.">⚡ Quick Battle</button>` : ""}<button class="cb-speed" data-speedcycle title="Combat speed">⏩ ${speed >= 1 ? "Normal" : speed >= 0.5 ? "Fast" : "Very fast"}</button></div>
+    <div class="cb-bottom"><div class="cb-pots">${potionCircle(r)}</div>${czBars(r)}${bagCircle(r)}</div>
+    <details class="cb-log"><summary>Battle log</summary><div class="log">${b.log.slice().reverse().map(l => `<div class="${l.startsWith("—") ? "round" : ""}">${esc(l)}</div>`).join("")}</div></details>
+  </div></div>`;
+}
+
 /** What the action button on a picked thing says. */
 function crawlAct(room: string) {
   if (room === "trapdoor") return "🕳️ Descend";
@@ -604,12 +697,8 @@ const thingInfo = (r: Run, room: string) => (room === "trapdoor" ? TRAPDOOR_INFO
 /** The Crawl: the floor fills the screen (drawn by crawl.ts); the HUD sits over it in the corners. */
 function crawlScreen(r: Run, msg: string[], bad: boolean) {
   const m = r.grid!;
-  const h = r.hero, f = h.f;
-  const danger = gridDanger(r);
-  const need = xpToLevel(h.level);
-  const maxMana = f.maxMana || MANA_MAX;
-  const th = themeOf(r);
-  const layer = r.mode === "abyss" ? `The Abyss · Depth ${r.floor}` : `Layer ${r.floor} · ${th ? `${th.icon} ${esc(th.name)}` : esc(floorName(r.floor))}`;
+  const h = r.hero;
+  const layer = r.mode === "abyss" ? `The Abyss · Depth ${r.floor}` : `${ordinal(r.floor)} Layer`;
   const sel = m.sel !== undefined && !m.things[m.sel]?.done ? m.sel : undefined;
   const pick = (() => {
     if (sel === undefined) return "";
@@ -620,30 +709,20 @@ function crawlScreen(r: Run, msg: string[], bad: boolean) {
   })();
   const q = r.bounty;
   const quests = q ? `<button class="cz-quest ${bountyProgress(h, q) >= q.target ? "done" : ""}" data-bounty>📋 <span>${esc(bountyText(q, h.origin))}</span> <b>${Math.min(q.target, bountyProgress(h, q))}/${q.target}</b></button>` : "";
-  const tonics = Object.entries(h.tonics ?? {});
-  const drawer = `<div class="cz-drawer ${potDrawer ? "open" : ""}">
-      <button class="cz-pot" data-potion ${h.potions && f.hp < f.maxHp ? "" : "disabled"} title="Healing Potion: +12 HP">🧪<b>${h.potions}</b></button>
-      ${h.manaPotions ? `<button class="cz-pot off" data-potnote="Mana Potions refill your mana in a fight. Your mana fills up at the start of every fight anyway." title="Mana Potion">🔷<b>${h.manaPotions}</b></button>` : ""}
-      ${tonics.map(([id, n]) => `<button class="cz-pot off" data-potnote="${esc(TONICS[id].name)}: ${esc(TONICS[id].text)}. Tonics only work in a fight." title="${esc(TONICS[id].name)}">${TONICS[id].icon}<b>${n}</b></button>`).join("")}
-    </div>`;
   return `<div class="crawl-screen">
     <canvas id="crawl"></canvas>
     <div class="crawl-vignette"></div>
-    <div class="cz cz-tl">
-      <div class="cz-bar hp"><i style="width:${Math.max(0, (f.hp / f.maxHp) * 100)}%"></i><span>${Math.max(0, f.hp)} / ${f.maxHp}</span></div>
-      ${maxMana ? `<div class="cz-bar mana"><i style="width:100%"></i><span>Mana ${maxMana}</span></div>` : ""}
-      <div class="cz-bar xp"><i style="width:${(h.xp / need) * 100}%"></i><span>Lv ${h.level}</span></div>
-    </div>
+    <div class="cz cz-tl">${czBars(r)}</div>
     <div class="cz cz-tr">
       <button class="cz-menu" data-menu aria-label="Menu">☰</button>
       <div class="cz-layer">${layer}</div>
-      <div class="cz-floor">Floor ${m.depth} of ${LAYER_FLOORS} · <span class="danger d${Math.min(danger, 4)}">${dangerWord(danger)}</span></div>
+      <div class="cz-floor">Floor ${m.depth}</div>
       ${quests}
     </div>
     ${msg.length ? `<div class="cz cz-toasts">${msg.map((x, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(x)}</div>`).join("")}</div>` : ""}
     ${pick}
-    <div class="cz cz-bl"><button class="cz-circle" data-potdrawer aria-label="Potions">🧪${h.potions ? `<b class="cz-count">${h.potions}</b>` : ""}</button>${drawer}</div>
-    <div class="cz cz-br"><button class="cz-circle big" data-bag aria-label="Inventory">${newTabs(r).size ? `<b class="newdot"></b>` : ""}🎒</button></div>
+    <div class="cz cz-bl">${potionCircle(r)}</div>
+    <div class="cz cz-br">${bagCircle(r)}</div>
   </div>`;
 }
 
@@ -670,10 +749,15 @@ function guardChips(f: Fighter, who: "player" | "enemy") {
 /** Short numbers for the deep floors: 15926037312 → 15.9B. */
 const big = (n: number) => (n < 1e5 ? String(n) : n < 1e6 ? `${(n / 1e3).toFixed(0)}K` : n < 1e9 ? `${(n / 1e6).toFixed(1)}M` : n < 1e12 ? `${(n / 1e9).toFixed(1)}B` : `${(n / 1e12).toFixed(1)}T`);
 
+/** A foe's trait chips (Unholy, tolls, escapes, its items). */
+function foeTraits(f: Fighter) {
+  return `${isUnholy(f) ? `<span class="chip holy" title="Holy weapons deal +15% to it">☠️ Unholy</span>` : ""}${currentBattle && tollOf(f, currentBattle.player) > 0 ? `<span class="chip toll" title="Attacking, Guarding, drinking a potion or using your class action each cost this much HP">⛓️ Each action costs ${tollOf(f, currentBattle.player)} HP</span>` : ""}${f.items["m_goblin"] ? `<span class="chip thief" title="Kill it before it escapes: everything it carries is yours">💨 Escapes after round 3 (${Math.max(0, 3 - (currentBattle?.round ?? 0))} left)</span>` : ""}${f.items["m_thief"] ? `<span class="chip thief" title="Kill it before it escapes: it takes 30% of your Gold, or drops 60% on top if you win">💰 Escapes after round 5 (${Math.max(0, 5 - (currentBattle?.round ?? 0))} left)</span>` : ""}${f.family === "Construct" ? `<span class="chip storm" title="Lightning hits it twice as hard: Shock doubles damage, Static and electric reactions deal double, Storm weapons +30%">⚡ Conductive</span>` : ""}${f.doppel ? `<span class="chip" title="Your HP, stats, statuses, gear, passives, talents and relics, as they were when you walked in">🎭 A perfect copy of you</span>${f.items["m_ambush"] ? `<span class="chip" title="Strikes first">Ambush</span>` : ""}` : Object.keys(f.items).map(id => getItem(id)).map(d => `<span class="chip" title="${esc(d.text)}">${esc(d.name)}</span>`).join("")}`;
+}
+
 function fighterPanel(f: Fighter, who: "player" | "enemy") {
   const hp = dispHp[who] ?? f.hp;
   const intent = who === "enemy" && f.moves?.length ? f.moves[f.intent ?? 0] : null;
-  const traits = who === "enemy" ? `${isUnholy(f) ? `<span class="chip holy" title="Holy weapons deal +15% to it">☠️ Unholy</span>` : ""}${currentBattle && tollOf(f, currentBattle.player) > 0 ? `<span class="chip toll" title="Attacking, Guarding, drinking a potion or using your class action each cost this much HP">⛓️ Each action costs ${tollOf(f, currentBattle.player)} HP</span>` : ""}${f.items["m_goblin"] ? `<span class="chip thief" title="Kill it before it escapes: everything it carries is yours">💨 Escapes after round 3 (${Math.max(0, 3 - (currentBattle?.round ?? 0))} left)</span>` : ""}${f.items["m_thief"] ? `<span class="chip thief" title="Kill it before it escapes: it takes 30% of your Gold, or drops 60% on top if you win">💰 Escapes after round 5 (${Math.max(0, 5 - (currentBattle?.round ?? 0))} left)</span>` : ""}${f.family === "Construct" ? `<span class="chip storm" title="Lightning hits it twice as hard: Shock doubles damage, Static and electric reactions deal double, Storm weapons +30%">⚡ Conductive</span>` : ""}${f.doppel ? `<span class="chip" title="Your HP, stats, statuses, gear, passives, talents and relics, as they were when you walked in">🎭 A perfect copy of you</span>${f.items["m_ambush"] ? `<span class="chip" title="Strikes first">Ambush</span>` : ""}` : Object.keys(f.items).map(id => getItem(id)).map(d => `<span class="chip" title="${esc(d.text)}">${esc(d.name)}</span>`).join("")}` : "";
+  const traits = who === "enemy" ? foeTraits(f) : "";
   // Your stance this round: Guarding or Countering shows on your panel.
   const rnd = currentBattle?.round ?? -1;
   const stance = who === "player" ? (f.flags["guarding"] ? "guard" : f.flags["counter"] === rnd && rnd >= 0 ? "counter" : "") : "";
@@ -2143,8 +2227,9 @@ function render2() {
     }
   }
   const crawlView = (s.t === "map" || s.t === "resplendent") && !!r.gridMode && !!r.grid;
-  document.body.classList.toggle("crawl-on", crawlView);
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
+  const crawlFight = s.t === "combat" && !!r.gridMode;
+  document.body.classList.toggle("crawl-on", crawlView || crawlFight);
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, msg, noteBad && !!note) : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
   bind();
   if (s.t === "map" && r.gridMode) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => roomInfo(r, room as RoomType).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never) }); }
   else stopWalk();

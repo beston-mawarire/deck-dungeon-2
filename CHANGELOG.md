@@ -9,6 +9,17 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.68.0
+- **The Crawl's fights get their own screen**, Pokémon-style, on pale parchment inside a brick frame.
+  - The foe stands top right with its box (name, HP, traits) to the left. You stand bottom left with your box to the right. Your dice sit between you.
+  - Your moves are in a menu box below. Screen shakes, hit numbers and vibrations all still play.
+  - Along the bottom: potions (the drawer works in a fight too: Healing and Mana Potions and tonics), your HP / mana / XP bars, and your Inventory.
+- **Map HUD:**
+  - The bars are narrower, the same height and square, and sit in a square frame like the potion and inventory buttons.
+  - The mana bar just shows the number.
+- **No floor themes in the Crawl.** The top right now reads simply "1st Layer" / "Floor 1".
+- The floors are a shade darker.
+
 ## 1.67.0
 - **The Crawl: layers and floors.** What used to be a floor is now a **layer**, and each layer has four floors.
   - Floors 1–3: explore and find the **trapdoor** down. Once you drop, there's no way back up.

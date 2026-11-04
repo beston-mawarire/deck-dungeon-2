@@ -47,7 +47,7 @@ function cam(m: FloorMap): { x: number; y: number } {
 /** A steady per-tile random number (so the grit doesn't shimmer). */
 const hash = (x: number, y: number, k = 0) => { let n = (x * 374761393 + y * 668265263 + k * 2246822519) | 0; n = (n ^ (n >>> 13)) * 1274126177; return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
 
-const FLOOR = "#9a7a52", FLOOR_DARK = "#86683f", GROUT = "rgba(60,40,20,.35)";
+const FLOOR = "#836540", FLOOR_DARK = "#735834", GROUT = "rgba(60,40,20,.35)";
 const WALL = "#c4a273", WALL_TOP = "#d6b788", MORTAR = "#6b4c2c", OUTLINE = "#2c1c0e";
 
 function drawFloor(ctx: CanvasRenderingContext2D, x: number, y: number, sx: number, sy: number, ts: number) {

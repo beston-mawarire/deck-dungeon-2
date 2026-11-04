@@ -29,6 +29,8 @@ import { carve, dangerOf, DANGER_DMG, DANGER_HP, digNook, GRID_DMG, GRID_HP, idx
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
 const DEEP_NAMES = ["The Ashen Deep", "The Weeping Dark", "The Rift's Edge", "The Hollow Below", "The Endless Stair", "The Drowned Cathedral", "The Red Warrens", "The Starless Vault", "The Nether Shelf", "The Last Light"];
+/** 1st, 2nd, 3rd, 4th… */
+export const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th")}`;
 export const floorName = (floor: number) => (floor <= FLOOR_NAMES.length ? FLOOR_NAMES[floor - 1] : DEEP_NAMES[(floor - FLOOR_NAMES.length - 1) % DEEP_NAMES.length]);
 const FLOOR_LINES = [
   "The stairs give way to wet stone and the smell of old water.",
@@ -558,7 +560,8 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
 /** Turn a fresh run into a Crawl (the prototype). */
 export function startCrawl(run: Run) {
   run.gridMode = true;
-  run.message = run.message.replace(/Floor (\d+) —/, "Layer $1 —");
+  run.themes = [];
+  run.message = "";
   run.grid = makeGrid(run);
   run.choices = [];
 }
@@ -642,7 +645,8 @@ export function dealThemes(seed: number): string[] {
 /** This floor's theme (none in the Abyss, which is its own place). The first floors each have their own; deeper floors draw one at random
  *  (fixed by the run's seed, and never the same as the floor above). */
 export function themeOf(run: Run, floor = run.floor): FloorTheme | undefined {
-  if (run.mode === "abyss") return undefined;
+  // The Crawl has no floor themes.
+  if (run.mode === "abyss" || run.gridMode) return undefined;
   if (!run.themes?.length) run.themes = dealThemes(run.seed);
   const fl = Math.max(1, floor);
   if (fl <= run.themes.length) return themeById(run.themes[fl - 1]);
@@ -1886,7 +1890,7 @@ export function advance(run: Run, fromTalent = false) {
     } else if (!run.gridMode) run.step++;
   }
   // The Crawl calls them layers (each layer is four floors).
-  if (run.gridMode && run.popup && run.step === 0) { run.popup.title = run.popup.title.replace(/^Floor /, "Layer "); run.message = run.message.replace(/^Floor (\d+)\./, "Layer $1."); }
+  if (run.gridMode && run.popup && run.step === 0) { run.popup.title = run.popup.title.replace(/^Floor (\d+)( — [^]*)?$/, (_, n, rest) => `${ordinal(Number(n))} Layer${rest && !rest.includes(floorName(Number(n))) ? rest : ""}`); run.message = run.message.replace(/^Floor (\d+)\./, (_, n) => `${ordinal(Number(n))} Layer.`); }
   if (settleBounty(run)) return;
   if (run.pendingTalents > 0) {
     run.scene = { t: "talent", options: talentOptions(run) };
