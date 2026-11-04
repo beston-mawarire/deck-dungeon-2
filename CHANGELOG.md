@@ -9,6 +9,14 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.65.0
+- **The Crawl (prototype):** a new option when you pick your class. Each floor becomes a fogged 5×5 grid of rooms instead of a row of paths.
+  - You start at the entrance (bottom middle). Rooms next to the ones you've cleared show what they are; tap one to see it, tap again to go in.
+  - The boss waits at the top, sealed until you've cleared 5 rooms.
+  - Every floor holds one Merchant, one Forge (or the Jeweller), a campfire near the boss, and the Masterwork from floor 2. Altars, shrines, events, chests and fights fill the rest.
+  - Fights are one foe, but a tougher one. The floor's foes grow stronger the longer you stay ("Quiet" to "Furious").
+  - Risky rooms you turn back from stay unexplored.
+
 ## 1.64.2 (test build)
 - Heavy gear pays back what it costs: heavy weapons hit 15% harder, and heavy armour and shields carry 30% more Armor (on top of the heavy-only lines in the affix pool). Shown on each heavy item.
 ## 1.64.1 (test build)

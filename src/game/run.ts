@@ -24,6 +24,7 @@ import { SIGIL_SETS } from "../data/talisman";
 const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
 import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 import { affixById, rescaleAffixes } from "./affixpool";
+import { BOSS_KEY, bossIndex, bossLocked, dangerOf, DANGER_DMG, DANGER_HP, entranceIndex, GRID_DMG, GRID_H, GRID_HP, GRID_W, isOpen, isSeen, neighbours, type Grid, type GridCell } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -255,6 +256,9 @@ export interface Run {
   seenTabs?: Record<string, string>;
   /** The Daily Dungeon this run belongs to (its UTC date, YYYY-MM-DD), if any. */
   daily?: string;
+  /** The Crawl (prototype): floors are fogged grids of rooms rather than a row of paths. */
+  gridMode?: boolean;
+  grid?: Grid;
   /** Ruin Shards and Vanadium Plates found this run, and how many of them are already banked on the device. */
   ruin?: { shards: number; plates: number; gems?: number; banked?: { shards: number; plates: number; gems?: number } };
 }
@@ -351,8 +355,8 @@ export const GAUNTLETS: RoomType[][] = [
   ["champion", "champion", "champion"],
   ["elite", "champion", "vault"]
 ];
-export function genChoices(run: Run): RoomType[] {
-  if (run.step >= STEPS_PER_FLOOR) return ["boss"];
+/** How often each room turns up on this floor (the path map and the Crawl share it). */
+function roomWeights(run: Run, first: boolean): Partial<Record<RoomType, number>> {
   const w: Partial<Record<RoomType, number>> = { fight: 34, elite: 13, wooden: 10, iron: 7, shop: 6, forge: 6, rest: 6, event: 6, vault: 3, altar: 3, shrine: 3, champion: 3, sanguine: 2,
     alchemist: 0.8, blacksmith: 1, gambling_den: 1.4, fortune_teller: 1.4, mirror_pool: 0.8, card_sharp: 1.4,
     sacred_spring: 3, fallen_adventurer: 3, starving_pilgrim: 3 };
@@ -372,7 +376,14 @@ export function genChoices(run: Run): RoomType[] {
   if (heatOf(run) >= 5) { w.elite = (w.elite ?? 0) * 2; w.champion = (w.champion ?? 0) * 2; }
   // Your Nemesis: from floor 2, about as often as a Strange Presence, once per run.
   if (run.nemesis && run.floor >= 2 && !run.seenBosses.has("nemesis")) w.nemesis = 2.5;
-  if (run.step === 0) { w.doppelganger = 0; w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; w.unique = 0; w.nemesis = 0; }
+  if (first) { w.doppelganger = 0; w.elite = 0; w.champion = 0; w.vault = 0; w.crimson_elite = 0; w.unique = 0; w.nemesis = 0; }
+  return w;
+}
+
+export function genChoices(run: Run): RoomType[] {
+  if (run.gridMode) { if (!run.grid || run.grid.floor !== run.floor) run.grid = makeGrid(run); return []; }
+  if (run.step >= STEPS_PER_FLOOR) return ["boss"];
+  const w = roomWeights(run, run.step === 0);
   // A gauntlet: from floor 3 (not on a floor's first step), sometimes every path is a hard fight, and nothing else.
   if (run.floor >= GAUNTLET_FLOOR && run.step > 0 && run.rng() < GAUNTLET_CHANCE) {
     const set = GAUNTLETS[Math.floor(run.rng() * GAUNTLETS.length)];
@@ -414,6 +425,102 @@ export function genChoices(run: Run): RoomType[] {
     rooms.push("crossroads");
   }
   return rooms;
+}
+
+// ---------- The Crawl (prototype) ----------
+
+/** Rooms that can show up any number of times on a grid; everything else at most once (events twice). */
+const GRID_REPEAT: RoomType[] = ["fight", "elite", "wooden", "iron"];
+const GRID_CAP: Partial<Record<RoomType, number>> = { event: 2, champion: 2 };
+
+/** Deal a floor's grid: the entrance at the bottom, the boss at the top, and rooms in between. */
+export function makeGrid(run: Run): Grid {
+  const w = GRID_W, h = GRID_H, rng = run.rng;
+  const cells: GridCell[] = Array.from({ length: w * h }, () => ({ room: "" }));
+  const ent = entranceIndex(w, h), boss = bossIndex(w);
+  cells[ent] = { room: "entrance", done: true };
+  cells[boss] = { room: "boss" };
+  const g: Grid = { floor: run.floor, w, h, cells, at: ent, explored: 0 };
+  const near = new Set(neighbours(g, ent));
+  const free = () => cells.map((c, i) => (c.room ? -1 : i)).filter(i => i >= 0 && !near.has(i));
+  const place = (room: RoomType, rows?: number[]) => {
+    let spots = free();
+    if (rows) { const r = spots.filter(i => rows.includes(Math.floor(i / w))); if (r.length) spots = r; }
+    if (spots.length) cells[spots[Math.floor(rng() * spots.length)]].room = room;
+  };
+  // One of each service: a Merchant, a Forge (or the Jeweller, in turn), a campfire near the boss, and the Masterwork from floor 2.
+  place("shop", [1, 2, 3]);
+  place(run.jewellerNext ? "jeweller" : "forge");
+  run.jewellerNext = !run.jewellerNext;
+  place("rest", [1]);
+  if (run.floor >= MASTERWORK_FLOOR && run.mode !== "abyss") place("masterwork");
+  // Things that would have been an extra path.
+  if (crimsonActive(run) && run.hero.crimsonKeys > 0) place("crimson_vault");
+  const heart = run.hero.dragonHeart;
+  if (heart && !heart.unified) place("sanctum");
+  if (Object.keys(run.hero.curses).length > 0) place("cleansing");
+  if (run.floor >= 2 && !run.seenBosses.has("e:crossroads") && rng() < CROSSROADS_PATH_CHANCE * STEPS_PER_FLOOR) {
+    run.crossroadsGuise = Math.floor(rng() * CROSSROADS_GUISES.length);
+    place("crossroads");
+  }
+  // The rest from the floor's usual mix; the three rooms by the entrance are never the hard ones.
+  const count: Partial<Record<RoomType, number>> = {};
+  for (const c of cells) if (c.room) count[c.room as RoomType] = (count[c.room as RoomType] ?? 0) + 1;
+  const draw = (first: boolean): RoomType => {
+    const wt = roomWeights(run, first);
+    for (const k of Object.keys(wt) as RoomType[]) {
+      const cap = GRID_REPEAT.includes(k) ? Infinity : GRID_CAP[k] ?? 1;
+      if ((count[k] ?? 0) >= cap) wt[k] = 0;
+    }
+    wt.shop = 0; wt.forge = 0; wt.rest = 0; wt.masterwork = 0;
+    const room = pickW(rng, wt);
+    count[room] = (count[room] ?? 0) + 1;
+    return room;
+  };
+  for (const i of near) if (!cells[i].room) cells[i].room = draw(true);
+  for (const c of cells) if (!c.room) c.room = draw(false);
+  return g;
+}
+
+/** Turn a fresh run into a Crawl (the prototype). */
+export function startCrawl(run: Run) {
+  run.gridMode = true;
+  run.grid = makeGrid(run);
+  run.choices = [];
+}
+
+export const gridDanger = (run: Run) => (run.gridMode && run.grid ? dangerOf(run.grid) : 0);
+
+/** Pick a room on the grid (shows what it is; "Enter" goes in). */
+export function gridSelect(run: Run, i: number) {
+  const g = run.grid;
+  if (!g || run.scene.t !== "map" || !isSeen(g, i) || g.cells[i].done) return;
+  g.sel = i;
+}
+
+/** Walk into a room on the grid. Returns a reason when you can't. */
+export function gridEnter(run: Run, i: number): string | null {
+  const g = run.grid;
+  if (!g || run.scene.t !== "map") return null;
+  if (!isOpen(g, i)) return "You can't reach that room yet.";
+  const room = g.cells[i].room as RoomType;
+  if (room === "boss" && bossLocked(g)) return `The way is sealed. Clear ${BOSS_KEY - g.explored} more room${BOSS_KEY - g.explored === 1 ? "" : "s"} to open it.`;
+  g.sel = undefined;
+  g.pending = i;
+  if (room === "boss") run.step = STEPS_PER_FLOOR;
+  chooseRoom(run, room);
+  return null;
+}
+
+/** The room you walked into is now yours (called as it opens). */
+function gridArrive(run: Run) {
+  const g = run.grid;
+  if (!g || g.pending === undefined) return;
+  const c = g.cells[g.pending];
+  c.done = true;
+  g.at = g.pending;
+  if (c.room !== "boss") g.explored++;
+  g.pending = undefined;
 }
 
 /** The Crimson mechanic kicks in once you've beaten the campaign's fifth boss. */
@@ -477,6 +584,7 @@ function startEvent(run: Run, evDef: GameEvent) {
 
 function enterRoom(run: Run, room: RoomType) {
   const h = run.hero;
+  if (run.gridMode) gridArrive(run);
   // A contract's clock: every room you enter (except the board itself) uses one of its rooms.
   if (run.bounty && room !== "bounty") run.bounty.roomsLeft = Math.max(0, run.bounty.roomsLeft - 1);
   // Plain fights build the streak. Only fighting something other than a normal monster breaks it (see fight()).
@@ -561,6 +669,8 @@ function enterRoom(run: Run, room: RoomType) {
 
 export function confirmRisk(run: Run, yes: boolean) {
   if (run.scene.t !== "confirm") return;
+  // On the grid, turning back leaves the room as it was.
+  if (!yes && run.gridMode && run.grid) { run.grid.pending = undefined; run.scene = { t: "map" }; return; }
   if (!yes) return advance(run);
   markEncounter(run, `room:${run.scene.room}`);
   enterRoom(run, run.scene.room);
@@ -665,6 +775,12 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
     enemy.armor += Math.floor(heat / 2);
   }
   if (heat >= 5 && !exact) enemy.damage = Math.round(enemy.damage * 1.2);
+  // The Crawl: one foe at a time, but a harder one, and the floor grows more dangerous the longer you linger.
+  if (run.gridMode && !exact) {
+    const d = gridDanger(run);
+    enemy.maxHp = enemy.hp = Math.round(enemy.hp * GRID_HP * (1 + DANGER_HP * d));
+    enemy.damage = Math.round(enemy.damage * GRID_DMG * (1 + DANGER_DMG * d));
+  }
   run.hero.f.persist["goldAtFight"] = run.hero.f.gold;
   const battle = startBattle(run.hero.f, enemy, Math.floor(run.rng() * 1e9), run.carry);
   // Angelic Blessing: heal 2 as the fight begins.
@@ -1652,6 +1768,7 @@ export function advance(run: Run, fromTalent = false) {
       run.hero.f.persist["floor"] = run.floor;
       recompute(run.hero);
       run.step = 0;
+      if (run.gridMode) run.grid = makeGrid(run);
       run.message = `Floor ${run.floor}. The air is colder, and the hoards are richer: your Fortune grows.`;
       if (run.mode === "abyss") {
         if (run.floor > ABYSS_FLOORS) { run.scene = { t: "over", won: true }; return; }
@@ -1667,7 +1784,7 @@ export function advance(run: Run, fromTalent = false) {
         run.scene = { t: "over", won: true };
         return;
       }
-    } else run.step++;
+    } else if (!run.gridMode) run.step++;
   }
   if (settleBounty(run)) return;
   if (run.pendingTalents > 0) {
@@ -1877,6 +1994,7 @@ function goToPast(run: Run) {
   run.clearedFloor = undefined;
   h.f.persist["floor"] = run.floor;
   recompute(h);
+  run.grid = undefined;
   run.popup = { icon: "⏪", title: `Floor ${run.floor} — again`, text: "The tunnels look familiar. The same cracks, the same smell of old smoke. You've been here before… haven't you?" };
   run.choices = genChoices(run);
   run.scene = { t: "map" };

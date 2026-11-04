@@ -24,9 +24,11 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
+  startCrawl, gridSelect, gridEnter, gridDanger, type RoomType,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
+import { BOSS_KEY, bossIndex, bossLocked, dangerWord, isOpen, isSeen } from "../game/grid";
 import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
 import { pingSession } from "./leaderboard";
@@ -47,6 +49,8 @@ const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;
 /** Shown on the title screens. */
 const VERSION = `v${__APP_VERSION__} · build ${__APP_BUILD__}`;
 /** Quick Battle can be switched off in Options (then only the plain Fight remains). */
+/** The Crawl (prototype): floors as fogged grids of rooms. */
+let crawlOn = (() => { try { return localStorage.getItem("dd2-crawl") === "1"; } catch { return false; } })();
 let quickOn = (() => { try { return localStorage.getItem("dd2-quick") !== "0"; } catch { return true; } })();
 let speed = (() => { try { return Number(localStorage.getItem("dd2-speed") ?? "1") || 1; } catch { return 1; } })();
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms * speed));
@@ -371,7 +375,7 @@ function hud(r: Run) {
     <div class="row stat"><span><b>${Math.max(0, f.hp)}</b>/${f.maxHp} HP</span><span>⚔️ <b>${f.damage}</b>${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}</span><span>🛡️ <b>${f.armor}</b></span>
       <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span>${h.azure ? `<span title="Azure dust: from scrapping Rares">💠 <b>${h.azure}</b></span>` : ""}${h.orilium ? `<span title="Orilium: from scrapping Epics">🔶 <b>${h.orilium}</b></span>` : ""}<span title="Healing Potions carried / how many you can carry">🧪 <b>${h.potions}</b>/${potionCap(h)}</span><span>📜 <b>${h.scrolls}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
     <div class="bar xp"><i style="width:${(h.xp / need) * 100}%"></i></div>
-    <div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>
+    ${r.gridMode && r.grid ? `<div class="steps">${Array.from({ length: BOSS_KEY + 1 }, (_, i) => `<i class="${i < Math.min(r.grid!.explored, BOSS_KEY) || r.step >= STEPS_PER_FLOOR ? "done" : ""}"></i>`).join("")}</div>` : `<div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>`}
     <div class="row hud-actions" style="margin-top:6px"><button class="small bag-btn" data-bag>${newTabs(r).size ? `<b class="newdot" title="Something new in your Inventory"></b>` : ""}🎒 <span class="lbl">Inventory</span></button>${bountyBtn(r)}${h.potions && f.hp > 0 && f.hp < f.maxHp && !busy && r.scene.t !== "over" ? `<button class="small potion-btn" data-potion>🧪 <span class="lbl">Potion </span>(+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ <span class="lbl">Menu</span></button></div>
     <div class="hud-floor">${floorHeader(r)}</div>
   </div>`;
@@ -566,11 +570,56 @@ function floorHeader(r: Run) {
   const abyss = r.mode === "abyss";
   return `<div class="floorname ${abyss ? "abyss-name" : ""}">${abyss ? `🕳️ The Abyss · Depth ${r.floor}` : `Floor ${r.floor} · ${(() => { const th = themeOf(r); return th ? `${th.icon} ${esc(th.name)}` : esc(floorName(r.floor)); })()}`}</div><div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>`;
 }
+/** What a room shows on the map: its icon, name and line. */
+function roomInfo(r: Run, c: RoomType) {
+  const g = c === "crossroads" ? CROSSROADS_GUISES[r.crossroadsGuise ?? 0] : null;
+  const info = g ? { icon: g.icon, name: g.title, text: g.room } : c === "nemesis" && r.nemesis ? { ...ROOM_INFO.nemesis, text: `${r.nemesis.name}. It killed you last time, and it remembers. A bounty for its head.` } : (r.mode === "abyss" && ABYSS_ROOM_INFO[c]) || ROOM_INFO[c];
+  return c === "boss" && r.floor >= FLOORS && r.mode !== "abyss" ? { ...info, icon: "💀" } : info;
+}
+const roomClass = (c: string) => (c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : c === "nemesis" ? "nemesis-room" : "");
+const bossTitle = (r: Run) => (r.mode === "abyss" ? "The Uber boss awaits" : r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits");
+
 function mapScene(r: Run) {
+  if (r.gridMode && r.grid) return crawlScene(r);
   return `
-  <h2>${r.step >= STEPS_PER_FLOOR ? (r.mode === "abyss" ? "The Uber boss awaits" : r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits") : "Choose your path"}</h2>
-  <div class="cards">${r.choices.map(c => `${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn ? `<div class="room-wrap">` : ""}<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : c === "nemesis" ? "nemesis-room" : ""}" data-room="${c}">${(() => { const g = c === "crossroads" ? CROSSROADS_GUISES[r.crossroadsGuise ?? 0] : null; const info = g ? { icon: g.icon, name: g.title, text: g.room } : c === "nemesis" && r.nemesis ? { ...ROOM_INFO.nemesis, text: `${r.nemesis.name}. It killed you last time, and it remembers. A bounty for its head.` } : (r.mode === "abyss" && ABYSS_ROOM_INFO[c]) || ROOM_INFO[c];
-    return `<span class="ic">${c === "boss" && r.floor >= FLOORS && r.mode !== "abyss" ? "💀" : info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn ? `<div class="room-acts"><button class="fight-room" data-room="${c}" title="Go in and fight it yourself"><span class="ic">⚔️</span>Fight</button><button class="auto-room" data-autoroom="${c}" title="Go in and let the fight play itself out — only if it's one you can't lose"><span class="ic">⚡</span>Quick<br> Battle</button></div></div>` : ""}`).join("")}</div>`;
+  <h2>${r.step >= STEPS_PER_FLOOR ? bossTitle(r) : "Choose your path"}</h2>
+  <div class="cards">${r.choices.map(c => `${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn ? `<div class="room-wrap">` : ""}<button class="room ${roomClass(c)}" data-room="${c}">${(() => { const info = roomInfo(r, c);
+    return `<span class="ic">${info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn ? `<div class="room-acts"><button class="fight-room" data-room="${c}" title="Go in and fight it yourself"><span class="ic">⚔️</span>Fight</button><button class="auto-room" data-autoroom="${c}" title="Go in and let the fight play itself out — only if it's one you can't lose"><span class="ic">⚡</span>Quick<br> Battle</button></div></div>` : ""}`).join("")}</div>`;
+}
+
+/** The Crawl: the floor as a fogged grid. Rooms next to ones you've cleared show what they are; tap one, then go in. */
+function crawlScene(r: Run) {
+  const g = r.grid!;
+  const boss = bossIndex(g.w);
+  const locked = bossLocked(g);
+  const danger = gridDanger(r);
+  const cell = (i: number) => {
+    const c = g.cells[i];
+    const here = i === g.at;
+    if (c.room === "entrance") return `<div class="cell done entrance ${here ? "here" : ""}"><span class="ic">${here ? "🧍" : "🚪"}</span></div>`;
+    if (!isSeen(g, i)) return `<div class="cell fog"></div>`;
+    const info = roomInfo(r, c.room as RoomType);
+    if (c.done) return `<div class="cell done ${here ? "here" : ""}"><span class="ic">${here ? "🧍" : info.icon}</span></div>`;
+    const open = isOpen(g, i);
+    const isBoss = i === boss;
+    return `<button class="cell ${open ? "open" : "seen"} ${isBoss ? "boss-cell" : ""} ${roomClass(c.room)} ${g.sel === i ? "sel" : ""}" data-gcell="${i}" title="${esc(info.name)}"><span class="ic">${info.icon}</span>${isBoss && locked ? `<span class="lock">🔒</span>` : ""}</button>`;
+  };
+  const sel = g.sel !== undefined && !g.cells[g.sel].done ? g.sel : undefined;
+  const pick = (() => {
+    if (sel === undefined) return `<p class="sub center crawl-hint">Tap a room next to one you've cleared to see what it is, and tap it again to go in. The boss waits at the top.</p>`;
+    const room = g.cells[sel].room as RoomType;
+    const info = roomInfo(r, room);
+    const open = isOpen(g, sel);
+    const sealed = room === "boss" && locked;
+    const auto = AUTO_ROOMS.includes(room) && r.floor >= AUTO_BATTLE_FLOOR && quickOn;
+    return `<div class="room crawl-pick ${roomClass(room)}"><span class="ic">${info.icon}</span><b>${esc(room === "boss" ? bossTitle(r) : info.name)}</b><span class="sub">${esc(info.text)}</span>
+      <div class="row" style="margin-top:8px">${!open ? `<span class="sub">Clear a room beside it first.</span>` : sealed ? `<span class="sub">🔒 Sealed. Clear ${BOSS_KEY - g.explored} more room${BOSS_KEY - g.explored === 1 ? "" : "s"} to open the way.</span>` : `<button class="primary" data-genter="${sel}">${AUTO_ROOMS.includes(room) || room === "boss" ? "⚔️ Fight" : "🚪 Enter"}</button>${auto ? `<button data-gauto="${sel}" title="Go in and let the fight play itself out — only if it's one you can't lose">⚡ Quick Battle</button>` : ""}`}</div></div>`;
+  })();
+  return `
+  <h2>${locked ? "Explore the floor" : "The way to the boss is open"}</h2>
+  <div class="crawl-meta"><span>🗺️ Rooms cleared <b>${g.explored}</b></span><span class="danger d${Math.min(danger, 4)}" title="The longer you linger on a floor, the stronger its foes grow">☠️ ${dangerWord(danger)}</span></div>
+  <div class="crawl" style="--w:${g.w}">${g.cells.map((_, i) => cell(i)).join("")}</div>
+  ${pick}`;
 }
 
 function dieBox(who: "player" | "enemy", label: string) {
@@ -1789,6 +1838,8 @@ function originPopup(o: OriginId) {
     ${masteryPanel(o)}
     ${gemPanel(o)}
     ${heatPanel()}
+    <div class="panel crawl-panel"><div class="row"><b class="grow">🗺️ The Crawl <span class="tag">prototype</span></b><div class="seg"><button class="small ${crawlOn ? "primary" : ""}" data-crawl="1">On</button><button class="small ${crawlOn ? "" : "primary"}" data-crawl="0">Off</button></div></div>
+      <p class="sub">Each floor is a fogged grid of rooms. Open rooms beside the ones you've cleared, find the boss at the top. Fights are one tougher foe, and the floor grows more dangerous the longer you stay.</p></div>
     ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>🏰 Start Campaign</button><button data-closeorigin>Back</button></div>
   </div></div>`;
@@ -2390,7 +2441,8 @@ function bind() {
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode;
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
-    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta)); withGems(nr); nr.legendaryDue = (meta.dryRuns ?? 0) >= 4; run = nr; void startSession(nr); });
+    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta)); withGems(nr); nr.legendaryDue = (meta.dryRuns ?? 0) >= 4; if (crawlOn) startCrawl(nr); run = nr; void startSession(nr); });
+    on("[data-crawl]", el => { crawlOn = el.dataset.crawl === "1"; try { localStorage.setItem("dd2-crawl", crawlOn ? "1" : "0"); } catch { /* ignore */ } });
     return;
   }
   const r = run;
@@ -2471,6 +2523,28 @@ function bind() {
   on("[data-jmode]", el => { jewelMode(r, el.dataset.jmode as "fuse" | "infuse"); });
   on("[data-jclear]", el => { jewelClear(r, el.dataset.jclear as "left" | "right"); });
   on("[data-jfuse]", () => { const res = jewelFuse(r); say(res.msg, !res.ok); if (res.ok) celebrate("epic", res.made, true); else sfx("miss"); });
+  on("[data-gcell]", el => {
+    const i = Number(el.dataset.gcell);
+    // Tapping the picked room again goes in.
+    if (r.grid?.sel === i && isOpen(r.grid, i)) { r.message = ""; const room = r.grid.cells[i].room; const err = gridEnter(r, i); if (err) say(err, true); else if (room === "wooden" || room === "iron") sfx("chest"); return; }
+    gridSelect(r, i);
+  });
+  on("[data-genter]", el => {
+    r.message = "";
+    const i = Number(el.dataset.genter);
+    const room = r.grid?.cells[i]?.room;
+    const err = gridEnter(r, i);
+    if (err) { say(err, true); return; }
+    if (room === "wooden" || room === "iron") sfx("chest");
+  });
+  on("[data-gauto]", el => {
+    r.message = "";
+    const err = gridEnter(r, Number(el.dataset.gauto));
+    if (err) { say(err, true); return; }
+    if (r.scene.t !== "combat") return;
+    if (canAutoBattle(r)) { const note = autoBattle(r); sfx("crit"); if (note) say(note, false); }
+    else say("⚠️ Too dangerous for a Quick Battle: this one's yours to fight.", true);
+  });
   on("[data-autoroom]", el => {
     r.message = "";
     chooseRoom(r, el.dataset.autoroom as never);
