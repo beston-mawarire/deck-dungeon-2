@@ -1714,18 +1714,13 @@ describe("healing limits and new foes", () => {
 });
 
 describe("early loot", () => {
-  it("floors 1 and 2 of a Campaign let only a few Legendaries through; the Abyss isn't capped", async () => {
+  it("early floors no longer turn Legendaries into Epics", async () => {
     const { earlyCap } = await import("../src/game/loot");
     const h = newHero("rogue"); const rng = makeRng(3);
     h.f.persist["floor"] = 1;
-    const one = Array.from({ length: 400 }, () => earlyCap(h, "legendary", rng));
-    expect(one.filter(r => r === "legendary").length).toBeLessThan(160);
-    h.f.persist["floor"] = 2;
-    const two = Array.from({ length: 400 }, () => earlyCap(h, "legendary", rng));
-    expect(two.filter(r => r === "legendary").length).toBeLessThan(160);
-    h.f.persist["floor"] = 1; h.f.persist["abyssRun"] = 1;
-    expect(earlyCap(h, "legendary", rng)).toBe("legendary");
+    expect(Array.from({ length: 100 }, () => earlyCap(h, "legendary", rng)).every(r => r === "legendary")).toBe(true);
   });
+
 });
 
 describe("one-handed staffs", () => {

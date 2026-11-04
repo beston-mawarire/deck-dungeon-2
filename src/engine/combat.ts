@@ -501,7 +501,7 @@ function strike(b: Battle, ctx: AttackCtx) {
     fx(b, { who: d.id, kind: "miss", text: "Evaded" });
     breakStreak(b, a);
     // Countering: an evaded blow is answered just like a dodged one.
-    if (d.flags["counter"] === b.round) { d.flags["counter"] = 0; if (a.hp > 0 && d.hp > 0) counterStrike(b, d, a); }
+    if (d.flags["counter"] === b.round) { d.flags["counter"] = -1; if (a.hp > 0 && d.hp > 0) counterStrike(b, d, a); }
     return afterStrike(b, ctx);
   }
   // Dodge (a % chance; Countering adds 20%). It's not Evade: Evade bonuses don't fire, Dodge ones do.
@@ -513,14 +513,14 @@ function strike(b: Battle, ctx: AttackCtx) {
     breakStreak(b, a);
     eachHook(d, "onDodge", (h, s) => h(b, ctx, s));
     // The stance is spent the moment it's tested: one Counter per stance.
-    if (countering) d.flags["counter"] = 0;
+    if (countering) d.flags["counter"] = -1;
     if (countering && a.hp > 0 && d.hp > 0) {
       counterStrike(b, d, a);
     }
     return afterStrike(b, ctx);
   }
   if (countering) {
-    d.flags["counter"] = 0;
+    d.flags["counter"] = -1;
     if (!d.flags["counterNoFrail"]) d.flags["frail"] = 1;
     log(b, `${d.name}'s Counter fails: off-balance for the next attack.`);
     fx(b, { who: d.id, kind: "text", text: "Off-balance", icon: "🥀" });
@@ -885,7 +885,7 @@ export function enemyPhase(b: Battle) {
   // Shieldbearers spend their turn holding the guard.
   if (e.flags["guardSkip"]) {
     e.flags["guardSkip"] = 0;
-    p.flags["counter"] = 0;
+    p.flags["counter"] = -1;
     log(b, `${e.name} holds its guard.`);
     fx(b, { who: "enemy", kind: "text", text: "Holds guard", icon: "🧱" });
     checkOver(b);
@@ -904,7 +904,7 @@ export function enemyPhase(b: Battle) {
     }
   });
   // Your Counter stance lasts only until the foe has taken its turn (attack or not).
-  p.flags["counter"] = 0;
+  p.flags["counter"] = -1;
   if (e.moves?.length) e.intent = ((e.intent ?? 0) + 1) % e.moves.length;
   checkOver(b);
 }

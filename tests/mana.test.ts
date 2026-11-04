@@ -2,7 +2,7 @@ import { beforeAll, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
 import { CLASS_GEAR, CLASS_RELICS } from "../src/data/classgear";
 import { makeMonster } from "../src/data/monsters";
-import { endRound, enemyPhase, heroPhase, MANA_MAX, startBattle } from "../src/engine/combat";
+import { ambushStrike, endRound, enemyPhase, heroPhase, MANA_MAX, startBattle } from "../src/engine/combat";
 import { makeRng } from "../src/engine/rng";
 import { st } from "../src/engine/statuses";
 import { gainManaPotions, manaPotionCap, newHero } from "../src/game/hero";
@@ -98,4 +98,12 @@ it("Counter, Barrier and Penance relics pay off when the enemy acts", () => {
   enemyPhase(b);
   endRound(b);
   if ((h.f.flags["penanceStore"] ?? 0) > 0) expect(st(h.f, "haste")).toBeGreaterThan(0);
+});
+
+it("an Ambush doesn't leave you in a Counter stance", () => {
+  const h = newHero("mage");
+  const e = foe(); e.flags["ambush"] = 1;
+  const b = startBattle(h.f, e, 9);
+  ambushStrike(b);
+  expect(h.f.flags["counter"] === b.round).toBe(false);
 });

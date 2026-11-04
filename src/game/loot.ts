@@ -23,8 +23,6 @@ export const TABLES = {
 
 /** Campaign boss picks grow richer floor by floor: early bosses mostly offer Uncommons, a Rare is a treat. */
 export function bossOdds(floor: number): Odds {
-  if (floor <= 1) return { uncommon: 85, rare: 15 };
-  if (floor <= 3) return { uncommon: 65, rare: 33, epic: 2 };
   if (floor <= 7) return { uncommon: 40, rare: 54, epic: 5, legendary: 1 };
   if (floor <= 14) return { uncommon: 25, rare: 66.2, epic: 7.2, legendary: 1.6 };
   return TABLES.boss;
@@ -115,13 +113,8 @@ const ELEMENTAL_TAGS = ["Burn", "Frost", "Storm", "Poison"];
 const ELEMENTAL_WEIGHT = 0.5;
 const elementalW = (tags: readonly string[]) => (tags.some(t => ELEMENTAL_TAGS.includes(t)) ? ELEMENTAL_WEIGHT : 1);
 
-/** On the first two floors of a Campaign most Legendaries (and Crimson) come out Epic, but a few get through.
- *  The Abyss is exempt: it's the endgame. */
-export function earlyCap(h: Hero, rarity: Rarity, rng: () => number, floor = 1): Rarity {
-  if ((h.f.persist["abyssRun"] ?? 0) > 0) return rarity;
-  const fl = h.f.persist["floor"] ?? floor;
-  const top = rarity === "legendary" || rarity === "crimson" || rarity === "epic_crimson" || rarity === "legendary_crimson";
-  if (fl <= 2 && top && !h.f.persist["turbo"] && rng() < 0.75) return "epic";
+/** (Early floors used to turn most Legendaries into Epics; they no longer do. Kept so callers stay simple.) */
+export function earlyCap(_h: Hero, rarity: Rarity, _rng: () => number, _floor = 1): Rarity {
   return rarity;
 }
 
