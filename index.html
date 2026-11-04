@@ -15,7 +15,7 @@ main { max-width: 560px; width: 100%; text-align: center; }
 .classes span { width: 56px; height: 56px; display: grid; place-items: center; font-size: 28px; border-radius: 50%; border: 2px solid var(--ink); background: #fffdf8; }
 h1 { color: var(--maroon); font-weight: 500; letter-spacing: .01em; font-size: clamp(2.2rem, 8.5vw, 3.4rem); line-height: 1.05; margin: 0 0 18px; }
 p { font-size: clamp(1.15rem, 4.4vw, 1.35rem); line-height: 1.55; margin: 0 0 16px; }
-.rule { width: 60%; margin: 22px auto; border: 0; border-top: 2px solid var(--ink); opacity: .7; }
+.rule { margin: 24px auto; color: var(--maroon); font-size: 1.4rem; letter-spacing: .6em; padding-left: .6em; }
 ul { list-style: none; padding: 0; margin: 0 0 22px; font-size: clamp(1.25rem, 4.8vw, 1.55rem); line-height: 1.7; }
 ul li::before { content: "✦ "; color: var(--maroon); }
 .sign { font-size: clamp(1.15rem, 4vw, 1.35rem); opacity: .85; }
@@ -27,7 +27,7 @@ ul li::before { content: "✦ "; color: var(--maroon); }
   <h1>Rest a While, Warriors</h1>
   <p>The dungeon is closed for renovations. Its halls are being dug deeper, its hoards restocked, and its smiths are busy at new forges.</p>
   <p>Lay down your blade, mend your armour and sharpen your wits. The gates will open again soon.</p>
-  <hr class="rule">
+  <div class="rule" aria-hidden="true">✦ ✦ ✦</div>
   <p class="hints">What stirs below:</p>
   <ul class="hints">
     <li>Mastery Working</li>
@@ -37,5 +37,19 @@ ul li::before { content: "✦ "; color: var(--maroon); }
   </ul>
   <p class="sign">— The Keepers of Deck Dungeon</p>
 </main>
+<script>
+// When this page changes (or the game reopens), every open copy reloads itself within a minute.
+const PAGE = "m3";
+async function check() {
+  try {
+    const r = await fetch("maint.json?t=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) return;
+    const v = await r.json();
+    if (v.page && v.page !== PAGE) location.replace(location.pathname + "?r=" + v.page);
+  } catch (e) { /* offline */ }
+}
+setInterval(check, 60000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+</script>
 </body>
 </html>
