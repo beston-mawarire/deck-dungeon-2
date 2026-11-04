@@ -743,7 +743,7 @@ export function gridStep(run: Run, x: number, y: number): { ok: true; entered: b
 }
 
 /** Urns: mostly a few coins, now and then a Mana Potion, very rarely a Healing Potion. Smashed, they're gone. */
-export const URN_MANA = 0.06, URN_HEAL = 0.025;
+export const URN_MANA = 0.03, URN_HEAL = 0.01;
 export function smashUrn(run: Run, t: number) {
   const m = run.grid!, h = run.hero;
   m.things[t].done = true;

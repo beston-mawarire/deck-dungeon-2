@@ -1590,3 +1590,5 @@ body.crawl-on { overflow: hidden; }
   .cb-foe-row, .cb-hero-row { justify-content: space-between; }
   .cb-box { flex: 0 1 560px; }
 }
+/* Merchant on a phone: what's for sale sits right under the sign, then the details, then your gear. */
+@media (max-width: 719px) { .mer-stock { order: -1; flex: none; } }

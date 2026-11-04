@@ -9,6 +9,10 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.71.6
+- On a phone, the Merchant's "For sale" row now sits right under the sign, above the details.
+- Urns give potions less often: a Mana Potion about 1 in 33, a Healing Potion about 1 in 100.
+
 ## 1.71.5
 - **Urns and chests:**
   - They always stand against a wall, in a corner, or in a little room or nook, and never beside a hallway's mouth.
