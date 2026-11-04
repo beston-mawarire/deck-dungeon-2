@@ -9,6 +9,14 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.71.1
+- **Level gates, reworked:** about 30% of Crawl finds, of any rarity, want a higher level than you have when you find them: 1 more for a Common, 2 for an Uncommon, 3 (at most) for anything rarer. The rest you can use straight away, even a Legendary.
+- **Crawl monsters give a little less XP:** 1 or 2 each.
+- **Bigger screens:**
+  - On the map, tiles are larger, and so are the bars, buttons and labels.
+  - The fight and Merchant screens grow with the screen but keep a sensible width.
+  - The fight boxes stay near half-width, so you and the foe keep your corners.
+
 ## 1.71.0
 - **The Crawl's loot, reworked:**
   - Foes now give XP only: no Gold, no relics, and no heal when you win (unless a relic or item heals you).

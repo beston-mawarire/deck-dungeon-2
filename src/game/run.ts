@@ -84,12 +84,13 @@ function crawlGear(run: Run, odds: Partial<Record<Rarity, number>>): GearItem {
   for (let k = 0; k < 8 && !["weapon", "armour"].includes(effectiveBase(it).kind); k++) it = dropItem(run, odds);
   return it;
 }
-/** The Crawl: the better finds want a stronger hero (Rare, Epic and Legendary gear has a level to reach), so fights matter. */
-export const GATE_LEVEL: Partial<Record<Rarity, number>> = { rare: 3, epic: 5, legendary: 7 };
+/** The Crawl: some finds (about 30%, of any rarity) want a stronger hero than you are now:
+ *  a level more for Commons, two for Uncommons, three for anything rarer. Others you can use straight away. */
+export const GATE_CHANCE = 0.3;
+export const GATE_STEP: Partial<Record<Rarity, number>> = { common: 1, uncommon: 2 };
 export function gateItem(run: Run, it: GearItem) {
-  if (!run.gridMode) return;
-  const need = GATE_LEVEL[it.rarity];
-  if (need) it.reqLevel = need + 3 * (run.floor - 1);
+  if (!run.gridMode || run.rng() >= GATE_CHANCE) return;
+  it.reqLevel = run.hero.level + Math.min(3, GATE_STEP[it.rarity] ?? 3);
 }
 const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Record<Rarity, number>> => {
   const h = heatOf(run);
@@ -1251,7 +1252,8 @@ function afterFight(run: Run) {
   }
   // Catch your breath: a small heal after every won fight (not in the Crawl: there, healing comes from potions, campfires and relics).
   if (!run.gridMode) restore(h, Math.ceil(h.f.maxHp * (abyssMod(run, "merciful_dark") ? 0.3 : heatOf(run) >= 4 ? 0 : 0.15)));
-  const xp = { normal: run.gridMode ? 2 : 1, elite: 3, champion: 5, crimson: 7, boss: b.enemy.crimson ? 9 : 6 }[rank];
+  // (Crawl monsters give a little less than an Elite's share: one or two.)
+  const xp = { normal: run.gridMode ? (run.rng() < 0.5 ? 1 : 2) : 1, elite: 3, champion: 5, crimson: 7, boss: b.enemy.crimson ? 9 : 6 }[rank];
   gainXp(run, Math.round(xp * (abyssMod(run, "thick_hides") ? 1.5 : 1)));
   // In the Crawl, foes only give XP (bosses still pay out, in their treasure room).
   const crawlFoe = run.gridMode && rank !== "boss" && (!then || then === "transformed" || then === "resplendent");

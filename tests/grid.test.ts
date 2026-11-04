@@ -239,12 +239,23 @@ describe("the Crawl", () => {
     expect(r.grid!.depth).toBe(0);
   });
 
-  it("the better chest finds want a stronger hero", () => {
+  it("about 30% of finds, of any rarity, want a level or three more than you have", () => {
     const r = crawl(2);
-    const item = { uid: 99901, base: "iron_sword", rarity: "rare", level: 1, bonuses: {} } as never as import("../src/engine/types").GearItem;
-    gateItem(r, item);
-    expect(item.reqLevel).toBe(3);
-    expect(equipItem(r.hero, item)).toMatch(/level 3/);
+    r.hero.level = 4;
+    let gated = 0;
+    const N = 600;
+    for (let k = 0; k < N; k++) {
+      const rarity = (["common", "uncommon", "rare", "legendary"] as const)[k % 4];
+      const item = { uid: 99000 + k, base: "iron_sword", rarity, level: 1, bonuses: {} } as never as import("../src/engine/types").GearItem;
+      gateItem(r, item);
+      if (!item.reqLevel) continue;
+      gated++;
+      expect(item.reqLevel - 4).toBe(rarity === "common" ? 1 : rarity === "uncommon" ? 2 : 3);
+    }
+    expect(gated / N).toBeGreaterThan(0.22);
+    expect(gated / N).toBeLessThan(0.38);
+    const item = { uid: 98999, base: "iron_sword", rarity: "rare", level: 1, bonuses: {}, reqLevel: 7 } as never as import("../src/engine/types").GearItem;
+    expect(equipItem(r.hero, item)).toMatch(/level 7/);
   });
 
   it("bots can play whole Crawl runs: every run ends, floors are explored, each a fresh map", () => {

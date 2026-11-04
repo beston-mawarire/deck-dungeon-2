@@ -1554,3 +1554,39 @@ body.crawl-on { overflow: hidden; }
 /* A shadow pooled behind the foe, down the corridor. */
 .cb-foe-row { isolation: isolate; }
 .cb-foe-row::before { content: ""; position: absolute; z-index: -1; inset: -20px -24px -34px; background: radial-gradient(ellipse 75% 85% at 62% 50%, rgba(0,0,0,.82), rgba(0,0,0,.45) 55%, rgba(0,0,0,0) 78%); pointer-events: none; }
+/* ===== Crawl screens on bigger screens: everything scales up a step, and the panels keep a sensible width. ===== */
+.mer-inner { max-width: 1180px; margin: 0 auto; }
+@media (min-width: 900px) and (min-height: 700px) {
+  .cz-tl { width: 230px; }
+  .cz-bars { gap: 5px; padding: 8px; }
+  .cz-bar { height: 21px; } .cz-bar span { font-size: .85rem; line-height: 20px; }
+  .cz-menu { width: 54px; height: 54px; font-size: 1.5rem; }
+  .cz-layer { font-size: 1rem; } .cz-floor { font-size: .92rem; }
+  .cz-quest { font-size: .85rem; }
+  .cz-circle { width: 78px; height: 78px; font-size: 2.1rem; }
+  .cz-circle.big { width: 96px; height: 96px; font-size: 2.7rem; }
+  .cz-pot { width: 58px; height: 58px; font-size: 1.7rem; }
+  .cz-drawer { margin-left: 12px; }
+  .cz-pick { max-width: 520px; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 110px); }
+  .cz-toasts .toast { max-width: 560px; font-size: 1rem; }
+  .cb-inner { max-width: 940px; padding: 16px 18px 18px; }
+  .cb-stage { margin: -16px -18px 0; padding: 18px; min-height: 480px; }
+  .cb-box { padding: 10px 14px; } .cb-name b { font-size: 1.2rem; } .cb-nums { font-size: .9rem; }
+  .cb-hp span, .cb-mp i { height: 12px; }
+  .cb-foe-row .cb-sprite { width: 92px; height: 92px; margin-top: 48px; } .cb-foe-row .cb-sprite span { font-size: 3.4rem; }
+  .cb-hero-row .cb-sprite { width: 120px; height: 120px; } .cb-hero-row .cb-sprite span { font-size: 4.6rem; }
+  .cb-move { min-height: 60px; font-size: 1.12rem; }
+  .cb-intent { font-size: .95rem; }
+  .mer-sign .plank { font-size: 2rem; padding: 10px 40px 11px; }
+  .mer-chip b { font-size: .95rem; } .mer-chip span { font-size: .8rem; }
+  .mer-detail { padding: 14px; font-size: 1.02rem; }
+}
+@media (min-width: 1400px) and (min-height: 900px) {
+  .cb-inner { max-width: 1060px; }
+  .cb-stage { min-height: 600px; }
+  .mer-inner { max-width: 1280px; }
+}
+@media (min-width: 900px) and (min-height: 700px) {
+  .cb-foe-row, .cb-hero-row { justify-content: space-between; }
+  .cb-box { flex: 0 1 560px; }
+}

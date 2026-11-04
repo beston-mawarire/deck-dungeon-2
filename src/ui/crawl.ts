@@ -26,7 +26,7 @@ let glide: { fx: number; fy: number; tx: number; ty: number; t0: number } | null
 let raf = 0;
 
 /** Tile size on screen: close in, about eight tiles across the narrow side. */
-const tileSize = (w: number, h: number) => Math.max(40, Math.min(64, Math.min(w, h) / 8));
+const tileSize = (w: number, h: number) => Math.max(40, Math.min(92, Math.min(w, h) / (Math.min(w, h) > 700 ? 10 : 8)));
 
 /** Stop walking (a new screen, a popup, the menu). */
 export function stopWalk() {
