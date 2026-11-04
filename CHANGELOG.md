@@ -9,6 +9,16 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.69.1
+- **Crawl fights:**
+  - Your box now matches the foe's: name and level, an HP bar, an MP bar, then your numbers and statuses.
+  - The bars no longer sit at the bottom: it's potions, speed and the menu, then your Inventory.
+  - You and the foe are drawn a little smaller, closer to the edges, so the boxes have more room.
+  - **One die in the middle**, showing the last roll, yours or the foe's. Two appear only when the same side rolls twice running (an off-hand strike, say).
+- **On the map:**
+  - Your figure is drawn at full strength, with a thicker yellow ring so it's easy to spot.
+  - Foes and treasures no longer look faded either.
+
 ## 1.69.0
 - **The Crawl: six floors to a layer.** Floors 1–5 to explore, the boss alone on the 6th. The campfire is on the 5th.
 - **Smaller floors** (19×19): three or four small halls joined by hallways.

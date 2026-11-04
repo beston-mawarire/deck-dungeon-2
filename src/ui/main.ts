@@ -154,6 +154,10 @@ let banked = 0;
 // Combat presentation state
 let busy = false;
 const dispHp: Record<"player" | "enemy", number | null> = { player: null, enemy: null };
+/** The Crawl's fight shows one die in the middle: the last roll, whoever made it (two when the same side rolls twice running, like an off-hand). */
+type ShownDie = { who: "player" | "enemy"; d: { face: number; name: string; kind: string; rolling?: boolean; tint?: string }; batch: number };
+let shownDice: ShownDie[] = [];
+let fxBatch = 0;
 const lastRoll: Record<"player" | "enemy", { face: number; name: string; kind: string; rolling?: boolean; tint?: string } | null> = { player: null, enemy: null };
 
 /** Die colours for the status (or reaction) a roll caused. */
@@ -636,6 +640,12 @@ function foeIcon(f: Fighter): string {
   return (f.family && fam[f.family]) || (f.boss ? "👹" : "👾");
 }
 
+/** The die in the middle of a Crawl fight: the last roll (yours or the foe's), or two when one side rolled twice running. */
+function cbDice(foe: string) {
+  if (!shownDice.length) return `<div class="diebox"><div class="who">&nbsp;</div><div class="die empty">·</div><div class="facename">&nbsp;</div></div>`;
+  return shownDice.map(({ who, d }) => `<div class="diebox"><div class="who">${who === "player" ? "You" : esc(foe)}</div><div class="die ${who} ${d.kind} ${d.rolling ? "rolling" : ""} ${d.tint ? "tinted" : ""}"${d.tint ? ` style="background:${d.tint};color:${dieInk(d.tint)};--tint:${d.tint}"` : ""}>${d.face}</div><div class="facename">${d.rolling ? "&nbsp;" : esc(d.name)}</div></div>`).join("");
+}
+
 /** A Pokémon-style HP bar: green, then yellow below half, red below a fifth. */
 const cbHp = (hp: number, max: number) => { const p = Math.max(0, Math.min(1, hp / max)); return `<div class="cb-hp ${p <= 0.2 ? "low" : p <= 0.5 ? "mid" : ""}"><em>HP</em><span><i style="width:${p * 100}%"></i></span></div>`; };
 
@@ -643,7 +653,7 @@ const cbHp = (hp: number, max: number) => { const p = Math.max(0, Math.min(1, hp
 function crawlCombat(r: Run, msg: string[], bad: boolean) {
   if (r.scene.t !== "combat") return "";
   const b = r.scene.battle, e = b.enemy, p = b.player;
-  const ehp = dispHp.enemy ?? e.hp;
+  const ehp = dispHp.enemy ?? e.hp, php = dispHp.player ?? p.hp;
   const intent = e.moves?.length ? e.moves[e.intent ?? 0] : null;
   const rnd = currentBattle?.round ?? -1;
   const stance = p.flags["guarding"] ? "guard" : p.flags["counter"] === rnd && rnd >= 0 ? "counter" : "";
@@ -651,7 +661,6 @@ function crawlCombat(r: Run, msg: string[], bad: boolean) {
   const acts = availableActions(r);
   const traits = guardChips(e, "enemy") + foeTraits(e) + statusChips(e);
   return `<div class="cb-screen"><div class="cb-inner">
-    <button class="cb-menubtn" data-menu ${busy ? "disabled" : ""} aria-label="Menu">☰</button>
     <div class="cb-row cb-foe-row">
       <div class="cb-box foe ${e.crimson ? "crimson" : ""}">
         <div class="cb-name"><b>${esc(e.name)}</b>${rank ? `<span class="cb-rank">${rank}</span>` : ""}</div>
@@ -663,12 +672,14 @@ function crawlCombat(r: Run, msg: string[], bad: boolean) {
       <div class="cb-sprite foe" id="fp-enemy"><span>${foeIcon(e)}</span></div>
     </div>
     ${intent ? `<div class="cb-intent">Next: ${intent.icon} <b>${esc(intent.name)}</b> — ${esc(intent.text)}</div>` : ""}
-    <div class="cb-dice">${dieBox("player", "You")}${dieBox("enemy", esc(e.name))}</div>
+    <div class="cb-dice">${cbDice(e.name)}</div>
     <div class="cb-row cb-hero-row">
       <div class="cb-sprite hero ${stance ? `stance-${stance}` : ""}" id="fp-player"><span>${ORIGIN_ICON[r.hero.origin]}</span></div>
       <div class="cb-box hero">
         <div class="cb-name"><b>${esc(ORIGINS[r.hero.origin].name)}</b><span class="cb-rank">Lv ${r.hero.level}</span></div>
-        <div class="cb-nums">Damage ${p.damage}${p.offDamage !== undefined ? ` + ${p.offDamage}` : ""} · Armor ${armorOf(p)}</div>
+        ${cbHp(php, p.maxHp)}
+        <div class="cb-mp"><em>MP</em><span>${Array.from({ length: p.maxMana || MANA_MAX }, (_, i) => `<i class="${i < (p.mana ?? 0) ? "full" : ""}"></i>`).join("")}</span></div>
+        <div class="cb-nums">${Math.max(0, php)} / ${p.maxHp} · Damage ${p.damage}${p.offDamage !== undefined ? ` + ${p.offDamage}` : ""} · Armor ${armorOf(p)}</div>
         ${stance === "guard" ? `<div class="cb-stance">🛡️ Guarding</div>` : stance === "counter" ? `<div class="cb-stance">🌀 Countering</div>` : ""}
         <div class="cb-chips">${guardChips(p, "player")}${statusChips(p)}</div>
       </div>
@@ -678,8 +689,7 @@ function crawlCombat(r: Run, msg: string[], bad: boolean) {
     <div class="cb-moves ${busy ? "busy" : ""}">
       ${acts.map(a => `<button class="cb-move ${a === "attack" ? "attack" : a === "flee" ? "flee" : a === "guard" ? "guard" : "skill"}" data-act="${a}" ${busy || (isSkill(a) && (p.mana ?? 0) < MANA_COST) ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(p)}${isSkill(a) ? ` <span class="mana-cost">🔷${MANA_COST}</span>` : ""}</button>`).join("")}
     </div>
-    <div class="cb-extra"><button class="cb-speed" data-speedcycle title="Combat speed">⏩ ${speed >= 1 ? "Normal" : speed >= 0.5 ? "Fast" : "Very fast"}</button></div>
-    <div class="cb-bottom"><div class="cb-pots">${potionCircle(r)}</div>${czBars(r)}${bagCircle(r)}</div>
+    <div class="cb-bottom"><div class="cb-pots">${potionCircle(r)}</div><div class="cb-mid"><button class="cb-speed" data-speedcycle title="Combat speed">⏩ ${speed >= 1 ? "Normal" : speed >= 0.5 ? "Fast" : "Very fast"}</button><button class="cb-menubtn" data-menu ${busy ? "disabled" : ""} aria-label="Menu">☰</button></div>${bagCircle(r)}</div>
     <details class="cb-log"><summary>Battle log</summary><div class="log">${b.log.slice().reverse().map(l => `<div class="${l.startsWith("—") ? "round" : ""}">${esc(l)}</div>`).join("")}</div></details>
   </div></div>`;
 }
@@ -2176,6 +2186,7 @@ function render2() {
   if (s.t === "combat" && s.battle !== currentBattle) {
     currentBattle = s.battle;
     lastRoll.player = lastRoll.enemy = null;
+    shownDice = [];
     if ((s.battle.enemy.items["m_death"] ?? 0) > 0) deathIntro(r.floor !== DEATH_FLOOR);
     dispHp.player = dispHp.enemy = null;
   }
@@ -2265,6 +2276,7 @@ function shake(who: "player" | "enemy", big = false) {
 async function playFx(b: Battle) {
   // A huge pile of effects (big stacking builds) would take minutes to play out: skip to the last few.
   if (b.fx.length > 40) b.fx.splice(0, b.fx.length - 12);
+  fxBatch++;
   while (b.fx.length) {
     const e = b.fx.shift()!;
     buildMoment(b, e);
@@ -2311,13 +2323,18 @@ async function showFx(e: Fx) {
     case "roll": {
       const side = e.who;
       const sides = e.sides ?? 6;
+      const die = { face: 1, name: "", kind: "hit", rolling: true } as NonNullable<(typeof lastRoll)["player"]>;
+      lastRoll[side] = die;
+      const prev = shownDice[shownDice.length - 1];
+      if (prev && prev.who === side && prev.batch === fxBatch && shownDice.length < 2) shownDice.push({ who: side, d: die, batch: fxBatch });
+      else shownDice = [{ who: side, d: die, batch: fxBatch }];
       for (let i = 0; i < 6; i++) {
-        lastRoll[side] = { face: 1 + Math.floor(Math.random() * sides), name: "", kind: "hit", rolling: true };
+        die.face = 1 + Math.floor(Math.random() * sides);
         render();
         sfx("roll");
         await sleep(60);
       }
-      lastRoll[side] = { face: e.face!, name: `${e.faceName}${e.offhand ? " (off-hand)" : ""}`, kind: e.faceKind ?? "hit" };
+      Object.assign(die, { face: e.face!, name: `${e.faceName}${e.offhand ? " (off-hand)" : ""}`, kind: e.faceKind ?? "hit", rolling: false });
       render();
       await sleep(380);
       return;

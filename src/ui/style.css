@@ -1417,3 +1417,18 @@ body.crawl-on { overflow: hidden; }
 .cb-chips .chip { background: #efe3cc; color: #3a2614; border: 1px solid #c4a77a; }
 .cb-moves { margin-top: auto; }
 .cb-bottom { margin-top: 0; }
+/* Fight screen, round two: smaller figures near the edges, the boxes wider; your box matches the foe's. */
+.cb-foe-row { padding-right: 0; }
+.cb-row { gap: 6px; }
+.cb-sprite { width: 74px; height: 74px; }
+.cb-sprite span { font-size: 2.8rem; }
+.cb-sprite::after { bottom: 4px; height: 16px; left: 4%; right: 4%; }
+.cb-foe-row .cb-sprite { margin-right: -4px; }
+.cb-hero-row .cb-sprite { margin-left: -4px; }
+.cb-mp { display: flex; align-items: center; gap: 5px; margin: 0 0 3px; }
+.cb-mp em { font-style: normal; font-size: .66rem; font-weight: 800; color: #9fd0ff; background: #3a2614; padding: 1px 5px; border-radius: 4px; }
+.cb-mp span { flex: 1; display: flex; gap: 3px; }
+.cb-mp i { flex: 1; height: 9px; border: 2px solid #3a2614; border-radius: 6px; background: #e8dcc6; }
+.cb-mp i.full { background: #3a8ae0; }
+.cb-mid { flex: 1; display: flex; justify-content: center; align-items: center; gap: 8px; }
+.cb-mid .cb-menubtn { position: static; width: 44px; height: 44px; }

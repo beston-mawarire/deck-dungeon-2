@@ -146,7 +146,8 @@ export function drawCrawl() {
     ctx.fillStyle = "rgba(20,10,4,.45)";
     ctx.beginPath(); ctx.ellipse(cx, cy + ts * 0.3, ts * 0.32, ts * 0.1, 0, 0, Math.PI * 2); ctx.fill();
     if (t.room === "trapdoor") drawTrapdoor(ctx, cx, cy, ts);
-    else { ctx.font = emoji(ts * 0.62); ctx.fillText(h.icon(t.room), cx, cy + ts * 0.02); }
+    // (Emoji take the fill's opacity: draw them with a solid fill.)
+    else { ctx.fillStyle = "#fff"; ctx.font = emoji(ts * 0.62); ctx.fillText(h.icon(t.room), cx, cy + ts * 0.02); }
     if (m.sel === k) { ctx.strokeStyle = "#ffd27a"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, ts * 0.47, 0, Math.PI * 2); ctx.stroke(); }
     ctx.globalAlpha = 1;
   });
@@ -154,10 +155,14 @@ export function drawCrawl() {
   const pxc = W / 2, pyc = H / 2;
   ctx.fillStyle = "rgba(20,10,4,.5)";
   ctx.beginPath(); ctx.ellipse(pxc, pyc + ts * 0.32, ts * 0.32, ts * 0.1, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "rgba(255,220,150,.18)";
-  ctx.beginPath(); ctx.arc(pxc, pyc, ts * 0.46, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = "#ffe2a8"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(pxc, pyc, ts * 0.46, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = "rgba(255,210,58,.16)";
+  ctx.beginPath(); ctx.arc(pxc, pyc, ts * 0.45, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,.55)"; ctx.lineWidth = 6.5;
+  ctx.beginPath(); ctx.arc(pxc, pyc, ts * 0.45, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = "#ffd23a"; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(pxc, pyc, ts * 0.45, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.globalAlpha = 1;
   ctx.font = emoji(ts * 0.6);
   ctx.fillText(h.hero(), pxc, pyc + ts * 0.02);
 }
