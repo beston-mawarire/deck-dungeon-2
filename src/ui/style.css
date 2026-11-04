@@ -1319,24 +1319,8 @@ body[data-theme] .bag-overlay .toast:not(.err) b { color: inherit; }
 .crawl-meta .danger { font-weight: 600; }
 .crawl-meta .danger.d0 { color: var(--muted); } .crawl-meta .danger.d1 { color: #d9c36a; } .crawl-meta .danger.d2 { color: #f0a050; }
 .crawl-meta .danger.d3 { color: #f07050; } .crawl-meta .danger.d4 { color: var(--bad); text-shadow: 0 0 8px rgba(226,85,106,.6); }
-.crawl { display: grid; grid-template-columns: repeat(var(--w), 1fr); gap: 5px; max-width: 340px; margin: 0 auto; padding: 8px; border-radius: 14px;
-  background: radial-gradient(ellipse at 50% 100%, #2a2236 0%, #17131e 75%); border: 1px solid var(--line); }
-.crawl .cell { aspect-ratio: 1; min-height: 0; padding: 0; border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;
-  border: 1px solid var(--line); background: linear-gradient(170deg, #3a2f49 0%, #2a2236 70%); }
-.crawl .cell .ic { font-size: clamp(1.1rem, 6vw, 1.8rem); filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
-.crawl .cell.fog { background: repeating-linear-gradient(135deg, #15111c 0 6px, #191420 6px 12px); border-color: #221c2b; }
-.crawl .cell.seen { opacity: .55; }
-.crawl .cell.landmark { border-color: rgba(176,108,240,.7); box-shadow: 0 0 12px rgba(176,108,240,.35); opacity: .85; animation: landmark 2.8s ease-in-out infinite; }
-@keyframes landmark { 50% { box-shadow: 0 0 18px rgba(176,108,240,.6); } }
-.crawl .cell.open { border-color: rgba(232,184,74,.55); box-shadow: 0 0 10px rgba(232,184,74,.18); }
-.crawl .cell.open:hover { border-color: var(--gold); }
-.crawl .cell.sel { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold), 0 0 16px rgba(232,184,74,.45); opacity: 1; }
-.crawl .cell.done { background: #201a29; border-color: #2c2436; }
-.crawl .cell.done .ic { opacity: .35; filter: grayscale(.7); }
-.crawl .cell.here .ic { opacity: 1; filter: none; }
-.crawl .cell.here { border-color: var(--good); }
-.crawl .cell.boss-cell { border-color: var(--bad); background: linear-gradient(170deg, #4a2030 0%, #2a1a26 75%); }
-.crawl .cell .lock { position: absolute; right: 3px; bottom: 1px; font-size: .8rem; }
+.crawl-view { max-width: 440px; margin: 0 auto; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 6px 24px rgba(0,0,0,.45); background: #07060a; }
+.crawl-view canvas { display: block; width: 100%; aspect-ratio: 1; touch-action: manipulation; cursor: pointer; }
 .crawl-pick { margin: 10px auto 0; max-width: 420px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
   display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; }
 .crawl-pick .ic { grid-row: span 2; font-size: 1.8rem; }

@@ -9,6 +9,16 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.66.0
+- **The Crawl, rebuilt:** each floor is now a real dungeon floor. Rooms of different sizes are joined by hallways, with walls between them.
+  - Tap anywhere to walk there (or use the arrow keys / WASD). Tap into the dark and you feel your way toward it.
+  - You see three tiles around you, and walls block your sight. Whatever you've seen stays on your map, dimmed when it's out of sight.
+  - The camera follows you: you stay in the middle and the floor moves around you.
+  - Foes, chests, services and landmarks stand in the rooms. Tap one to see what it is, tap again (or "Go") to walk to it; stepping onto it starts the encounter. Your walk stops when something new comes into view.
+  - The boss waits in the room furthest from where you start, and won't face you until you've cleared 4 encounters.
+  - Turning back from a risky room puts you back where you stood.
+  - Fights are a little softer than in the first Crawl: danger rises every 4 encounters.
+
 ## 1.65.1
 - **The Crawl:** altars, shrines and encounters are now **landmarks**. A floor holds none, one or two of them.
   - They glow in the fog from the start, out in the far half of the floor, so you see them and choose whether to walk there (every room on the way raises the danger).

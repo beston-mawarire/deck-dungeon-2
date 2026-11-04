@@ -24,11 +24,12 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  startCrawl, gridSelect, gridEnter, gridDanger, type RoomType,
+  startCrawl, gridDanger, type RoomType,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
-import { BOSS_KEY, bossIndex, bossLocked, dangerWord, isOpen, isSeen } from "../game/grid";
+import { BOSS_KEY, bossLocked, dangerWord } from "../game/grid";
+import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
 import { pingSession } from "./leaderboard";
@@ -587,38 +588,24 @@ function mapScene(r: Run) {
     return `<span class="ic">${info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn ? `<div class="room-acts"><button class="fight-room" data-room="${c}" title="Go in and fight it yourself"><span class="ic">⚔️</span>Fight</button><button class="auto-room" data-autoroom="${c}" title="Go in and let the fight play itself out — only if it's one you can't lose"><span class="ic">⚡</span>Quick<br> Battle</button></div></div>` : ""}`).join("")}</div>`;
 }
 
-/** The Crawl: the floor as a fogged grid. Rooms next to ones you've cleared show what they are; tap one, then go in. */
+/** The Crawl: the floor itself, drawn around you (see crawl.ts). Tap a tile to walk there; tap something once to see what it is. */
 function crawlScene(r: Run) {
-  const g = r.grid!;
-  const boss = bossIndex(g.w);
-  const locked = bossLocked(g);
+  const m = r.grid!;
+  const locked = bossLocked(m);
   const danger = gridDanger(r);
-  const cell = (i: number) => {
-    const c = g.cells[i];
-    const here = i === g.at;
-    if (c.room === "entrance") return `<div class="cell done entrance ${here ? "here" : ""}"><span class="ic">${here ? "🧍" : "🚪"}</span></div>`;
-    if (!isSeen(g, i)) return `<div class="cell fog"></div>`;
-    const info = roomInfo(r, c.room as RoomType);
-    if (c.done) return `<div class="cell done ${here ? "here" : ""}"><span class="ic">${here ? "🧍" : info.icon}</span></div>`;
-    const open = isOpen(g, i);
-    const isBoss = i === boss;
-    return `<button class="cell ${open ? "open" : "seen"} ${isBoss ? "boss-cell" : ""} ${c.mark ? "landmark" : ""} ${roomClass(c.room)} ${g.sel === i ? "sel" : ""}" data-gcell="${i}" title="${esc(info.name)}"><span class="ic">${info.icon}</span>${isBoss && locked ? `<span class="lock">🔒</span>` : ""}</button>`;
-  };
-  const sel = g.sel !== undefined && !g.cells[g.sel].done ? g.sel : undefined;
+  const sel = m.sel !== undefined && !m.things[m.sel]?.done ? m.sel : undefined;
   const pick = (() => {
-    if (sel === undefined) return `<p class="sub center crawl-hint">Tap a room next to one you've cleared to see what it is, and tap it again to go in. The boss waits at the top${g.cells.some(c => c.mark && !c.done) ? ", and something glimmers out in the dark: make your way to it if you dare" : ""}.</p>`;
-    const room = g.cells[sel].room as RoomType;
+    if (sel === undefined) return `<p class="sub center crawl-hint">Tap the floor to walk there. Tap something once to see what it is, and again to go to it. You see three tiles around you; what you've seen stays on your map.</p>`;
+    const room = m.things[sel].room as RoomType;
     const info = roomInfo(r, room);
-    const open = isOpen(g, sel);
     const sealed = room === "boss" && locked;
-    const auto = AUTO_ROOMS.includes(room) && r.floor >= AUTO_BATTLE_FLOOR && quickOn;
     return `<div class="room crawl-pick ${roomClass(room)}"><span class="ic">${info.icon}</span><b>${esc(room === "boss" ? bossTitle(r) : info.name)}</b><span class="sub">${esc(info.text)}</span>
-      <div class="row" style="margin-top:8px">${!open ? `<span class="sub">Clear a room beside it first.</span>` : sealed ? `<span class="sub">🔒 Sealed. Clear ${BOSS_KEY - g.explored} more room${BOSS_KEY - g.explored === 1 ? "" : "s"} to open the way.</span>` : `<button class="primary" data-genter="${sel}">${AUTO_ROOMS.includes(room) || room === "boss" ? "⚔️ Fight" : "🚪 Enter"}</button>${auto ? `<button data-gauto="${sel}" title="Go in and let the fight play itself out — only if it's one you can't lose">⚡ Quick Battle</button>` : ""}`}</div></div>`;
+      <div class="row" style="margin-top:8px">${sealed ? `<span class="sub">It isn't ready to face you. Clear ${BOSS_KEY - m.explored} more encounter${BOSS_KEY - m.explored === 1 ? "" : "s"} first.</span>` : `<button class="primary" data-gwalk="${sel}">${AUTO_ROOMS.includes(room) || room === "boss" ? "⚔️ Go fight it" : "🚶 Go there"}</button>`}<button data-gunsel>Close</button></div></div>`;
   })();
   return `
-  <h2>${locked ? "Explore the floor" : "The way to the boss is open"}</h2>
-  <div class="crawl-meta"><span>🗺️ Rooms cleared <b>${g.explored}</b></span><span class="danger d${Math.min(danger, 4)}" title="The longer you linger on a floor, the stronger its foes grow">☠️ ${dangerWord(danger)}</span></div>
-  <div class="crawl" style="--w:${g.w}">${g.cells.map((_, i) => cell(i)).join("")}</div>
+  <h2>${locked ? "Explore the floor" : "The boss is ready for you"}</h2>
+  <div class="crawl-meta"><span>🗺️ Encounters <b>${m.explored}</b></span><span class="danger d${Math.min(danger, 4)}" title="The longer you linger on a floor, the stronger its foes grow">☠️ ${dangerWord(danger)}</span></div>
+  <div class="crawl-view"><canvas id="crawl"></canvas></div>
   ${pick}`;
 }
 
@@ -2119,6 +2106,8 @@ function render2() {
   }
   app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
   bind();
+  if (s.t === "map" && r.gridMode) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => roomInfo(r, room as RoomType).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never) }); }
+  else stopWalk();
 }
 
 // ---------- Combat playback ----------
@@ -2523,28 +2512,8 @@ function bind() {
   on("[data-jmode]", el => { jewelMode(r, el.dataset.jmode as "fuse" | "infuse"); });
   on("[data-jclear]", el => { jewelClear(r, el.dataset.jclear as "left" | "right"); });
   on("[data-jfuse]", () => { const res = jewelFuse(r); say(res.msg, !res.ok); if (res.ok) celebrate("epic", res.made, true); else sfx("miss"); });
-  on("[data-gcell]", el => {
-    const i = Number(el.dataset.gcell);
-    // Tapping the picked room again goes in.
-    if (r.grid?.sel === i && isOpen(r.grid, i)) { r.message = ""; const room = r.grid.cells[i].room; const err = gridEnter(r, i); if (err) say(err, true); else if (room === "wooden" || room === "iron") sfx("chest"); return; }
-    gridSelect(r, i);
-  });
-  on("[data-genter]", el => {
-    r.message = "";
-    const i = Number(el.dataset.genter);
-    const room = r.grid?.cells[i]?.room;
-    const err = gridEnter(r, i);
-    if (err) { say(err, true); return; }
-    if (room === "wooden" || room === "iron") sfx("chest");
-  });
-  on("[data-gauto]", el => {
-    r.message = "";
-    const err = gridEnter(r, Number(el.dataset.gauto));
-    if (err) { say(err, true); return; }
-    if (r.scene.t !== "combat") return;
-    if (canAutoBattle(r)) { const note = autoBattle(r); sfx("crit"); if (note) say(note, false); }
-    else say("⚠️ Too dangerous for a Quick Battle: this one's yours to fight.", true);
-  });
+  on("[data-gwalk]", el => { walkToThing(Number(el.dataset.gwalk)); });
+  on("[data-gunsel]", () => { if (r.grid) r.grid.sel = undefined; });
   on("[data-autoroom]", el => {
     r.message = "";
     chooseRoom(r, el.dataset.autoroom as never);
