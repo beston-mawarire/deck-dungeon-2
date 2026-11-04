@@ -1685,3 +1685,10 @@ body.crawl-on { overflow: hidden; }
   .camp-arrow { width: 56px; height: 84px; font-size: 3rem; }
   .camp-arrow.l { left: 14px; } .camp-arrow.r { right: 14px; }
 }
+/* The Camp's arrows: bare glowing chevrons, no box. On a phone, no stone frame round the page either. */
+.camp-arrow, .camp-arrow:hover, .camp-arrow:active { background: none; border: 0; box-shadow: none; border-radius: 0; color: #ffd98a; text-shadow: 0 0 8px rgba(255,190,80,.95), 0 0 18px rgba(255,150,50,.7); animation: chevglow 1.8s ease-in-out infinite; }
+@keyframes chevglow { 50% { text-shadow: 0 0 12px rgba(255,210,100,1), 0 0 28px rgba(255,160,60,.9); opacity: .85; } }
+@media (max-width: 899px) {
+  .camp-screen { padding: 0; background: #1c130b; box-shadow: none; }
+  .camp-screen .camp-inner { border-radius: 0; box-shadow: none; padding-top: env(safe-area-inset-top); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+}
