@@ -63,3 +63,15 @@ it("Legendaries can't be extracted or refined; scrolls scrap for materials", () 
   scrapScroll(h, s.uid);
   expect(h.azure).toBe(az + 1);
 });
+
+it("the Transmuter's Crucible comes from the Campaign's fifth boss", async () => {
+  const { newRun, settleCombat, FLOORS } = await import("../src/game/run");
+  const run = newRun("mage", 5);
+  run.floor = FLOORS; run.step = 7; run.choices = ["boss"];
+  const { chooseRoom } = await import("../src/game/run");
+  chooseRoom(run, "boss");
+  if (run.scene.t !== "combat") throw new Error("no boss");
+  run.scene.battle.enemy.hp = 0; run.scene.battle.over = "won";
+  settleCombat(run);
+  expect(run.hero.crucible).toBe(true);
+});

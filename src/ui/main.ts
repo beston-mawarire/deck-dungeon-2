@@ -837,7 +837,7 @@ function forgeScene(r: Run) {
       ${all.some(hasTwin) ? sides(hasTwin, it => itemCard(it, `<button class="small ${combineSel.includes(it.uid) ? "primary" : ""}" data-combinesel="${it.uid}" ${fits(it) ? "" : "disabled"}>${combineSel.includes(it.uid) ? "✓ Picked" : "Pick"}</button>`, false, slotOf(it)), it => combineSel.includes(it.uid), "No items here have a twin.") : `<p class="sub">You don't have two of the same item.</p>`}`;
   } else if (!h.crucible) {
     body = `<div class="panel locked-tool"><p><b>🔒 You're missing an artefact.</b></p>
-      <p class="sub">Transmuting needs a special tool you don't have yet. Strong foes have been known to carry strange things… Check Spoils in your Inventory to see what you're missing.</p></div>`;
+      <p class="sub">Transmuting needs the Transmuter's Crucible. It's said to lie with the Campaign's fifth boss.</p></div>`;
   } else {
     body = `<p class="sub">The Transmuter's Crucible turns a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} ✴️ Starmetal (you have ${h.starmetal}). It arrives unrevealed.</p>
       ${sides(i => i.rarity === "common", it => itemCard(it, `<button class="small primary" data-transmute="${it.uid}" ${h.starmetal >= TRANSMUTE_COST ? "" : "disabled"}>Transmute · ${TRANSMUTE_COST} ✴️</button>`, false, slotOf(it)), () => false, "No Common items here.")}`;
@@ -944,10 +944,10 @@ function eventScene(r: Run) {
 function alchemistScene(r: Run) {
   if (r.scene.t !== "alchemist") return "";
   const s = r.scene;
-  return `<h2>⚗️ The Alchemist</h2><div class="panel"><p>"Everything works on anything. Even the big ones. It isn't cheap."</p><p class="sub">Tonics are used in a fight, from the buttons under your actions. Using one doesn't take your turn. You have 🪙 <b>${r.hero.f.gold}</b>.</p></div>
+  return `<h2>⚗️ The Alchemist</h2><div class="forge-body room-body"><div class="panel"><p>"Everything works on anything. Even the big ones. It isn't cheap."</p><p class="sub">Tonics are used in a fight, from the buttons under your actions. Using one doesn't take your turn. You have 🪙 <b>${r.hero.f.gold}</b>.</p></div>
     <div class="cards">${s.stock.map((e, i) => `<div class="item r-epic"><div class="nm">${TONICS[e.id].icon} ${esc(TONICS[e.id].name)}</div><p>${esc(TONICS[e.id].text)}.</p>
-      <button class="small ${e.sold ? "" : "primary"}" data-tonicbuy="${i}" ${e.sold || r.hero.f.gold < e.price ? "disabled" : ""}>${e.sold ? "Sold" : `Buy · ${e.price} 🪙`}</button></div>`).join("")}</div>
-    <div class="row" style="margin-top:12px"><button data-leave>Leave</button></div>`;
+      <button class="small ${e.sold ? "" : "primary"}" data-tonicbuy="${i}" ${e.sold || r.hero.f.gold < e.price ? "disabled" : ""}>${e.sold ? "Sold" : `Buy · ${e.price} 🪙`}</button></div>`).join("")}</div></div>
+    <div class="row" style="margin-top:12px"><button class="primary leave-wide" data-leave>🚪 Leave the Alchemist</button></div>`;
 }
 
 function jewelSlotHtml(r: Run, side: "left" | "right", slot?: JewelSlot, label = "Empty") {
@@ -979,7 +979,7 @@ function jewellerScene(r: Run) {
        <p class="sub">Two relics, or two Rare-or-better trinkets that haven't been upgraded. Relics cost Gold and Scrap; trinkets also cost ✴️ Starmetal, more for higher rarities. A fusion that doesn't take still costs the fee.</p>`
     : `<p>"Give me a trinket and something to wear. I'll put the one inside the other. The trinket won't survive it."</p>
        <p class="sub">A weapon, off-hand or armour on the left, a trinket of the <b>same rarity</b> on the right (Rare or better, neither upgraded). The trinket's effects and bonuses move into the gear, and the trinket is gone. Costs Gold and ✴️ Starmetal, more for higher rarities.</p>`;
-  return `<h2>💍 The Jeweller</h2>${tabs}<div class="panel">${intro}
+  return `<h2>💍 The Jeweller</h2>${tabs}<div class="forge-body room-body"><div class="panel">${intro}
     <p class="sub">Tries left this visit: <b>${left}</b>/${JEWEL_TRIES} · You have 🪙 ${h.f.gold} · ⚙️ ${h.scrap} · ✴️ ${h.starmetal}</p></div>
     <div class="jbench">${jewelSlotHtml(r, "left", s.left, s.mode === "infuse" ? "Gear" : "Empty")}<div class="jplus">${s.mode === "infuse" ? "⇐" : "＋"}</div>${jewelSlotHtml(r, "right", s.right, s.mode === "infuse" ? "Trinket" : "Empty")}</div>
     ${problem ? `<p class="center jwarn">${esc(problem)}</p>` : ""}
@@ -988,7 +988,7 @@ function jewellerScene(r: Run) {
     <h3 class="jhead">Your trinkets</h3>
     <div class="jpicks">${trinkets.map(pick).join("") || `<p class="sub">No trinkets.</p>`}</div>
     ${s.mode === "fuse" ? `<h3 class="jhead">Your relics</h3>
-    <div class="jpicks">${relics.length ? relics.map(([id, n]) => { const d = getItem(id); const x: JewelSlot = { kind: "relic", id }; return `<button class="jpick r-${d.rarity ?? "common"}" data-jpick="relic:${id}" ${onBench(x) ? "disabled" : ""}><b class="nm">${esc(d.name)}${n > 1 ? ` ×${n}` : ""}</b><span class="sub">Relic${FUSABLE_RELICS.has(id) ? ` · <span class="fusable-tag">🔗 Fusable</span>` : ""}</span></button>`; }).join("") : `<p class="sub">No relics.</p>`}</div>` : ""}
+    <div class="jpicks">${relics.length ? relics.map(([id, n]) => { const d = getItem(id); const x: JewelSlot = { kind: "relic", id }; return `<button class="jpick r-${d.rarity ?? "common"}" data-jpick="relic:${id}" ${onBench(x) ? "disabled" : ""}><b class="nm">${esc(d.name)}${n > 1 ? ` ×${n}` : ""}</b><span class="sub">Relic${FUSABLE_RELICS.has(id) ? ` · <span class="fusable-tag">🔗 Fusable</span>` : ""}</span></button>`; }).join("") : `<p class="sub">No relics.</p>`}</div>` : ""}</div>
     <div class="row" style="margin-top:14px"><button class="primary leave-wide" data-leave>🚪 Leave the Jeweller</button></div>`;
 }
 
@@ -1303,7 +1303,7 @@ function bag(r: Run) {
   const artefactsHtml = `<div class="art-group"><div class="art-grid">${
     h.crucible
       ? artTile(true, "⚗️", "Transmuter's Crucible", "At a Forge: Common → Legendary", `At any Forge (Transmute tab): turn a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} Starmetal.`)
-      : artTile(false, "⚗️", "Empty", "Some Champions carry one…", "A strange tool some Champions carry. With it, a Forge can do something remarkable…")
+      : artTile(false, "⚗️", "Empty", "Beat the fifth boss…", "A strange tool kept by the Campaign's fifth boss. With it, a Forge can do something remarkable…")
   }${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}</div>
     <div class="stile extra-tile star-tile" style="margin-top:10px"><span>✴️</span><span><b>${h.starmetal}</b> Starmetal<span class="sub">${h.crucible ? "Feeds the Crucible at the Forge. Jewellers want it too." : "A rare metal from the finest gear. Scrap Legendaries and Crimson gear for it."}</span></span></div></div>`;
   const extras = `${keepsakeHtml}${heartHtml}

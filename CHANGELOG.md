@@ -7,6 +7,10 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+
+## 1.64.1 (test build)
+- The Jeweller and the Alchemist now sit in a filled panel, like the Forge and the Masterwork.
+- The Transmuter's Crucible is no longer a Champion drop: you get it for beating the Campaign's fifth boss.
 ## 1.64.0 (test build: Masterwork and loot rework, stages 2–6)
 - Rarity is now the number of affix lines: Common 0, Uncommon 1, Rare 2, Epic 3, Legendary 3 plus its ✦ special, Crimson tiers 4 plus their ✦. Lines are shown with "–", specials with "✦".
 - One affix pool: the old rolled bonuses, the generator's lines, the Epic powers and the effects of every hand-made item, graded Minor, Major and Grand, each limited to the families (and for heavy and light gear, the weights) it suits. A line-by-line review cut 56 lines, reworded 41 and regraded more.

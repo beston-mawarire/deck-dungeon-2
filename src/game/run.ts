@@ -964,7 +964,6 @@ function afterFight(run: Run) {
       run.message = `The Champion leaves ${metal} Starmetal behind.`;
     }
     // The Transmuter's Crucible: a rare artefact some Champions carry (once per run).
-    if (!h.crucible && run.rng() < 0.12) { h.crucible = true; crucibleFound = true; }
     relic = relic ?? randomRelic(run, 2);
   }
   if (rank === "crimson") {
@@ -977,6 +976,12 @@ function afterFight(run: Run) {
   }
   if (rank === "boss") {
     relic = randomRelic(run, 2);
+    // The Transmuter's Crucible: yours once you've beaten the Campaign's fifth boss.
+    if (!h.crucible && run.mode !== "abyss" && run.floor >= FLOORS && !b.enemy.crimson) {
+      h.crucible = true;
+      crucibleFound = true;
+      run.popup = { icon: "⚗️", title: "The Transmuter's Crucible", text: "Among the Hollow King's things: a crucible that hums when you hold it. At any Forge, it turns a Common item and 4 Starmetal into a Legendary of the same kind." };
+    }
     if (run.rng() < 0.15) scrolls++;
     const bossGold = Math.round(gold * goldMult(run));
     h.f.gold += bossGold;
