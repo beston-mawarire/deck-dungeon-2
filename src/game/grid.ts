@@ -302,11 +302,17 @@ export function pathToward(m: FloorMap, x: number, y: number): [number, number][
   const blocked = new Set(m.things.filter(t => !t.done).map(t => idx(m, t.x, t.y)));
   const seenFloor = { w: m.w, h: m.h, tiles: m.tiles.map((t, i) => (t === 1 && m.seen[i] && !blocked.has(i) ? 1 : 0)) as Tile[] };
   const d = walkDistances(seenFloor, m.px, m.py);
-  let best = -1, bestD = Math.hypot(m.px - x, m.py - y) - 0.5;
+  // The known tile that gets you closest to the spot, without a long detour; tiles at the edge of what you've seen
+  // (where more will come into view) win ties.
+  const edge = (i: number) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const x = (i % m.w) + dx, y = Math.floor(i / m.w) + dy; return inside(m, x, y) && !m.seen[idx(m, x, y)]; });
+  const here = Math.hypot(m.px - x, m.py - y);
+  let best = -1, bestScore = Infinity;
   d.forEach((v, i) => {
-    if (v < 0) return;
+    if (v <= 0) return;
     const e = Math.hypot((i % m.w) - x, Math.floor(i / m.w) - y);
-    if (e < bestD - 1e-9 || (best >= 0 && Math.abs(e - bestD) < 1e-9 && v < d[best])) { best = i; bestD = e; }
+    if (e >= here - 0.5) return;
+    const score = e + 0.12 * v - (edge(i) ? 0.4 : 0);
+    if (score < bestScore) { best = i; bestScore = score; }
   });
   return best < 0 ? null : pathTo(m, best % m.w, Math.floor(best / m.w));
 }

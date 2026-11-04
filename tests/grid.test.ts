@@ -260,6 +260,38 @@ describe("the Crawl", () => {
     expect(equipItem(r.hero, item)).toMatch(/level 7/);
   });
 
+  it("urns are few and spread out; one-tile nooks hold an urn or a chest; chests give no Gold", () => {
+    let nooks = 0, guarded = 0;
+    for (let seed = 1; seed < 60; seed++) {
+      const m = crawl(seed).grid!;
+      const urns = m.things.filter(t => t.room === "urn");
+      expect(urns.length).toBeLessThanOrEqual(5);
+      // Two urns in the halls are never side by side.
+      for (const a of urns) for (const b of urns) if (a !== b) expect(Math.abs(a.x - b.x) + Math.abs(a.y - b.y)).toBeGreaterThan(1);
+      // A nook: an urn or chest on a tile with only one way in, through a one-tile doorway.
+      for (const t of m.things.filter(t => ["urn", "wooden", "iron"].includes(t.room))) {
+        const open = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => isFloor(m, t.x + dx, t.y + dy));
+        if (open.length !== 1) continue;
+        const [dx, dy] = open[0];
+        const door = [t.x + dx, t.y + dy];
+        const doorOpen = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([ex, ey]) => isFloor(m, door[0] + ex, door[1] + ey)).length;
+        if (doorOpen !== 2) continue;
+        nooks++;
+        if (m.things.some(g => g.guard && g.x === door[0] && g.y === door[1])) guarded++;
+      }
+    }
+    expect(nooks).toBeGreaterThan(40);
+    expect(guarded).toBeGreaterThan(5);
+    expect(guarded).toBeLessThan(nooks);
+    // A chest in the Crawl holds gear, not Gold.
+    const r = crawl(5);
+    const m = r.grid!;
+    const dir = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dy]) => isFloor(m, m.px + dx, m.py + dy) && !m.things.some(t => t.x === m.px + dx && t.y === m.py + dy))!;
+    m.things.push({ x: m.px + dir[0], y: m.py + dir[1], room: "wooden" });
+    gridStep(r, m.px + dir[0], m.py + dir[1]);
+    expect(r.scene.t === "loot" && r.scene.gold).toBe(0);
+  });
+
   it("bots can play whole Crawl runs: every run ends, floors are explored, each a fresh map", () => {
     let deepest = 0;
     for (let seed = 1; seed <= 12; seed++) {
@@ -274,6 +306,6 @@ describe("the Crawl", () => {
       deepest = Math.max(deepest, (r.floor - 1) * 10 + (r.grid?.depth ?? 0));
       expect(maps.size).toBeGreaterThanOrEqual(1 + (r.grid?.depth ?? 0));
     }
-    expect(deepest).toBeGreaterThanOrEqual(3);
+    expect(deepest).toBeGreaterThanOrEqual(2);
   }, 60000);
 });

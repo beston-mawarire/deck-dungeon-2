@@ -24,6 +24,9 @@ let goal: [number, number] | null = null;
 let timer: number | undefined;
 let glide: { fx: number; fy: number; tx: number; ty: number; t0: number } | null = null;
 let raf = 0;
+/** The cached stone layer, and what it was drawn for. */
+let layer: HTMLCanvasElement | null = null;
+let layerKey = "";
 
 /** Tile size on screen: close in, about eight tiles across the narrow side. */
 const tileSize = (w: number, h: number) => Math.max(40, Math.min(92, Math.min(w, h) / (Math.min(w, h) > 700 ? 10 : 8)));
@@ -124,19 +127,35 @@ export function drawCrawl() {
   const ts = tileSize(W, H);
   const c = cam(m);
   const ox = W / 2 - (c.x + 0.5) * ts, oy = H / 2 - (c.y + 0.5) * ts;
-  ctx.fillStyle = "#0b0806";
-  ctx.fillRect(0, 0, W, H);
   const lit = new Set(inSight(m));
-  const hx = Math.ceil(W / ts / 2) + 1, hy = Math.ceil(H / ts / 2) + 1;
-  for (let y = Math.floor(c.y) - hy; y <= Math.ceil(c.y) + hy; y++) for (let x = Math.floor(c.x) - hx; x <= Math.ceil(c.x) + hx; x++) {
-    if (!isSeenTile(m, x, y)) continue;
-    const i = idx(m, x, y);
-    const sx = ox + x * ts, sy = oy + y * ts;
-    if (m.tiles[i] === 1) drawFloor(ctx, x, y, sx, sy, ts); else drawWall(ctx, m, x, y, sx, sy, ts);
-    // Torchlight: what's in sight is lit, brighter close by; what you only remember sits in the gloom.
-    const d = Math.hypot(x - m.px, y - m.py);
-    ctx.fillStyle = lit.has(i) ? `rgba(12,7,3,${Math.min(0.45, (d / (SIGHT + 1)) * 0.45)})` : "rgba(12,7,3,.68)";
-    ctx.fillRect(sx, sy, ts + 0.5, ts + 0.5);
+  // The stone (floors, walls and the fog over them) only changes when you move or see more, so it's drawn once into
+  // a screen-sized layer and reused for the frames in between (the torches and the trapdoor flicker on top of it).
+  const seenCount = m.seen.reduce((a, b) => a + b, 0);
+  const key = glide ? "" : `${m.floor}:${m.depth}:${m.px},${m.py}:${seenCount}:${W}x${H}:${dpr}`;
+  if (key && key === layerKey && layer) ctx.drawImage(layer, 0, 0, W, H);
+  else {
+    const target = key ? (layer ??= document.createElement("canvas")) : null;
+    let lc = ctx;
+    if (target) {
+      target.width = Math.round(W * dpr); target.height = Math.round(H * dpr);
+      lc = target.getContext("2d")!;
+      lc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    lc.fillStyle = "#0b0806";
+    lc.fillRect(0, 0, W, H);
+    const hx = Math.ceil(W / ts / 2) + 1, hy = Math.ceil(H / ts / 2) + 1;
+    for (let y = Math.floor(c.y) - hy; y <= Math.ceil(c.y) + hy; y++) for (let x = Math.floor(c.x) - hx; x <= Math.ceil(c.x) + hx; x++) {
+      if (!isSeenTile(m, x, y)) continue;
+      const i = idx(m, x, y);
+      const sx = ox + x * ts, sy = oy + y * ts;
+      if (m.tiles[i] === 1) drawFloor(lc, x, y, sx, sy, ts); else drawWall(lc, m, x, y, sx, sy, ts);
+      // Torchlight: what's in sight is lit, brighter close by; what you only remember sits in the gloom.
+      const d = Math.hypot(x - m.px, y - m.py);
+      lc.fillStyle = lit.has(i) ? `rgba(12,7,3,${Math.min(0.45, (d / (SIGHT + 1)) * 0.45)})` : "rgba(12,7,3,.68)";
+      lc.fillRect(sx, sy, ts + 0.5, ts + 0.5);
+    }
+    if (target) { layerKey = key; ctx.drawImage(target, 0, 0, W, H); }
+    else layerKey = "";
   }
   // Little torches on the walls: a warm pool of light, and a flickering flame.
   const now = performance.now();
@@ -272,8 +291,10 @@ export function mountCrawl(r: Run, h: CrawlHooks) {
     if (r.message || document.querySelector(".cz-toasts")) { r.message = ""; h.say(""); h.render(); }
     const rect = cv.getBoundingClientRect();
     const ts = tileSize(rect.width, rect.height);
-    const x = Math.round(m.px + (ev.clientX - rect.left - rect.width / 2) / ts);
-    const y = Math.round(m.py + (ev.clientY - rect.top - rect.height / 2) / ts);
+    // Measure from where the camera is drawn right now (mid-step it's between two tiles), not from where you'll land.
+    const c = cam(m);
+    const x = Math.round(c.x + (ev.clientX - rect.left - rect.width / 2) / ts);
+    const y = Math.round(c.y + (ev.clientY - rect.top - rect.height / 2) / ts);
     const t = thingAt(m, x, y);
     if (t >= 0 && isSeenTile(m, x, y)) {
       // First tap on something shows what it is; a second tap walks there.
@@ -295,7 +316,7 @@ export function crawlKeys() {
   keysOn = true;
   window.addEventListener("resize", () => drawCrawl());
   // A slow redraw keeps the trapdoor's glow breathing and the torches flickering (it does nothing when the map isn't showing).
-  window.setInterval(() => { const m = runRef?.grid; if (!glide && m && document.getElementById("crawl") && (m.things.some(t => t.room === "trapdoor" && !t.done && isSeenTile(m, t.x, t.y)) || (m.torches ?? []).some(i => m.seen[i]))) drawCrawl(); }, 120);
+  window.setInterval(() => { const m = runRef?.grid; if (!document.hidden && !glide && m && document.getElementById("crawl") && (m.things.some(t => t.room === "trapdoor" && !t.done && isSeenTile(m, t.x, t.y)) || (m.torches ?? []).some(i => m.seen[i]))) drawCrawl(); }, 120);
   window.addEventListener("keydown", ev => {
     const r = runRef, h = hooks;
     if (!r || !h || !r.grid || r.scene.t !== "map" || !document.getElementById("crawl")) return;

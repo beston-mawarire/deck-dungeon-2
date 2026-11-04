@@ -487,6 +487,8 @@ export const CRAWL_NORMAL_POWER = 2;
 /** How often a pocket's doorway is guarded (the trapdoor's, and the rest). */
 export const TRAP_GUARD = 0.7;
 export const POCKET_GUARD = 0.5;
+/** How often a one-tile nook's doorway is guarded. */
+export const NOOK_GUARD = 0.35;
 
 /** Lay out one floor of a layer: small halls joined by hallways, with every point of interest (the trapdoor, chests, services,
  *  landmarks) in a pocket of its own (one or two to a pocket) behind a one-tile doorway. Most doorways are guarded, and foes
@@ -530,15 +532,15 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   };
   const chest = (): RoomType => (depth >= 3 && rng() < 0.06 ? "vault" : rng() < 0.6 ? "wooden" : "iron");
   /** Dig a pocket and put things in it (never on the tile just inside the door, so you can always step in). */
-  const pocket = (items: string[], guardChance: number, prefer?: (i: number) => number) => {
+  const pocket = (items: string[], guardChance: number, prefer?: (i: number) => number, size?: [number, number]) => {
     const two = items.length > 1;
-    const [pw, ph] = two ? (rng() < 0.5 ? [2, 3] : [3, 2]) : [2, 2];
+    const [pw, ph] = size ?? (two ? (rng() < 0.5 ? [2, 3] : [3, 2]) : [2, 2]);
     const dug = digPocket(m, rng, pw, ph, pockets, prefer);
     if (!dug) { for (const it of items) putInHall(it); return; }
     pockets.add(dug.door);
     for (const c of dug.cells) pockets.add(c);
     // On some floors, some little rooms have a second way in: if one door is guarded, try the other side.
-    if (connected && rng() < 0.55) {
+    if (connected && !size && rng() < 0.55) {
       const cells = new Set(dug.cells);
       const tries: [number, number][] = [];
       for (const c of dug.cells) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) tries.push([c, dy * m.w + dx]);
@@ -604,16 +606,17 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
     const sp = interior(rooms[r]);
     if (sp.length) putAt(sp[Math.floor(rng() * sp.length)], room);
   }
-  // Urns: a few in the halls, the odd one in a little room. Smash them for coins (and, rarely, a potion).
-  for (let n = 2 + Math.floor(rng() * 3); n > 0; n--) {
+  // Nooks: a doorway and one tile, off a hall or a hallway, holding an urn or a chest; now and then someone stands in the doorway.
+  for (let n = 1 + (rng() < 0.6 ? 1 : 0); n > 0; n--) pocket([rng() < 0.45 ? chest() : "urn"], NOOK_GUARD, undefined, [1, 1]);
+  // Urns: one to three about the halls, never two close together. Smash them for coins (and, rarely, a potion).
+  const urns = () => m.things.filter(t => t.room === "urn");
+  for (let n = 1 + Math.floor(rng() * 3), tries = 0; n > 0 && tries < 30; tries++) {
     const r = rooms[[...middle, start][Math.floor(rng() * (middle.length + 1))]];
-    const sp = interior(r).filter(i => i !== idx(m, s.x, s.y));
-    if (sp.length) putAt(sp[Math.floor(rng() * sp.length)], "urn");
+    const sp = interior(r).filter(i => i !== idx(m, s.x, s.y) && urns().every(u => Math.abs(u.x - (i % m.w)) + Math.abs(u.y - Math.floor(i / m.w)) > 4));
+    if (!sp.length) continue;
+    putAt(sp[Math.floor(rng() * sp.length)], "urn");
+    n--;
   }
-  const spare = [...pockets].filter(i => !taken.has(i) && m.tiles[i] === 1 && !m.things.some(t => t.guard && idx(m, t.x, t.y) === i));
-  // (Never in a doorway: only the far cells of a little room.)
-  const deep = spare.filter(i => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => m.tiles[i + dy * m.w + dx] === 1).length >= 2 && ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !pockets.has(i + dy * m.w + dx) && m.tiles[i + dy * m.w + dx] === 1));
-  if (deep.length && rng() < 0.6) putAt(deep[Math.floor(rng() * deep.length)], "urn");
   m.torches = wallTorches(m, rng, 4 + Math.floor(rng() * 3));
   look(m);
   return m;
@@ -833,7 +836,7 @@ function enterRoom(run: Run, room: RoomType) {
       setGenLuck(genLuck(run));
       const sg = rollSigilDrop(run, 0.06, 0.1);
       const woodOdds = useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden;
-      run.scene = { t: "loot", title: "Wooden Chest", items: [dropItem(run, woodOdds)], gold: (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
+      run.scene = { t: "loot", title: "Wooden Chest", items: [dropItem(run, woodOdds)], gold: run.gridMode ? 0 : (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
       return;
     }
     case "iron": {
@@ -848,7 +851,7 @@ function enterRoom(run: Run, room: RoomType) {
       const ironOdds = useClover(run) ? luckyOdds(tables(run).iron) : tables(run).iron;
       const items = [dropItem(run, ironOdds)];
       if (key) items.push(dropItem(run, ironOdds));
-      run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: (5 + run.floor * 2) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: 0, sigils: sg ? [sg] : undefined };
+      run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: run.gridMode ? 0 : (5 + run.floor * 2) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: 0, sigils: sg ? [sg] : undefined };
       return;
     }
     case "altar":

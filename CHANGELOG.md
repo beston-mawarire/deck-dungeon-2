@@ -9,6 +9,17 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.71.4
+- **Chests in the Crawl give gear, not Gold.**
+- **Urns:** fewer of them (one to three in the halls), and never close together.
+- **One-tile nooks:** one or two per floor, off a hall or hallway, holding an urn or a chest. Now and then something stands in the doorway.
+- **Tapping fixes:**
+  - A tap made mid-step was measured from where you were about to land rather than where the screen showed you, so you could head off a tile wrong.
+  - Tapping into the dark now heads for the nearest known spot that actually gets you closer, without a long detour, and prefers the edge of what you've seen.
+- **Performance:**
+  - The map's stone is drawn once and reused until you move or see more, so the flickering torches and the trapdoor's glow cost about a tenth of what they did.
+  - Those animations pause while the game is in the background.
+
 ## 1.71.3
 - The game speed button is gone from the Crawl's fight screen (combat speed is still in Options).
 
