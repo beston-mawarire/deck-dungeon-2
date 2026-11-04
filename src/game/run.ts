@@ -89,7 +89,7 @@ export type Mode = "campaign" | "endless" | "abyss";
 export const ABYSS_FLOORS = 10;
 /** How deep the dungeon "really" is: in the Abyss each floor counts as two (enemy strength and item level). */
 export const depth = (run: { mode: Mode; floor: number }) => (run.mode === "abyss" ? 2 * run.floor - 1 : run.floor);
-/** The floor the loot odds use. The Abyss never has the "green floors" (where most Rares are Uncommon). */
+/** The floor the loot odds use (the Abyss and Turbo count as at least floor 3). */
 const luckFloor = (run: Run) => (run.mode === "abyss" || run.turbo ? Math.max(3, depth(run)) : run.floor);
 /** Heat: each level makes Rare-and-better finds slightly more likely. */
 export const HEAT_LOOT = 0.05;
