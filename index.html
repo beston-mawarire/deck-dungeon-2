@@ -17,7 +17,6 @@ h1 { color: var(--maroon); font-weight: 500; letter-spacing: .01em; font-size: c
 p { font-size: clamp(1.15rem, 4.4vw, 1.35rem); line-height: 1.55; margin: 0 0 16px; }
 .rule { margin: 24px auto; color: var(--maroon); font-size: 1.4rem; letter-spacing: .6em; padding-left: .6em; }
 ul { list-style: none; padding: 0; margin: 0 0 22px; font-size: clamp(1.25rem, 4.8vw, 1.55rem); line-height: 1.7; }
-ul li::before { content: "✦ "; color: var(--maroon); }
 .sign { font-size: clamp(1.15rem, 4vw, 1.35rem); opacity: .85; }
 </style>
 </head>
@@ -39,7 +38,7 @@ ul li::before { content: "✦ "; color: var(--maroon); }
 </main>
 <script>
 // When this page changes (or the game reopens), every open copy reloads itself within a minute.
-const PAGE = "m3";
+const PAGE = "m4";
 async function check() {
   try {
     const r = await fetch("maint.json?t=" + Date.now(), { cache: "no-store" });
