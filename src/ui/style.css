@@ -1443,3 +1443,8 @@ body.crawl-on { overflow: hidden; }
 .cb-inner .die.crit { background: #b8862a; color: #1e1209; }
 .cb-inner .die.miss, .cb-inner .die.graze { background: #4e4a52; }
 .cb-inner .die.empty { background: #3d2a19; opacity: .35; }
+/* The potion drawer: no tray, just each potion in a see-through dark circle. */
+.cz-drawer, .cz-drawer.open { background: none; border: 0; box-shadow: none; padding: 0; gap: 8px; }
+.cz-drawer.open { padding: 0 4px; }
+.cz-pot { background: rgba(0,0,0,.55); border: 0; box-shadow: none; }
+.cz-pot b { border: 0; background: rgba(0,0,0,.75); }

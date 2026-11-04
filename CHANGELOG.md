@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.69.3
+- The potion drawer no longer has a tray. Each potion sits in its own see-through dark circle, with no border.
+
 ## 1.69.2
 - **Crawl fights:**
   - A crit (or a big reaction) now shakes the struck side's box, yours or the foe's, instead of the whole screen.
