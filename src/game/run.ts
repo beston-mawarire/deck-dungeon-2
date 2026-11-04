@@ -74,7 +74,22 @@ function dropItem(run: Run, odds: Partial<Record<Rarity, number>>): GearItem {
   const r = run.mode !== "abyss" && legendaryDue(run.loot, odds) ? "legendary" : rollRarity(run.rng, run.mode === "abyss" ? heatOdds(run, odds) : ladderOdds(run.loot, heatOdds(run, odds)), luckFloor(run));
   const it = rollItem(run.hero, r, depth(run), run.rng);
   if (run.mode !== "abyss") noteFind(run.loot, it.rarity);
+  gateItem(run, it);
   return it;
+}
+/** Crawl Elites (and Champions) sometimes drop a weapon or a piece of armour. */
+export const CRAWL_ELITE_GEAR = 0.12, CRAWL_CHAMPION_GEAR = 0.3;
+function crawlGear(run: Run, odds: Partial<Record<Rarity, number>>): GearItem {
+  let it = dropItem(run, odds);
+  for (let k = 0; k < 8 && !["weapon", "armour"].includes(effectiveBase(it).kind); k++) it = dropItem(run, odds);
+  return it;
+}
+/** The Crawl: the better finds want a stronger hero (Rare, Epic and Legendary gear has a level to reach), so fights matter. */
+export const GATE_LEVEL: Partial<Record<Rarity, number>> = { rare: 3, epic: 5, legendary: 7 };
+export function gateItem(run: Run, it: GearItem) {
+  if (!run.gridMode) return;
+  const need = GATE_LEVEL[it.rarity];
+  if (need) it.reqLevel = need + 3 * (run.floor - 1);
 }
 const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Record<Rarity, number>> => {
   const h = heatOf(run);
@@ -261,6 +276,9 @@ export interface Run {
   /** The Crawl (prototype): floors are fogged grids of rooms rather than a row of paths. */
   gridMode?: boolean;
   grid?: FloorMap;
+  /** The boss's rewards, waiting in the chest of its treasure room; and the drop out of that room under way. */
+  bossChest?: Scene;
+  gridDescend?: boolean;
   /** Which floor of this layer each service turns up on. */
   gridPlan?: Partial<Record<RoomType, number>>;
   /** Ruin Shards and Vanadium Plates found this run, and how many of them are already banked on the device. */
@@ -465,8 +483,8 @@ const floorLandmarks = (x: number) => (x < 0.5 ? 0 : x < 0.9 ? 1 : 2);
 export const CRAWL_NORMAL_HP = 1.8;
 export const CRAWL_NORMAL_POWER = 2;
 /** How often a pocket's doorway is guarded (the trapdoor's, and the rest). */
-export const TRAP_GUARD = 0.85;
-export const POCKET_GUARD = 0.7;
+export const TRAP_GUARD = 0.7;
+export const POCKET_GUARD = 0.5;
 
 /** Lay out one floor of a layer: small halls joined by hallways, with every point of interest (the trapdoor, chests, services,
  *  landmarks) in a pocket of its own (one or two to a pocket) behind a one-tile doorway. Most doorways are guarded, and foes
@@ -517,6 +535,23 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
     if (!dug) { for (const it of items) putInHall(it); return; }
     pockets.add(dug.door);
     for (const c of dug.cells) pockets.add(c);
+    // On some floors, some little rooms have a second way in: if one door is guarded, try the other side.
+    if (connected && rng() < 0.55) {
+      const cells = new Set(dug.cells);
+      const tries: [number, number][] = [];
+      for (const c of dug.cells) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) tries.push([c, dy * m.w + dx]);
+      tries.sort(() => rng() - 0.5);
+      for (const [c, d] of tries) {
+        const w = c + d, f = c + 2 * d;
+        if (m.tiles[w] !== 0 || m.tiles[f] !== 1 || cells.has(f) || pockets.has(f)) continue;
+        // Rock on both sides of the new doorway, so it's a doorway and not a gap.
+        const side = Math.abs(d) === 1 ? m.w : 1;
+        if (m.tiles[w + side] !== 0 || m.tiles[w - side] !== 0) continue;
+        m.tiles[w] = 1;
+        pockets.add(w);
+        break;
+      }
+    }
     const spots = dug.cells.filter(c => c !== dug.front).sort(() => rng() - 0.5);
     items.forEach((it, k) => putAt(spots[k] ?? dug.front, it));
     if (rng() < guardChance) {
@@ -525,12 +560,15 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
       putAt(dug.door, foe(near), true);
     }
   };
+  // Some floors join their little rooms up more (a second door here and there).
+  const connected = rng() < 0.6;
   // The trapdoor down: in a pocket as far from where you land as it can be.
   const farthest = Math.max(...fromStart);
   pocket(["trapdoor"], TRAP_GUARD, i => (fromStart[i] >= farthest * 0.7 ? 1000 + fromStart[i] * rng() : fromStart[i]));
   // This floor's services, landmarks and chests, one or two to a pocket.
   const pois: string[] = [];
-  for (const [room, d] of Object.entries(plan) as [RoomType, number][]) if (d === depth) pois.push(room);
+  // (The Merchant stays put once met, so it stands out in a hall where it can't block a way through.)
+  for (const [room, d] of Object.entries(plan) as [RoomType, number][]) if (d === depth) { if (room === "shop") putInHall(room); else pois.push(room); }
   if (Object.keys(run.hero.curses).length > 0 && !run.seenBosses.has(`cleanse:${run.floor}`)) { run.seenBosses.add(`cleanse:${run.floor}`); pois.push("cleansing"); }
   const lw = roomWeights(run, false);
   const marks = Object.fromEntries(LANDMARKS.map(k => [k, lw[k] ?? 0]).filter(([, v]) => (v as number) > 0)) as Partial<Record<RoomType, number>>;
@@ -564,8 +602,31 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
     const sp = interior(rooms[r]);
     if (sp.length) putAt(sp[Math.floor(rng() * sp.length)], room);
   }
+  // Urns: a few in the halls, the odd one in a little room. Smash them for coins (and, rarely, a potion).
+  for (let n = 2 + Math.floor(rng() * 3); n > 0; n--) {
+    const r = rooms[[...middle, start][Math.floor(rng() * (middle.length + 1))]];
+    const sp = interior(r).filter(i => i !== idx(m, s.x, s.y));
+    if (sp.length) putAt(sp[Math.floor(rng() * sp.length)], "urn");
+  }
+  const spare = [...pockets].filter(i => !taken.has(i) && m.tiles[i] === 1 && !m.things.some(t => t.guard && idx(m, t.x, t.y) === i));
+  // (Never in a doorway: only the far cells of a little room.)
+  const deep = spare.filter(i => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => m.tiles[i + dy * m.w + dx] === 1).length >= 2 && ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !pockets.has(i + dy * m.w + dx) && m.tiles[i + dy * m.w + dx] === 1));
+  if (deep.length && rng() < 0.6) putAt(deep[Math.floor(rng() * deep.length)], "urn");
+  m.torches = wallTorches(m, rng, 4 + Math.floor(rng() * 3));
   look(m);
   return m;
+}
+
+/** A few little torches on walls that face onto the floor. */
+function wallTorches(m: FloorMap, rng: () => number, n: number): number[] {
+  const cands: number[] = [];
+  for (let i = m.w; i < m.tiles.length - m.w; i++) if (m.tiles[i] === 0 && m.tiles[i + m.w] === 1) cands.push(i);
+  const out: number[] = [];
+  while (out.length < n && cands.length) {
+    const i = cands.splice(Math.floor(rng() * cands.length), 1)[0];
+    if (out.every(o => Math.abs((o % m.w) - (i % m.w)) + Math.abs(Math.floor(o / m.w) - Math.floor(i / m.w)) > 4)) out.push(i);
+  }
+  return out;
 }
 
 /** Floor 0, the way in: one small room, a Merchant in the middle and the trapdoor down in a corner. */
@@ -579,6 +640,7 @@ function makeEntrance(run: Run, explored: number): FloorMap {
   const corners: [number, number][] = [[7, 7], [11, 7], [7, 11], [11, 11]];
   const [tx, ty] = corners[Math.floor(rng() * corners.length)];
   m.things.push({ x: tx, y: ty, room: "trapdoor" });
+  m.torches = [(room.y - 1) * MAP_W + room.x + 1, (room.y - 1) * MAP_W + room.x + 3];
   look(m);
   return m;
 }
@@ -618,9 +680,42 @@ export function gridStep(run: Run, x: number, y: number): { ok: true; entered: b
   if (t < 0) return { ok: true, entered: false, seen };
   m.sel = undefined;
   if (m.things[t].room === "trapdoor") { descend(run); return { ok: true, entered: true, seen }; }
+  if (m.things[t].room === "urn") { smashUrn(run, t); m.px = m.bx!; m.py = m.by!; return { ok: true, entered: false, seen }; }
+  if (m.things[t].room === "bosschest") {
+    m.things[t].done = true;
+    if (run.bossChest) { run.scene = run.bossChest; run.bossChest = undefined; }
+    return { ok: true, entered: true, seen };
+  }
   m.pending = t;
   chooseRoom(run, m.things[t].room as RoomType);
   return { ok: true, entered: true, seen };
+}
+
+/** Urns: mostly a few coins, now and then a Mana Potion, very rarely a Healing Potion. Smashed, they're gone. */
+export const URN_MANA = 0.06, URN_HEAL = 0.025;
+export function smashUrn(run: Run, t: number) {
+  const m = run.grid!, h = run.hero;
+  m.things[t].done = true;
+  const x = run.rng();
+  if (x < URN_HEAL && h.potions < potionCap(h)) { gainPotions(h, 1); run.message = "🏺 The urn shatters. A Healing Potion rolls out! 🧪"; return; }
+  if (x < URN_HEAL + URN_MANA && gainManaPotions(h, 1)) { run.message = "🏺 The urn shatters. A Mana Potion! 🔷"; return; }
+  if (x < 0.8) { const g = 1 + Math.floor(run.rng() * (2 + run.floor)); h.f.gold += g; run.message = `🏺 The urn shatters: ${g} Gold.`; return; }
+  run.message = "🏺 The urn shatters. Nothing but dust.";
+}
+
+/** The Crawl: after a boss, its treasure room — the chest holding its rewards, and the hole down to the next layer. */
+export const TREASURE_DEPTH = LAYER_FLOORS + 1;
+function makeTreasure(run: Run): FloorMap {
+  const tiles: Tile[] = new Array(MAP_W * MAP_H).fill(0);
+  const room: Rect = { x: 7, y: 7, w: 5, h: 4 };
+  for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++) tiles[y * MAP_W + x] = 1;
+  const explored = run.grid?.explored ?? 0;
+  const m: FloorMap = { floor: run.floor, depth: TREASURE_DEPTH, w: MAP_W, h: MAP_H, tiles, seen: new Array(MAP_W * MAP_H).fill(0), rooms: [room], things: [], px: 9, py: 10, explored };
+  m.things.push({ x: 9, y: 8, room: "bosschest" });
+  m.things.push({ x: run.rng() < 0.5 ? 7 : 11, y: 7, room: "trapdoor" });
+  m.torches = [(room.y - 1) * MAP_W + room.x, (room.y - 1) * MAP_W + room.x + 4];
+  look(m);
+  return m;
 }
 
 /** Drop through the trapdoor: a fresh floor below (there's no climbing back), or, from the third, straight into the boss. */
@@ -628,6 +723,8 @@ export function descend(run: Run) {
   const m = run.grid;
   if (!m) return;
   run.hero.f.persist["floor"] = run.floor;
+  // From the boss's treasure room: down to the next layer.
+  if (m.depth === TREASURE_DEPTH) { run.gridDescend = true; run.bossChest = undefined; advance(run); return; }
   if (m.depth + 1 >= LAYER_FLOORS) {
     run.step = STEPS_PER_FLOOR;
     const name = run.mode === "abyss" ? "The Uber boss" : run.floor === WALL_FLOOR ? "The Horror" : run.floor === DEATH_FLOOR ? "DEATH" : run.floor === END_FLOOR ? "The End" : "The guardian of this layer";
@@ -644,9 +741,12 @@ function gridArrive(run: Run) {
   const m = run.grid;
   if (!m || m.pending === undefined) return;
   const t = m.things[m.pending];
+  m.last = m.pending;
+  m.pending = undefined;
+  // A Merchant stays where it is (you step back off its tile); everything else is used up.
+  if (t.room === "shop") { if (m.bx !== undefined && m.by !== undefined) { m.px = m.bx; m.py = m.by; } return; }
   t.done = true;
   if (t.room !== "boss") m.explored++;
-  m.pending = undefined;
 }
 
 /** The Crimson mechanic kicks in once you've beaten the campaign's fifth boss. */
@@ -761,7 +861,17 @@ function enterRoom(run: Run, room: RoomType) {
       run.message = `You are cursed: ${c.name} — ${c.text}.`;
       return openResplendent(run);
     }
-    case "shop": run.shopRerolls = 0; run.scene = { t: "shop", stock: shopStock(run), markup: Math.round((wealthMult(run) - 1) * 100) }; return;
+    case "shop": {
+      // The Crawl's Merchants stay put: come back and the same stock is waiting.
+      const th = run.gridMode && run.grid && run.grid.last !== undefined ? run.grid.things[run.grid.last] : undefined;
+      if (th && th.room === "shop") {
+        if (!th.stock) { run.shopRerolls = 0; th.stock = shopStock(run); th.rerolls = 0; }
+        run.shopRerolls = th.rerolls ?? 0;
+        run.scene = { t: "shop", stock: th.stock, markup: Math.round((wealthMult(run) - 1) * 100) };
+        return;
+      }
+      run.shopRerolls = 0; run.scene = { t: "shop", stock: shopStock(run), markup: Math.round((wealthMult(run) - 1) * 100) }; return;
+    }
     case "forge": run.scene = { t: "forge" }; return;
     case "masterwork": run.scene = { t: "masterwork" }; return;
     case "jeweller": run.scene = { t: "jeweller", mode: "fuse", tries: 0 }; return;
@@ -1139,11 +1249,13 @@ function afterFight(run: Run) {
     if (then !== "crimson") run.lastBoss = b.enemy.name;
     h.f.persist["bossKills"] = (h.f.persist["bossKills"] ?? 0) + 1;
   }
-  // Catch your breath: a small heal after every won fight.
-  restore(h, Math.ceil(h.f.maxHp * (abyssMod(run, "merciful_dark") ? 0.3 : heatOf(run) >= 4 ? 0 : 0.15)));
+  // Catch your breath: a small heal after every won fight (not in the Crawl: there, healing comes from potions, campfires and relics).
+  if (!run.gridMode) restore(h, Math.ceil(h.f.maxHp * (abyssMod(run, "merciful_dark") ? 0.3 : heatOf(run) >= 4 ? 0 : 0.15)));
   const xp = { normal: run.gridMode ? 2 : 1, elite: 3, champion: 5, crimson: 7, boss: b.enemy.crimson ? 9 : 6 }[rank];
   gainXp(run, Math.round(xp * (abyssMod(run, "thick_hides") ? 1.5 : 1)));
-  const gold = { normal: (4 + 2 * run.floor) * (run.gridMode ? 1.5 : 1), elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank] * (abyssMod(run, "golden_depths") ? 2 : 1) + relicBonus(h.relics, "gold");
+  // In the Crawl, foes only give XP (bosses still pay out, in their treasure room).
+  const crawlFoe = run.gridMode && rank !== "boss" && (!then || then === "transformed" || then === "resplendent");
+  const gold = crawlFoe ? 0 : { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank] * (abyssMod(run, "golden_depths") ? 2 : 1) + relicBonus(h.relics, "gold");
   const items: GearItem[] = [];
   let scrolls = 0;
   let potions = 0;
@@ -1153,15 +1265,15 @@ function afterFight(run: Run) {
   // Generated gear from tougher foes is more often Greater (✦) — or, very rarely, Overcharged.
   setGenLuck(genLuck(run) * ({ normal: 1, elite: 1.25, champion: 1.6, crimson: 2, boss: run.scene.uber ? 2.6 : 2 } as Record<string, number>)[rank] * (then === "unique" || then === "dragon" || then === "nemesis" ? 1.5 : 1));
   const roll = (odds: Partial<Record<Rarity, number>>) => dropItem(run, odds);
-  if (rank === "normal" && run.rng() < (run.mode === "abyss" ? 0.2 : STANDARD_DROP)) items.push(roll(T.drop));
-  if (rank === "normal" && run.rng() < 0.04) potions++;
+  if (!crawlFoe && rank === "normal" && run.rng() < (run.mode === "abyss" ? 0.2 : STANDARD_DROP)) items.push(roll(T.drop));
+  if (!crawlFoe && rank === "normal" && run.rng() < 0.04) potions++;
   // Potion gear: a sober win brews a potion (the Alembic always, the Vial sometimes); the Grail refills one per boss.
   const sober = !b.player.flags["potionsDrunk"];
   if (sober && (h.f.items["lx_endless_alembic"] ?? 0) > 0) potions++;
   else if (sober && (h.f.items["pc_vial_of_plenty"] ?? 0) > 0 && run.rng() < 0.3) potions++;
   if (rank === "boss" && (h.f.items["pc_grail"] ?? 0) > 0) potions++;
   if (rank === "boss" && potions) gainPotions(h, potions); // (boss rewards come as a pick, not a loot screen)
-  if ((rank === "normal" && run.rng() < 0.03) || (rank === "elite" && run.rng() < 0.08)) {
+  if (!crawlFoe && ((rank === "normal" && run.rng() < 0.03) || (rank === "elite" && run.rng() < 0.08))) {
     if (gainManaPotions(h, 1)) run.message = "You find a Mana Potion. 🔷";
   }
   let goblinGold = 0;
@@ -1207,21 +1319,25 @@ function afterFight(run: Run) {
     items.push(rollItem(h, run.rng() < 0.15 ? "legendary" : "epic", depth(run), run.rng));
     relic = randomRelic(run, 2);
     if (run.rng() < 0.3) scrolls++;
+  } else if (rank === "elite" && crawlFoe) {
+    // Crawl Elites now and then drop a weapon or a piece of armour; that's all.
+    if (run.rng() < CRAWL_ELITE_GEAR) items.push(crawlGear(run, T.elite));
   } else if (rank === "elite") {
     items.push(roll(T.elite));
     if (then === "mimic") items.push(roll(T.elite));
     if (run.rng() < (abyssMod(run, "blood_moon") ? 0.7 : 0.35)) relic = randomRelic(run);
   }
   if (rank === "champion" && then !== "dragon") {
-    items.push(roll(T.champion));
-    if (run.rng() < 0.2) scrolls++;
+    if (!crawlFoe) items.push(roll(T.champion));
+    else if (run.rng() < CRAWL_CHAMPION_GEAR) items.push(crawlGear(run, T.champion));
+    if (!crawlFoe && run.rng() < 0.2) scrolls++;
     const metal = run.rng() < 0.65 ? 1 + (run.rng() < 0.25 ? 1 : 0) : 0;
     if (metal) {
       h.starmetal += metal;
       run.message = `The Champion leaves ${metal} Starmetal behind.`;
     }
     // The Transmuter's Crucible: a rare artefact some Champions carry (once per run).
-    relic = relic ?? randomRelic(run, 2);
+    if (!crawlFoe) relic = relic ?? randomRelic(run, 2);
   }
   if (rank === "crimson") {
     items.push(roll(T.crimson));
@@ -1242,7 +1358,7 @@ function afterFight(run: Run) {
     if (run.rng() < 0.15) scrolls++;
     const bossGold = Math.round(gold * goldMult(run));
     h.f.gold += bossGold;
-    restore(h, Math.round(h.f.maxHp * 0.3));
+    if (!run.gridMode) restore(h, Math.round(h.f.maxHp * 0.3));
     if (relic) offerRelic(run, relic, 1);
     grantScrolls(run, scrolls);
     recompute(h);
@@ -1294,14 +1410,34 @@ function afterFight(run: Run) {
     // Keepsakes are a rare find: about one boss in ten after floor 5 leaves one behind.
     const keepsake = run.floor > FLOORS && run.rng() < 0.1 ? KEEPSAKES.filter(k => k.id !== h.keepsake)[Math.floor(run.rng() * (KEEPSAKES.length - (h.keepsake ? 1 : 0)))]?.id : undefined;
     run.scene = { t: "pick", title: `${b.enemy.name} falls! Choose one`, items: offer, keepsake, sigils: bossSigil ? [bossSigil] : undefined };
-    run.message = `+${bossGold} Gold${run.relicChoice ? " · a relic to choose" : relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""}${ruinNote} · healed 30%${curseNote ? ` ${curseNote}` : ""}`;
+    run.message = `+${bossGold} Gold${run.relicChoice ? " · a relic to choose" : relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""}${ruinNote}${run.gridMode ? "" : " · healed 30%"}${curseNote ? ` ${curseNote}` : ""}`;
+    // The Crawl: the rest of the boss's hoard waits in a chest in its treasure room, beside the way down.
+    if (run.gridMode && !then) {
+      run.bossChest = run.scene;
+      run.grid = makeTreasure(run);
+      run.scene = { t: "map" };
+      run.message = `👑 ${b.enemy.name} falls. Beyond it, a small chamber: its hoard, and a hole leading deeper. ${run.message}`;
+    }
     return;
+  }
+  // The Crawl: a beaten foe sometimes leaves materials behind (Scrap; Elites and Champions a little more).
+  let mats = "";
+  if (crawlFoe) {
+    const n = rank === "normal" ? (run.rng() < 0.3 ? 1 + Math.floor(run.rng() * 2) : 0) : rank === "elite" ? (run.rng() < 0.55 ? 2 + Math.floor(run.rng() * 3) : 0) : 3 + Math.floor(run.rng() * 3);
+    if (n) { h.scrap += n; mats = `+${n} ⚙️ Scrap`; }
+    if (rank !== "normal" && run.rng() < 0.15) { h.azure = (h.azure ?? 0) + 1; mats += `${mats ? " · " : ""}+1 💠 Azure`; }
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (relic) offerRelic(run, relic, rank === "elite" && !then ? 0.25 : 0.5, rank === "elite" && !then ? 1 : 2);
   // Talisman sigils: plain ones from Elites, set pieces mostly from Champions and up.
-  const sigil = rollSigilDrop(run, ({ normal: 0, elite: 0.18, champion: 0.3, crimson: 0.35, boss: 0.4 } as Record<string, number>)[rank] ?? 0, rank === "elite" && !then ? 0.12 : 0.6);
+  const sigil = crawlFoe ? null : rollSigilDrop(run, ({ normal: 0, elite: 0.18, champion: 0.3, crimson: 0.35, boss: 0.4 } as Record<string, number>)[rank] ?? 0, rank === "elite" && !then ? 0.12 : 0.6);
   if (scrolls) grantScrolls(run, scrolls);
+  // Nothing to pick up: straight back to the floor.
+  if (crawlFoe && !items.length && !potions && !keyFound && !relic && then !== "resplendent") {
+    run.message = [`Victory: +${xp} XP${mats ? ` · ${mats}` : ""}.`, golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean).join(" ");
+    return advance(run);
+  }
+  if (mats) run.message = [run.message, mats].filter(Boolean).join(" ");
   run.scene = { t: "loot", title: then === "dragon" ? "The Dragon's Hoard" : then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic: run.relicChoice ? undefined : relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined, dragonHeart: heartLevel || undefined, crucible: crucibleFound || undefined, sigils: sigil ? [sigil] : undefined };
   const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean);
   run.message = notes.join(" ");
@@ -1452,6 +1588,7 @@ function shopStock(run: Run): ShopEntry[] {
   const stock: ShopEntry[] = [];
   for (let i = 0; i < 3; i++) {
     const item = rollItem(h, rollRarity(run.rng, heatOdds(run, TABLES.shop), luckFloor(run)), depth(run), run.rng);
+    gateItem(run, item);
     stock.push({ kind: "item", item, price: Math.round(PRICE[item.rarity] * shopMult(run)) });
   }
   const shopRelic = randomRelic(run);
@@ -1545,6 +1682,8 @@ export function rerollShop(run: Run): string | null {
   const fresh = shopStock(run).filter(e => !kept(e));
   const scroll = fresh.filter(e => e.kind === "scroll");
   run.scene = { ...run.scene, stock: [...fresh.filter(e => e.kind !== "scroll"), ...potions, ...scroll], markup: Math.round((wealthMult(run) - 1) * 100) };
+  const th = run.gridMode && run.grid && run.grid.last !== undefined ? run.grid.things[run.grid.last] : undefined;
+  if (th && th.room === "shop") { th.stock = run.scene.stock; th.rerolls = run.shopRerolls; }
   return null;
 }
 
@@ -1894,7 +2033,9 @@ export function chooseTalent(run: Run, id: string) {
 /** Move to the next step: offer pending talents first, then new path choices (or the next floor). */
 export function advance(run: Run, fromTalent = false) {
   lockGold(run);
-  if (!fromTalent) {
+  // The Crawl's treasure room: closing its chest (or anything else there) leaves you in the room; the hole takes you on.
+  const inTreasure = run.gridMode && run.grid?.depth === TREASURE_DEPTH && !run.gridDescend;
+  if (!fromTalent && !inTreasure) {
     if (run.step >= STEPS_PER_FLOOR) {
       // After a floor boss, stop on a "Floor cleared" screen; the player continues when ready.
       // (Not after the campaign's final boss: that goes straight to the victory.)
@@ -1909,7 +2050,7 @@ export function advance(run: Run, fromTalent = false) {
       run.hero.f.persist["floor"] = run.floor;
       recompute(run.hero);
       run.step = 0;
-      if (run.gridMode) run.grid = makeGrid(run, 0);
+      if (run.gridMode) { run.grid = makeGrid(run, 0); run.gridDescend = false; }
       run.message = `Floor ${run.floor}. The air is colder, and the hoards are richer: your Fortune grows.`;
       if (run.mode === "abyss") {
         if (run.floor > ABYSS_FLOORS) { run.scene = { t: "over", won: true }; return; }

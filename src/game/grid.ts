@@ -30,6 +30,9 @@ export interface MapThing {
   /** A RoomType, or "trapdoor". */
   room: string;
   done?: boolean;
+  /** A Merchant's stock (it stays put, and so does what it sells). */
+  stock?: import("./run").ShopEntry[];
+  rerolls?: number;
   /** A foe that stands in the way of something (the trapdoor, a chest, a landmark): you must fight it to get past. */
   guard?: boolean;
 }
@@ -54,8 +57,11 @@ export interface FloorMap {
   by?: number;
   /** Encounters cleared on this layer so far (it carries down the trapdoors). */
   explored: number;
-  /** The thing being entered right now. */
+  /** The thing being entered right now, and the last one entered. */
   pending?: number;
+  last?: number;
+  /** Little torches on the walls (tile indexes). */
+  torches?: number[];
   /** The thing picked on the map, waiting for "Go". */
   sel?: number;
 }

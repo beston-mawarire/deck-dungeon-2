@@ -23,6 +23,8 @@ export function crawlTarget(run: Run, rushAfter = 2): [number, number][] {
   const options: { p: [number, number][]; cost: number }[] = [];
   m.things.forEach(t => {
     if (t.done || !isSeenTile(m, t.x, t.y) || RISKY.includes(t.room)) return;
+    // A Merchant stays put: one visit is enough for the bot.
+    if (t.room === "shop" && t.stock) return;
     const p = pathTo(m, t.x, t.y) ?? pathTo(m, t.x, t.y, true);
     if (!p) return;
     let cost = p.length;

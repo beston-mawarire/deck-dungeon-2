@@ -24,7 +24,7 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  startCrawl, ordinal, type RoomType, type ShopEntry,
+  startCrawl, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -760,12 +760,14 @@ function merchantScreen(r: Run, msg: string[], bad: boolean) {
 /** What the action button on a picked thing says. */
 function crawlAct(room: string) {
   if (room === "trapdoor") return "🕳️ Descend";
-  if (["wooden", "iron", "crimson_vault"].includes(room)) return "🧰 Open chest";
+  if (["wooden", "iron", "crimson_vault", "bosschest"].includes(room)) return "🧰 Open chest";
   if (AUTO_ROOMS.includes(room) || ["vault", "unique", "goblin", "nemesis", "doppelganger", "crimson_elite"].includes(room)) return "⚔️ Fight";
   return "✋ Interact";
 }
 const TRAPDOOR_INFO = { icon: "🕳️", name: "Trapdoor", text: "A way down to the next floor. Once you drop, there's no climbing back up." };
-const thingInfo = (r: Run, room: string) => (room === "trapdoor" ? TRAPDOOR_INFO : roomInfo(r, room as RoomType));
+const URN_INFO = { icon: "🏺", name: "Urn", text: "An old clay urn. Smash it: there might be a coin or two inside." };
+const HOARD_INFO = { icon: "🧰", name: "The boss's hoard", text: "Everything the guardian of this layer was keeping. Open it before you go down." };
+const thingInfo = (r: Run, room: string) => (room === "trapdoor" ? TRAPDOOR_INFO : room === "urn" ? URN_INFO : room === "bosschest" ? HOARD_INFO : roomInfo(r, room as RoomType));
 
 /** The Crawl: the floor fills the screen (drawn by crawl.ts); the HUD sits over it in the corners. */
 function crawlScreen(r: Run, msg: string[], bad: boolean) {
@@ -789,7 +791,7 @@ function crawlScreen(r: Run, msg: string[], bad: boolean) {
     <div class="cz cz-tr">
       <button class="cz-menu" data-menu aria-label="Menu">☰</button>
       <div class="cz-layer">${layer}</div>
-      <div class="cz-floor">${m.depth === 0 ? "Dungeon Entrance" : `Floor ${m.depth}`}</div>
+      <div class="cz-floor">${m.depth === 0 ? "Dungeon Entrance" : m.depth === TREASURE_DEPTH ? "The Hoard" : `Floor ${m.depth}`}</div>
       ${quests}
     </div>
     ${msg.length ? `<div class="cz cz-toasts">${msg.map((x, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(x)}</div>`).join("")}</div>` : ""}
@@ -2306,7 +2308,7 @@ function render2() {
   document.body.classList.toggle("crawl-on", crawlView || crawlFight || crawlShop);
   app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, msg, noteBad && !!note) : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
   bind();
-  if (s.t === "map" && r.gridMode) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => roomInfo(r, room as RoomType).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never) }); }
+  if (s.t === "map" && r.gridMode) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => thingInfo(r, room).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never) }); }
   else stopWalk();
 }
 

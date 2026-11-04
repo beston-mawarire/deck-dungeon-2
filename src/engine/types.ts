@@ -324,6 +324,8 @@ export interface GearItem {
   reworkLine?: string;
   reworks?: number;
   lineTier?: Record<string, Rarity>;
+  /** The Crawl: you must be this level to equip it. */
+  reqLevel?: number;
   epic?: string;
   /** Legendaries start unrevealed and act as a Common of their base type. */
   revealed: boolean;

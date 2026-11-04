@@ -9,6 +9,20 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.71.0
+- **The Crawl's loot, reworked:**
+  - Foes now give XP only: no Gold, no relics, and no heal when you win (unless a relic or item heals you).
+  - Some foes leave materials: Scrap, and Elites and Champions now and then some Azure.
+  - Elites have a small chance (12%), and Champions a better one (30%), of dropping a weapon or a piece of armour.
+  - Weapons and armour otherwise come from chests, Merchants and special encounters (the Treasure Goblin, the dragon and the like).
+  - **Level gates:** Rare gear found in the Crawl needs level 3 to equip, Epic level 5, Legendary level 7 (3 more for each layer down). Fight to grow into your finds.
+- **Bosses have a treasure room.** Beat a layer's boss and you step into a small chamber: a chest holding the boss's rewards, and the hole down to the next layer.
+- **Urns** (🏺) stand around the halls. Smash one for a few coins, now and then a Mana Potion, and very rarely a Healing Potion. Then they're gone.
+- **Merchants stay put:** visit as often as you like, and the same stock (and rerolls) will be waiting. The 3rd-floor Merchant now stands in a hall, where it can't block the way.
+- **Fewer guards, more ways in:** not every doorway is guarded now. Some floors give their little rooms a second door, so if one way in is blocked you can try another.
+- **Little torches on the walls,** each with a flickering pool of light, and a deeper darkness at the edges of the map.
+- **In a fight,** a dark shadow pools behind the foe.
+
 ## 1.70.0
 - **Every layer starts at the Dungeon Entrance (floor 0):** one small room, a Merchant in the middle and the trapdoor down in a corner.
 - **Two Merchants a layer:** the one at the entrance, and one somewhere on the 3rd floor.

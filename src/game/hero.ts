@@ -174,6 +174,7 @@ export function itemLines(item: GearItem): string[] {
   const b = baseOf(item.base);
   const eb = effectiveBase(item);
   const lines: string[] = [];
+  if (item.reqLevel) lines.push(`🔒 Requires level ${item.reqLevel}`);
   lines.push(`🏷️ ${familyLine(eb)}`);
   if (isHeavy(eb)) lines.push(`🪨 Heavy: no Dodge, Evade or Haste while you wear it, but ${eb.kind === "weapon" ? "it hits 15% harder" : "it carries 30% more Armor"}.`);
   if (eb.damage !== undefined) lines.push(`Damage ${weaponDamage(item)}${eb.twoHanded ? " · two-handed" : ""}${eb.offDamage ? ` · off-hand ${weaponDamage(item, true)}${offhandPenalty(item) ? " (clumsy: 60%)" : ""}` : ""}`);
@@ -413,6 +414,7 @@ export function removeItem(h: Hero, uid: number) {
 
 /** Equip an item from the backpack (or a new find). Displaced items go to the backpack. Returns an error message or null. */
 export function equipItem(h: Hero, item: GearItem, slot?: EquipSlot): string | null {
+  if (item.reqLevel && h.level < item.reqLevel) return `You must be level ${item.reqLevel} to use this. Fight on and grow stronger.`;
   const allowed = slotsFor(item, h);
   const keep = keepsOffHand(h);
   const target = slot && allowed.includes(slot) ? slot : allowed.find(s => !h.equip[s]) ?? allowed[0];

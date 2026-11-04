@@ -138,6 +138,30 @@ export function drawCrawl() {
     ctx.fillStyle = lit.has(i) ? `rgba(12,7,3,${Math.min(0.45, (d / (SIGHT + 1)) * 0.45)})` : "rgba(12,7,3,.68)";
     ctx.fillRect(sx, sy, ts + 0.5, ts + 0.5);
   }
+  // Little torches on the walls: a warm pool of light, and a flickering flame.
+  const now = performance.now();
+  for (const ti of m.torches ?? []) {
+    const tx = ti % m.w, ty = Math.floor(ti / m.w);
+    if (!isSeenTile(m, tx, ty)) continue;
+    const cx = ox + (tx + 0.5) * ts, cy = oy + (ty + 0.78) * ts;
+    if (cx < -3 * ts || cy < -3 * ts || cx > W + 3 * ts || cy > H + 3 * ts) continue;
+    const fl = 0.85 + 0.15 * Math.sin(now / 90 + ti) * Math.sin(now / 37 + ti * 3);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, ts * 2.6 * fl);
+    g.addColorStop(0, "rgba(255,150,60,.30)"); g.addColorStop(0.5, "rgba(255,110,30,.10)"); g.addColorStop(1, "rgba(255,110,30,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - ts * 3, cy - ts * 3, ts * 6, ts * 6);
+    ctx.restore();
+    // The sconce and its flame.
+    ctx.fillStyle = "#2a1a0c";
+    ctx.fillRect(cx - ts * 0.07, cy - ts * 0.02, ts * 0.14, ts * 0.2);
+    const fh = ts * 0.28 * fl;
+    const fg = ctx.createRadialGradient(cx, cy - fh * 0.3, 0, cx, cy - fh * 0.3, fh);
+    fg.addColorStop(0, "#fff4c0"); fg.addColorStop(0.35, "#ffc850"); fg.addColorStop(0.7, "#ff7a20"); fg.addColorStop(1, "rgba(255,80,10,0)");
+    ctx.fillStyle = fg;
+    ctx.beginPath(); ctx.ellipse(cx, cy - fh * 0.35, ts * 0.09, fh * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+  }
   // The planned walk.
   ctx.fillStyle = "rgba(255,214,120,.75)";
   for (const [x, y] of path) { ctx.beginPath(); ctx.arc(ox + (x + 0.5) * ts, oy + (y + 0.5) * ts, ts * 0.08, 0, Math.PI * 2); ctx.fill(); }
@@ -270,8 +294,8 @@ export function crawlKeys() {
   if (keysOn) return;
   keysOn = true;
   window.addEventListener("resize", () => drawCrawl());
-  // A slow redraw keeps the trapdoor's glow breathing (it does nothing when the map isn't showing).
-  window.setInterval(() => { if (!glide && document.getElementById("crawl") && runRef?.grid?.things.some(t => t.room === "trapdoor" && !t.done && isSeenTile(runRef!.grid!, t.x, t.y))) drawCrawl(); }, 120);
+  // A slow redraw keeps the trapdoor's glow breathing and the torches flickering (it does nothing when the map isn't showing).
+  window.setInterval(() => { const m = runRef?.grid; if (!glide && m && document.getElementById("crawl") && (m.things.some(t => t.room === "trapdoor" && !t.done && isSeenTile(m, t.x, t.y)) || (m.torches ?? []).some(i => m.seen[i]))) drawCrawl(); }, 120);
   window.addEventListener("keydown", ev => {
     const r = runRef, h = hooks;
     if (!r || !h || !r.grid || r.scene.t !== "map" || !document.getElementById("crawl")) return;

@@ -1549,3 +1549,8 @@ body.crawl-on { overflow: hidden; }
 @media (max-width: 719px) { .mer-detail { min-height: 140px; } }
 /* Fights on a wide screen stay a sensible width. */
 .cb-inner { max-width: 760px; margin: 0 auto; }
+/* A deeper darkness at the edges of the map. */
+.crawl-vignette { background: radial-gradient(ellipse at center, rgba(0,0,0,0) 30%, rgba(4,2,1,.7) 62%, rgba(2,1,0,.97) 100%); }
+/* A shadow pooled behind the foe, down the corridor. */
+.cb-foe-row { isolation: isolate; }
+.cb-foe-row::before { content: ""; position: absolute; z-index: -1; inset: -20px -24px -34px; background: radial-gradient(ellipse 75% 85% at 62% 50%, rgba(0,0,0,.82), rgba(0,0,0,.45) 55%, rgba(0,0,0,0) 78%); pointer-events: none; }
