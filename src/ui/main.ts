@@ -23,13 +23,13 @@ import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
-  ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, stepsOf, shownFloor, TURBO_FLOORS, TURBO_DEPTHS, turboLive, TURBO_END, makeTurbo, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
+  ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
-import { pingSession, sendPoll } from "./leaderboard";
+import { pingSession } from "./leaderboard";
 import { applySave, watchBackup, backupCode, backupVault, setPlayerTitle, SUB_BOARDS, type Board, type Scope, type KillerRow, fetchBoard, fetchKillers, fetchVault, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun, useBackupCode, vaultDirty } from "./leaderboard";
 import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
@@ -64,10 +64,7 @@ let bagOpen = false;
 let pendingOrigin: OriginId | null = null;
 /** The title screen's tabs: the Campaign, or an Abyss run. */
 let menuTab: "campaign" | "abyss" = "campaign";
-/** The game's two top tabs while the Turbo event is on: Standard (the usual game) and Turbo. */
-let gameTab: "standard" | "turbo" = (() => { try { return localStorage.getItem("dd2-gametab") === "turbo" ? "turbo" : "standard"; } catch { return "standard"; } })();
-const inTurbo = () => gameTab === "turbo" && turboLive();
-const turboLeft = () => { const ms = TURBO_END - Date.now(); const d = Math.floor(ms / 864e5); const h = Math.floor((ms % 864e5) / 3600e3); return d > 0 ? `${d}d ${h}h` : `${h}h ${Math.max(0, Math.floor((ms % 3600e3) / 60e3))}m`; };
+
 /** Adding a Vanadium Plate is for good: the first tap arms it, the second applies it. */
 let plateArmed = false;
 let restoreOpen = false;
@@ -169,16 +166,6 @@ const say = (msg: string | null, bad = true) => {
 };
 /** The Abyss tab's explainer (shown the first time you open the tab, and from its "How it works" button). */
 let abyssIntroOpen = false;
-/** The Turbo explainer: shown each time the game is opened while the event is on, and whenever the Turbo tab is picked. */
-let turboInfoOpen = turboLive();
-const turboInfo = () => storyBeat({ icon: "⚡", title: "Turbo: a limited-time event", text: `The whole dungeon, faster. Turbo runs until 17 November (${turboLeft()} left); Standard is unchanged.`, list: [
-  `🏰 15 floors, start to THE END. The Campaign is the same 5 floors, then every floor goes about two deeper.`,
-  "🚪 6 rooms a floor instead of 7.",
-  "🎁 Much richer loot, better still the deeper you go, and gear and encounters from later floors turn up early.",
-  "⭐ More XP from every fight.",
-  "⚔️ No Quick Battles: every fight is yours to play.",
-  "🏆 Its own leaderboard, and a 👍 / 👎 at the end of each run to tell us what you think."
-] }, "data-closeturboinfo");
 const abyssIntro = () => storyBeat({ icon: "🕳️", title: "The Abyss", text: "A run of its own, far deadlier than the Campaign, and where your permanent power comes from.", list: [
   `🔓 Opens once you beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.`,
   "☠️ Ten depths. Every fight is a rank tougher, each depth ends with an Uber boss, and your Armor wears down as you go.",
@@ -345,10 +332,10 @@ function itemCard(it: GearItem, buttons = "", compare: boolean | { hero: Hero; s
   </div>`;
 }
 
-const nextMilestone = (f: number, r?: Run) => r?.turbo ? (shownFloor(r) < TURBO_FLOORS ? ` · the End at ${TURBO_FLOORS}` : "") : (f < WALL_FLOOR ? ` · a Horror at ${WALL_FLOOR}` : f < DEATH_FLOOR ? ` · DEATH at ${DEATH_FLOOR}` : f < END_FLOOR ? ` · the End at ${END_FLOOR}` : "");
-const runChips = (r: Run) => `${heatOf(r) ? ` <span class="heat-chip" title="Heat ${heatOf(r)}">🔥${heatOf(r)}</span>` : ""}${r.mode === "abyss" && r.abyssMod ? (() => { const m = ABYSS_MODS.find(x => x.id === r.abyssMod); return m ? ` <span class="heat-chip" title="${esc(`${m.name}: ${m.text}`)}">${m.icon}</span>` : ""; })() : ""}${r.daily ? ` <span class="heat-chip" title="Daily Dungeon">📅</span>` : ""}${r.turbo ? ` <span class="heat-chip turbo-chip" title="Turbo: 6 rooms a floor, 15 floors in all, richer loot">⚡</span>` : ""}`;
+const nextMilestone = (f: number) => (f < WALL_FLOOR ? ` · a Horror at ${WALL_FLOOR}` : f < DEATH_FLOOR ? ` · DEATH at ${DEATH_FLOOR}` : f < END_FLOOR ? ` · the End at ${END_FLOOR}` : "");
+const runChips = (r: Run) => `${heatOf(r) ? ` <span class="heat-chip" title="Heat ${heatOf(r)}">🔥${heatOf(r)}</span>` : ""}${r.mode === "abyss" && r.abyssMod ? (() => { const m = ABYSS_MODS.find(x => x.id === r.abyssMod); return m ? ` <span class="heat-chip" title="${esc(`${m.name}: ${m.text}`)}">${m.icon}</span>` : ""; })() : ""}${r.daily ? ` <span class="heat-chip" title="Daily Dungeon">📅</span>` : ""}`;
 const themeChip = (r: Run) => { const th = themeOf(r); return th ? `<span class="theme-chip" title="${esc(`${th.name}: ${th.hint}`)}">${th.icon} ${esc(th.name.replace(/^The /, ""))}</span>` : ""; };
-const floorLabel = (r: Run) => themeChip(r) + runChips(r) + (r.mode === "abyss" ? `Depth <b>${Math.min(r.floor, ABYSS_FLOORS)}</b>/${ABYSS_FLOORS}` : r.mode === "endless" ? `Floor <b>${shownFloor(r)}</b>${nextMilestone(r.floor, r)}` : `Floor <b>${Math.min(r.floor, FLOORS)}</b>/${FLOORS}`);
+const floorLabel = (r: Run) => themeChip(r) + runChips(r) + (r.mode === "abyss" ? `Depth <b>${Math.min(r.floor, ABYSS_FLOORS)}</b>/${ABYSS_FLOORS}` : r.mode === "endless" ? `Floor <b>${r.floor}</b>${nextMilestone(r.floor)}` : `Floor <b>${Math.min(r.floor, FLOORS)}</b>/${FLOORS}`);
 
 /** The current bounty's tracker button (📋 progress/target). */
 function bountyBtn(r: Run) {
@@ -376,7 +363,7 @@ function hud(r: Run) {
     <div class="row stat"><span><b>${Math.max(0, f.hp)}</b>/${f.maxHp} HP</span><span>⚔️ <b>${f.damage}</b>${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}</span><span>🛡️ <b>${f.armor}</b></span>
       <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span><span title="Healing Potions carried / how many you can carry">🧪 <b>${h.potions}</b>/${potionCap(h)}</span><span>📜 <b>${h.scrolls}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
     <div class="bar xp"><i style="width:${(h.xp / need) * 100}%"></i></div>
-    <div class="steps">${Array.from({ length: stepsOf(r) + 1 }, (_, i) => `<i class="${i < r.step || (r.step === stepsOf(r) && i < stepsOf(r)) ? "done" : ""}"></i>`).join("")}</div>
+    <div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>
     <div class="row hud-actions" style="margin-top:6px"><button class="small bag-btn" data-bag>${newTabs(r).size ? `<b class="newdot" title="Something new in your Inventory"></b>` : ""}🎒 <span class="lbl">Inventory</span></button>${bountyBtn(r)}${h.potions && f.hp > 0 && f.hp < f.maxHp && !busy && r.scene.t !== "over" ? `<button class="small potion-btn" data-potion>🧪 <span class="lbl">Potion </span>(+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ <span class="lbl">Menu</span></button></div>
     <div class="hud-floor">${floorHeader(r)}</div>
   </div>`;
@@ -390,7 +377,7 @@ const liveSave = () => { const sv = savedSummary(); return !!sv && !sv.over; };
 function titleScreen() {
   const sv = savedSummary();
   const cont = sv?.over ? `<button class="primary continue" data-continue>▶ ${sv.over.won ? "🏆 " : ""}Back to your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run's results · ${sv.mode === "abyss" ? `Abyss depth ${sv.floor}` : `floor ${sv.floor}`}</button>`
-    : sv ? `<button class="primary continue" data-continue>▶ Continue your ${sv.turbo ? "⚡ Turbo " : ""}${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run · ${sv.mode === "abyss" ? `Abyss depth ${sv.floor}` : `${sv.mode === "endless" ? "Endless " : ""}floor ${sv.floor}`} · level ${sv.level}</button>` : "";
+    : sv ? `<button class="primary continue" data-continue>▶ Continue your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run · ${sv.mode === "abyss" ? `Abyss depth ${sv.floor}` : `${sv.mode === "endless" ? "Endless " : ""}floor ${sv.floor}`} · level ${sv.level}</button>` : "";
   const tabs = `<div class="menu-tabs" role="tablist">
     <button class="menu-tab ${menuTab === "campaign" ? "active" : ""}" data-menutab="campaign" role="tab">🏰 Campaign</button>
     <button class="menu-tab abyss ${menuTab === "abyss" ? "active" : ""}" data-menutab="abyss" role="tab">${abyssUnlocked(meta) ? "🕳️" : "🔒"} Abyss Run</button></div>`;
@@ -410,21 +397,6 @@ function titleScreen() {
   const dailyOpenToday = meta.daily?.day !== utcDay();
   const infoRow = `<div class="menu-btns three info-row"><button class="info-btn" data-info>ℹ️ Info</button><button class="ch-btn" data-challenges>${dailyOpenToday ? `<b class="newdot" title="Today's Daily Dungeon is waiting"></b>` : ""}⚔️ Challenges</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>`;
   const head = `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>`;
-  const gameTabs = turboLive() ? `<div class="game-tabs" role="tablist">
-    <button class="game-tab turbo ${gameTab === "turbo" ? "active" : ""}" data-gametab="turbo" role="tab">⚡ Turbo <span class="gt-badge">Event · ${turboLeft()} left</span></button>
-    <button class="game-tab ${gameTab === "standard" ? "active" : ""}" data-gametab="standard" role="tab">🏰 Standard</button></div>` : "";
-  if (inTurbo()) {
-    return `${head}${gameTabs}${infoRow}
-  ${cont}
-  <div class="campaign-hero turbo-hero">
-    <div class="ch-text"><b>⚡ Turbo</b><span>The whole dungeon in ${TURBO_FLOORS} floors: the same ${FLOORS}-floor Campaign, then deeper fast, to THE END on floor ${TURBO_FLOORS}. Six rooms a floor, much richer loot, no Quick Battles. A limited-time event: ${turboLeft()} left.</span></div>
-    <button class="story-btn small" data-story="campaign">📖 Story</button>
-  </div>
-  <h2 class="bright">Choose an origin</h2>
-  <p class="sub">Turbo runs have their own leaderboard. The Daily Dungeon and the Abyss stay Standard.</p>
-  ${originCards(false)}
-  <p class="version">${VERSION}</p>`;
-  }
   if (menuTab === "abyss") {
     const shards = meta.ruinShards ?? 0;
     const body = !abyssUnlocked(meta)
@@ -445,9 +417,9 @@ function titleScreen() {
         <p class="sub">Vanadium Plates make a hero stronger in the Abyss only. Once given, a plate stays with that hero for good.</p>
         ${originCards(true)}
         ${backupPanel()}`;
-    return `${head}${gameTabs}${tabs}${infoRow}${cont}${body}<p class="version">${VERSION}</p>`;
+    return `${head}${tabs}${infoRow}${cont}${body}<p class="version">${VERSION}</p>`;
   }
-  return `${head}${gameTabs}${tabs}${infoRow}
+  return `${head}${tabs}${infoRow}
   ${cont}
   <div class="campaign-hero">
     <div class="ch-text"><b>🏰 The Campaign</b><span>${FLOORS} floors, ${FLOORS} bosses. The Hollow King waits at the bottom — and beyond him, deeper still.</span></div>
@@ -584,13 +556,13 @@ const AUTO_ROOMS: string[] = ["fight", "elite", "champion"];
 function floorHeader(r: Run) {
   const pips = fortunePips(depth(r));
   const abyss = r.mode === "abyss";
-  return `<div class="floorname ${abyss ? "abyss-name" : ""}">${abyss ? `🕳️ The Abyss · Depth ${r.floor}` : `Floor ${shownFloor(r)} · ${(() => { const th = themeOf(r); return th ? `${th.icon} ${esc(th.name)}` : esc(floorName(r.floor)); })()}`}</div><div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>`;
+  return `<div class="floorname ${abyss ? "abyss-name" : ""}">${abyss ? `🕳️ The Abyss · Depth ${r.floor}` : `Floor ${r.floor} · ${(() => { const th = themeOf(r); return th ? `${th.icon} ${esc(th.name)}` : esc(floorName(r.floor)); })()}`}</div><div class="fortune" title="The deeper you delve, the better the odds of Rare, Epic and Legendary finds."><b>Fortune</b><span class="stars">${"✦".repeat(pips)}<span class="dim">${"✦".repeat(Math.max(0, 5 - pips))}</span></span><span class="hint">Deeper = better loot</span></div>`;
 }
 function mapScene(r: Run) {
   return `
-  <h2>${r.step >= stepsOf(r) ? (r.mode === "abyss" ? "The Uber boss awaits" : r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits") : "Choose your path"}</h2>
-  <div class="cards">${r.choices.map(c => `${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn && !r.turbo ? `<div class="room-wrap">` : ""}<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : c === "nemesis" ? "nemesis-room" : ""}" data-room="${c}">${(() => { const g = c === "crossroads" ? CROSSROADS_GUISES[r.crossroadsGuise ?? 0] : null; const info = g ? { icon: g.icon, name: g.title, text: g.room } : c === "nemesis" && r.nemesis ? { ...ROOM_INFO.nemesis, text: `${r.nemesis.name}. It killed you last time, and it remembers. A bounty for its head.` } : (r.mode === "abyss" && ABYSS_ROOM_INFO[c]) || ROOM_INFO[c];
-    return `<span class="ic">${c === "boss" && r.floor >= FLOORS && r.mode !== "abyss" ? "💀" : info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn && !r.turbo ? `<div class="room-acts"><button class="fight-room" data-room="${c}" title="Go in and fight it yourself"><span class="ic">⚔️</span>Fight</button><button class="auto-room" data-autoroom="${c}" title="Go in and let the fight play itself out — only if it's one you can't lose"><span class="ic">⚡</span>Quick<br> Battle</button></div></div>` : ""}`).join("")}</div>`;
+  <h2>${r.step >= STEPS_PER_FLOOR ? (r.mode === "abyss" ? "The Uber boss awaits" : r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits") : "Choose your path"}</h2>
+  <div class="cards">${r.choices.map(c => `${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn ? `<div class="room-wrap">` : ""}<button class="room ${c.startsWith("crimson") || c === "sanctum" ? "crimson-room" : c === "goblin" ? "goblin-room" : c === "bounty" ? "bounty-room" : c === "nemesis" ? "nemesis-room" : ""}" data-room="${c}">${(() => { const g = c === "crossroads" ? CROSSROADS_GUISES[r.crossroadsGuise ?? 0] : null; const info = g ? { icon: g.icon, name: g.title, text: g.room } : c === "nemesis" && r.nemesis ? { ...ROOM_INFO.nemesis, text: `${r.nemesis.name}. It killed you last time, and it remembers. A bounty for its head.` } : (r.mode === "abyss" && ABYSS_ROOM_INFO[c]) || ROOM_INFO[c];
+    return `<span class="ic">${c === "boss" && r.floor >= FLOORS && r.mode !== "abyss" ? "💀" : info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn ? `<div class="room-acts"><button class="fight-room" data-room="${c}" title="Go in and fight it yourself"><span class="ic">⚔️</span>Fight</button><button class="auto-room" data-autoroom="${c}" title="Go in and let the fight play itself out — only if it's one you can't lose"><span class="ic">⚡</span>Quick<br> Battle</button></div></div>` : ""}`).join("")}</div>`;
 }
 
 function dieBox(who: "player" | "enemy", label: string) {
@@ -872,9 +844,9 @@ function forgeScene(r: Run) {
 function clearedScene(r: Run) {
   if (r.scene.t !== "cleared") return "";
   const s = r.scene;
-  const shown = r.turbo ? shownFloor(r) : s.floor;
+  const shown = s.floor;
   const next = shown + 1;
-  const nextReal = r.turbo ? TURBO_DEPTHS[Math.min(TURBO_FLOORS, next)] : next;
+  const nextReal = next;
   return `<div class="victory cleared">
     <div class="victory-title">${r.mode === "abyss" ? `DEPTH ${s.floor} CLEARED` : `FLOOR ${shown} CLEARED`}</div>
     <p class="center cl-big"><b class="cl-boss">${esc(s.boss)}</b> has fallen.</p>
@@ -1083,7 +1055,7 @@ function runStatsPanel(r: Run) {
 
 function leaderboardPopup() {
   const ORIGIN_IC: Record<string, string> = { warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" };
-  const main = ([...(turboLive() ? [["turbo", "⚡ Turbo"]] : []), ["campaign", "🏰 Campaign"], ["daily", "📅 Daily"], ["abyss", "🕳️ Abyss"], ["heat", "🔥 Heat"], ["bounty", "🎯 Bounty"]] as [Scope, string][])
+  const main = ([["campaign", "🏰 Campaign"], ["daily", "📅 Daily"], ["abyss", "🕳️ Abyss"], ["heat", "🔥 Heat"], ["bounty", "🎯 Bounty"]] as [Scope, string][])
     .map(([k, l]) => `<button class="lb-main ${lbScope === k ? "active" : ""}" data-lbscope="${k}">${l}</button>`).join("");
   const subs = lbScope === "bounty" ? [] : SUB_BOARDS[lbScope];
   const unit = subs.find(b => b.id === lbBoard);
@@ -1134,8 +1106,7 @@ function overScene(r: Run) {
   const abyss = r.mode === "abyss";
   return `<div class="banner ${won ? "won" : "lost"}">${r.finale ? "Nothing remains. You won everything." : won && abyss ? "You reached the bottom of the Abyss!" : won ? "The Hollow King falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen."}</div>
   ${!won && r.killer && !r.abandoned ? killerPanel(r) : ""}
-  ${r.turbo ? `<div class="panel turbo-poll">${r.polled ? `<p class="center">⚡ Thanks for telling us!</p>` : `<p class="center"><b>⚡ Did you enjoy Turbo?</b></p><div class="row" style="justify-content:center"><button class="big" data-poll="1" aria-label="Yes">👍</button><button class="big" data-poll="-1" aria-label="No">👎</button></div>`}</div>` : ""}
-  <div class="panel"><p>${abyss ? `Abyss · Depth ${Math.min(r.floor, ABYSS_FLOORS)}/${ABYSS_FLOORS}${r.hero.plates ? ` · ⬛ ${r.hero.plates} plates` : ""}` : `${r.daily ? `📅 Daily ${r.daily} · ` : ""}${r.turbo ? "⚡ Turbo · " : ""}${r.mode === "endless" ? "Endless · " : ""}Floor ${shownFloor(r)}${r.turbo ? `/${TURBO_FLOORS}` : ""}`} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses</p>
+  <div class="panel"><p>${abyss ? `Abyss · Depth ${Math.min(r.floor, ABYSS_FLOORS)}/${ABYSS_FLOORS}${r.hero.plates ? ` · ⬛ ${r.hero.plates} plates` : ""}` : `${r.daily ? `📅 Daily ${r.daily} · ` : ""}${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor}`} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses</p>
   ${recorded?.achievements.length ? `<div class="ach-earned">${recorded.achievements.map(id => { const a = ACHIEVEMENTS.find(x => x.id === id)!; return `<p>🏆 <b>${esc(a.name)}</b> — ${esc(a.text)} <span class="sub">(+${a.renown} Renown${a.title ? ` · title “${esc(a.title)}”` : ""})</span></p>`; }).join("")}</div>` : ""}
   ${recorded?.mastery?.gained ? `<p class="mastery-line">${ORIGIN_ICON[recorded.mastery.origin as OriginId]} ${esc(ORIGINS[recorded.mastery.origin as OriginId].name)} Mastery +${recorded.mastery.gained}${recorded.mastery.levelUp ? ` · <b>level ${recorded.mastery.level}!</b>${recorded.mastery.level === KIT_COMMON_LEVEL ? " Starting kit choices unlocked." : recorded.mastery.level === KIT_UNCOMMON_LEVEL ? " Uncommon kit choices unlocked." : ""}` : ""}</p>` : ""}
   ${recorded ? `<p>🏅 +${recorded.earned} Renown (total ${meta.renown})${recorded.unlocked.length ? ` · Unlocked: <b>${recorded.unlocked.map(esc).join(", ")}</b>` : ""}</p>` : ""}
@@ -1869,7 +1840,7 @@ function deathIntro(early: boolean) {
   if (!early) { show(); return; }
   const dark = document.createElement("div");
   dark.className = "floor80-intro";
-  dark.innerHTML = `<div class="floor80-word">Floor ${run?.turbo ? TURBO_DEPTHS.indexOf(DEATH_FLOOR) : DEATH_FLOOR}</div>`;
+  dark.innerHTML = `<div class="floor80-word">Floor ${DEATH_FLOOR}</div>`;
   document.body.appendChild(dark);
   setTimeout(() => { dark.remove(); show(); }, 5200);
 }
@@ -1958,7 +1929,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : turboInfoOpen ? turboInfo() : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${turboInfoOpen && !pendingOrigin ? turboInfo() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -2216,7 +2187,7 @@ function bind() {
   on("[data-togglemusic]", () => toggleMusic());
   on("[data-startmusic]", () => playMusic(run ? "game" : "title"));
   // Leaderboards (title screen and end of run).
-  on("[data-lb]", () => { lbOpen = true; if (run?.scene.t === "over" && (run.daily || run.mode === "abyss" || run.turbo)) { lbScope = run.turbo ? "turbo" : run.daily ? "daily" : "abyss"; lbBoard = "floor"; } else if (!run && inTurbo()) lbScope = "turbo"; loadBoard(lbBoard); });
+  on("[data-lb]", () => { lbOpen = true; if (run?.scene.t === "over" && (run.daily || run.mode === "abyss")) { lbScope = run.daily ? "daily" : "abyss"; lbBoard = "floor"; } loadBoard(lbBoard); });
   on("[data-lbclose]", () => { lbOpen = false; });
   on("[data-lbboard]", el => { loadBoard(el.dataset.lbboard as Board); });
   on("[data-lbscope]", el => { lbScope = el.dataset.lbscope as Scope; loadBoard("floor"); });
@@ -2288,7 +2259,6 @@ function bind() {
     on("[data-play]", () => { view = "title"; });
     on("[data-home]", () => { view = "splash"; });
     on("[data-closereset]", () => { resetPopup = false; });
-    on("[data-closeturboinfo]", () => { turboInfoOpen = false; });
     on("[data-options]", () => { optionsOpen = true; resetArmed = false; });
     on("[data-closeoptions]", () => { optionsOpen = false; resetArmed = false; });
     on("[data-quick]", el => { quickOn = el.dataset.quick === "1"; try { localStorage.setItem("dd2-quick", quickOn ? "1" : "0"); } catch { /* ignore */ } });
@@ -2348,8 +2318,7 @@ function bind() {
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode;
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
-    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta)); withGems(nr); if (inTurbo()) makeTurbo(nr); run = nr; void startSession(nr); });
-    on("[data-gametab]", el => { gameTab = el.dataset.gametab as typeof gameTab; if (gameTab === "turbo") { menuTab = "campaign"; turboInfoOpen = true; } try { localStorage.setItem("dd2-gametab", gameTab); } catch { /* ignore */ } });
+    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta)); withGems(nr); run = nr; void startSession(nr); });
     return;
   }
   const r = run;
@@ -2435,7 +2404,6 @@ function bind() {
   on("[data-closewin]", () => { winSeen = true; });
   on("[data-talent]", el => chooseTalent(r, el.dataset.talent!));
   on("[data-skiptalent]", () => skipTalent(r));
-  on("[data-poll]", el => { if (r.polled) return; r.polled = true; sendPoll(r, el.dataset.poll === "1" ? 1 : -1); saveRun(r, banked); });
   on("[data-buy]", el => say(buy(r, Number(el.dataset.buy))));
   on("[data-reroll]", () => say(rerollShop(r)));
   on("[data-sell]", el => {
@@ -2509,5 +2477,5 @@ else if (meta.ruinShards === undefined && meta.plates === undefined && meta.clas
 }
 if (typeof navigator !== "undefined" && navigator.onLine === false) { offlineOpen = true; render(); }
 
-// Play time (Turbo vs Standard): while a run is open and the page is visible, tell the server once a minute.
+// Play time: while a run is open and the page is visible, tell the server once a minute.
 setInterval(() => { if (run && run.scene.t !== "over" && typeof document !== "undefined" && document.visibilityState === "visible") pingSession(run); }, 60000);

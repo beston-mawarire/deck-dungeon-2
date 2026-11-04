@@ -1,6 +1,7 @@
 // The hero: origin, equipped gear, backpack, relics, talents, curses — and turning all of that into a Fighter.
 import { POTION_SLOTS } from "../data/potions";
 import { MANA_POTION_SLOTS } from "../data/classgear";
+import { classify, familyLine, isHeavy } from "./families";
 import { ABYSS_ITEMS } from "../data/abyss";
 import { relicBonus } from "../data/basic_relics";
 import { CRIMSON, GEAR_BASES, LEGENDARIES } from "../data";
@@ -159,6 +160,7 @@ export function itemLines(item: GearItem): string[] {
   const b = baseOf(item.base);
   const eb = effectiveBase(item);
   const lines: string[] = [];
+  lines.push(`🏷️ ${familyLine(eb)}${isHeavy(eb) ? " · no Dodge, Evade or Haste" : ""}`);
   if (eb.damage !== undefined) lines.push(`Damage ${weaponDamage(item)}${eb.twoHanded ? " · two-handed" : ""}${eb.offDamage ? ` · off-hand ${weaponDamage(item, true)}${offhandPenalty(item) ? " (clumsy: 60%)" : ""}` : ""}`);
   const armor = (eb.armor ?? 0) + (eb.armor ? Math.floor((item.level - 1) / 2) : 0);
   if (armor) lines.push(`Armor ${armor}`);
@@ -285,12 +287,11 @@ export function recompute(h: Hero) {
     if (!it) return undefined;
     const bs = effectiveBase(it);
     if (bs.kind !== "weapon") return undefined;
-    const n = `${bs.id} ${bs.name}`.toLowerCase();
-    if (bs.weaponType === "grenade") return "other";
-    if (bs.weaponType || /sword|blade|axe|dagger|knife|kris|dirk|rapier|katana|sabre|saber|cutlass|spear|pike|cleaver|sickle|scythe|stiletto|fang|shiv|hatchet|glaive|halberd|carver|misericorde|edge|claw|kunai|shuriken|whisper/.test(n)) return "sharp";
-    if (/hammer|mace|maul|club|flail|cudgel|sledge|morningstar|staff|stave|rod|cane|wand|scepter|sceptre|knuckle|fist|gauntlet|pick|mallet|crusher|breaker/.test(n)) return "blunt";
-    return "other";
+    const c = classify(bs);
+    return c.strike === "blade" ? "sharp" : c.strike === "blunt" || c.strike === "breaking" ? "blunt" : "other";
   };
+  // Heavy gear (any heavy weapon, armour or shield): no Dodge, Evade or Haste.
+  f.heavyGear = EQUIP_SLOTS.some(sl => { const it = h.equip[sl]; return !!it && isHeavy(effectiveBase(it)); });
   const armMain = h.equip.main, armOff = h.equip.off;
   f.arms = { main: kindOf(armMain), off: kindOf(armOff), twoHanded: !!armMain && !!effectiveBase(armMain).twoHanded };
   s.maxHp += 3 * (h.level - 1); // every level-up: +3 Max HP

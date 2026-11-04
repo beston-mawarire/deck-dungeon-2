@@ -198,6 +198,11 @@ function reactionMult(b: Battle, source: Fighter | null) {
  */
 export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, id: StatusId, amount: number, depth = 0) {
   if (amount <= 0 || target.hp <= 0) return;
+  // Heavy gear: no Evade or Haste can take hold.
+  if (target.heavyGear && (id === "evade" || id === "haste")) {
+    fx(b, { who: target.id, kind: "block", text: "Too heavy", icon: "🪨" });
+    return;
+  }
   // Bosses, Champions and Elites steady themselves for a little while after losing a turn to a Stun.
   if (id === "stun" && (target.flags["stunGuard"] ?? 0) > 0 && target.flags["stunGuard"] >= b.round) {
     fx(b, { who: target.id, kind: "block", text: "Steadies itself", icon: "🧍" });

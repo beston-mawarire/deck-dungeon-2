@@ -506,7 +506,7 @@ function strike(b: Battle, ctx: AttackCtx) {
   }
   // Dodge (a % chance; Countering adds 20%). It's not Evade: Evade bonuses don't fire, Dodge ones do.
   const countering = d.flags["counter"] === b.round;
-  const dodgeChance = Math.min(DODGE_CAP + (d.flags["dodgeCap"] ?? 0), (d.dodge ?? 0) + (countering ? COUNTER_DODGE + (d.flags["counterDodge"] ?? 0) : 0));
+  const dodgeChance = d.heavyGear ? 0 : Math.min(DODGE_CAP + (d.flags["dodgeCap"] ?? 0), (d.dodge ?? 0) + (countering ? COUNTER_DODGE + (d.flags["counterDodge"] ?? 0) : 0));
   if (dodgeChance > 0 && b.rng() * 100 < dodgeChance && !useTrueStrike(a)) {
     log(b, `${d.name} dodges!`);
     fx(b, { who: d.id, kind: "miss", text: "Dodged" });

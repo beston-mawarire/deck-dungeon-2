@@ -1301,16 +1301,3 @@ body[data-theme] .bag-overlay .toast:not(.err) b { color: inherit; }
 .mana-row i.full { background: linear-gradient(#6fb6ff, #2f6fd6); border-color: #8cc6ff; box-shadow: 0 0 6px #3d8bff88; }
 .mana-label { font-size: .72em; letter-spacing: .08em; text-transform: uppercase; color: #8cc6ff; opacity: .85; margin: 2px 0 4px; }
 .mana-cost { font-size: .8em; opacity: .85; }
-
-/* Turbo event: the two top tabs (Turbo · Standard), set above the Campaign/Abyss tabs as big segmented buttons. */
-.game-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 10px 0 2px; padding: 4px; border-radius: 14px; background: #120f18; border: 1px solid #3a3048; }
-.game-tab { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: #a79bbb; font-weight: 800; font-size: 1.05rem; }
-.game-tab.active { background: linear-gradient(180deg, #3a2e1c, #241c12); border-color: #c9a25a; color: #ffe39a; }
-.game-tab.turbo.active { background: linear-gradient(180deg, #123a4a, #0b2230); border-color: #4fd2ff; color: #bff0ff; box-shadow: 0 0 14px rgba(79,210,255,.3); }
-.gt-badge { font-size: .68rem; font-weight: 700; letter-spacing: .04em; color: #7fdcff; text-transform: uppercase; }
-.game-tab:not(.turbo) .gt-badge { display: none; }
-.turbo-hero { border-color: #4fd2ff !important; background: linear-gradient(160deg, rgba(18,58,74,.85), rgba(11,20,30,.9)) !important; }
-.turbo-hero .ch-text b { color: #bff0ff; }
-.turbo-chip { color: #7fdcff; }
-.turbo-poll { border-color: #4fd2ff; }
-.turbo-poll .big { font-size: 1.8rem; min-width: 84px; }

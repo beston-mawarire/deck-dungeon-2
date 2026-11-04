@@ -5,6 +5,12 @@ Versions follow MAJOR.MINOR.PATCH:
 - **PATCH** (1.1.x) for fixes, balance tweaks and small UI polish.
 - The build number (git commit count) still goes up with every deploy.
 
+
+## 1.63.0 (test build: Masterwork and loot rework, stage 1)
+- Turbo mode is removed.
+- Item families: every weapon, armour, shield, off-hand and trinket now has a family (Knife Edge, Short Blade, Great Blade, Blunt Force, Breaker, Arcane, Polearm, Ranged; Light, Standard and Heavy Shields; Light, Medium and Heavy Armour; Focus, Throwable; Rings, Amulets, Charms), a weight and, for weapons, a damage class (Blade, Blunt, Breaking, Spell). Shown on every item.
+- Heavy gear: wearing any heavy weapon, armour or shield stops Dodge, Evade and Haste.
+- Weak-to-blunt and weak-to-blades foes now go by the weapon's damage class.
 ## 1.62.5
 - Early floors are no longer held back: Legendaries on floors 1–2 stay Legendary, and bosses on floors 1–3 offer the same picks as floors 4–7.
 - Fix: after an Ambush, you no longer start the fight in a Counter stance (any class). (It was only the look: the stance did nothing.)

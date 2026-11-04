@@ -122,8 +122,7 @@ export function earlyCap(_h: Hero, rarity: Rarity, _rng: () => number, _floor = 
 export const SNAKE_ONES = 20;
 /** Most Legendaries can turn up from floor 1 (only the strongest wait for floor 4 or deeper). */
 const legFloor = (l: GearBase) => { const m = l.legendary?.minFloor ?? 1; return m <= 3 ? 1 : m; };
-/** Turbo runs: anything held back to floor 4 or earlier is open from floor 1, and anything deeper from floor 5. */
-const minOK = (h: Hero, floor: number, n: number) => (h.f.persist["turbo"] ? n <= 4 || floor >= 5 : floor >= n);
+const minOK = (_h: Hero, floor: number, n: number) => floor >= n;
 export const unlocked = (h: Hero, l: GearBase) =>
   !l.unlock || (l.unlock === "snake" ? (h.f.persist["onesRolled"] ?? 0) >= SNAKE_ONES : (h.f.persist["talentsSkipped"] ?? 0) > 0 && Object.values(h.talents).every(n => !n));
 

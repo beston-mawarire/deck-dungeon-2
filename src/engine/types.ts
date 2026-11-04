@@ -71,6 +71,8 @@ export interface Fighter {
   mana?: number;
   maxMana?: number;
   /** What the hero is swinging (for foes weak to blunt, sharp or two-handed weapons). */
+  /** Wearing heavy gear: no Dodge, Evade or Haste. */
+  heavyGear?: boolean;
   arms?: { main?: "blunt" | "sharp" | "other"; off?: "blunt" | "sharp" | "other"; twoHanded?: boolean };
   /** The Changeling Doppelgänger: a copy of the hero (its many effects are shown as one). */
   doppel?: boolean;

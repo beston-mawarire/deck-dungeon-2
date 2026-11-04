@@ -5,7 +5,7 @@
 import { makeRng, type Rng } from "../engine/rng";
 import { type Hero, recompute } from "./hero";
 import { getDropped, setDropped, setLocked } from "./loot";
-import { shownFloor, type Run } from "./run";
+import type { Run } from "./run";
 
 const KEY = "dd2-run-v1";
 
@@ -43,12 +43,12 @@ export function clearSave() {
 }
 
 /** A short description of the saved run for the title screen, or null. */
-export function savedSummary(): { origin: string; floor: number; level: number; mode: string; turbo?: boolean; over?: { won: boolean } } | null {
+export function savedSummary(): { origin: string; floor: number; level: number; mode: string; over?: { won: boolean } } | null {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const d = JSON.parse(raw) as SavedRun;
-    return { origin: d.run.hero.origin, floor: shownFloor(d.run as never), level: d.run.hero.level, mode: d.run.mode, turbo: !!(d.run as { turbo?: boolean }).turbo, over: d.over };
+    return { origin: d.run.hero.origin, floor: d.run.floor, level: d.run.hero.level, mode: d.run.mode, over: d.over };
   } catch { return null; }
 }
 
