@@ -3,12 +3,12 @@
 // what you've seen stays on your map. Foes, chests, services and landmarks stand on tiles: step onto one to meet it.
 // This file is the floor's shape, sight and paths; run.ts decides what stands where and what happens.
 
-export const MAP_W = 33;
-export const MAP_H = 33;
+export const MAP_W = 21;
+export const MAP_H = 21;
+/** A layer is four floors: three to explore (find the trapdoor down) and the boss's floor at the bottom. */
+export const LAYER_FLOORS = 4;
 /** How far you can see, in tiles. */
 export const SIGHT = 3;
-/** Encounters to clear before the boss will face you. */
-export const BOSS_KEY = 4;
 /** Every few encounters cleared, the floor's foes grow a little stronger. */
 export const DANGER_EVERY = 4;
 /** Crawl fights are one foe, but a harder one. */
@@ -27,13 +27,17 @@ export interface Rect { x: number; y: number; w: number; h: number }
 export interface MapThing {
   x: number;
   y: number;
-  /** A RoomType. */
+  /** A RoomType, or "trapdoor". */
   room: string;
   done?: boolean;
+  /** A foe that stands in the way of something (the trapdoor, a chest, a landmark): you must fight it to get past. */
+  guard?: boolean;
 }
 
 export interface FloorMap {
+  /** The layer (run.floor) and which of its floors this is (1–3; the 4th is the boss). */
   floor: number;
+  depth: number;
   w: number;
   h: number;
   /** Row-major tiles. */
@@ -48,7 +52,7 @@ export interface FloorMap {
   /** Where you stood before the last step (a risky room you turn back from puts you back here). */
   bx?: number;
   by?: number;
-  /** Encounters cleared on this floor (the boss doesn't count). */
+  /** Encounters cleared on this layer so far (it carries down the trapdoors). */
   explored: number;
   /** The thing being entered right now. */
   pending?: number;
@@ -64,16 +68,22 @@ export const isSeenTile = (m: FloorMap, x: number, y: number) => inside(m, x, y)
 
 const center = (r: Rect) => ({ x: r.x + Math.floor(r.w / 2), y: r.y + Math.floor(r.h / 2) });
 
-/** Carve a floor: rooms of different sizes, joined by hallways (with a loop or two), then pick the start and the boss's room. */
-export function carve(rng: () => number, w = MAP_W, h = MAP_H): { tiles: Tile[]; rooms: Rect[]; start: number; boss: number; order: number[] } {
+/** Carve a floor: rooms of different sizes, joined by hallways (some two tiles wide, with a loop now and then), and pick the start. */
+export function carve(rng: () => number, w = MAP_W, h = MAP_H): { tiles: Tile[]; rooms: Rect[]; start: number; order: number[] } {
+  for (let attempt = 0; ; attempt++) {
+    const out = carveOnce(rng, w, h);
+    if (out.rooms.length >= 4 || attempt > 20) return out;
+  }
+}
+
+function carveOnce(rng: () => number, w: number, h: number) {
   const tiles: Tile[] = new Array(w * h).fill(0);
   const rooms: Rect[] = [];
-  const want = 8 + Math.floor(rng() * 3);
-  for (let tries = 0; tries < 400 && rooms.length < want; tries++) {
-    // A few big halls, mostly modest rooms, the odd closet.
-    const big = rng() < 0.25;
-    const rw = big ? 6 + Math.floor(rng() * 4) : 3 + Math.floor(rng() * 4);
-    const rh = big ? 5 + Math.floor(rng() * 3) : 3 + Math.floor(rng() * 3);
+  const want = 4 + Math.floor(rng() * 3);
+  for (let tries = 0; tries < 300 && rooms.length < want; tries++) {
+    const big = rng() < 0.3;
+    const rw = big ? 5 + Math.floor(rng() * 3) : 3 + Math.floor(rng() * 3);
+    const rh = big ? 5 + Math.floor(rng() * 2) : 3 + Math.floor(rng() * 3);
     const x = 1 + Math.floor(rng() * (w - rw - 2));
     const y = 1 + Math.floor(rng() * (h - rh - 2));
     const r = { x, y, w: rw, h: rh };
@@ -83,15 +93,18 @@ export function carve(rng: () => number, w = MAP_W, h = MAP_H): { tiles: Tile[];
   for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) tiles[y * w + x] = 1;
   const hall = (a: Rect, b: Rect) => {
     const p = center(a), q = center(b);
-    const xFirst = rng() < 0.5;
-    const dig = (x: number, y: number) => { tiles[y * w + x] = 1; };
+    const wide = rng() < 0.35;
+    const dig = (x: number, y: number, horiz: boolean) => {
+      tiles[y * w + x] = 1;
+      // A wide hall is two tiles across.
+      if (wide) { const ox = horiz ? x : Math.min(w - 2, x + 1), oy = horiz ? Math.min(h - 2, y + 1) : y; tiles[oy * w + ox] = 1; }
+    };
     let x = p.x, y = p.y;
-    const stepX = () => { while (x !== q.x) { dig(x, y); x += Math.sign(q.x - x); } };
-    const stepY = () => { while (y !== q.y) { dig(x, y); y += Math.sign(q.y - y); } };
-    if (xFirst) { stepX(); stepY(); } else { stepY(); stepX(); }
-    dig(x, y);
+    const stepX = () => { while (x !== q.x) { dig(x, y, true); x += Math.sign(q.x - x); } };
+    const stepY = () => { while (y !== q.y) { dig(x, y, false); y += Math.sign(q.y - y); } };
+    if (rng() < 0.5) { stepX(); stepY(); } else { stepY(); stepX(); }
+    dig(x, y, true);
   };
-  // Join every room to the nearest one already joined (a tree), then add a loop or two.
   const joined = [0];
   const dist = (a: Rect, b: Rect) => { const p = center(a), q = center(b); return Math.abs(p.x - q.x) + Math.abs(p.y - q.y); };
   while (joined.length < rooms.length) {
@@ -100,17 +113,54 @@ export function carve(rng: () => number, w = MAP_W, h = MAP_H): { tiles: Tile[];
     hall(rooms[best[0]], rooms[best[1]]);
     joined.push(best[0]);
   }
-  for (let k = 0; k < 1 + Math.floor(rng() * 2); k++) {
+  if (rooms.length > 3 && rng() < 0.5) {
     const a = Math.floor(rng() * rooms.length), b = Math.floor(rng() * rooms.length);
     if (a !== b) hall(rooms[a], rooms[b]);
   }
-  // Start in the lowest room; the boss holds the room furthest away on foot.
   let start = 0;
   rooms.forEach((r, i) => { if (r.y + r.h > rooms[start].y + rooms[start].h) start = i; });
   const s = center(rooms[start]);
   const far = walkDistances({ w, h, tiles }, s.x, s.y);
   const order = rooms.map((_, i) => i).sort((a, b) => far[idx({ w }, center(rooms[a]).x, center(rooms[a]).y)] - far[idx({ w }, center(rooms[b]).x, center(rooms[b]).y)]);
-  return { tiles, rooms, start, boss: order[order.length - 1], order };
+  return { tiles, rooms, start, order };
+}
+
+/** Dig a little dead-end nook off a room (two tiles deep): something waits at the end, and whatever stands at its mouth must be faced. */
+export function digNook(m: { w: number; h: number; tiles: Tile[] }, r: Rect, rng: () => number): { mouth: number; end: number } | null {
+  const sides: [number, number, number, number][] = [];
+  for (let x = r.x + 1; x < r.x + r.w - 1; x++) { sides.push([x, r.y - 1, 0, -1]); sides.push([x, r.y + r.h, 0, 1]); }
+  for (let y = r.y + 1; y < r.y + r.h - 1; y++) { sides.push([r.x - 1, y, -1, 0]); sides.push([r.x + r.w, y, 1, 0]); }
+  for (let k = sides.length - 1; k > 0; k--) { const j = Math.floor(rng() * (k + 1)); [sides[k], sides[j]] = [sides[j], sides[k]]; }
+  const wall = (x: number, y: number) => x > 0 && y > 0 && x < m.w - 1 && y < m.h - 1 && m.tiles[y * m.w + x] === 0;
+  for (const [x, y, dx, dy] of sides) {
+    const ex = x + dx, ey = y + dy;
+    // The nook and everything around it (bar the room) must be solid rock, so it stays a dead end.
+    const ring: [number, number][] = [[x, y], [ex, ey], [ex + dx, ey + dy], [x - dy, y - dx], [x + dy, y + dx], [ex - dy, ey - dx], [ex + dy, ey + dx]];
+    if (!ring.every(([a, b]) => wall(a, b))) continue;
+    m.tiles[y * m.w + x] = 1;
+    m.tiles[ey * m.w + ex] = 1;
+    return { mouth: y * m.w + x, end: ey * m.w + ex };
+  }
+  return null;
+}
+
+/** Tiles you can reach from (x, y) if the tiles in `blocked` were solid. */
+export function reachable(m: { w: number; h: number; tiles: Tile[] }, x: number, y: number, blocked: Set<number>): Uint8Array {
+  const seen = new Uint8Array(m.w * m.h);
+  const q = [y * m.w + x];
+  seen[q[0]] = 1;
+  for (let k = 0; k < q.length; k++) {
+    const i = q[k], cx = i % m.w, cy = Math.floor(i / m.w);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = cx + dx, ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= m.w || ny >= m.h) continue;
+      const j = ny * m.w + nx;
+      if (seen[j] || m.tiles[j] !== 1 || blocked.has(j)) continue;
+      seen[j] = 1;
+      q.push(j);
+    }
+  }
+  return seen;
 }
 
 /** Steps from (x, y) to every tile (-1 where you can't get). */
@@ -172,7 +222,7 @@ export function look(m: FloorMap): number[] {
 }
 
 /** The shortest walk over tiles you've seen to (x, y), going around anything still standing (except at the end). Null if there's no way. */
-export function pathTo(m: FloorMap, x: number, y: number): [number, number][] | null {
+export function pathTo(m: FloorMap, x: number, y: number, through = false): [number, number][] | null {
   if (!isFloor(m, x, y) || !isSeenTile(m, x, y)) return null;
   if (x === m.px && y === m.py) return [];
   const goal = idx(m, x, y);
@@ -180,7 +230,7 @@ export function pathTo(m: FloorMap, x: number, y: number): [number, number][] | 
   const start = idx(m, m.px, m.py);
   prev[start] = -1;
   const q = [start];
-  const blocked = new Set(m.things.filter(t => !t.done).map(t => idx(m, t.x, t.y)));
+  const blocked = through ? new Set<number>() : new Set(m.things.filter(t => !t.done).map(t => idx(m, t.x, t.y)));
   for (let k = 0; k < q.length; k++) {
     const i = q[k];
     if (i === goal) break;
@@ -202,7 +252,8 @@ export function pathTo(m: FloorMap, x: number, y: number): [number, number][] | 
 
 /** Head toward (x, y) when you can't see a way there yet: walk to the known tile nearest to it. */
 export function pathToward(m: FloorMap, x: number, y: number): [number, number][] | null {
-  const direct = pathTo(m, x, y);
+  // Around anything in the way if you can; otherwise straight at it (the walk stops in front of whatever blocks it).
+  const direct = pathTo(m, x, y) ?? pathTo(m, x, y, true);
   if (direct) return direct;
   const blocked = new Set(m.things.filter(t => !t.done).map(t => idx(m, t.x, t.y)));
   const seenFloor = { w: m.w, h: m.h, tiles: m.tiles.map((t, i) => (t === 1 && m.seen[i] && !blocked.has(i) ? 1 : 0)) as Tile[] };
@@ -216,7 +267,6 @@ export function pathToward(m: FloorMap, x: number, y: number): [number, number][
   return best < 0 ? null : pathTo(m, best % m.w, Math.floor(best / m.w));
 }
 
-export const bossThing = (m: FloorMap) => m.things.findIndex(t => t.room === "boss");
-export const bossLocked = (m: FloorMap) => m.explored < BOSS_KEY;
+export const trapdoorThing = (m: FloorMap) => m.things.findIndex(t => t.room === "trapdoor");
 export const dangerOf = (m: FloorMap) => Math.floor(m.explored / DANGER_EVERY);
 export const dangerWord = (d: number) => DANGER_WORDS[Math.min(d, DANGER_WORDS.length - 1)];

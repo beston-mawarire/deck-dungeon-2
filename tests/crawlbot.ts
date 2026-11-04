@@ -1,5 +1,5 @@
 // A bot that walks the Crawl: it explores, meets what it finds (skipping risky rooms), and heads for the boss once it's ready.
-import { bossLocked, idx, inside, isFloor, isSeenTile, pathTo, type FloorMap } from "../src/game/grid";
+import { idx, inside, isFloor, isSeenTile, pathTo, type FloorMap } from "../src/game/grid";
 import { confirmRisk, gridStep, type Run } from "../src/game/run";
 import { botStep } from "./bot";
 
@@ -23,13 +23,12 @@ export function crawlTarget(run: Run, rushAfter = 2): [number, number][] {
   const options: { p: [number, number][]; cost: number }[] = [];
   m.things.forEach(t => {
     if (t.done || !isSeenTile(m, t.x, t.y) || RISKY.includes(t.room)) return;
-    if (t.room === "boss" && bossLocked(m)) return;
-    const p = pathTo(m, t.x, t.y);
+    const p = pathTo(m, t.x, t.y) ?? pathTo(m, t.x, t.y, true);
     if (!p) return;
     let cost = p.length;
     if (FIGHTS.includes(t.room)) cost += hp < 0.5 ? 30 : 3;
     if (t.room === "rest" && hp < 0.6) cost -= 20;
-    if (t.room === "boss") cost += m.explored >= 4 + rushAfter ? -50 : 40;
+    if (t.room === "trapdoor") cost += m.explored >= m.depth * (2 + rushAfter) ? -50 : 25;
     options.push({ p, cost });
   });
   for (const f of frontier(m)) { const p = pathTo(m, f[0], f[1]); if (p && p.length) options.push({ p, cost: p.length + 6 }); }

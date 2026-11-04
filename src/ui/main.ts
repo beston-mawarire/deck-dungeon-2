@@ -28,7 +28,8 @@ import {
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
-import { BOSS_KEY, bossLocked, dangerWord } from "../game/grid";
+import { dangerWord, LAYER_FLOORS } from "../game/grid";
+import { MANA_MAX } from "../engine/combat";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
@@ -67,6 +68,8 @@ let optionsOpen = false;
 let resetArmed = false;
 let mode: Mode = "campaign";
 let bagOpen = false;
+/** The Crawl's potion drawer (bottom left). */
+let potDrawer = false;
 /** The class the player tapped on the title screen (the popup before a run starts). */
 let pendingOrigin: OriginId | null = null;
 /** The title screen's tabs: the Campaign, or an Abyss run. */
@@ -376,7 +379,7 @@ function hud(r: Run) {
     <div class="row stat"><span><b>${Math.max(0, f.hp)}</b>/${f.maxHp} HP</span><span>⚔️ <b>${f.damage}</b>${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}</span><span>🛡️ <b>${f.armor}</b></span>
       <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span>${h.azure ? `<span title="Azure dust: from scrapping Rares">💠 <b>${h.azure}</b></span>` : ""}${h.orilium ? `<span title="Orilium: from scrapping Epics">🔶 <b>${h.orilium}</b></span>` : ""}<span title="Healing Potions carried / how many you can carry">🧪 <b>${h.potions}</b>/${potionCap(h)}</span><span>📜 <b>${h.scrolls}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
     <div class="bar xp"><i style="width:${(h.xp / need) * 100}%"></i></div>
-    ${r.gridMode && r.grid ? `<div class="steps">${Array.from({ length: BOSS_KEY + 1 }, (_, i) => `<i class="${i < Math.min(r.grid!.explored, BOSS_KEY) || r.step >= STEPS_PER_FLOOR ? "done" : ""}"></i>`).join("")}</div>` : `<div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>`}
+    ${r.gridMode && r.grid ? `<div class="steps">${Array.from({ length: LAYER_FLOORS }, (_, i) => `<i class="${i < r.grid!.depth - 1 || r.step >= STEPS_PER_FLOOR ? "done" : ""}"></i>`).join("")}</div>` : `<div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>`}
     <div class="row hud-actions" style="margin-top:6px"><button class="small bag-btn" data-bag>${newTabs(r).size ? `<b class="newdot" title="Something new in your Inventory"></b>` : ""}🎒 <span class="lbl">Inventory</span></button>${bountyBtn(r)}${h.potions && f.hp > 0 && f.hp < f.maxHp && !busy && r.scene.t !== "over" ? `<button class="small potion-btn" data-potion>🧪 <span class="lbl">Potion </span>(+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ <span class="lbl">Menu</span></button></div>
     <div class="hud-floor">${floorHeader(r)}</div>
   </div>`;
@@ -581,32 +584,67 @@ const roomClass = (c: string) => (c.startsWith("crimson") || c === "sanctum" ? "
 const bossTitle = (r: Run) => (r.mode === "abyss" ? "The Uber boss awaits" : r.floor === WALL_FLOOR ? "The Horror" : r.floor === DEATH_FLOOR ? "DEATH" : r.floor === END_FLOOR ? "The End" : "The boss awaits");
 
 function mapScene(r: Run) {
-  if (r.gridMode && r.grid) return crawlScene(r);
+  if (r.gridMode && r.grid) return "";
   return `
   <h2>${r.step >= STEPS_PER_FLOOR ? bossTitle(r) : "Choose your path"}</h2>
   <div class="cards">${r.choices.map(c => `${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn ? `<div class="room-wrap">` : ""}<button class="room ${roomClass(c)}" data-room="${c}">${(() => { const info = roomInfo(r, c);
     return `<span class="ic">${info.icon}</span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span>`; })()}</button>${AUTO_ROOMS.includes(c) && r.floor >= AUTO_BATTLE_FLOOR && quickOn ? `<div class="room-acts"><button class="fight-room" data-room="${c}" title="Go in and fight it yourself"><span class="ic">⚔️</span>Fight</button><button class="auto-room" data-autoroom="${c}" title="Go in and let the fight play itself out — only if it's one you can't lose"><span class="ic">⚡</span>Quick<br> Battle</button></div></div>` : ""}`).join("")}</div>`;
 }
 
-/** The Crawl: the floor itself, drawn around you (see crawl.ts). Tap a tile to walk there; tap something once to see what it is. */
-function crawlScene(r: Run) {
+/** What the action button on a picked thing says. */
+function crawlAct(room: string) {
+  if (room === "trapdoor") return "🕳️ Descend";
+  if (["wooden", "iron", "crimson_vault"].includes(room)) return "🧰 Open chest";
+  if (AUTO_ROOMS.includes(room) || ["vault", "unique", "goblin", "nemesis", "doppelganger", "crimson_elite"].includes(room)) return "⚔️ Fight";
+  return "✋ Interact";
+}
+const TRAPDOOR_INFO = { icon: "🕳️", name: "Trapdoor", text: "A way down to the next floor. Once you drop, there's no climbing back up." };
+const thingInfo = (r: Run, room: string) => (room === "trapdoor" ? TRAPDOOR_INFO : roomInfo(r, room as RoomType));
+
+/** The Crawl: the floor fills the screen (drawn by crawl.ts); the HUD sits over it in the corners. */
+function crawlScreen(r: Run, msg: string[], bad: boolean) {
   const m = r.grid!;
-  const locked = bossLocked(m);
+  const h = r.hero, f = h.f;
   const danger = gridDanger(r);
+  const need = xpToLevel(h.level);
+  const maxMana = f.maxMana || MANA_MAX;
+  const th = themeOf(r);
+  const layer = r.mode === "abyss" ? `The Abyss · Depth ${r.floor}` : `Layer ${r.floor} · ${th ? `${th.icon} ${esc(th.name)}` : esc(floorName(r.floor))}`;
   const sel = m.sel !== undefined && !m.things[m.sel]?.done ? m.sel : undefined;
   const pick = (() => {
-    if (sel === undefined) return `<p class="sub center crawl-hint">Tap the floor to walk there. Tap something once to see what it is, and again to go to it. You see three tiles around you; what you've seen stays on your map.</p>`;
-    const room = m.things[sel].room as RoomType;
-    const info = roomInfo(r, room);
-    const sealed = room === "boss" && locked;
-    return `<div class="room crawl-pick ${roomClass(room)}"><span class="ic">${info.icon}</span><b>${esc(room === "boss" ? bossTitle(r) : info.name)}</b><span class="sub">${esc(info.text)}</span>
-      <div class="row" style="margin-top:8px">${sealed ? `<span class="sub">It isn't ready to face you. Clear ${BOSS_KEY - m.explored} more encounter${BOSS_KEY - m.explored === 1 ? "" : "s"} first.</span>` : `<button class="primary" data-gwalk="${sel}">${AUTO_ROOMS.includes(room) || room === "boss" ? "⚔️ Go fight it" : "🚶 Go there"}</button>`}<button data-gunsel>Close</button></div></div>`;
+    if (sel === undefined) return "";
+    const room = m.things[sel].room;
+    const info = thingInfo(r, room);
+    return `<div class="cz cz-pick ${roomClass(room)}"><button class="cz-x" data-gunsel aria-label="Close">✕</button><div class="cz-pick-head"><span class="ic">${info.icon}</span><span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span></span></div>
+      <button class="primary cz-act" data-gwalk="${sel}">${crawlAct(room)}</button></div>`;
   })();
-  return `
-  <h2>${locked ? "Explore the floor" : "The boss is ready for you"}</h2>
-  <div class="crawl-meta"><span>🗺️ Encounters <b>${m.explored}</b></span><span class="danger d${Math.min(danger, 4)}" title="The longer you linger on a floor, the stronger its foes grow">☠️ ${dangerWord(danger)}</span></div>
-  <div class="crawl-view"><canvas id="crawl"></canvas></div>
-  ${pick}`;
+  const q = r.bounty;
+  const quests = q ? `<button class="cz-quest ${bountyProgress(h, q) >= q.target ? "done" : ""}" data-bounty>📋 <span>${esc(bountyText(q, h.origin))}</span> <b>${Math.min(q.target, bountyProgress(h, q))}/${q.target}</b></button>` : "";
+  const tonics = Object.entries(h.tonics ?? {});
+  const drawer = `<div class="cz-drawer ${potDrawer ? "open" : ""}">
+      <button class="cz-pot" data-potion ${h.potions && f.hp < f.maxHp ? "" : "disabled"} title="Healing Potion: +12 HP">🧪<b>${h.potions}</b></button>
+      ${h.manaPotions ? `<button class="cz-pot off" data-potnote="Mana Potions refill your mana in a fight. Your mana fills up at the start of every fight anyway." title="Mana Potion">🔷<b>${h.manaPotions}</b></button>` : ""}
+      ${tonics.map(([id, n]) => `<button class="cz-pot off" data-potnote="${esc(TONICS[id].name)}: ${esc(TONICS[id].text)}. Tonics only work in a fight." title="${esc(TONICS[id].name)}">${TONICS[id].icon}<b>${n}</b></button>`).join("")}
+    </div>`;
+  return `<div class="crawl-screen">
+    <canvas id="crawl"></canvas>
+    <div class="crawl-vignette"></div>
+    <div class="cz cz-tl">
+      <div class="cz-bar hp"><i style="width:${Math.max(0, (f.hp / f.maxHp) * 100)}%"></i><span>${Math.max(0, f.hp)} / ${f.maxHp}</span></div>
+      ${maxMana ? `<div class="cz-bar mana"><i style="width:100%"></i><span>Mana ${maxMana}</span></div>` : ""}
+      <div class="cz-bar xp"><i style="width:${(h.xp / need) * 100}%"></i><span>Lv ${h.level}</span></div>
+    </div>
+    <div class="cz cz-tr">
+      <button class="cz-menu" data-menu aria-label="Menu">☰</button>
+      <div class="cz-layer">${layer}</div>
+      <div class="cz-floor">Floor ${m.depth} of ${LAYER_FLOORS} · <span class="danger d${Math.min(danger, 4)}">${dangerWord(danger)}</span></div>
+      ${quests}
+    </div>
+    ${msg.length ? `<div class="cz cz-toasts">${msg.map((x, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(x)}</div>`).join("")}</div>` : ""}
+    ${pick}
+    <div class="cz cz-bl"><button class="cz-circle" data-potdrawer aria-label="Potions">🧪${h.potions ? `<b class="cz-count">${h.potions}</b>` : ""}</button>${drawer}</div>
+    <div class="cz cz-br"><button class="cz-circle big" data-bag aria-label="Inventory">${newTabs(r).size ? `<b class="newdot"></b>` : ""}🎒</button></div>
+  </div>`;
 }
 
 function dieBox(who: "player" | "enemy", label: string) {
@@ -1826,7 +1864,7 @@ function originPopup(o: OriginId) {
     ${gemPanel(o)}
     ${heatPanel()}
     <div class="panel crawl-panel"><div class="row"><b class="grow">🗺️ The Crawl <span class="tag">prototype</span></b><div class="seg"><button class="small ${crawlOn ? "primary" : ""}" data-crawl="1">On</button><button class="small ${crawlOn ? "" : "primary"}" data-crawl="0">Off</button></div></div>
-      <p class="sub">Each floor is a fogged grid of rooms. Open rooms beside the ones you've cleared, find the boss at the top. Fights are one tougher foe, and the floor grows more dangerous the longer you stay.</p></div>
+      <p class="sub">Walk the dungeon yourself. Each layer is three floors to explore and a fourth where its boss waits: find the trapdoor on each floor to go down (there's no way back up). Some foes stand in your way; others you can walk around. Fights are one tougher foe, and the layer grows more dangerous the longer you stay.</p></div>
     ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>🏰 Start Campaign</button><button data-closeorigin>Back</button></div>
   </div></div>`;
@@ -2104,7 +2142,9 @@ function render2() {
       else celebrate(["rare", "epic", "legendary"].includes(getItem(relicNow).rarity ?? "") ? (getItem(relicNow).rarity as string) : "rare", "NEW RELIC", false);
     }
   }
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
+  const crawlView = (s.t === "map" || s.t === "resplendent") && !!r.gridMode && !!r.grid;
+  document.body.classList.toggle("crawl-on", crawlView);
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
   bind();
   if (s.t === "map" && r.gridMode) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => roomInfo(r, room as RoomType).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never) }); }
   else stopWalk();
@@ -2514,6 +2554,8 @@ function bind() {
   on("[data-jfuse]", () => { const res = jewelFuse(r); say(res.msg, !res.ok); if (res.ok) celebrate("epic", res.made, true); else sfx("miss"); });
   on("[data-gwalk]", el => { walkToThing(Number(el.dataset.gwalk)); });
   on("[data-gunsel]", () => { if (r.grid) r.grid.sel = undefined; });
+  on("[data-potdrawer]", () => { potDrawer = !potDrawer; });
+  on("[data-potnote]", el => { say(el.dataset.potnote!, false); });
   on("[data-autoroom]", el => {
     r.message = "";
     chooseRoom(r, el.dataset.autoroom as never);

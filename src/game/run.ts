@@ -24,7 +24,7 @@ import { SIGIL_SETS } from "../data/talisman";
 const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
 import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 import { affixById, rescaleAffixes } from "./affixpool";
-import { BOSS_KEY, bossLocked, carve, dangerOf, DANGER_DMG, DANGER_HP, GRID_DMG, GRID_HP, idx, isFloor, isSeenTile, look, MAP_H, MAP_W, type FloorMap, type Rect, roomCenter, thingAt } from "./grid";
+import { carve, dangerOf, DANGER_DMG, DANGER_HP, digNook, GRID_DMG, GRID_HP, idx, isFloor, isSeenTile, LAYER_FLOORS, look, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -259,6 +259,8 @@ export interface Run {
   /** The Crawl (prototype): floors are fogged grids of rooms rather than a row of paths. */
   gridMode?: boolean;
   grid?: FloorMap;
+  /** Which floor of this layer each service turns up on. */
+  gridPlan?: Partial<Record<RoomType, number>>;
   /** Ruin Shards and Vanadium Plates found this run, and how many of them are already banked on the device. */
   ruin?: { shards: number; plates: number; gems?: number; banked?: { shards: number; plates: number; gems?: number } };
 }
@@ -381,7 +383,7 @@ function roomWeights(run: Run, first: boolean): Partial<Record<RoomType, number>
 }
 
 export function genChoices(run: Run): RoomType[] {
-  if (run.gridMode) { if (!run.grid || run.grid.floor !== run.floor) run.grid = makeGrid(run); return []; }
+  if (run.gridMode) { if (!run.grid || run.grid.floor !== run.floor) run.grid = makeGrid(run, 1); return []; }
   if (run.step >= STEPS_PER_FLOOR) return ["boss"];
   const w = roomWeights(run, run.step === 0);
   // A gauntlet: from floor 3 (not on a floor's first step), sometimes every path is a hard fight, and nothing else.
@@ -433,82 +435,121 @@ const GRID_REPEAT: RoomType[] = ["fight", "elite", "wooden", "iron"];
 const GRID_CAP: Partial<Record<RoomType, number>> = { champion: 2 };
 /** Landmarks: the altars, shrines and encounters. A floor has none, one or two. */
 export const LANDMARKS: RoomType[] = ["sanguine", "altar", "shrine", "event", "alchemist", "blacksmith", "gambling_den", "fortune_teller", "mirror_pool", "card_sharp", "sacred_spring", "fallen_adventurer", "starving_pilgrim"];
-/** How many landmarks a floor holds: none (30%), one (45%) or two (25%). */
-const landmarkCount = (x: number) => (x < 0.3 ? 0 : x < 0.75 ? 1 : 2);
 const HARD_ROOMS: RoomType[] = ["elite", "champion", "vault", "unique", "nemesis", "doppelganger", "crimson_elite", "goblin"];
 
-/** Lay out a floor: carve the rooms and halls, then set out its foes, chests, services and landmarks. */
-export function makeGrid(run: Run): FloorMap {
+const FOE_ROOMS: RoomType[] = ["fight", "elite", "champion", "unique", "goblin", "nemesis", "doppelganger", "crimson_elite"];
+
+/** Where this layer's services fall: the campfire on the last floor before the boss, the others spread over the three. */
+function layerPlan(run: Run): Partial<Record<RoomType, number>> {
+  const rng = run.rng, any = () => 1 + Math.floor(rng() * 3);
+  const plan: Partial<Record<RoomType, number>> = { rest: 3, shop: 1 + Math.floor(rng() * 2) };
+  plan[run.jewellerNext ? "jeweller" : "forge"] = 2 + Math.floor(rng() * 2);
+  run.jewellerNext = !run.jewellerNext;
+  if (run.floor >= MASTERWORK_FLOOR && run.mode !== "abyss") plan.masterwork = any();
+  if (crimsonActive(run) && run.hero.crimsonKeys > 0) plan.crimson_vault = any();
+  const heart = run.hero.dragonHeart;
+  if (heart && !heart.unified) plan.sanctum = any();
+  if (run.floor >= 2 && !run.seenBosses.has("e:crossroads") && rng() < CROSSROADS_PATH_CHANCE * STEPS_PER_FLOOR) {
+    run.crossroadsGuise = Math.floor(rng() * CROSSROADS_GUISES.length);
+    plan.crossroads = any();
+  }
+  return plan;
+}
+
+/** How many landmarks a floor holds: none (45%), one (45%) or two (10%). */
+const floorLandmarks = (x: number) => (x < 0.45 ? 0 : x < 0.9 ? 1 : 2);
+
+/** Lay out one floor of a layer: carve the rooms and halls, hide the trapdoor down, then set out its foes, chests, services and landmarks.
+ *  Some foes stand in the way (of the trapdoor, a chest, a landmark) and must be fought; the rest can be walked around. */
+export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   const rng = run.rng;
-  const { tiles, rooms, start, boss, order } = carve(rng);
+  if (depth === 1 || !run.gridPlan) run.gridPlan = layerPlan(run);
+  const plan = run.gridPlan;
+  const { tiles, rooms, start, order } = carve(rng);
   const s = roomCenter(rooms[start]);
-  const m: FloorMap = { floor: run.floor, w: MAP_W, h: MAP_H, tiles, seen: new Array(MAP_W * MAP_H).fill(0), rooms, things: [], px: s.x, py: s.y, explored: 0 };
-  const taken = new Set<number>([idx(m, s.x, s.y)]);
-  // Things stand inside rooms, never against a wall, so you can always walk round them.
-  const spots = (r: Rect) => {
+  const m: FloorMap = { floor: run.floor, depth, w: MAP_W, h: MAP_H, tiles, seen: new Array(MAP_W * MAP_H).fill(0), rooms, things: [], px: s.x, py: s.y, explored };
+  const startI = idx(m, s.x, s.y);
+  const taken = new Set<number>([startI]);
+  const fromStart = walkDistances(m, s.x, s.y);
+  const interior = (r: Rect) => {
     const out: number[] = [];
     for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++) if (!taken.has(idx(m, x, y))) out.push(idx(m, x, y));
     return out;
   };
-  const put = (room: RoomType, r: number, strict = false) => {
-    let sp = spots(rooms[r]);
-    // That room is full: any other room will do (never the start).
-    if (!sp.length && !strict) for (const o of [...middle].sort(() => rng() - 0.5)) { sp = spots(rooms[o]); if (sp.length) break; }
-    if (!sp.length) return false;
-    const i = sp[Math.floor(rng() * sp.length)];
-    taken.add(i);
-    m.things.push({ x: i % m.w, y: Math.floor(i / m.w), room });
-    return true;
-  };
-  // The boss holds the far room (in its middle).
-  const bc = roomCenter(rooms[boss]);
-  taken.add(idx(m, bc.x, bc.y));
-  m.things.push({ x: bc.x, y: bc.y, room: "boss" });
-  // Rooms by how far they are from the start: near ones (the first two) never hold the hard fights.
-  const rank = new Map(order.map((r, k) => [r, k]));
-  const middle = order.filter(r => r !== start && r !== boss);
-  if (!middle.length) middle.push(boss);
+  const middle = order.filter(r => r !== start);
+  const far = order[order.length - 1];
   const pickRoom = (from = 0) => { const pool = middle.slice(Math.min(from, middle.length - 1)); return pool[Math.floor(rng() * pool.length)]; };
-  // One of each service: a campfire in the room before the boss, a Merchant, a Forge (or the Jeweller, in turn), and the Masterwork from floor 2.
-  put("rest", middle[middle.length - 1]);
-  put("shop", pickRoom());
-  put(run.jewellerNext ? "jeweller" : "forge", pickRoom());
-  run.jewellerNext = !run.jewellerNext;
-  if (run.floor >= MASTERWORK_FLOOR && run.mode !== "abyss") put("masterwork", pickRoom());
-  if (crimsonActive(run) && run.hero.crimsonKeys > 0) put("crimson_vault", pickRoom(1));
-  const heart = run.hero.dragonHeart;
-  if (heart && !heart.unified) put("sanctum", pickRoom());
-  if (Object.keys(run.hero.curses).length > 0) put("cleansing", pickRoom());
-  if (run.floor >= 2 && !run.seenBosses.has("e:crossroads") && rng() < CROSSROADS_PATH_CHANCE * STEPS_PER_FLOOR) {
-    run.crossroadsGuise = Math.floor(rng() * CROSSROADS_GUISES.length);
-    put("crossroads", pickRoom(1));
-  }
-  // Landmarks, out in the far half of the floor.
-  const lw = roomWeights(run, false);
-  const marks = Object.fromEntries(LANDMARKS.map(k => [k, lw[k] ?? 0]).filter(([, v]) => (v as number) > 0)) as Partial<Record<RoomType, number>>;
-  for (let n = landmarkCount(rng()); n > 0 && Object.keys(marks).length; n--) {
-    const room = pickW(rng, marks);
-    delete marks[room];
-    put(room, pickRoom(Math.floor(middle.length / 2)));
-  }
-  // Then foes and chests: one to three in each room by size (none where you start), from the floor's usual mix.
+  const putAt = (i: number, room: string, guard = false) => { taken.add(i); m.things.push({ x: i % m.w, y: Math.floor(i / m.w), room, guard: guard || undefined }); return m.things.length - 1; };
+  const put = (room: string, r: number) => {
+    let sp = interior(rooms[r]);
+    if (!sp.length) for (const o of [...middle].sort(() => rng() - 0.5)) { sp = interior(rooms[o]); if (sp.length) break; }
+    if (!sp.length) return -1;
+    return putAt(sp[Math.floor(rng() * sp.length)], room);
+  };
+  // Foes from the floor's usual mix (no hard ones close to where you land).
   const count: Partial<Record<RoomType, number>> = {};
-  const draw = (near: boolean): RoomType => {
+  const foe = (near: boolean): RoomType => {
     const wt = roomWeights(run, near);
     for (const k of Object.keys(wt) as RoomType[]) {
+      if (!FOE_ROOMS.includes(k)) { wt[k] = 0; continue; }
       const cap = GRID_REPEAT.includes(k) ? Infinity : GRID_CAP[k] ?? 1;
       if ((count[k] ?? 0) >= cap) wt[k] = 0;
     }
-    for (const k of [...LANDMARKS, "shop", "forge", "rest", "masterwork"] as RoomType[]) wt[k] = 0;
     const room = pickW(rng, wt);
     count[room] = (count[room] ?? 0) + 1;
     return room;
   };
+  const chest = (): RoomType => (rng() < 0.06 ? "vault" : rng() < 0.6 ? "wooden" : "iron");
+  // The trapdoor down: in the room furthest from where you land.
+  const trap = put("trapdoor", far);
+  // This floor's services, landmarks and chests.
+  for (const [room, d] of Object.entries(plan) as [RoomType, number][]) if (d === depth) put(room, room === "rest" ? far : pickRoom());
+  if (Object.keys(run.hero.curses).length > 0 && !run.seenBosses.has(`cleanse:${run.floor}`)) { run.seenBosses.add(`cleanse:${run.floor}`); put("cleansing", pickRoom()); }
+  const lw = roomWeights(run, false);
+  const marks = Object.fromEntries(LANDMARKS.map(k => [k, lw[k] ?? 0]).filter(([, v]) => (v as number) > 0)) as Partial<Record<RoomType, number>>;
+  for (let n = floorLandmarks(rng()); n > 0 && Object.keys(marks).length; n--) { const room = pickW(rng, marks); delete marks[room]; put(room, pickRoom(1)); }
+  // A chest tucked in a nook, with something standing at its mouth.
+  if (rng() < 0.65) {
+    const r = pickRoom(1);
+    const nook = digNook(m, rooms[r], rng);
+    if (nook) { putAt(nook.end, chest()); putAt(nook.mouth, foe(fromStart[nook.mouth] < 8), true); }
+  }
+  for (let n = 1 + Math.floor(rng() * 2); n > 0; n--) put(chest(), pickRoom());
+  // Foes in the way: one between you and the trapdoor (usually), and some in front of chests and landmarks.
+  const prize = (i: number) => i >= 0 && m.things[i] ? idx(m, m.things[i].x, m.things[i].y) : -1;
+  const inRoom = (i: number) => rooms.some(r => { const x = i % m.w, y = Math.floor(i / m.w); return x > r.x && x < r.x + r.w - 1 && y > r.y && y < r.y + r.h - 1; });
+  const chokes = (target: number, avoid?: number) => {
+    const out: number[] = [];
+    for (let i = 0; i < m.tiles.length; i++) {
+      if (m.tiles[i] !== 1 || taken.has(i) || inRoom(i) || fromStart[i] < 3) continue;
+      const cut = reachable(m, s.x, s.y, new Set([i]));
+      if (cut[target]) continue;
+      if (avoid !== undefined && avoid >= 0 && !cut[avoid]) continue;
+      out.push(i);
+    }
+    return out;
+  };
+  const trapI = prize(trap);
+  if (trapI >= 0 && rng() < 0.75) {
+    const c = chokes(trapI);
+    if (c.length) { const i = c[Math.floor(rng() * c.length)]; putAt(i, foe(fromStart[i] < 8), true); }
+  }
+  let lootGuards = 0;
+  for (let t = 0; t < m.things.length && lootGuards < 2; t++) {
+    const th = m.things[t];
+    if (th.guard || FOE_ROOMS.includes(th.room as RoomType) || th.room === "trapdoor" || th.room === "rest" || th.room === "shop") continue;
+    if (rng() < 0.5) continue;
+    // A guard here must only cut off this prize, not the way down.
+    const c = chokes(prize(t), trapI).filter(i => reachable(m, s.x, s.y, new Set([i]))[trapI]);
+    if (c.length) { const i = c[Math.floor(rng() * c.length)]; putAt(i, foe(fromStart[i] < 8), true); lootGuards++; }
+  }
+  // Foes you could walk around, in the open rooms.
+  const rank = new Map(order.map((r, k) => [r, k]));
   for (const r of middle) {
     const area = rooms[r].w * rooms[r].h;
-    const n = Math.min(3, 1 + Math.floor(area / 18) + (rng() < 0.4 ? 1 : 0));
-    const near = (rank.get(r) ?? 0) <= 2;
-    for (let k = 0; k < n; k++) { const room = draw(near); if (near && HARD_ROOMS.includes(room)) continue; put(room, r, true); }
+    const n = (rng() < 0.7 ? 1 : 0) + (area >= 20 && rng() < 0.5 ? 1 : 0);
+    const near = (rank.get(r) ?? 0) <= 1;
+    for (let k = 0; k < n; k++) { const room = foe(near); if (near && HARD_ROOMS.includes(room)) continue; put(room, r); }
   }
   look(m);
   return m;
@@ -517,6 +558,7 @@ export function makeGrid(run: Run): FloorMap {
 /** Turn a fresh run into a Crawl (the prototype). */
 export function startCrawl(run: Run) {
   run.gridMode = true;
+  run.message = run.message.replace(/Floor (\d+) —/, "Layer $1 —");
   run.grid = makeGrid(run);
   run.choices = [];
 }
@@ -537,20 +579,31 @@ export function gridStep(run: Run, x: number, y: number): { ok: true; entered: b
   if (!m || run.scene.t !== "map") return { ok: false, why: "" };
   if (Math.abs(x - m.px) + Math.abs(y - m.py) !== 1 || !isFloor(m, x, y)) return { ok: false, why: "You can't go that way." };
   const t = thingAt(m, x, y);
-  if (t >= 0 && m.things[t].room === "boss" && bossLocked(m)) {
-    const left = BOSS_KEY - m.explored;
-    return { ok: false, why: `It isn't ready to face you. Clear ${left} more encounter${left === 1 ? "" : "s"} first.` };
-  }
   m.bx = m.px; m.by = m.py;
   m.px = x; m.py = y;
   const seen = look(m);
   if (t < 0) return { ok: true, entered: false, seen };
   m.sel = undefined;
+  if (m.things[t].room === "trapdoor") { descend(run); return { ok: true, entered: true, seen }; }
   m.pending = t;
-  const room = m.things[t].room as RoomType;
-  if (room === "boss") run.step = STEPS_PER_FLOOR;
-  chooseRoom(run, room);
+  chooseRoom(run, m.things[t].room as RoomType);
   return { ok: true, entered: true, seen };
+}
+
+/** Drop through the trapdoor: a fresh floor below (there's no climbing back), or, from the third, straight into the boss. */
+export function descend(run: Run) {
+  const m = run.grid;
+  if (!m) return;
+  run.hero.f.persist["floor"] = run.floor;
+  if (m.depth + 1 >= LAYER_FLOORS) {
+    run.step = STEPS_PER_FLOOR;
+    const name = run.mode === "abyss" ? "The Uber boss" : run.floor === WALL_FLOOR ? "The Horror" : run.floor === DEATH_FLOOR ? "DEATH" : run.floor === END_FLOOR ? "The End" : "The guardian of this layer";
+    run.popup = { icon: "👑", title: `Floor ${LAYER_FLOORS} — the bottom`, text: `The trapdoor gives way and you land hard in the dark at the bottom of the layer. There's no way back up. ${name} is already here, and it has seen you.` };
+    enterRoom(run, "boss");
+    return;
+  }
+  run.grid = makeGrid(run, m.depth + 1, m.explored);
+  run.message = `🕳️ You drop through the trapdoor to floor ${m.depth + 1} of ${LAYER_FLOORS}. There's no climbing back up.`;
 }
 
 /** The thing you stepped onto is met (called as its room opens). */
@@ -1814,7 +1867,7 @@ export function advance(run: Run, fromTalent = false) {
       run.hero.f.persist["floor"] = run.floor;
       recompute(run.hero);
       run.step = 0;
-      if (run.gridMode) run.grid = makeGrid(run);
+      if (run.gridMode) run.grid = makeGrid(run, 1);
       run.message = `Floor ${run.floor}. The air is colder, and the hoards are richer: your Fortune grows.`;
       if (run.mode === "abyss") {
         if (run.floor > ABYSS_FLOORS) { run.scene = { t: "over", won: true }; return; }
@@ -1832,6 +1885,8 @@ export function advance(run: Run, fromTalent = false) {
       }
     } else if (!run.gridMode) run.step++;
   }
+  // The Crawl calls them layers (each layer is four floors).
+  if (run.gridMode && run.popup && run.step === 0) { run.popup.title = run.popup.title.replace(/^Floor /, "Layer "); run.message = run.message.replace(/^Floor (\d+)\./, "Layer $1."); }
   if (settleBounty(run)) return;
   if (run.pendingTalents > 0) {
     run.scene = { t: "talent", options: talentOptions(run) };

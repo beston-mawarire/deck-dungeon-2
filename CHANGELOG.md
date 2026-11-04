@@ -9,6 +9,26 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.67.0
+- **The Crawl: layers and floors.** What used to be a floor is now a **layer**, and each layer has four floors.
+  - Floors 1–3: explore and find the **trapdoor** down. Once you drop, there's no way back up.
+  - Floor 4: no exploring. You land straight in front of the layer's boss, with a notice.
+  - A layer's Merchant, Forge (or Jeweller) and Masterwork are spread over its three floors; the campfire is always on the third.
+- **Smaller floors** (21×21, four to six rooms). Some halls are two tiles wide.
+- **Foes in the way:**
+  - Some foes guard a hallway on the way to the trapdoor, the mouth of a nook with a chest in it, or the way to a landmark. You have to fight them to get past.
+  - Others stand in open rooms, and you can walk around them.
+  - If something stands in your way, you stop in front of it and it's picked for you: fight it, or go elsewhere.
+- **A full-screen view:**
+  - The floor fills the screen, with a dark vignette at the edges. The camera is closer.
+  - Floors are light-brown flagstones. Walls are lighter brick with dark outlines. What you see is lit like torchlight; what you only remember sits in the gloom.
+- **A new HUD over the map:**
+  - Top left: HP (number inside the bar), then mana and XP.
+  - Top right: the menu, the layer's name, the floor (and danger), and your bounty.
+  - Bottom left: a potion button that slides out a drawer of your potions and tonics; tap one to drink it.
+  - Bottom right: a big Inventory button.
+- The action on a picked thing now just says **Fight**, **Open chest**, **Descend** or **Interact**. The hint text under the map is gone.
+
 ## 1.66.0
 - **The Crawl, rebuilt:** each floor is now a real dungeon floor. Rooms of different sizes are joined by hallways, with walls between them.
   - Tap anywhere to walk there (or use the arrow keys / WASD). Tap into the dark and you feel your way toward it.
