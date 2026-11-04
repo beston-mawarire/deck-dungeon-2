@@ -170,7 +170,7 @@ function breakStreak(b: Battle, a: Fighter) {
 }
 /** Items, relics and talents that use the hit streak. Without one of them, there is no streak. */
 export const STREAK_IDS = ["r_unbroken_chain", "t_relentless", "t_tally_beads", "sk_rapier", "sk_chainblade", "sk_metronome", "lx_hourglass", "sk_fencer_jacket", "sk_rhythm_plate", "sk_rosary", "cx_unending_tally"];
-export const hasStreak = (f: Fighter) => STREAK_IDS.some(id => stacksOf(f, id) > 0);
+export const hasStreak = (f: Fighter) => STREAK_IDS.some(id => stacksOf(f, id) > 0 || stacksOf(f, `fx_${id}`) > 0);
 function addStreak(a: Fighter) {
   if (a.id !== "player") return;
   if (!hasStreak(a)) { a.persist["streak"] = 0; return; }

@@ -73,7 +73,7 @@ export function staticTick(b: Battle, f: Fighter) {
   if (n <= 0 || f.hp <= 0) return;
   f.statuses.static = n - 1;
   const foe = other(b, f);
-  const extra = 2 * (foe.items["r_overcharged_cell"] ?? 0) + ((foe.items["ee_stormheart_pendant"] ?? 0) > 0 ? 2 : 0) + ((foe.items["cx_storm_skin"] ?? 0) > 0 ? 4 : 0);
+  const extra = 2 * (foe.items["r_overcharged_cell"] ?? 0) + ((foe.items["ee_stormheart_pendant"] ?? 0) + (foe.items["fx_ee_stormheart_pendant"] ?? 0) > 0 ? 2 : 0) + ((foe.items["cx_storm_skin"] ?? 0) > 0 ? 4 : 0);
   const dmg = (2 + extra) * (conductive(f) ? 2 : 1) * ((foe.items["lr_stormheart"] ?? 0) > 0 ? 3 : 1);
   const lost = statusLoss(b, f, Math.round(dmg * dotMult(b, f)));
   log(b, `🔋 Static crackles through ${f.name} as it acts: ${lost}.`);
@@ -310,7 +310,7 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
     applyStatus(b, source, source, "haste", 1, depth + 1);
   }
   if (source && source !== t && (source.items["l_ouroboros"] ?? 0) > 0) heal(b, source, 5, "Ouroboros");
-  if (source && source !== t && (source.items["dr_echo_charm"] ?? 0) > 0) heal(b, source, 3, "Echoing Charm");
+  if (source && source !== t && (source.items["dr_echo_charm"] ?? 0) + (source.items["fx_dr_echo_charm"] ?? 0) > 0) heal(b, source, 3, "Echoing Charm");
   if (source && source !== t && (source.items["l_codex_ruin"] ?? 0) > 0) applyStatus(b, source, t, "doom", 3, depth + 1);
 
   const m = reactionMult(b, source);

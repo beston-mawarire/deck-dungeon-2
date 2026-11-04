@@ -2,6 +2,8 @@
 import { POTION_SLOTS } from "../data/potions";
 import { MANA_POTION_SLOTS } from "../data/classgear";
 import { classify, familyLine, isHeavy } from "./families";
+import type { PowerScroll } from "./masterwork";
+const isSpecialTier = (r: Rarity) => r === "crimson" || r === "epic_crimson" || r === "legendary_crimson";
 import { ABYSS_ITEMS } from "../data/abyss";
 import { relicBonus } from "../data/basic_relics";
 import { CRIMSON, GEAR_BASES, LEGENDARIES } from "../data";
@@ -37,7 +39,7 @@ export const BASE_POTION_CAP = 3;
 /** Potion slots: how many Healing Potions you can carry, and also how many you can drink in one fight. */
 export function potionCap(h: Hero): number {
   let n = BASE_POTION_CAP;
-  for (const [id, slots] of Object.entries(POTION_SLOTS)) n += slots * Math.max(0, h.f.items[id] ?? 0);
+  for (const [id, slots] of Object.entries(POTION_SLOTS)) n += slots * Math.max(0, (h.f.items[id] ?? 0) + (h.f.items[`fx_${id}`] ?? 0));
   return n;
 }
 export const potionsPerFight = potionCap;
@@ -81,6 +83,11 @@ export interface Hero {
   crimsonKeys: number;
   /** Mana Potions: spells hit harder for the rest of a fight. */
   manaPotions: number;
+  /** Crafting materials: Azure dust (from scrapping Rares) and Orilium (from scrapping Epics). */
+  azure?: number;
+  orilium?: number;
+  /** Scrolls of Power waiting to be used at a Masterwork (up to 6). */
+  powerScrolls?: PowerScroll[];
   /** One Keepsake at a time (from bosses after floor 5). */
   keepsake?: string;
   /** The Transmuter's Crucible: an artefact (not a relic). With it, the Forge can turn a Common into a Legendary. */
@@ -144,10 +151,11 @@ export function itemName(item: GearItem): string {
   if (b.legendary && !item.revealed) return `??? (unrevealed ${effectiveBase(item).name})`;
   if (b.legendary) return b.name;
   if (item.gen) { const g = genTopGrade(item.gen); return `${item.gen.name}${g ? ` ${GRADE_MARK[g]}` : ""}`; }
-  const epic = item.epic ? `${getItem(item.epic).affix} ` : "";
-  const first = Object.keys(item.bonuses)[0];
-  const suffix = first ? ` ${getItem(first).affix}` : "";
-  return `${epic}${b.name}${suffix}`;
+  // A Grand power names the item up front ("Echoing …"); the first stat line with a title names it at the back ("… of Might").
+  const defs = Object.keys(item.bonuses).map(id => { try { return getItem(id); } catch { return null; } }).filter(d => !!d);
+  const power = item.epic ? getItem(item.epic) : defs.find(d => d.kind === "epic");
+  const titled = defs.find(d => d.kind === "bonus" && d.affix && !d.id.startsWith("fx_"));
+  return `${item.refine ? "Refined " : ""}${power?.affix ? `${power.affix} ` : ""}${b.name}${titled ? ` ${titled.affix}` : ""}${item.refine ? ` ${"•".repeat(item.refine)}` : ""}`;
 }
 
 export const fillText = (text: string, n: number) =>
@@ -172,12 +180,13 @@ export function itemLines(item: GearItem): string[] {
   if (eb.barrierElement) lines.push(`🔮 Mage: lets you raise an Elemental Barrier (${(eb.barrierElements ?? [eb.barrierElement]).join(", ")}).`);
   if (itemDodge(item)) lines.push(`💨 ${itemDodge(item)}% Dodge`);
   if (item.bash) lines.push(`💥 ${item.bash}% Bash (Stuns and deals +50%)`);
-  if (b.legendary && !item.revealed) lines.push("A Legendary, waiting to be revealed. Use a Scroll of Revelation.");
-  else if (b.legendary) lines.push(`★ ${b.legendary.reveal}`);
-  else if (eb.text) lines.push(eb.text);
+  if (b.legendary && !item.revealed) lines.push("✦ A Legendary power, waiting to be revealed. Use a Scroll of Revelation.");
+  else if (b.legendary) lines.push(`✦ ${b.legendary.reveal}`);
+  else if (isSpecialTier(item.rarity) && eb.text) lines.push(`✦ ${eb.text}`);
+  else if (eb.text && !item.bare) lines.push(eb.text);
   if (item.epic) lines.push(`★ ${getItem(item.epic).name}: ${getItem(item.epic).text}`);
   lines.push(...genLines(item, fillText, id => `${getItem(id).name}: ${getItem(id).text}`));
-  for (const [id, n] of Object.entries(item.bonuses)) lines.push(`+ ${fillText(getItem(id).text, n)}`);
+  for (const [id, n] of Object.entries(item.bonuses)) lines.push(`– ${fillText(getItem(id).text, n)}`);
   return lines;
 }
 
@@ -236,7 +245,8 @@ export function recompute(h: Hero) {
     const real = baseOf(it.base);
     const eb = effectiveBase(it);
     // Hooks: a revealed Legendary uses its own; otherwise the effective base's.
-    add(real.legendary && it.revealed ? real.id : eb.id);
+    // (A "bare" item's base effect moved into the affix pool: only its body counts.)
+    if (!it.bare) add(real.legendary && it.revealed ? real.id : eb.id);
     for (const [id, n] of Object.entries(it.bonuses)) add(id, n);
     if (it.epic) add(it.epic);
     // Generated gear: its material, modules, signature and flaw.
@@ -442,12 +452,24 @@ export function scrapValue(h: Hero, item: GearItem): number {
 }
 
 /** Salvage into Scrap. Legendaries also give 2 Starmetal. */
+/** What scrapping gave besides Scrap, as text (" · +1 💠 Azure dust"). */
+export function salvageNote(before: { azure: number; orilium: number; starmetal: number }, h: Hero): string {
+  const parts: string[] = [];
+  const a = (h.azure ?? 0) - before.azure, o = (h.orilium ?? 0) - before.orilium, m = h.starmetal - before.starmetal;
+  if (a) parts.push(`+${a} 💠 Azure dust`);
+  if (o) parts.push(`+${o} 🔶 Orilium`);
+  if (m) parts.push(`+${m} ✴️ Starmetal`);
+  return parts.length ? ` · ${parts.join(" · ")}` : "";
+}
+export const materials = (h: Hero) => ({ azure: h.azure ?? 0, orilium: h.orilium ?? 0, starmetal: h.starmetal });
 export function salvage(h: Hero, uid: number): number {
   const found = findItem(h, uid);
   if (!found) return 0;
   const n = scrapValue(h, found.item);
   removeItem(h, uid);
   h.scrap += n;
+  if (found.item.rarity === "rare") h.azure = (h.azure ?? 0) + 1;
+  if (found.item.rarity === "epic") h.orilium = (h.orilium ?? 0) + 1;
   if (found.item.rarity === "legendary") h.starmetal += 2;
   if (["legendary", "crimson", "epic_crimson", "legendary_crimson"].includes(found.item.rarity)) h.f.persist["ach_salvage_leg"] = 1;
   if (found.item.rarity === "crimson") h.starmetal += 4;

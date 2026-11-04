@@ -315,6 +315,15 @@ export interface GearItem {
   level: number;
   /** Rolled bonus def id -> magnitude. */
   bonuses: Record<string, number>;
+  /** Rolled after the loot rework from a hand-made base whose effect moved into the affix pool: the base's own effect doesn't apply. */
+  bare?: boolean;
+  /** Masterwork: Refine dots on a Common (each lets it hold one more line), Empowered (bound: never Extracted again),
+   *  the one line that may be Reworked and how often it has been, and the tier each Empowered line came from. */
+  refine?: number;
+  bound?: boolean;
+  reworkLine?: string;
+  reworks?: number;
+  lineTier?: Record<string, Rarity>;
   epic?: string;
   /** Legendaries start unrevealed and act as a Common of their base type. */
   revealed: boolean;

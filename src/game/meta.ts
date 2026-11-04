@@ -23,6 +23,8 @@ export interface HistoryEntry {
 export const HISTORY_SIZE = 10;
 
 export interface Meta {
+  /** Campaign runs in a row that ended without a Legendary (four, and the next run's first boss offers one). */
+  dryRuns?: number;
   renown: number;
   runs: number;
   wins: number;
@@ -172,6 +174,7 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
   const earned = Math.max(0, renownFor(run) - alreadyEarned);
   m.renown += earned;
   if (!alreadyEarned) m.runs++;
+  if (!alreadyEarned && run.mode !== "abyss" && !run.daily) m.dryRuns = run.stats.legendaries > 0 ? 0 : (m.dryRuns ?? 0) + 1;
   if (run.scene.t === "over" && run.scene.won) m.wins++;
   if (run.daily && m.daily?.day === run.daily) m.daily = { day: run.daily, floor: Math.max(m.daily.floor, run.floor), won: m.daily.won || (run.scene.t === "over" && run.scene.won), done: true };
   const entry: HistoryEntry = {

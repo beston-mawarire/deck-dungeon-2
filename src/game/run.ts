@@ -22,7 +22,8 @@ import { generate, genName, setGenLuck } from "./gen";
 import { GEN_MINORS } from "../data/genparts";
 import { SIGIL_SETS } from "../data/talisman";
 const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
-import { bossOdds, isLocked, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
+import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
+import { affixById, rescaleAffixes } from "./affixpool";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -65,6 +66,13 @@ export const depth = (run: { mode: Mode; floor: number }) => (run.mode === "abys
 const luckFloor = (run: Run) => (run.mode === "abyss" ? Math.max(3, depth(run)) : run.floor);
 /** Heat: each level makes Rare-and-better finds slightly more likely. */
 export const HEAT_LOOT = 0.05;
+/** A dropped item: heat, the hidden ladders and the floor's Fortune, then the ladders climb or reset with what came out. */
+function dropItem(run: Run, odds: Partial<Record<Rarity, number>>): GearItem {
+  const r = run.mode !== "abyss" && legendaryDue(run.loot, odds) ? "legendary" : rollRarity(run.rng, run.mode === "abyss" ? heatOdds(run, odds) : ladderOdds(run.loot, heatOdds(run, odds)), luckFloor(run));
+  const it = rollItem(run.hero, r, depth(run), run.rng);
+  if (run.mode !== "abyss") noteFind(run.loot, it.rarity);
+  return it;
+}
 const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Record<Rarity, number>> => {
   const h = heatOf(run);
   const out = { ...odds };
@@ -91,7 +99,7 @@ export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
 const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
 
-export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller";
+export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller" | "masterwork";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -103,7 +111,8 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   altar: { name: "Blood Altar", icon: "🩸", text: "Pay 25% of your Max HP for a Resplendent chest." },
   shrine: { name: "Cursed Shrine", icon: "🕯️", text: "Take a curse for a Resplendent chest." },
   shop: { name: "Merchant", icon: "🪙", text: "Buy gear, potions and scrolls." },
-  forge: { name: "Forge", icon: "🔨", text: "Spend Scrap to upgrade or reroll gear." },
+  forge: { name: "Forge", icon: "🔨", text: "Spend Scrap to upgrade gear, make an Offering or transmute." },
+  masterwork: { name: "Masterwork", icon: "⚒️", text: "Rework a line, extract a Scroll of Power, empower or refine a Common." },
   rest: { name: "Campfire", icon: "🔥", text: "Rest and heal." },
   sanctum: { name: "Dragon Sanctum", icon: "🐲", text: "Your Dragon Heart beats faster. Something old waits here." },
   jeweller: { name: "Jeweller", icon: "💍", text: "Two things on the bench, one comes back. For a fee." },
@@ -149,6 +158,8 @@ export type Scene =
   | { t: "talent"; options: string[] }
   | { t: "shop"; stock: ShopEntry[]; /** One item may be sold per Merchant visit. */ soldItem?: string; /** % markup from the Gold you carried when this stock was priced. */ markup?: number }
   | { t: "forge" }
+  /** The Masterwork; while a Rework's two options wait for a pick, they're held here. */
+  | { t: "masterwork"; pending?: { uid: number; line: string; options: Record<string, number>[] } }
   | { t: "rest"; done: boolean }
   | { t: "confirm"; room: RoomType }
   | { t: "event"; ev: GameEvent; result: string | null; found: GearItem[]; note?: string }
@@ -209,6 +220,8 @@ export interface Run {
   /** Whatever killed your last Campaign run, waiting somewhere in this one (from floor 2), and whether you've beaten it. */
   nemesis?: Nemesis;
   nemesisBeaten?: boolean;
+  /** Four Legendary-less Campaign runs in a row: this run's first boss offers one. */
+  legendaryDue?: boolean;
   /** Relics (by id) and scrolls ("scroll:N") just gained, waiting for their popup. */
   relicNews?: string[];
   /** Who ended the run (shown on the death screen). */
@@ -326,6 +339,7 @@ export const OWN_PATH_EVENTS = [...CLEANSING_EVENTS, "sanguine_altar", ...Object
 const eventOpen = (run: Run, e: GameEvent) => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || Object.keys(run.hero.curses).length > 0) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e);
 /** A quiet stretch: from floor 1, some steps offer no fights at all. */
 export const PEACEFUL_CHANCE = 0.15;
+export const MASTERWORK_FLOOR = 2;
 const COMBAT_ROOMS: RoomType[] = ["doppelganger", "fight", "elite", "champion", "vault", "crimson_elite", "unique", "goblin", "nemesis", "crimson_vault"];
 
 /** Gauntlets: from floor 3, 15% of steps offer only hard fights (a Guarded Vault is a Champion before a Resplendent chest). */
@@ -343,6 +357,8 @@ export function genChoices(run: Run): RoomType[] {
     alchemist: 0.8, blacksmith: 1, gambling_den: 1.4, fortune_teller: 1.4, mirror_pool: 0.8, card_sharp: 1.4,
     sacred_spring: 3, fallen_adventurer: 3, starving_pilgrim: 3 };
   if (run.floor >= DOPPEL_FLOOR) w.doppelganger = 0.6;
+  // The Masterwork: from floor 2 (not in the Abyss, which has its own trade).
+  if (run.floor >= MASTERWORK_FLOOR && run.mode !== "abyss") w.masterwork = 5;
   // Event rooms only show up when their encounter can happen.
   for (const [room, id] of Object.entries(EVENT_ROOMS) as [RoomType, string][]) { const e = EVENTS.find(x => x.id === id); if (!e || !eventOpen(run, e)) w[room] = 0; }
   // After the fifth boss (Endless), Crimson Elites start to appear; they drop the keys to Crimson Vaults.
@@ -480,7 +496,7 @@ function enterRoom(run: Run, room: RoomType) {
       setGenLuck(genLuck(run));
       const sg = rollSigilDrop(run, 0.06, 0.1);
       const woodOdds = useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden;
-      run.scene = { t: "loot", title: "Wooden Chest", items: [rollItem(h, rollRarity(run.rng, heatOdds(run, woodOdds), luckFloor(run)), depth(run), run.rng)], gold: (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
+      run.scene = { t: "loot", title: "Wooden Chest", items: [dropItem(run, woodOdds)], gold: (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
       return;
     }
     case "iron": {
@@ -492,8 +508,8 @@ function enterRoom(run: Run, room: RoomType) {
         return fight(run, "elite", "mimic");
       }
       const ironOdds = useClover(run) ? luckyOdds(tables(run).iron) : tables(run).iron;
-      const items = [rollItem(h, rollRarity(run.rng, heatOdds(run, ironOdds), luckFloor(run)), depth(run), run.rng)];
-      if (key) items.push(rollItem(h, rollRarity(run.rng, heatOdds(run, ironOdds), luckFloor(run)), depth(run), run.rng));
+      const items = [dropItem(run, ironOdds)];
+      if (key) items.push(dropItem(run, ironOdds));
       run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: (5 + run.floor * 2) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: 0, sigils: sg ? [sg] : undefined };
       return;
     }
@@ -511,6 +527,7 @@ function enterRoom(run: Run, room: RoomType) {
     }
     case "shop": run.shopRerolls = 0; run.scene = { t: "shop", stock: shopStock(run), markup: Math.round((wealthMult(run) - 1) * 100) }; return;
     case "forge": run.scene = { t: "forge" }; return;
+    case "masterwork": run.scene = { t: "masterwork" }; return;
     case "jeweller": run.scene = { t: "jeweller", mode: "fuse", tries: 0 }; return;
     case "rest": run.scene = { t: "rest", done: false }; return;
     case "event": {
@@ -878,7 +895,7 @@ function afterFight(run: Run) {
   const T = tables(run);
   // Generated gear from tougher foes is more often Greater (✦) — or, very rarely, Overcharged.
   setGenLuck(genLuck(run) * ({ normal: 1, elite: 1.25, champion: 1.6, crimson: 2, boss: run.scene.uber ? 2.6 : 2 } as Record<string, number>)[rank] * (then === "unique" || then === "dragon" || then === "nemesis" ? 1.5 : 1));
-  const roll = (odds: Partial<Record<Rarity, number>>) => rollItem(h, rollRarity(run.rng, heatOdds(run, odds), luckFloor(run)), depth(run), run.rng);
+  const roll = (odds: Partial<Record<Rarity, number>>) => dropItem(run, odds);
   if (rank === "normal" && run.rng() < (run.mode === "abyss" ? 0.2 : STANDARD_DROP)) items.push(roll(T.drop));
   if (rank === "normal" && run.rng() < 0.04) potions++;
   // Potion gear: a sober win brews a potion (the Alembic always, the Vial sometimes); the Grail refills one per boss.
@@ -1009,7 +1026,8 @@ function afterFight(run: Run) {
       : EPIC_CRIMSON_FLOORS.includes(run.floor) ? [rollEpicCrimson(h, depth(run), run.rng), roll(T.boss), roll(T.boss)]
       : run.scene.uber ? [roll(T.uber), roll(T.uber), roll(T.uber)]
       : run.mode === "abyss" ? [roll(T.boss), roll(T.boss), roll(T.boss)]
-      : [roll(bossOdds(run.floor)), roll(bossOdds(run.floor)), roll(bossOdds(run.floor))];
+      : [run.legendaryDue ? rollItem(h, "legendary", depth(run), run.rng) : roll(bossOdds(run.floor)), roll(bossOdds(run.floor)), roll(bossOdds(run.floor))];
+    run.legendaryDue = false;
     // After the fifth boss, bosses sometimes leave a Keepsake behind.
     // Keepsakes are a rare find: about one boss in ten after floor 5 leaves one behind.
     const keepsake = run.floor > FLOORS && run.rng() < 0.1 ? KEEPSAKES.filter(k => k.id !== h.keepsake)[Math.floor(run.rng() * (KEEPSAKES.length - (h.keepsake ? 1 : 0)))]?.id : undefined;
@@ -1277,7 +1295,7 @@ export function forgeUpgrade(run: Run, uid: number): string | null {
   h.scrap -= cost;
   found.item.level++;
   found.item.upgrades = (found.item.upgrades ?? 0) + 1;
-  for (const k of Object.keys(found.item.bonuses)) found.item.bonuses[k]++;
+  rescaleAffixes(found.item, baseOf(found.item.base).kind);
   recompute(h);
   markEncounter(run, "room:forge");
   return null;
@@ -1309,12 +1327,12 @@ export function forgeReroll(run: Run, uid: number): string | null {
   if (h.scrap < cost) return `Needs ${cost} Scrap.`;
   h.scrap -= cost;
   found.item.rerolls = (found.item.rerolls ?? 0) + 1;
+  // One line is rerolled into another of the same grade.
   const old = keys[Math.floor(run.rng() * keys.length)];
-  const n = found.item.bonuses[old];
   delete found.item.bonuses[old];
-  const fresh = rollItem(h, found.item.rarity === "uncommon" ? "uncommon" : "rare", n, run.rng);
-  const pick = Object.keys(fresh.bonuses).find(k => !(k in found.item.bonuses)) ?? old;
-  found.item.bonuses[pick] = n;
+  const grade = affixById(old)?.grade ?? "minor";
+  const fresh = affixesFor(h, baseOf(found.item.base), found.item.rarity, found.item.level, run.rng, 1, found.item.bonuses, grade);
+  Object.assign(found.item.bonuses, Object.keys(fresh).length ? fresh : { [old]: 1 });
   recompute(h);
   return null;
 }
@@ -1380,7 +1398,7 @@ export function chooseEvent(run: Run, i: number) {
       const it = eq[Math.floor(run.rng() * eq.length)];
       it.level += n;
       it.upgrades = (it.upgrades ?? 0) + n;
-      for (const k of Object.keys(it.bonuses)) it.bonuses[k] += n;
+      rescaleAffixes(it, baseOf(it.base).kind);
       recompute(h);
       return itemName(it);
     },
@@ -1393,7 +1411,7 @@ export function chooseEvent(run: Run, i: number) {
     addCrimsonKey: () => { h.crimsonKeys++; },
     seePast: () => { toPast = true; },
     seeFuture: () => { toFuture = true; },
-    upgradeWeapon: () => { const w = h.equip.main; if (!w) return "You have no weapon."; w.level++; w.upgrades = (w.upgrades ?? 0) + 1; for (const k of Object.keys(w.bonuses)) w.bonuses[k]++; recompute(h); return null; }
+    upgradeWeapon: () => { const w = h.equip.main; if (!w) return "You have no weapon."; w.level++; w.upgrades = (w.upgrades ?? 0) + 1; rescaleAffixes(w, baseOf(w.base).kind); recompute(h); return null; }
   };
   const opt = s.ev.options[i];
   if (!opt || (opt.can && !opt.can(ctx))) return;
@@ -1970,7 +1988,7 @@ export function smithUpgrade(run: Run, uid: number): string | null {
   if (!found) return null;
   found.item.level++;
   found.item.upgrades = (found.item.upgrades ?? 0) + 1;
-  for (const k of Object.keys(found.item.bonuses)) found.item.bonuses[k]++;
+  rescaleAffixes(found.item, baseOf(found.item.base).kind);
   recompute(run.hero);
   s.uses--;
   return null;

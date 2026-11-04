@@ -1,11 +1,12 @@
 import { generate, GEN_SHARE } from "./gen";
 // Loot: rarity tables, rolling gear, chests (Wooden, Iron, Resplendent) and bad-luck protection.
 import { EPIC_CRIMSON } from "../data/abyss";
-import { BONUSES, CRIMSON, EPIC_POWERS, GEAR_BASES, LEGENDARIES } from "../data";
+import { CRIMSON, GEAR_BASES, LEGENDARIES } from "../data";
 import type { GearBase, GearItem, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { AFFINITY } from "../data/origins";
 import { type Hero, heroTags } from "./hero";
+import { affixPool, CONVERTED, type Grade, rollAffixes, type RollCtx } from "./affixpool";
 
 export type Odds = Partial<Record<Rarity, number>>;
 
@@ -126,7 +127,18 @@ const minOK = (_h: Hero, floor: number, n: number) => floor >= n;
 export const unlocked = (h: Hero, l: GearBase) =>
   !l.unlock || (l.unlock === "snake" ? (h.f.persist["onesRolled"] ?? 0) >= SNAKE_ONES : (h.f.persist["talentsSkipped"] ?? 0) > 0 && Object.values(h.talents).every(n => !n));
 
+/** What the affix roller needs to know about the hero. */
+function rollCtx(h: Hero, floor: number): RollCtx {
+  const tags = heroTags(h);
+  return { origin: h.origin, heat: h.heat ?? 0, everCursed: (h.f.persist["everCursed"] ?? 0) > 0, floor, locked: LOCKED,
+    tagWeight: t => (1 + 0.25 * t.reduce((s, x) => s + Math.min(tags.get(x) ?? 0, 3), 0)) * elementalW(t) };
+}
+/** Roll an item's affix lines for its tier. */
+export const affixesFor = (h: Hero, base: GearBase, rarity: Rarity, floor: number, rng: () => number, n?: number, keep?: Record<string, number>, grade?: Grade) =>
+  rollAffixes(base, rarity, floor, rng, rollCtx(h, floor), n, keep, grade);
+
 export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => number): GearItem {
+  affixPool();
   rarity = earlyCap(h, rarity, rng, floor);
   // Ill Fortune (curse): about a third of Rare, Epic and Legendary finds come out one rarity lower.
   if ((h.curses["c_ill_fortune"] ?? 0) > 0 && (rarity === "rare" || rarity === "epic" || rarity === "legendary") && rng() < 0.3)
@@ -141,7 +153,7 @@ export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => numb
     const pool = CRIMSON.filter(c => !DROPPED.has(c.id));
     const base = weighted(rng, pool.length ? pool : CRIMSON, b => (1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * elementalW(b.tags));
     DROPPED.add(base.id);
-    return { uid: h.nextUid++, base: base.id, rarity: "crimson", level: floor, bonuses: rollBonuses(h, "rare", base, floor, rng, 2), revealed: true, bash: rollBash("crimson", base, rng) };
+    return { uid: h.nextUid++, base: base.id, rarity: "crimson", level: floor, bonuses: affixesFor(h, base, "crimson", floor, rng), revealed: true, bash: rollBash("crimson", base, rng) };
   }
   if (rarity === "legendary") {
     const pool = LEGENDARIES.filter(l => minOK(h, floor, legFloor(l)) && (h.heat ?? 0) >= (l.heatMin ?? 0) && unlocked(h, l) && !LOCKED.has(l.id) && !DROPPED.has(l.id));
@@ -150,19 +162,18 @@ export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => numb
       // A gentle lean toward your build; Legendaries should feel like a surprise, not a fixed path.
       const base = weighted(rng, pool, b => (1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * elementalW(b.tags));
       DROPPED.add(base.id);
-      return { uid: h.nextUid++, base: base.id, rarity: "legendary", level: floor, bonuses: {}, revealed: false, bash: rollBash("legendary", base, rng) };
+      return { uid: h.nextUid++, base: base.id, rarity: "legendary", level: floor, bonuses: affixesFor(h, base, "legendary", floor, rng), revealed: false, bash: rollBash("legendary", base, rng) };
     }
   }
   const fav = new Set(AFFINITY[h.origin]);
-  const base: GearBase = weighted(rng, GEAR_BASES.filter(g => (!LOCKED.has(g.id) || (g.deep && floor > 5)) && minOK(h, floor, g.floorMin ?? 0) && (h.heat ?? 0) >= (g.heatMin ?? 0) && (!g.needsCurse || (h.f.persist["everCursed"] ?? 0) > 0) && (!g.forClass || g.forClass === h.origin) && (!g.onlyRarity || g.onlyRarity === rarity) && rank(rarity) >= rank(g.minItemRarity ?? "common")), b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1) * elementalW(b.tags));
-  const nBonuses = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 0, crimson: 2, epic_crimson: 3, legendary_crimson: 0 }[rarity];
-  // Trinkets carry one rolled effect fewer than other gear: they were doing too much for their rarity.
-  const bonuses = rollBonuses(h, rarity, base, floor, rng, base.slot === "trinket" ? Math.max(0, nBonuses - 1) : nBonuses);
-  const epic = rarity === "epic" ? weighted(rng, EPIC_POWERS.filter(e => !LOCKED.has(e.id)), e => tagWeight(tags, e.tags)).id : undefined;
-  return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses, epic, revealed: true, bash: rollBash(rarity, base, rng) };
+  const base: GearBase = weighted(rng, GEAR_BASES.filter(g => (!LOCKED.has(g.id) || (g.deep && floor > 5)) && minOK(h, floor, g.floorMin ?? 0) && (h.heat ?? 0) >= (g.heatMin ?? 0) && (!g.needsCurse || (h.f.persist["everCursed"] ?? 0) > 0) && (!g.forClass || g.forClass === h.origin) && (g.weight ?? 1) > 0 && (!g.onlyRarity || g.onlyRarity === rarity || (CONVERTED.has(g.id) && rank(rarity) >= rank(g.onlyRarity))) && rank(rarity) >= rank(g.minItemRarity ?? "common")), b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1) * elementalW(b.tags));
+  // Rarity is the number of affix lines: Uncommon 1, Rare 2, Epic 3.
+  const bonuses = affixesFor(h, base, rarity, floor, rng);
+  return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses, revealed: true, bash: rollBash(rarity, base, rng), bare: CONVERTED.has(base.id) || undefined };
 }
 
-let GEN_ON = true;
+/** The old item generator is retired: its lines live on in the affix pool. */
+let GEN_ON = false;
 /** Turn the item generator on or off (tests of hand-made loot switch it off). */
 export const setGenEnabled = (on: boolean) => { GEN_ON = on; };
 
@@ -178,23 +189,48 @@ export function rollGenerated(h: Hero, rarity: Rarity, floor: number, rng: () =>
   return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses: {}, revealed: true, bash: rollBash(rarity === "crimson" ? "crimson" : rarity, base, rng), gen };
 }
 
-function rollBonuses(h: Hero, rarity: Rarity, base: GearBase, floor: number, rng: () => number, n: number): Record<string, number> {
-  const tags = heroTags(h);
-  const bonuses: Record<string, number> = {};
-  const pool = BONUSES.filter(x => rank(rarity) >= rank(x.minRarity ?? "uncommon") && !LOCKED.has(x.id));
-  for (let i = 0; i < n && pool.length; i++) {
-    const pick = weighted(rng, pool, x => (1 + 0.6 * x.tags.filter(t => base.tags.includes(t)).length + 0.25 * x.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * elementalW(x.tags));
-    pool.splice(pool.indexOf(pick), 1);
-    bonuses[pick.id] = floor;
-  }
-  return bonuses;
-}
 
 export type ResplendentCard = { kind: "item"; item: GearItem } | { kind: "scroll" };
 
 export interface LootState {
   /** Bad-luck protection: bonus % added to Epic and Legendary on Resplendent cards. */
   pity: number;
+  /** Hidden bad-luck ladders (percentage points): Rare-or-better, Epic and Legendary, and the dry spells behind them. */
+  ladder?: { rare: number; epic: number; leg: number; dryEpic: number; dryLeg: number };
+}
+export const LADDER = { RARE_START: -5, RARE_STEP: 1.5, RARE_CAP: 30, EPIC_STEP: 0.5, EPIC_SOFT_AFTER: 15, EPIC_SOFT_STEP: 3, LEG_STEP: 0.2, LEG_HARD: 60 };
+const ladderOf = (s: LootState) => (s.ladder ??= { rare: LADDER.RARE_START, epic: 0, leg: 0, dryEpic: 0, dryLeg: 0 });
+const LOW: Rarity[] = ["common", "uncommon"];
+/** Move `pts` points of chance from the low tiers (in proportion) to `to` (negative: back from `to` to Uncommon). */
+function shift(out: Odds, to: Rarity, pts: number) {
+  if (!pts) return;
+  if (pts < 0) { const take = Math.min(out[to] ?? 0, -pts); out[to] = (out[to] ?? 0) - take; out.uncommon = (out.uncommon ?? 0) + take; return; }
+  const low = LOW.reduce((s, r) => s + (out[r] ?? 0), 0);
+  if (low <= 0) return;
+  const take = Math.min(low, pts);
+  for (const r of LOW) if (out[r]) out[r] = out[r]! - take * (out[r]! / low);
+  out[to] = (out[to] ?? 0) + take;
+}
+/** Odds with the hidden ladders applied (only where the table can give that tier at all). */
+export function ladderOdds(s: LootState, odds: Odds): Odds {
+  const l = ladderOf(s);
+  const out: Odds = { ...odds };
+  if (out.rare !== undefined) shift(out, "rare", l.rare);
+  if (out.rare !== undefined || out.epic !== undefined) shift(out, "epic", l.epic);
+  if (out.epic !== undefined || out.legendary !== undefined) shift(out, "legendary", l.leg);
+  return out;
+}
+/** Hard pity: this many items without a Legendary, and the next table that can give an Epic gives a Legendary. */
+export const legendaryDue = (s: LootState, odds: Odds) => ladderOf(s).dryLeg >= LADDER.LEG_HARD && (odds.epic !== undefined || odds.legendary !== undefined);
+/** Climb or reset the ladders after a find. */
+export function noteFind(s: LootState, r: Rarity) {
+  const l = ladderOf(s);
+  const rank = RARITIES.indexOf(r);
+  if (rank >= RARITIES.indexOf("rare")) l.rare = LADDER.RARE_START; else l.rare = Math.min(LADDER.RARE_CAP, l.rare + LADDER.RARE_STEP);
+  if (rank >= RARITIES.indexOf("epic")) { l.epic = 0; l.dryEpic = 0; }
+  else { l.dryEpic++; l.epic += l.dryEpic > LADDER.EPIC_SOFT_AFTER ? LADDER.EPIC_SOFT_STEP : LADDER.EPIC_STEP; }
+  if (r === "legendary" || rank > RARITIES.indexOf("legendary")) { l.leg = 0; l.dryLeg = 0; }
+  else { l.dryLeg++; l.leg += LADDER.LEG_STEP; }
 }
 
 /** Deal the face-down cards of a Resplendent chest. */
@@ -225,10 +261,12 @@ export function rollEpicCrimson(h: Hero, floor: number, rng: () => number): Gear
   const pool = EPIC_CRIMSON.filter(e => !DROPPED.has(e.id));
   const base = (pool.length ? pool : EPIC_CRIMSON)[Math.floor(rng() * (pool.length || EPIC_CRIMSON.length))];
   DROPPED.add(base.id);
-  return { uid: h.nextUid++, base: base.id, rarity: "epic_crimson", level: floor, bonuses: rollBonuses(h, "epic", base, floor, rng, 3), revealed: true };
+  return { uid: h.nextUid++, base: base.id, rarity: "epic_crimson", level: floor, bonuses: affixesFor(h, base, "epic_crimson", floor, rng), revealed: true };
 }
 
 /** A fixed reward item (Abaddon, the Cookie). */
-export function makeRewardItem(h: Hero, id: string, floor: number): GearItem {
-  return { uid: h.nextUid++, base: id, rarity: "legendary_crimson", level: floor, bonuses: {}, revealed: true };
+export function makeRewardItem(h: Hero, id: string, floor: number, rng: () => number = Math.random): GearItem {
+  affixPool();
+  const base = GEAR_BASES.find(g => g.id === id) ?? EPIC_CRIMSON.find(g => g.id === id);
+  return { uid: h.nextUid++, base: id, rarity: "legendary_crimson", level: floor, bonuses: base ? affixesFor(h, base, "legendary_crimson", floor, rng) : {}, revealed: true };
 }

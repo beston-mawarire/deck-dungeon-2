@@ -51,7 +51,7 @@ it("each piece of potion gear and each potion relic adds its slots", () => {
   h.relics = {}; recompute(h);
   for (const g of POTION_GEAR) {
     const it = rollItem(h, g.onlyRarity ?? "uncommon", 3, Math.random);
-    it.base = g.id;
+    it.base = g.id; it.bare = undefined;
     const slot = g.slot === "trinket" ? "trinket1" : g.slot;
     const prev = h.equip[slot as "main"];
     h.equip[slot as "main"] = it; recompute(h);

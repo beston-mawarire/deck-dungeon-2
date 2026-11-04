@@ -11,8 +11,8 @@ import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
 import { NEGATIVE_STATUSES, rarityLabel } from "../engine/types";
 import {
-  BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName, rerollCost, rerollsLeft,
-  keepsOffHand, findItem, recompute, type Sigil, SIGIL_BAG_SIZE, SIGIL_FLOORS, sigilSlots, reveal, salvage, slotsFor, unequip, upgradeCost, xpToLevel
+  BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName,
+  keepsOffHand, findItem, recompute, type Sigil, SIGIL_BAG_SIZE, SIGIL_FLOORS, sigilSlots, reveal, salvage, salvageNote, materials, slotsFor, unequip, upgradeCost, xpToLevel
 } from "../game/hero";
 import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
@@ -23,13 +23,15 @@ import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
-  ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
+  ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap } from "../game/hero";
 import { bountyProgress, bountyText, rewardText } from "../game/bounty";
 import { pingSession } from "./leaderboard";
+import { classify, FAMILY_NAME } from "../game/families";
+import { applyRework, canAfford, canEmpowerTarget, costText, empower, empowerBlock, extract, extractBlock, MAX_REFINE, refine, refineBlock, refineCost, rework, reworkBlock, reworkCost, SCROLL_SLOTS, scrapScroll, scrollName, scrollScrapValue } from "../game/masterwork";
 import { applySave, watchBackup, backupCode, backupVault, setPlayerTitle, SUB_BOARDS, type Board, type Scope, type KillerRow, fetchBoard, fetchKillers, fetchVault, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun, useBackupCode, vaultDirty } from "./leaderboard";
 import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
@@ -101,7 +103,11 @@ type BagTab = "gear" | "stats" | "relics" | "talents" | "extras";
 let bagTab: BagTab = "gear";
 let talentSub: "talents" | "curses" = "talents";
 let spoilsSub: "relics" | "artefacts" = "relics";
-let gearSub: "equipped" | "backpack" | "sigils" = "equipped";
+let gearSub: "equipped" | "backpack" | "sigils" | "scrolls" = "equipped";
+/** The Masterwork screen: its tab, the scroll picked to Empower with, and the scroll lines kept. */
+let mwTab: "rework" | "extract" | "empower" | "refine" = "rework";
+let mwScroll: number | null = null;
+let mwKeep = new Set<string>();
 let statsSub: "attributes" | "statuses" = "attributes";
 /** Selling worn gear, and bulk selling, take a second tap. */
 let sellArmed: number | null = null;
@@ -320,13 +326,15 @@ function itemCard(it: GearItem, buttons = "", compare: boolean | { hero: Hero; s
   const b = baseOf(it.base);
   const hidden = b.legendary && !it.revealed;
   const grade = it.gen ? Math.max(0, ...it.gen.mods.map(m => m[2])) : 0;
-  return `<div class="item r-${it.rarity} ${hidden ? "unrevealed" : ""} ${equippedAs ? "is-equipped" : ""} ${it.gen?.broken ? "overcharged" : ""} ${grade ? `grade-${grade}` : ""} ${it.gen && it.rarity === "crimson" ? "veined" : ""}">
+  return `<div class="item r-${it.rarity} ${it.refine ? "refined" : ""} ${hidden ? "unrevealed" : ""} ${equippedAs ? "is-equipped" : ""} ${it.gen?.broken ? "overcharged" : ""} ${grade ? `grade-${grade}` : ""} ${it.gen && it.rarity === "crimson" ? "veined" : ""}">
     ${equippedAs ? `<div class="eqbadge">⚔️ Equipped · ${esc(equippedAs)}</div>` : ""}
     <div class="meta">${itemRarity(it)}${it.gen ? ` · <span class="gen-tag" title="Made by chance: a generated item">⚒ forged by chance</span>` : ""} · ${b.slot === "main" ? "weapon" : b.slot === "off" ? "off-hand" : b.slot} · level ${it.level}</div>
     <div class="nm">${esc(itemName(it))}</div>
     <ul>${itemLines(it).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
     ${it.infused ? (() => { const t = baseOf(it.infused!); return `<div class="infused">💠 Infused: <b>${esc(t.name)}</b> — ${esc(t.legendary?.reveal ?? t.text)}</div>`; })() : ""}
     ${(it.upgrades ?? 0) > 0 ? `<div class="sub upgraded-note">⬆️ Upgraded ${it.upgrades}×</div>` : ""}
+    ${it.rarity === "common" && !b.legendary ? `<div class="sub mw-note">${it.refine ? `Refined ${"•".repeat(it.refine)} · ` : ""}Holds ${1 + (it.refine ?? 0)} line${it.refine ? "s" : ""} (${Math.max(0, 1 + (it.refine ?? 0) - Object.keys(it.bonuses).length)} free)${it.bound ? " · 🔒 Bound" : ""}</div>` : it.bound ? `<div class="sub mw-note">🔒 Bound</div>` : ""}
+    ${it.reworkLine ? `<div class="sub mw-note">⚒️ Reworked ${it.reworks ?? 0}× · only its marked line can be reworked</div>` : ""}
     ${typeof compare === "object" ? compareHtml(compare.hero, it, compare.slot) : compare && run ? compareHtml(run.hero, it) : ""}
     ${buttons ? `<div class="row">${buttons}</div>` : ""}
   </div>`;
@@ -361,7 +369,7 @@ function hud(r: Run) {
     <div class="row"><b>${esc(ORIGINS[h.origin].name)}</b><span class="stat">Lv ${h.level}</span><span class="grow"></span><span class="stat">${floorLabel(r)}</span></div>
     <div class="bar"><i style="width:${Math.max(0, (f.hp / f.maxHp) * 100)}%"></i></div>
     <div class="row stat"><span><b>${Math.max(0, f.hp)}</b>/${f.maxHp} HP</span><span>⚔️ <b>${f.damage}</b>${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}</span><span>🛡️ <b>${f.armor}</b></span>
-      <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span><span title="Healing Potions carried / how many you can carry">🧪 <b>${h.potions}</b>/${potionCap(h)}</span><span>📜 <b>${h.scrolls}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
+      <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span>${h.azure ? `<span title="Azure dust: from scrapping Rares">💠 <b>${h.azure}</b></span>` : ""}${h.orilium ? `<span title="Orilium: from scrapping Epics">🔶 <b>${h.orilium}</b></span>` : ""}<span title="Healing Potions carried / how many you can carry">🧪 <b>${h.potions}</b>/${potionCap(h)}</span><span>📜 <b>${h.scrolls}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
     <div class="bar xp"><i style="width:${(h.xp / need) * 100}%"></i></div>
     <div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>
     <div class="row hud-actions" style="margin-top:6px"><button class="small bag-btn" data-bag>${newTabs(r).size ? `<b class="newdot" title="Something new in your Inventory"></b>` : ""}🎒 <span class="lbl">Inventory</span></button>${bountyBtn(r)}${h.potions && f.hp > 0 && f.hp < f.maxHp && !busy && r.scene.t !== "over" ? `<button class="small potion-btn" data-potion>🧪 <span class="lbl">Potion </span>(+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ <span class="lbl">Menu</span></button></div>
@@ -784,7 +792,7 @@ const oddsWord = (p: number) => p >= 50 ? "likely" : p >= 25 ? "possible" : p >=
 function forgeScene(r: Run) {
   const h = r.hero;
   const fusions = availableFusions(r);
-  const tabs = [["upgrade", "Upgrade & reroll"], ["scrap", "Scrap"], ["offer", "Offering"], ["combine", "Combine"], ["transmute", h.crucible ? "Transmute" : "🔒 Transmute"]];
+  const tabs = [["upgrade", "Upgrade"], ["scrap", "Scrap"], ["offer", "Offering"], ["transmute", h.crucible ? "Transmute" : "🔒 Transmute"]];
   const eq = EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x);
   const exists = (u: number) => !!findItem(h, u);
   for (const u of [...offerSel]) if (!exists(u)) offerSel.delete(u);
@@ -802,8 +810,8 @@ function forgeScene(r: Run) {
   const slotOf = (it: GearItem) => equippedSlot(r, it);
   let body = "";
   if (forgeTab === "upgrade") {
-    body = `<p class="sub">Upgrading raises an item's level (more damage, stronger bonuses). Each reroll of the same item costs more.</p>
-    ${sides(() => true, it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>${Object.keys(it.bonuses).length ? `<button class="small danger" data-rr="${it.uid}" ${rerollsLeft(it) ? "" : "disabled"}>${rerollsLeft(it) ? `Reroll · ${rerollCost(it, r.hero)} ⚙️ (${rerollsLeft(it)} left)` : "No rerolls left"}</button>` : ""}`, false, slotOf(it)))}`;
+    body = `<p class="sub">Upgrading raises an item's level (more damage, stronger lines). To rework a line, find a Masterwork.</p>
+    ${sides(() => true, it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>`, false, slotOf(it)))}`;
   } else if (forgeTab === "scrap") {
     const star: Partial<Record<string, number>> = { legendary: 2, crimson: 4, epic_crimson: 10, legendary_crimson: 25 };
     body = `<p class="sub">Break down items for Scrap. Rarer and higher-level items give more, and the rarest also give Starmetal.</p>
@@ -838,6 +846,67 @@ function forgeScene(r: Run) {
   ${fusions.length ? `<p class="sub fusable-hint">🔗 Two of your relics could be fused. The Forge can't do it — look for a Jeweller.</p>` : ""}
   <div class="row" style="margin:8px 0">${tabs.map(([k, l]) => `<button class="small ${forgeTab === k ? "primary" : ""}" data-forgetab="${k}">${l}</button>`).join("")}</div>
   <div class="forge-body">${body}</div>
+  <div class="row" style="margin-top:12px"><button class="primary" data-leave>Leave</button></div>`;
+}
+
+/** One affix line as text. */
+const lineText = (id: string, n: number) => { try { return fillText(getItem(id).text, n); } catch { return id; } };
+/** Scrolls of Power: in the Inventory (scrap them) or at a Masterwork (pick one, strike lines out, empower). */
+function scrollsHtml(h: Hero, atMasterwork: boolean) {
+  const list = h.powerScrolls ?? [];
+  if (!list.length) return `<p class="sub">No Scrolls of Power. Extract an item's lines into one at a Masterwork.</p>`;
+  return `<p class="sub">${list.length}/${SCROLL_SLOTS} scrolls. ${atMasterwork ? "Pick one, untick any lines you don't want, then choose a Common item of the same family." : "Use them at a Masterwork, on a Common item of the same family."}</p>
+  ${list.map(s => {
+    const picked = atMasterwork && mwScroll === s.uid;
+    const v = scrollScrapValue(s);
+    return `<div class="scroll-card r-${s.rarity} ${picked ? "picked" : ""}"><div class="nm">${esc(scrollName(s))}</div>
+      <div class="sub">${esc(rarityLabel(s.rarity))} lines · ${Object.keys(s.lines).length} line${Object.keys(s.lines).length === 1 ? "" : "s"}</div>
+      ${Object.entries(s.lines).map(([id, n]) => picked ? `<label><input type="checkbox" data-mwline="${id}" ${mwKeep.has(id) ? "checked" : ""}> – ${esc(lineText(id, n))}</label>` : `<div>– ${esc(lineText(id, n))}</div>`).join("")}
+      <div class="row">${atMasterwork ? `<button class="small ${picked ? "primary" : ""}" data-mwscroll="${s.uid}">${picked ? "✓ Picked" : "Pick"}</button>` : ""}<button class="small danger" data-scrapscroll="${s.uid}">Scrap · +${costText(v)}</button></div></div>`;
+  }).join("")}`;
+}
+
+function masterworkScene(r: Run) {
+  if (r.scene.t !== "masterwork") return "";
+  const h = r.hero;
+  const sc = r.scene;
+  const mats = `⚙️ ${h.scrap} · 💠 ${h.azure ?? 0} · 🔶 ${h.orilium ?? 0} · ✴️ ${h.starmetal} · 🪙 ${h.f.gold}`;
+  const head = `<h2>⚒️ Masterwork</h2><p class="sub">${mats}</p>`;
+  // A Rework's two options, waiting for a pick.
+  if (sc.pending) {
+    const f = findItem(h, sc.pending.uid);
+    const oldV = f?.item.bonuses[sc.pending.line] ?? 1;
+    return `${head}<div class="panel"><p><b>Rework:</b> ${esc(f ? itemName(f.item) : "")}</p>
+      <p class="sub">The line now: – ${esc(lineText(sc.pending.line, oldV))}</p>
+      ${sc.pending.options.map((o, i) => { const [id, n] = Object.entries(o)[0]; return `<div class="row"><span class="grow">– ${esc(lineText(id, n))}</span><button class="small primary" data-mwpick="${i}">Take this</button></div>`; }).join("")}
+      <div class="row" style="margin-top:8px"><button class="small" data-mwkeep>Keep the old line</button></div></div>`;
+  }
+  const tabs = ([["rework", "⚒️ Rework"], ["extract", "📜 Extract"], ["empower", "✨ Empower"], ["refine", "💎 Refine"]] as const)
+    .map(([k, l]) => `<button class="small ${mwTab === k ? "primary" : ""}" data-mwtab="${k}">${l}</button>`).join("");
+  const eq = EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x);
+  const all = [...eq, ...h.backpack];
+  const slotOf = (it: GearItem) => equippedSlot(r, it);
+  const list = (items: GearItem[], buttons: (it: GearItem) => string, empty: string) =>
+    items.length ? `<div class="cards">${items.map(it => itemCard(it, buttons(it), false, slotOf(it))).join("")}</div>` : `<p class="sub">${empty}</p>`;
+  let body = "";
+  if (mwTab === "rework") {
+    body = `<p class="sub">Reroll one line into one of two new options (or keep it). Once you rework a line, it's the only line on that item that can ever be reworked, and each rework costs more.</p>
+      ${list(all.filter(it => Object.keys(it.bonuses).length && reworkCost(it)), it => Object.keys(it.bonuses).map(id => { const why = reworkBlock(it, id); const c = reworkCost(it)!; const short = canAfford(h, c);
+        return `<button class="small ${why || short ? "" : "primary"}" data-mwrework="${it.uid}|${id}" ${why || short ? `disabled title="${esc(why ?? short ?? "")}"` : ""}>⚒️ ${esc(lineText(id, it.bonuses[id]).slice(0, 34))}${lineText(id, it.bonuses[id]).length > 34 ? "…" : ""} · ${costText(c)}</button>`; }).join(""), "No items with lines to rework.")}`;
+  } else if (mwTab === "extract") {
+    body = `<p class="sub">Lift every line off an item into a Scroll of Power. The item becomes a plain Common. Legendaries and Empowered items can't be extracted.</p>
+      ${list(all.filter(it => Object.keys(it.bonuses).length), it => { const why = extractBlock(h, it); return `<button class="small ${why ? "" : "primary"}" data-mwextract="${it.uid}" ${why ? `disabled title="${esc(why)}"` : ""}>📜 Extract</button>`; }, "No items with lines to extract.")}`;
+  } else if (mwTab === "empower") {
+    const s = (h.powerScrolls ?? []).find(x => x.uid === mwScroll);
+    body = `<p class="sub">Put a scroll's lines onto a Common item of the same family. A plain Common holds 1 line; each Refine dot adds one. Empowered items are bound: they can never be extracted.</p>
+      ${scrollsHtml(h, true)}
+      ${s ? `<h3>Onto which ${esc(FAMILY_NAME[s.family])} item?</h3>${list(all.filter(it => canEmpowerTarget(it) && baseOf(it.base).kind === s.kind && classify(baseOf(it.base)).family === s.family), it => { const why = empowerBlock(it, s, [...mwKeep]); return `<button class="small ${why ? "" : "primary"}" data-mwempower="${it.uid}" ${why ? `disabled title="${esc(why)}"` : ""}>✨ Empower</button>${why ? `<span class="sub"> ${esc(why)}</span>` : ""}`; }, `You have no Common ${FAMILY_NAME[s.family]} items.`)}` : ""}`;
+  } else {
+    body = `<p class="sub">Refine a Common so it can hold more lines: 2 at •, 3 at ••, 4 at •••. Legendaries can't be refined.</p>
+      ${list(all.filter(canEmpowerTarget), it => { const done = (it.refine ?? 0) >= MAX_REFINE; const c = refineCost(it, shopMult(r)); const why = done ? "Fully refined." : refineBlock(h, it, shopMult(r));
+        return `<button class="small ${why ? "" : "primary"}" data-mwrefine="${it.uid}" ${why ? `disabled title="${esc(why)}"` : ""}>${done ? "Fully refined" : `💎 Refine to ${"•".repeat((it.refine ?? 0) + 1)} · ${costText(c)}`}</button>`; }, "You have no Common items.")}`;
+  }
+  return `${head}<div class="mw-tabs">${tabs}</div><div class="forge-body">${body}</div>
   <div class="row" style="margin-top:12px"><button class="primary" data-leave>Leave</button></div>`;
 }
 
@@ -904,7 +973,7 @@ function jewellerScene(r: Run) {
   const pick = (it: GearItem) => { const x: JewelSlot = { kind: "item", uid: it.uid }; return `<button class="jpick r-${it.rarity}" data-jpick="item:${it.uid}" ${onBench(x) ? "disabled" : ""}><b class="nm">${esc(itemName(it))}</b><span class="sub">${rarityLabel(it.rarity)}${equippedSlot(r, it) ? " · worn" : ""}${it.upgrades ? " · upgraded" : ""}${it.infused ? " · infused" : ""}</span></button>`; };
   const relics = Object.entries(h.relics);
   const costTxt = cost ? `${cost.gold} 🪙${cost.scrap ? ` + ${cost.scrap} ⚙️` : ""}${cost.starmetal ? ` + ${cost.starmetal} ✴️` : ""}` : "";
-  const tabs = `<div class="row jtabs"><button class="small ${s.mode === "fuse" ? "primary" : ""}" data-jmode="fuse">💎 Fuse</button><button class="small ${s.mode === "infuse" ? "primary" : ""}" data-jmode="infuse">💠 Infuse</button></div>`;
+  const tabs = ""; // (Infusing retired with the loot rework: Extract and Empower at the Masterwork took its place.)
   const intro = s.mode === "fuse"
     ? `<p>"Put two things on my bench. Some of them belong together. Most of them don't. Either way, I get paid."</p>
        <p class="sub">Two relics, or two Rare-or-better trinkets that haven't been upgraded. Relics cost Gold and Scrap; trinkets also cost ✴️ Starmetal, more for higher rarities. A fusion that doesn't take still costs the fee.</p>`
@@ -1196,7 +1265,7 @@ function bag(r: Run) {
   const tile = (icon: string, label: string, value: string, tip = "") => `<div class="stile" title="${esc(tip)}"><span class="si">${icon}</span><span class="sl">${label}</span><b>${value}</b></div>`;
   const stats = `<div class="panel">
       <div class="row stat"><span>❤️ <b>${Math.max(0, f.hp)}</b>/${f.maxHp}</span><span>Lv <b>${h.level}</b> (${h.xp}/${xpToLevel(h.level)} XP)</span>
-        <span>🪙 ${f.gold}</span><span>⚙️ ${h.scrap}</span><span>✴️ ${h.starmetal}</span><span>📜 ${h.scrolls}</span><span>🧪 ${h.potions}</span>${h.manaPotions ? `<span>🔷 ${h.manaPotions}</span>` : ""}</div>
+        <span>🪙 ${f.gold}</span><span>⚙️ ${h.scrap}</span>${h.azure ? `<span>💠 ${h.azure}</span>` : ""}${h.orilium ? `<span>🔶 ${h.orilium}</span>` : ""}<span>✴️ ${h.starmetal}</span><span>📜 ${h.scrolls}</span><span>🧪 ${h.potions}</span>${h.manaPotions ? `<span>🔷 ${h.manaPotions}</span>` : ""}</div>
       <div class="stiles">
         ${tile("⚔️", "Damage", `${f.damage}${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}`, "Main die damage (+ off-hand die)")}
         ${f.critDmg ? tile("💥", "Crit damage", `+${f.critDmg}%`, "Your Crits deal this much more") : ""}
@@ -1266,9 +1335,11 @@ function bag(r: Run) {
     bagTab === "gear" ? `${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}<div class="row subtabs">
         <button class="small ${gearSub === "equipped" ? "primary" : ""}" data-gearsub="equipped">🛡️ Equipped</button>
         <button class="small ${gearSub === "backpack" ? "primary" : ""}" data-gearsub="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</button>
-        <button class="small ${gearSub === "sigils" ? "primary" : ""}" data-gearsub="sigils">🔮 Sigils${(h.sigils?.length ?? 0) + (h.sigilBag?.length ?? 0) ? ` (${(h.sigils?.length ?? 0) + (h.sigilBag?.length ?? 0)})` : ""}</button></div>
+        <button class="small ${gearSub === "sigils" ? "primary" : ""}" data-gearsub="sigils">🔮 Sigils${(h.sigils?.length ?? 0) + (h.sigilBag?.length ?? 0) ? ` (${(h.sigils?.length ?? 0) + (h.sigilBag?.length ?? 0)})` : ""}</button>
+        <button class="small ${gearSub === "scrolls" ? "primary" : ""}" data-gearsub="scrolls">📜 Scrolls${h.powerScrolls?.length ? ` (${h.powerScrolls.length}/${SCROLL_SLOTS})` : ""}</button></div>
       ${gearSub === "equipped" ? `<div class="gear-group equipped-group solo"><div class="cards">${equipped}</div></div>`
         : gearSub === "sigils" ? talismanHtml(r, inCombat)
+        : gearSub === "scrolls" ? scrollsHtml(h, false)
         : `${inCombat ? "" : bulkScrapRow(h)}<div class="gear-group backpack-group solo"><div class="cards">${pack || `<p class="sub">Empty.</p>`}</div></div>`}`
     : bagTab === "stats" ? `<div class="row subtabs">
         <button class="small ${statsSub === "attributes" ? "primary" : ""}" data-statssub="attributes">📊 Attributes</button>
@@ -1435,11 +1506,12 @@ function helpGlossary() {
     row("✴️", "A Strange Presence", "A named, unique foe — once per run — that always drops an Epic or better"),
     row("💰", "Thieves", "Kill them within 5 rounds or they escape with 30% of your Gold; kill them and you get 60% on top"),
     row("🕯️", "Curses", "Lasting penalties from shrines, idols and cursing foes. Only something holy can lift them"),
-    row("🔨", "Forge", "Upgrade or reroll gear with Scrap; sacrifice items in an Offering; Combine two of the same item"),
+    row("🔨", "Forge", "Upgrade gear with Scrap; sacrifice items in an Offering; transmute with the Crucible"),
+    row("⚒️", "Masterwork", "From floor 2. Rework one line of an item; Extract an item's lines into a Scroll of Power (the item turns Common); Empower a Common of the same family with a scroll; Refine a Common so it holds more lines (up to 4). Materials: Scrap, 💠 Azure dust (scrap Rares), 🔶 Orilium (scrap Epics) and ✴️ Starmetal"),
     row("🩸", "Sanguine Altar", "Pay a share of your Max HP for Gold, Max HP, upgrades, gear or a fresh start from curses; the bigger the price, the better the gift"),
     row("⛲", "Cleansing", "Only while you carry a curse: the Well of Cleansing or a Holy Tribute, a way to lift your curses for a price"),
     row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell as much as you like (40% of its price)"),
-    row("💍", "Jeweller", "Takes turns with the Forge; two tries per visit. Fuse: two relics (marked 🔗), or two Rare-or-better trinkets (yours to discover; costs Starmetal). A fusion that doesn't take still costs the fee. Infuse: put a same-rarity trinket into a weapon, off-hand or armour; the trinket is used up. Upgraded items can't be fused or infused"),
+    row("💍", "Jeweller", "Takes turns with the Forge; two tries per visit. Fuse: two relics (marked 🔗), or two Rare-or-better trinkets (yours to discover; costs Starmetal). A fusion that doesn't take still costs the fee. Upgraded items can't be fused"),
     row("⚒", "Forged by chance", "Half of all gear is made fresh: a material (Iron, Frost-forged, Dragonscale…), a form, and effects. Rarer items get more effects, and some carry a drawback (⛓️). ✦ Greater, ✦✦ Grand and ✦✦✦ Mythic rolls are much stronger, and ⚡ Overcharged items are rare, wild and very strong"),
     row("🔮", "Talisman", "Sigils sit beside your gear (Gear → Sigils). Wear pieces of the same set for 2-, 3- and 4-piece bonuses. 2 slots to start, more on floors 3, 6, 10 and 15"),
     row("🧪", "Healing Potions", "Heal 12. You start with 3 potion slots: carry up to 3, and drink up to 3 in one fight. Potion gear and relics add slots (more at higher rarity)")
@@ -1965,7 +2037,7 @@ function render2() {
   if (s.t === "over") saveRun(r, banked);
   const body =
     s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r)
-    : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r)
+    : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r) : s.t === "masterwork" ? masterworkScene(r)
     : s.t === "cleared" ? clearedScene(r)
     : s.t === "smith" ? smithScene(r)
     : s.t === "alchemist" ? alchemistScene(r)
@@ -2318,7 +2390,7 @@ function bind() {
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode;
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
-    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta)); withGems(nr); run = nr; void startSession(nr); });
+    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta)); withGems(nr); nr.legendaryDue = (meta.dryRuns ?? 0) >= 4; run = nr; void startSession(nr); });
     return;
   }
   const r = run;
@@ -2339,11 +2411,27 @@ function bind() {
     const list = bulkScrapList(r.hero, upTo);
     if (bulkArmed !== upTo) { bulkArmed = upTo; return; }
     bulkArmed = null;
-    let n = 0, metal = 0;
-    for (const it of list) { const before = r.hero.starmetal; n += salvage(r.hero, it.uid); metal += r.hero.starmetal - before; }
-    say(`Scrapped ${list.length} item${list.length === 1 ? "" : "s"}: +${n} ⚙️ Scrap${metal ? ` · +${metal} ✴️` : ""}`, false); sfx("hit");
+    let n = 0;
+    const before = materials(r.hero);
+    for (const it of list) n += salvage(r.hero, it.uid);
+    say(`Scrapped ${list.length} item${list.length === 1 ? "" : "s"}: +${n} ⚙️ Scrap${salvageNote(before, r.hero)}`, false); sfx("hit");
   });
   on("[data-gearsub]", el => { gearSub = el.dataset.gearsub as typeof gearSub; });
+  on("[data-scrapscroll]", el => { const v = scrapScroll(r.hero, Number(el.dataset.scrapscroll)); if (v) { if (mwScroll === Number(el.dataset.scrapscroll)) { mwScroll = null; mwKeep.clear(); } say(`Scroll scrapped: +${costText(v)}`, false); sfx("hit"); } });
+  on("[data-mwtab]", el => { mwTab = el.dataset.mwtab as typeof mwTab; });
+  on("[data-mwrework]", el => {
+    const [u, line] = el.dataset.mwrework!.split("|");
+    const out = rework(r.hero, Number(u), line, r.rng);
+    if (typeof out === "string") { say(out); return; }
+    if (r.scene.t === "masterwork") r.scene.pending = { uid: Number(u), line, options: out.options };
+  });
+  on("[data-mwpick]", el => { if (r.scene.t !== "masterwork" || !r.scene.pending) return; const p = r.scene.pending; applyRework(r.hero, p.uid, p.line, p.options[Number(el.dataset.mwpick)] ?? null); r.scene.pending = undefined; say("Reworked.", false); sfx("chest"); });
+  on("[data-mwkeep]", () => { if (r.scene.t === "masterwork") r.scene.pending = undefined; say("You keep the line as it was.", false); });
+  on("[data-mwextract]", el => { const out = extract(r.hero, Number(el.dataset.mwextract)); if (typeof out === "string") say(out); else { say(`📜 ${scrollName(out)} made.`, false); sfx("chest"); } });
+  on("[data-mwscroll]", el => { const u = Number(el.dataset.mwscroll); mwScroll = mwScroll === u ? null : u; const s = r.hero.powerScrolls?.find(x => x.uid === u); mwKeep = new Set(s ? Object.keys(s.lines) : []); });
+  app.querySelectorAll<HTMLInputElement>("[data-mwline]").forEach(el => (el.onchange = () => { const id = el.dataset.mwline!; if (el.checked) mwKeep.add(id); else mwKeep.delete(id); render(); }));
+  on("[data-mwempower]", el => { if (mwScroll == null) return; const err = empower(r.hero, mwScroll, Number(el.dataset.mwempower), [...mwKeep]); if (err) say(err); else { mwScroll = null; mwKeep.clear(); say("✨ Empowered.", false); sfx("chest"); } });
+  on("[data-mwrefine]", el => { const err = refine(r.hero, Number(el.dataset.mwrefine), shopMult(r)); if (err) say(err); else { say("💎 Refined.", false); sfx("chest"); } });
   on("[data-sigon]", el => say(wearSigil(r, Number(el.dataset.sigon))));
   on("[data-sigoff]", el => say(removeSigil(r, Number(el.dataset.sigoff))));
   on("[data-sigscrap]", el => { const n = scrapSigil(r, Number(el.dataset.sigscrap)); if (n) say(`+${n} Scrap`, false); });
@@ -2432,7 +2520,7 @@ function bind() {
   on("[data-combinesel]", el => { const u = Number(el.dataset.combinesel); combineSel = combineSel.includes(u) ? combineSel.filter(x => x !== u) : [...combineSel, u].slice(0, 2); });
   on("[data-offersel]", el => { const u = Number(el.dataset.offersel); if (offerSel.has(u)) offerSel.delete(u); else offerSel.add(u); });
   const doOffer = () => { const out = forgeOffer(r, [...offerSel]); offerSel.clear(); if (typeof out === "string") { say(out); sfx("lose"); } else { say(`The Forge gives you: ${itemName(out)} (${out.rarity})`, false); if (RANK[out.rarity]) { celebrated.add(out.uid); celebrate(out.rarity); } else sfx("chest"); } };
-  const doScrap = (uid: number) => { const n = salvage(r.hero, uid); say(`+${n} Scrap`, false); sfx("hit"); };
+  const doScrap = (uid: number) => { const before = materials(r.hero); const n = salvage(r.hero, uid); say(`+${n} Scrap${salvageNote(before, r.hero)}`, false); sfx("hit"); };
   const worn = (uid: number) => { const w = findItem(r.hero, uid)?.where; return !!w && w !== "backpack"; };
   on("[data-offer]", () => { if ([...offerSel].some(worn)) forgeAsk = { kind: "offer" }; else doOffer(); });
   on("[data-askyes]", () => { const a = forgeAsk; forgeAsk = null; if (a?.kind === "offer") doOffer(); else if (a) doScrap(a.uid); });
@@ -2448,7 +2536,7 @@ function bind() {
   on("[data-unequip]", el => say(unequip(r.hero, el.dataset.unequip as EquipSlot)));
   on("[data-equip]", el => { const it = r.hero.backpack.find(i => i.uid === Number(el.dataset.equip)); if (it) say(equipItem(r.hero, it, el.dataset.slot as EquipSlot)); });
   on("[data-forgescrap]", el => { const u = Number(el.dataset.forgescrap); if (worn(u)) forgeAsk = { kind: "scrap", uid: u }; else doScrap(u); });
-  on("[data-salvage]", el => { const n = salvage(r.hero, Number(el.dataset.salvage)); say(`+${n} Scrap`, false); });
+  on("[data-salvage]", el => { const before = materials(r.hero); const n = salvage(r.hero, Number(el.dataset.salvage)); say(`+${n} Scrap${salvageNote(before, r.hero)}`, false); });
   on("[data-reveal]", el => { const err = reveal(r.hero, Number(el.dataset.reveal)); say(err ?? "The Legendary reveals its true power!", !!err); if (!err) celebrate("legendary", "REVEALED"); });
 }
 

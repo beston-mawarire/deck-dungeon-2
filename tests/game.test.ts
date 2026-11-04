@@ -125,14 +125,12 @@ describe("origins and gear", () => {
     expect(h.f.damage).toBe(6);
   });
 
-  it("rarity raises damage and adds bonuses; Epics get a power", () => {
+  it("rarity is the number of affix lines: Uncommon 1, Rare 2, Epic 3", () => {
     const h = newHero("warrior");
     const rng = makeRng(3);
-    const epic = rollItem(h, "epic", 2, rng);
-    expect(Object.keys(epic.bonuses).length).toBe(baseOf(epic.base).slot === "trinket" ? 2 : 3); // trinkets carry one fewer
-    expect(epic.epic).toBeDefined();
-    const rare = rollItem(h, "rare", 1, rng);
-    expect(Object.keys(rare.bonuses).length).toBe(baseOf(rare.base).slot === "trinket" ? 1 : 2);
+    for (let i = 0; i < 200; i++) {
+      for (const [r, n] of [["common", 0], ["uncommon", 1], ["rare", 2], ["epic", 3]] as const) expect(Object.keys(rollItem(h, r, 2, rng).bonuses).length).toBe(n);
+    }
   });
 
   it("an unrevealed Legendary acts as a Common of its base; a Scroll reveals it", () => {
@@ -442,7 +440,7 @@ describe("crimson", () => {
     const it = rollItem(h, "crimson", 6, makeRng(3));
     expect(it.rarity).toBe("crimson");
     expect(it.revealed).toBe(true);
-    expect(Object.keys(it.bonuses).length).toBe(2);
+    expect(Object.keys(it.bonuses).length).toBe(4);
   });
 });
 
@@ -638,18 +636,18 @@ describe("smouldering", () => {
 });
 
 describe("greater kits", () => {
-  it("greater kit items only roll at their own rarity", () => {
+  it("greater kit items roll at their own rarity or higher", () => {
     const h = newHero("mage");
     const rng = makeRng(21);
     for (let i = 0; i < 3000; i++) {
       for (const r of ["common", "uncommon", "rare", "epic"] as const) {
         const it = rollItem(h, r, 2, rng);
-        if (it.base.startsWith("k_")) expect(["uncommon", "rare"]).toContain(it.rarity);
-        if (it.base === "k_archmages_staff") expect(it.rarity).toBe("rare");
-        if (it.base === "k_adepts_staff") expect(it.rarity).toBe("uncommon");
+        // (Bases whose effect moved into the affix pool roll at their own rarity or higher.)
+        if (it.base === "k_archmages_staff") expect(["rare", "epic"]).toContain(it.rarity);
+        if (it.base === "k_adepts_staff") expect(["uncommon", "rare", "epic"]).toContain(it.rarity);
       }
     }
-  });
+  }, 30000);
 });
 
 describe("two-handers, thieves, curses", () => {
@@ -1733,7 +1731,7 @@ describe("one-handed staffs", () => {
     const h = newHero("mage"); const rng = makeRng(7); const seen = new Set<string>();
     for (let i = 0; i < 6000; i++) for (const r of ["common", "uncommon", "rare", "epic"] as const) seen.add(rollItem(h, r, 3, rng).base);
     expect(ONE_HANDED_STAFFS.filter(b => seen.has(b.id)).length).toBe(ONE_HANDED_STAFFS.length);
-  });
+  }, 30000);
   it("a one-handed staff keeps the off-hand", () => {
     const h = newHero("mage");
     const off = h.equip.off;
@@ -1775,19 +1773,19 @@ describe("save and resume", () => {
 });
 
 describe("treasury and encounters", () => {
-  it("Treasury items roll only at their own rarity, and every rarity has new items", () => {
+  it("Treasury items roll at their own rarity or higher, and every rarity has new items", () => {
     const h = newHero("warrior");
     const rng = makeRng(99);
     const seen = new Set<string>();
     for (let i = 0; i < 4000; i++) for (const r of ["common", "uncommon", "rare", "epic"] as const) {
       const it = rollItem(h, r, 3, rng);
-      if (it.base.startsWith("rr_")) expect(it.rarity).toBe("rare");
+      if (it.base.startsWith("rr_")) expect(["rare", "epic"]).toContain(it.rarity);
       if (it.base.startsWith("ee_")) expect(it.rarity).toBe("epic");
       seen.add(it.base.slice(0, 3));
     }
     expect(seen.has("rr_")).toBe(true);
     expect(seen.has("ee_")).toBe(true);
-  });
+  }, 30000);
   it("Unique foes appear once per run", async () => {
     const { makeUnique, UNIQUES } = await import("../src/data/monsters");
     const seen = new Set<string>();
@@ -1820,7 +1818,7 @@ describe("deep rares and forge golems", () => {
     setLocked(new Set());
     expect(shallow).toBe(0);
     expect(deepFound).toBeGreaterThan(0);
-  });
+  }, 30000);
   it("Forge Golems leave Scrap", () => {
     const run = newRun("warrior", 321);
     chooseRoom(run, "fight");

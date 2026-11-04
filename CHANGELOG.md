@@ -6,6 +6,15 @@ Versions follow MAJOR.MINOR.PATCH:
 - The build number (git commit count) still goes up with every deploy.
 
 
+
+## 1.64.0 (test build: Masterwork and loot rework, stages 2–6)
+- Rarity is now the number of affix lines: Common 0, Uncommon 1, Rare 2, Epic 3, Legendary 3 plus its ✦ special, Crimson tiers 4 plus their ✦. Lines are shown with "–", specials with "✦".
+- One affix pool: the old rolled bonuses, the generator's lines, the Epic powers and the effects of every hand-made item, graded Minor, Major and Grand, each limited to the families (and for heavy and light gear, the weights) it suits. A line-by-line review cut 56 lines, reworded 41 and regraded more.
+- Hand-made items now drop as bases (their die, stats and element) at their old rarity or higher; their old effect lives in the pool.
+- The item generator, Combine and Infuse are retired; rerolling moved from the Forge to the Masterwork.
+- New room, the Masterwork (from floor 2): Rework one line (two new options or keep; one line per item; costs climb), Extract an item's lines into a Scroll of Power, Empower a Common of the same family (bound for good), Refine a Common to hold up to 4 lines (Refined items are bright white, with • dots).
+- New materials: 💠 Azure dust (scrap Rares) and 🔶 Orilium (scrap Epics). Scrolls of Power have their own Inventory tab (6 slots).
+- Hidden bad-luck ladders for Rare, Epic and Legendary finds, and a safety net across Campaign runs.
 ## 1.63.0 (test build: Masterwork and loot rework, stage 1)
 - Turbo mode is removed.
 - Item families: every weapon, armour, shield, off-hand and trinket now has a family (Knife Edge, Short Blade, Great Blade, Blunt Force, Breaker, Arcane, Polearm, Ranged; Light, Standard and Heavy Shields; Light, Medium and Heavy Armour; Focus, Throwable; Rings, Amulets, Charms), a weight and, for weapons, a damage class (Blade, Blunt, Breaking, Spell). Shown on every item.
