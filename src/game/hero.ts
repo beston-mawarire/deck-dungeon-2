@@ -121,6 +121,11 @@ export function effectiveBase(item: GearItem): GearBase {
   return b.legendary && !item.revealed ? baseOf(b.legendary.asBase) : b;
 }
 
+/** Heavy gear's pay-off: heavy weapons deal this much more, heavy armour and shields carry this much more Armor. */
+export const HEAVY_DAMAGE = 1.15;
+export const HEAVY_ARMOR = 1.3;
+/** An item's Armor: its base, half its levels, and more for heavy armour and shields. */
+export const itemArmor = (eb: GearBase, level: number) => (eb.armor ? Math.round((eb.armor + Math.floor((level - 1) / 2)) * (isHeavy(eb) ? HEAVY_ARMOR : 1)) : 0);
 export const RARITY_DAMAGE: Record<Rarity, number> = { common: 0, uncommon: 0, rare: 1, epic: 3, legendary: 1, crimson: 3, epic_crimson: 8, legendary_crimson: 12 };
 export const RARITY_COLOR: Record<Rarity, string> = { common: "#9a9aa2", uncommon: "#4fc074", rare: "#4f9cf0", epic: "#b06cf0", legendary: "#f08a2a", crimson: "#e0283f", epic_crimson: "#ff2e88", legendary_crimson: "#ff7a1a" };
 
@@ -142,7 +147,8 @@ export function weaponDamage(item: GearItem, offhand = false): number {
   const thrown = !!base.weaponType && THROWN_TYPES.includes(base.weaponType);
   const d = offhand ? base.offDamage ?? 0 : thrown ? Math.max(1, (base.offDamage ?? base.damage ?? 0) - 1) : base.damage ?? 0;
   const hidden = !!baseOf(item.base).legendary && !item.revealed;
-  const full = d + (item.level - 1) + (hidden ? 0 : RARITY_DAMAGE[item.rarity]);
+  // Heavy weapons pay for losing Dodge, Evade and Haste: they hit harder.
+  const full = Math.round((d + (item.level - 1) + (hidden ? 0 : RARITY_DAMAGE[item.rarity])) * (isHeavy(base) ? HEAVY_DAMAGE : 1));
   return offhand && offhandPenalty(item) ? Math.max(1, Math.floor(full * 0.6)) : full;
 }
 
@@ -168,9 +174,10 @@ export function itemLines(item: GearItem): string[] {
   const b = baseOf(item.base);
   const eb = effectiveBase(item);
   const lines: string[] = [];
-  lines.push(`🏷️ ${familyLine(eb)}${isHeavy(eb) ? " · no Dodge, Evade or Haste" : ""}`);
+  lines.push(`🏷️ ${familyLine(eb)}`);
+  if (isHeavy(eb)) lines.push(`🪨 Heavy: no Dodge, Evade or Haste while you wear it, but ${eb.kind === "weapon" ? "it hits 15% harder" : "it carries 30% more Armor"}.`);
   if (eb.damage !== undefined) lines.push(`Damage ${weaponDamage(item)}${eb.twoHanded ? " · two-handed" : ""}${eb.offDamage ? ` · off-hand ${weaponDamage(item, true)}${offhandPenalty(item) ? " (clumsy: 60%)" : ""}` : ""}`);
-  const armor = (eb.armor ?? 0) + (eb.armor ? Math.floor((item.level - 1) / 2) : 0);
+  const armor = itemArmor(eb, item.level);
   if (armor) lines.push(`Armor ${armor}`);
   if (eb.faces) lines.push(`Faces: ${eb.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind[0].toUpperCase() + f.kind.slice(1)}`).join(" · ")}`);
   if (eb.kind === "weapon" && eb.tags.includes("Holy")) lines.push("✝️ Holy: +15% to Undead, vampires, Crimson foes and anything that curses or Dooms. When your Ward stops an enemy's status, your next hit Smites (20% of its Max HP, once per fight).");
@@ -253,7 +260,7 @@ export function recompute(h: Hero) {
     for (const [id, n] of genHooks(it)) add(id, n);
     // Infused at the Jeweller: the trinket's effects (and its Armor / Max HP) ride along.
     if (it.infused) { add(it.infused); const tb = baseOf(it.infused); s.armor += tb.armor ?? 0; s.maxHp += tb.maxHp ?? 0; }
-    s.armor += (eb.armor ?? 0) + (eb.armor ? Math.floor((it.level - 1) / 2) : 0);
+    s.armor += itemArmor(eb, it.level);
     s.maxHp += eb.maxHp ?? 0;
     s.dodge += itemDodge(it);
     if (slot === "main" && it.bash) s.bash += it.bash;

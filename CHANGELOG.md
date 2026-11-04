@@ -8,6 +8,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+
+## 1.64.2 (test build)
+- Heavy gear pays back what it costs: heavy weapons hit 15% harder, and heavy armour and shields carry 30% more Armor (on top of the heavy-only lines in the affix pool). Shown on each heavy item.
 ## 1.64.1 (test build)
 - The Jeweller and the Alchemist now sit in a filled panel, like the Forge and the Masterwork.
 - The Transmuter's Crucible is no longer a Champion drop: you get it for beating the Campaign's fifth boss.
