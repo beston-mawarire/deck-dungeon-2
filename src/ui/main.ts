@@ -678,7 +678,7 @@ function crawlCombat(r: Run, msg: string[], bad: boolean) {
     <div class="cb-moves ${busy ? "busy" : ""}">
       ${acts.map(a => `<button class="cb-move ${a === "attack" ? "attack" : a === "flee" ? "flee" : a === "guard" ? "guard" : "skill"}" data-act="${a}" ${busy || (isSkill(a) && (p.mana ?? 0) < MANA_COST) ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(p)}${isSkill(a) ? ` <span class="mana-cost">🔷${MANA_COST}</span>` : ""}</button>`).join("")}
     </div>
-    <div class="cb-extra">${!busy && quickOn && canAutoBattle(r) ? `<button class="cb-quick" data-auto title="This foe can't win against plain attacks. Skip to the end.">⚡ Quick Battle</button>` : ""}<button class="cb-speed" data-speedcycle title="Combat speed">⏩ ${speed >= 1 ? "Normal" : speed >= 0.5 ? "Fast" : "Very fast"}</button></div>
+    <div class="cb-extra"><button class="cb-speed" data-speedcycle title="Combat speed">⏩ ${speed >= 1 ? "Normal" : speed >= 0.5 ? "Fast" : "Very fast"}</button></div>
     <div class="cb-bottom"><div class="cb-pots">${potionCircle(r)}</div>${czBars(r)}${bagCircle(r)}</div>
     <details class="cb-log"><summary>Battle log</summary><div class="log">${b.log.slice().reverse().map(l => `<div class="${l.startsWith("—") ? "round" : ""}">${esc(l)}</div>`).join("")}</div></details>
   </div></div>`;
@@ -1948,7 +1948,7 @@ function originPopup(o: OriginId) {
     ${gemPanel(o)}
     ${heatPanel()}
     <div class="panel crawl-panel"><div class="row"><b class="grow">🗺️ The Crawl <span class="tag">prototype</span></b><div class="seg"><button class="small ${crawlOn ? "primary" : ""}" data-crawl="1">On</button><button class="small ${crawlOn ? "" : "primary"}" data-crawl="0">Off</button></div></div>
-      <p class="sub">Walk the dungeon yourself. Each layer is three floors to explore and a fourth where its boss waits: find the trapdoor on each floor to go down (there's no way back up). Some foes stand in your way; others you can walk around. Fights are one tougher foe, and the layer grows more dangerous the longer you stay.</p></div>
+      <p class="sub">Walk the dungeon yourself. Each layer is five floors to explore and a sixth where its boss waits: find the trapdoor on each floor to go down (there's no way back up). Treasures sit in little rooms of their own, most of them guarded, and foes block the halls. Every foe is close to Elite strength, and there's no Quick Battle.</p></div>
     ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>🏰 Start Campaign</button><button data-closeorigin>Back</button></div>
   </div></div>`;

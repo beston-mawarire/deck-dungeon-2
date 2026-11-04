@@ -26,7 +26,8 @@ export function crawlTarget(run: Run, rushAfter = 2): [number, number][] {
     const p = pathTo(m, t.x, t.y) ?? pathTo(m, t.x, t.y, true);
     if (!p) return;
     let cost = p.length;
-    if (FIGHTS.includes(t.room)) cost += hp < 0.5 ? 30 : 3;
+    // Guards are fought for what they guard; foes you can walk round only when healthy.
+    if (FIGHTS.includes(t.room)) cost += hp < 0.5 ? 30 : t.guard ? 3 : hp > 0.8 ? 6 : 25;
     if (t.room === "rest" && hp < 0.6) cost -= 20;
     if (t.room === "trapdoor") cost += m.explored >= m.depth * (2 + rushAfter) ? -50 : 25;
     options.push({ p, cost });

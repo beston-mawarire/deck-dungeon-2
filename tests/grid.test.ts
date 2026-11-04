@@ -10,11 +10,11 @@ const crawl = (seed: number) => { const r = newRun("warrior", seed); startCrawl(
 const things = (m: FloorMap, room: string) => m.things.filter(t => t.room === room).length;
 
 describe("the Crawl", () => {
-  it("carves small floors: rooms and halls, everything reachable, a trapdoor far from the start", () => {
+  it("carves small floors: a few halls, everything reachable, the trapdoor far from the start", () => {
     for (let seed = 1; seed < 60; seed++) {
       const m = crawl(seed).grid!;
-      expect(m.w).toBeLessThanOrEqual(21);
-      expect(m.rooms.length).toBeGreaterThanOrEqual(4);
+      expect(m.w).toBeLessThanOrEqual(19);
+      expect(m.rooms.length).toBeGreaterThanOrEqual(3);
       const d = walkDistances(m, m.px, m.py);
       m.tiles.forEach((t, i) => { if (t === 1) expect(d[i]).toBeGreaterThanOrEqual(0); });
       const td = m.things[trapdoorThing(m)];
@@ -25,7 +25,7 @@ describe("the Crawl", () => {
     }
   });
 
-  it("some halls are two tiles wide", () => {
+  it("some hallways are two tiles wide", () => {
     let wide = 0;
     for (let seed = 1; seed < 30; seed++) {
       const m = crawl(seed).grid!;
@@ -36,33 +36,67 @@ describe("the Crawl", () => {
     expect(wide).toBeGreaterThan(10);
   });
 
-  it("spreads a layer's services over its three floors: one Merchant, one Forge or Jeweller, the campfire on the third", () => {
+  it("puts points of interest in pockets of their own, two at most, behind a one-tile doorway", () => {
+    const POI = ["trapdoor", "wooden", "iron", "vault", "shop", "forge", "jeweller", "rest", "masterwork", ...LANDMARKS];
+    let pocketed = 0, total = 0, pairs = 0;
+    for (let seed = 1; seed < 60; seed++) {
+      const r = crawl(seed);
+      for (const m of [r.grid!, makeGrid(r, 3), makeGrid(r, 5)]) {
+        const inHall = (x: number, y: number) => m.rooms.some(q => x >= q.x && x < q.x + q.w && y >= q.y && y < q.y + q.h);
+        const all = reachable(m, m.px, m.py, new Set());
+        for (const t of m.things.filter(t => POI.includes(t.room))) {
+          total++;
+          if (inHall(t.x, t.y)) continue;
+          // Find its doorway: the one tile which, blocked, cuts it off.
+          // Its doorway: the nearest tile (on foot) which, blocked, cuts it off.
+          const dt = walkDistances(m, t.x, t.y);
+          const near: number[] = [];
+          for (let i = 0; i < m.tiles.length; i++) if (m.tiles[i] === 1 && all[i] && dt[i] > 0 && dt[i] <= 3 && !reachable(m, m.px, m.py, new Set([i]))[t.y * m.w + t.x]) near.push(i);
+          expect(near.length).toBeGreaterThan(0);
+          pocketed++;
+          // Everything else cut off by that doorway is the pocket: at most two things in it.
+          const door = near.sort((a, b) => dt[a] - dt[b])[0];
+          const cut = reachable(m, m.px, m.py, new Set([door]));
+          const inside = m.things.filter(o => !cut[o.y * m.w + o.x] && o.y * m.w + o.x !== door);
+          expect(inside.length).toBeLessThanOrEqual(2);
+          if (inside.length === 2) pairs++;
+        }
+      }
+    }
+    expect(pocketed / total).toBeGreaterThan(0.85);
+    expect(pairs).toBeGreaterThan(10);
+  });
+
+  it("spreads a layer's services over its five floors: one Merchant, one Forge or Jeweller, the campfire on the fifth", () => {
     for (let seed = 1; seed < 40; seed++) {
       const r = crawl(seed);
-      const floors = [r.grid!, makeGrid(r, 2), makeGrid(r, 3)];
+      const floors = [r.grid!, makeGrid(r, 2), makeGrid(r, 3), makeGrid(r, 4), makeGrid(r, 5)];
       const n = (room: string) => floors.reduce((a, m) => a + things(m, room), 0);
       expect(n("shop")).toBe(1);
       expect(n("forge") + n("jeweller")).toBe(1);
-      expect(things(floors[2], "rest")).toBe(1);
+      expect(things(floors[4], "rest")).toBe(1);
       for (const m of floors) expect(m.things.filter(t => LANDMARKS.includes(t.room as never)).length).toBeLessThanOrEqual(2);
     }
   });
 
-  it("some foes stand in the way: fight them, or that prize is out of reach", () => {
-    let guards = 0, optional = 0;
+  it("many foes stand in the way: fight them, or what's behind is out of reach", () => {
+    let guards = 0, optional = 0, trapGuarded = 0, floors = 0;
     for (let seed = 1; seed < 60; seed++) {
       const m = crawl(seed).grid!;
+      floors++;
+      const td = m.things[trapdoorThing(m)];
       for (const g of m.things) {
         if (!g.guard) { if (["fight", "elite"].includes(g.room)) optional++; continue; }
         guards++;
         const cut = reachable(m, m.px, m.py, new Set([g.y * m.w + g.x]));
         const all = reachable(m, m.px, m.py, new Set());
-        // Blocking the guard's tile cuts something off.
         expect(m.tiles.some((t, i) => t === 1 && all[i] && !cut[i] && i !== g.y * m.w + g.x)).toBe(true);
+        if (!cut[td.y * m.w + td.x]) trapGuarded++;
       }
     }
-    expect(guards).toBeGreaterThan(40);
-    expect(optional).toBeGreaterThan(40);
+    expect(guards / floors).toBeGreaterThan(3);
+    expect(trapGuarded / floors).toBeGreaterThan(0.8);
+    expect(optional).toBeGreaterThan(20);
   });
 
   it("you see three tiles around you, walls block sight, and what you've seen stays seen", () => {
@@ -84,21 +118,20 @@ describe("the Crawl", () => {
     expect(gridStep(r, m.px + 2, m.py).ok).toBe(false);
   });
 
-  it("the trapdoor leads down a floor, with no way back; the third drops you straight onto the boss", () => {
+  it("the trapdoor leads down a floor, with no way back; the fifth drops you straight onto the boss", () => {
     const r = crawl(7);
     r.grid!.explored = 3;
     descend(r);
     expect(r.grid!.depth).toBe(2);
     expect(r.grid!.explored).toBe(3);
     expect(r.scene.t).toBe("map");
+    for (let d = 3; d <= 5; d++) { descend(r); expect(r.grid!.depth).toBe(d); }
     descend(r);
-    expect(r.grid!.depth).toBe(3);
-    descend(r);
-    expect(LAYER_FLOORS).toBe(4);
+    expect(LAYER_FLOORS).toBe(6);
     expect(r.scene.t).toBe("combat");
     expect(r.scene.t === "combat" && r.scene.rank).toBe("boss");
     expect(r.step).toBe(STEPS_PER_FLOOR);
-    expect(r.popup?.title).toMatch(/Floor 4/);
+    expect(r.popup?.title).toMatch(/Floor 6/);
   });
 
   it("turning back from a risky room puts you back where you stood", () => {
@@ -116,7 +149,7 @@ describe("the Crawl", () => {
 
   it("grows more dangerous as you clear encounters", () => {
     const a = crawl(11), b = newRun("warrior", 11);
-    a.grid!.explored = 12;
+    a.grid!.explored = 18;
     expect(gridDanger(a)).toBe(3);
     expect(gridDanger(b)).toBe(0);
   });

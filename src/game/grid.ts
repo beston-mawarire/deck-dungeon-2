@@ -3,14 +3,14 @@
 // what you've seen stays on your map. Foes, chests, services and landmarks stand on tiles: step onto one to meet it.
 // This file is the floor's shape, sight and paths; run.ts decides what stands where and what happens.
 
-export const MAP_W = 21;
-export const MAP_H = 21;
-/** A layer is four floors: three to explore (find the trapdoor down) and the boss's floor at the bottom. */
-export const LAYER_FLOORS = 4;
+export const MAP_W = 19;
+export const MAP_H = 19;
+/** A layer is six floors: five to explore (find the trapdoor down) and the boss's floor at the bottom. */
+export const LAYER_FLOORS = 6;
 /** How far you can see, in tiles. */
 export const SIGHT = 3;
 /** Every few encounters cleared, the floor's foes grow a little stronger. */
-export const DANGER_EVERY = 4;
+export const DANGER_EVERY = 6;
 /** Crawl fights are one foe, but a harder one. */
 export const GRID_HP = 1.15;
 export const GRID_DMG = 1.05;
@@ -35,7 +35,7 @@ export interface MapThing {
 }
 
 export interface FloorMap {
-  /** The layer (run.floor) and which of its floors this is (1–3; the 4th is the boss). */
+  /** The layer (run.floor) and which of its floors this is (1–5; the 6th is the boss). */
   floor: number;
   depth: number;
   w: number;
@@ -72,22 +72,23 @@ const center = (r: Rect) => ({ x: r.x + Math.floor(r.w / 2), y: r.y + Math.floor
 export function carve(rng: () => number, w = MAP_W, h = MAP_H): { tiles: Tile[]; rooms: Rect[]; start: number; order: number[] } {
   for (let attempt = 0; ; attempt++) {
     const out = carveOnce(rng, w, h);
-    if (out.rooms.length >= 4 || attempt > 20) return out;
+    if (out.rooms.length >= 3 || attempt > 20) return out;
   }
 }
 
 function carveOnce(rng: () => number, w: number, h: number) {
   const tiles: Tile[] = new Array(w * h).fill(0);
   const rooms: Rect[] = [];
-  const want = 4 + Math.floor(rng() * 3);
+  // A few small halls to walk between; the treasures sit in pockets dug off them (see digPocket).
+  const want = 3 + Math.floor(rng() * 2);
   for (let tries = 0; tries < 300 && rooms.length < want; tries++) {
-    const big = rng() < 0.3;
-    const rw = big ? 5 + Math.floor(rng() * 3) : 3 + Math.floor(rng() * 3);
-    const rh = big ? 5 + Math.floor(rng() * 2) : 3 + Math.floor(rng() * 3);
-    const x = 1 + Math.floor(rng() * (w - rw - 2));
-    const y = 1 + Math.floor(rng() * (h - rh - 2));
+    const big = rng() < 0.25;
+    const rw = big ? 5 : 3 + Math.floor(rng() * 2);
+    const rh = big ? 4 + Math.floor(rng() * 2) : 3 + Math.floor(rng() * 2);
+    const x = 2 + Math.floor(rng() * (w - rw - 4));
+    const y = 2 + Math.floor(rng() * (h - rh - 4));
     const r = { x, y, w: rw, h: rh };
-    if (rooms.some(o => x < o.x + o.w + 2 && o.x < x + rw + 2 && y < o.y + o.h + 2 && o.y < y + rh + 2)) continue;
+    if (rooms.some(o => x < o.x + o.w + 3 && o.x < x + rw + 3 && y < o.y + o.h + 3 && o.y < y + rh + 3)) continue;
     rooms.push(r);
   }
   for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) tiles[y * w + x] = 1;
@@ -140,6 +141,43 @@ export function digNook(m: { w: number; h: number; tiles: Tile[] }, r: Rect, rng
     m.tiles[y * m.w + x] = 1;
     m.tiles[ey * m.w + ex] = 1;
     return { mouth: y * m.w + x, end: ey * m.w + ex };
+  }
+  return null;
+}
+
+/** Dig a small room off the floor behind a one-tile doorway (the choke point): a pocket for a treasure or two.
+ *  `prefer` orders where it may hang off (best first); `avoid` are tiles it must not hang off (other pockets). */
+export function digPocket(m: { w: number; h: number; tiles: Tile[] }, rng: () => number, pw: number, ph: number, avoid: Set<number>, prefer?: (i: number) => number): { door: number; cells: number[]; front: number } | null {
+  const wall = (x: number, y: number) => x > 0 && y > 0 && x < m.w - 1 && y < m.h - 1 && m.tiles[y * m.w + x] === 0;
+  const cands: [number, number, number][] = [];
+  for (let i = 0; i < m.tiles.length; i++) {
+    if (m.tiles[i] !== 1 || avoid.has(i)) continue;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) cands.push([i, dx, dy]);
+  }
+  for (let k = cands.length - 1; k > 0; k--) { const j = Math.floor(rng() * (k + 1)); [cands[k], cands[j]] = [cands[j], cands[k]]; }
+  if (prefer) cands.sort((a, b) => prefer(b[0]) - prefer(a[0]));
+  for (const [i, dx, dy] of cands) {
+    const fx = i % m.w, fy = Math.floor(i / m.w);
+    const dxd = fx + dx, dyd = fy + dy;
+    // The doorway: rock, with rock either side of it.
+    if (!wall(dxd, dyd) || !wall(dxd - dy, dyd - dx) || !wall(dxd + dy, dyd + dx)) continue;
+    const across = dx !== 0 ? ph : pw, deep = dx !== 0 ? pw : ph;
+    const off = Math.floor(rng() * across);
+    // The pocket's cells, beyond the doorway.
+    const cells: number[] = [];
+    for (let a = 0; a < across; a++) for (let d = 1; d <= deep; d++) {
+      const cx = dxd + dx * d + (dx === 0 ? a - off : 0), cy = dyd + dy * d + (dy === 0 ? a - off : 0);
+      cells.push(cy * m.w + cx);
+    }
+    // It and a ring of rock round it must be solid (so it only opens through the doorway).
+    const xs = cells.map(c => c % m.w), ys = cells.map(c => Math.floor(c / m.w));
+    const x0 = Math.min(...xs) - 1, x1 = Math.max(...xs) + 1, y0 = Math.min(...ys) - 1, y1 = Math.max(...ys) + 1;
+    let ok = true;
+    for (let y = y0; y <= y1 && ok; y++) for (let x = x0; x <= x1; x++) { if (x === dxd && y === dyd) continue; if (!wall(x, y)) { ok = false; break; } }
+    if (!ok) continue;
+    m.tiles[dyd * m.w + dxd] = 1;
+    for (const c of cells) m.tiles[c] = 1;
+    return { door: dyd * m.w + dxd, cells, front: (dyd + dy) * m.w + dxd };
   }
   return null;
 }

@@ -9,6 +9,19 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.69.0
+- **The Crawl: six floors to a layer.** Floors 1–5 to explore, the boss alone on the 6th. The campfire is on the 5th.
+- **Smaller floors** (19×19): three or four small halls joined by hallways.
+- **Every point of interest has a little room of its own** (the trapdoor, chests, services, landmarks), behind a one-tile doorway. Some rooms hold two things, never more.
+- **More foes in the way:**
+  - Most trapdoor doorways are guarded (85%), and most other little rooms too (70%).
+  - One or two foes block hallways as well. A few more wander the halls, and you can walk around those.
+- **Tougher foes:**
+  - Every foe is close to Elite strength: plain monsters get much more HP and Power. They ease in over a layer's first floors and are at full strength from the 4th.
+  - Because of that, true Elites are rarer: none on a layer's first floor, and Champions only from the 3rd.
+  - Plain fights pay a little more XP and Gold to match.
+- **No Quick Battle in the Crawl.**
+
 ## 1.68.0
 - **The Crawl's fights get their own screen**, Pokémon-style, on pale parchment inside a brick frame.
   - The foe stands top right with its box (name, HP, traits) to the left. You stand bottom left with your box to the right. Your dice sit between you.

@@ -24,7 +24,7 @@ import { SIGIL_SETS } from "../data/talisman";
 const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
 import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 import { affixById, rescaleAffixes } from "./affixpool";
-import { carve, dangerOf, DANGER_DMG, DANGER_HP, digNook, GRID_DMG, GRID_HP, idx, isFloor, isSeenTile, LAYER_FLOORS, look, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
+import { carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, idx, isFloor, isSeenTile, LAYER_FLOORS, look, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -441,11 +441,11 @@ const HARD_ROOMS: RoomType[] = ["elite", "champion", "vault", "unique", "nemesis
 
 const FOE_ROOMS: RoomType[] = ["fight", "elite", "champion", "unique", "goblin", "nemesis", "doppelganger", "crimson_elite"];
 
-/** Where this layer's services fall: the campfire on the last floor before the boss, the others spread over the three. */
+/** Where this layer's services fall: the campfire on the last floor before the boss, the others spread over the rest. */
 function layerPlan(run: Run): Partial<Record<RoomType, number>> {
-  const rng = run.rng, any = () => 1 + Math.floor(rng() * 3);
-  const plan: Partial<Record<RoomType, number>> = { rest: 3, shop: 1 + Math.floor(rng() * 2) };
-  plan[run.jewellerNext ? "jeweller" : "forge"] = 2 + Math.floor(rng() * 2);
+  const rng = run.rng, last = LAYER_FLOORS - 1, any = () => 1 + Math.floor(rng() * last);
+  const plan: Partial<Record<RoomType, number>> = { rest: last, shop: 1 + Math.floor(rng() * 3) };
+  plan[run.jewellerNext ? "jeweller" : "forge"] = 2 + Math.floor(rng() * (last - 1));
   run.jewellerNext = !run.jewellerNext;
   if (run.floor >= MASTERWORK_FLOOR && run.mode !== "abyss") plan.masterwork = any();
   if (crimsonActive(run) && run.hero.crimsonKeys > 0) plan.crimson_vault = any();
@@ -458,11 +458,18 @@ function layerPlan(run: Run): Partial<Record<RoomType, number>> {
   return plan;
 }
 
-/** How many landmarks a floor holds: none (45%), one (45%) or two (10%). */
-const floorLandmarks = (x: number) => (x < 0.45 ? 0 : x < 0.9 ? 1 : 2);
+/** How many landmarks a floor holds: none (50%), one (40%) or two (10%). */
+const floorLandmarks = (x: number) => (x < 0.5 ? 0 : x < 0.9 ? 1 : 2);
+/** Crawl foes are near Elite strength: a plain monster's HP and Power. */
+export const CRAWL_NORMAL_HP = 1.8;
+export const CRAWL_NORMAL_POWER = 2;
+/** How often a pocket's doorway is guarded (the trapdoor's, and the rest). */
+export const TRAP_GUARD = 0.85;
+export const POCKET_GUARD = 0.7;
 
-/** Lay out one floor of a layer: carve the rooms and halls, hide the trapdoor down, then set out its foes, chests, services and landmarks.
- *  Some foes stand in the way (of the trapdoor, a chest, a landmark) and must be fought; the rest can be walked around. */
+/** Lay out one floor of a layer: small halls joined by hallways, with every point of interest (the trapdoor, chests, services,
+ *  landmarks) in a pocket of its own (one or two to a pocket) behind a one-tile doorway. Most doorways are guarded, and foes
+ *  block some hallways too; a few more wander the halls, and those you can walk around. */
 export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   const rng = run.rng;
   if (depth === 1 || !run.gridPlan) run.gridPlan = layerPlan(run);
@@ -470,25 +477,20 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   const { tiles, rooms, start, order } = carve(rng);
   const s = roomCenter(rooms[start]);
   const m: FloorMap = { floor: run.floor, depth, w: MAP_W, h: MAP_H, tiles, seen: new Array(MAP_W * MAP_H).fill(0), rooms, things: [], px: s.x, py: s.y, explored };
-  const startI = idx(m, s.x, s.y);
-  const taken = new Set<number>([startI]);
+  const taken = new Set<number>([idx(m, s.x, s.y)]);
   const fromStart = walkDistances(m, s.x, s.y);
+  const pockets = new Set<number>();
+  const middle = order.filter(r => r !== start);
   const interior = (r: Rect) => {
     const out: number[] = [];
     for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++) if (!taken.has(idx(m, x, y))) out.push(idx(m, x, y));
     return out;
   };
-  const middle = order.filter(r => r !== start);
-  const far = order[order.length - 1];
-  const pickRoom = (from = 0) => { const pool = middle.slice(Math.min(from, middle.length - 1)); return pool[Math.floor(rng() * pool.length)]; };
   const putAt = (i: number, room: string, guard = false) => { taken.add(i); m.things.push({ x: i % m.w, y: Math.floor(i / m.w), room, guard: guard || undefined }); return m.things.length - 1; };
-  const put = (room: string, r: number) => {
-    let sp = interior(rooms[r]);
-    if (!sp.length) for (const o of [...middle].sort(() => rng() - 0.5)) { sp = interior(rooms[o]); if (sp.length) break; }
-    if (!sp.length) return -1;
-    return putAt(sp[Math.floor(rng() * sp.length)], room);
+  const putInHall = (room: string) => {
+    for (const r of [...(middle.length ? middle : [start])].sort(() => rng() - 0.5)) { const sp = interior(rooms[r]); if (sp.length) return putAt(sp[Math.floor(rng() * sp.length)], room); }
+    return -1;
   };
-  // Foes from the floor's usual mix (no hard ones close to where you land).
   const count: Partial<Record<RoomType, number>> = {};
   const foe = (near: boolean): RoomType => {
     const wt = roomWeights(run, near);
@@ -497,61 +499,68 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
       const cap = GRID_REPEAT.includes(k) ? Infinity : GRID_CAP[k] ?? 1;
       if ((count[k] ?? 0) >= cap) wt[k] = 0;
     }
+    // Every Crawl foe is near Elite strength already, so true Elites are rarer (none on a layer's first floor), and Champions wait for its third.
+    wt.elite = depth <= 1 ? 0 : (wt.elite ?? 0) * 0.5;
+    if (depth <= 2) wt.champion = 0;
     const room = pickW(rng, wt);
     count[room] = (count[room] ?? 0) + 1;
     return room;
   };
-  const chest = (): RoomType => (rng() < 0.06 ? "vault" : rng() < 0.6 ? "wooden" : "iron");
-  // The trapdoor down: in the room furthest from where you land.
-  const trap = put("trapdoor", far);
-  // This floor's services, landmarks and chests.
-  for (const [room, d] of Object.entries(plan) as [RoomType, number][]) if (d === depth) put(room, room === "rest" ? far : pickRoom());
-  if (Object.keys(run.hero.curses).length > 0 && !run.seenBosses.has(`cleanse:${run.floor}`)) { run.seenBosses.add(`cleanse:${run.floor}`); put("cleansing", pickRoom()); }
+  const chest = (): RoomType => (depth >= 3 && rng() < 0.06 ? "vault" : rng() < 0.6 ? "wooden" : "iron");
+  /** Dig a pocket and put things in it (never on the tile just inside the door, so you can always step in). */
+  const pocket = (items: string[], guardChance: number, prefer?: (i: number) => number) => {
+    const two = items.length > 1;
+    const [pw, ph] = two ? (rng() < 0.5 ? [2, 3] : [3, 2]) : [2, 2];
+    const dug = digPocket(m, rng, pw, ph, pockets, prefer);
+    if (!dug) { for (const it of items) putInHall(it); return; }
+    pockets.add(dug.door);
+    for (const c of dug.cells) pockets.add(c);
+    const spots = dug.cells.filter(c => c !== dug.front).sort(() => rng() - 0.5);
+    items.forEach((it, k) => putAt(spots[k] ?? dug.front, it));
+    if (rng() < guardChance) {
+      // How far in this pocket is (its door hangs off a tile you walk to).
+      const near = Math.min(...[[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => fromStart[dug.door + dy * m.w + dx]).filter(v => v >= 0)) < 6;
+      putAt(dug.door, foe(near), true);
+    }
+  };
+  // The trapdoor down: in a pocket as far from where you land as it can be.
+  const farthest = Math.max(...fromStart);
+  pocket(["trapdoor"], TRAP_GUARD, i => (fromStart[i] >= farthest * 0.7 ? 1000 + fromStart[i] * rng() : fromStart[i]));
+  // This floor's services, landmarks and chests, one or two to a pocket.
+  const pois: string[] = [];
+  for (const [room, d] of Object.entries(plan) as [RoomType, number][]) if (d === depth) pois.push(room);
+  if (Object.keys(run.hero.curses).length > 0 && !run.seenBosses.has(`cleanse:${run.floor}`)) { run.seenBosses.add(`cleanse:${run.floor}`); pois.push("cleansing"); }
   const lw = roomWeights(run, false);
   const marks = Object.fromEntries(LANDMARKS.map(k => [k, lw[k] ?? 0]).filter(([, v]) => (v as number) > 0)) as Partial<Record<RoomType, number>>;
-  for (let n = floorLandmarks(rng()); n > 0 && Object.keys(marks).length; n--) { const room = pickW(rng, marks); delete marks[room]; put(room, pickRoom(1)); }
-  // A chest tucked in a nook, with something standing at its mouth.
-  if (rng() < 0.65) {
-    const r = pickRoom(1);
-    const nook = digNook(m, rooms[r], rng);
-    if (nook) { putAt(nook.end, chest()); putAt(nook.mouth, foe(fromStart[nook.mouth] < 8), true); }
+  for (let n = floorLandmarks(rng()); n > 0 && Object.keys(marks).length; n--) { const room = pickW(rng, marks); delete marks[room]; pois.push(room); }
+  for (let n = 2 + Math.floor(rng() * 2); n > 0; n--) pois.push(chest());
+  pois.sort(() => rng() - 0.5);
+  while (pois.length) pocket(pois.splice(0, pois.length > 1 && rng() < 0.35 ? 2 : 1), POCKET_GUARD);
+  // Foes across hallways: blocking the way on to other halls (and whatever hangs off them).
+  const inHall = (i: number) => rooms.some(r => { const x = i % m.w, y = Math.floor(i / m.w); return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h; });
+  const all = reachable(m, s.x, s.y, new Set());
+  const blockers: number[] = [];
+  for (let i = 0; i < m.tiles.length; i++) {
+    if (m.tiles[i] !== 1 || taken.has(i) || pockets.has(i) || inHall(i) || fromStart[i] < 4) continue;
+    const cut = reachable(m, s.x, s.y, new Set([i]));
+    if (m.tiles.some((t, j) => t === 1 && all[j] && !cut[j] && j !== i && !pockets.has(j))) blockers.push(i);
   }
-  for (let n = 1 + Math.floor(rng() * 2); n > 0; n--) put(chest(), pickRoom());
-  // Foes in the way: one between you and the trapdoor (usually), and some in front of chests and landmarks.
-  const prize = (i: number) => i >= 0 && m.things[i] ? idx(m, m.things[i].x, m.things[i].y) : -1;
-  const inRoom = (i: number) => rooms.some(r => { const x = i % m.w, y = Math.floor(i / m.w); return x > r.x && x < r.x + r.w - 1 && y > r.y && y < r.y + r.h - 1; });
-  const chokes = (target: number, avoid?: number) => {
-    const out: number[] = [];
-    for (let i = 0; i < m.tiles.length; i++) {
-      if (m.tiles[i] !== 1 || taken.has(i) || inRoom(i) || fromStart[i] < 3) continue;
-      const cut = reachable(m, s.x, s.y, new Set([i]));
-      if (cut[target]) continue;
-      if (avoid !== undefined && avoid >= 0 && !cut[avoid]) continue;
-      out.push(i);
-    }
-    return out;
-  };
-  const trapI = prize(trap);
-  if (trapI >= 0 && rng() < 0.75) {
-    const c = chokes(trapI);
-    if (c.length) { const i = c[Math.floor(rng() * c.length)]; putAt(i, foe(fromStart[i] < 8), true); }
+  for (let n = 1 + (rng() < 0.6 ? 1 : 0); n > 0 && blockers.length; n--) {
+    const k = Math.floor(rng() * blockers.length);
+    const i = blockers.splice(k, 1)[0];
+    putAt(i, foe(fromStart[i] < 6), true);
+    // Not two in the same hallway.
+    for (let j = blockers.length - 1; j >= 0; j--) if (Math.abs((blockers[j] % m.w) - (i % m.w)) + Math.abs(Math.floor(blockers[j] / m.w) - Math.floor(i / m.w)) < 4) blockers.splice(j, 1);
   }
-  let lootGuards = 0;
-  for (let t = 0; t < m.things.length && lootGuards < 2; t++) {
-    const th = m.things[t];
-    if (th.guard || FOE_ROOMS.includes(th.room as RoomType) || th.room === "trapdoor" || th.room === "rest" || th.room === "shop") continue;
-    if (rng() < 0.5) continue;
-    // A guard here must only cut off this prize, not the way down.
-    const c = chokes(prize(t), trapI).filter(i => reachable(m, s.x, s.y, new Set([i]))[trapI]);
-    if (c.length) { const i = c[Math.floor(rng() * c.length)]; putAt(i, foe(fromStart[i] < 8), true); lootGuards++; }
-  }
-  // Foes you could walk around, in the open rooms.
+  // A few more in the halls, which you can walk around.
   const rank = new Map(order.map((r, k) => [r, k]));
   for (const r of middle) {
-    const area = rooms[r].w * rooms[r].h;
-    const n = (rng() < 0.7 ? 1 : 0) + (area >= 20 && rng() < 0.5 ? 1 : 0);
+    if (rng() > 0.6) continue;
     const near = (rank.get(r) ?? 0) <= 1;
-    for (let k = 0; k < n; k++) { const room = foe(near); if (near && HARD_ROOMS.includes(room)) continue; put(room, r); }
+    const room = foe(near);
+    if (near && HARD_ROOMS.includes(room)) continue;
+    const sp = interior(rooms[r]);
+    if (sp.length) putAt(sp[Math.floor(rng() * sp.length)], room);
   }
   look(m);
   return m;
@@ -710,7 +719,8 @@ function enterRoom(run: Run, room: RoomType) {
       const key = (h.relics["skeleton_key"] ?? 0) > 0;
       if (!key && run.rng() < 1 / 6) {
         run.message = "The chest bites! It's a Mimic.";
-        return fight(run, "elite", "mimic");
+        // On a Crawl layer's first floor, a smaller one.
+        return fight(run, run.gridMode && run.grid?.depth === 1 ? "normal" : "elite", "mimic");
       }
       const ironOdds = useClover(run) ? luckyOdds(tables(run).iron) : tables(run).iron;
       const items = [dropItem(run, ironOdds)];
@@ -881,8 +891,13 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   // The Crawl: one foe at a time, but a harder one, and the floor grows more dangerous the longer you linger.
   if (run.gridMode && !exact) {
     const d = gridDanger(run);
-    enemy.maxHp = enemy.hp = Math.round(enemy.hp * GRID_HP * (1 + DANGER_HP * d));
-    enemy.damage = Math.round(enemy.damage * GRID_DMG * (1 + DANGER_DMG * d));
+    // Every foe in the Crawl is close to an Elite: plain monsters come much tougher.
+    const near = rank === "normal" && !thief;
+    // They ease you in: well short of that on a layer's first floor, full strength from the fourth.
+    const depthIn = run.grid?.depth ?? LAYER_FLOORS;
+    const ramp = Math.min(1, 0.25 + 0.25 * (depthIn - 1));
+    enemy.maxHp = enemy.hp = Math.round(enemy.hp * (near ? 1 + (CRAWL_NORMAL_HP - 1) * ramp : GRID_HP) * (1 + DANGER_HP * d));
+    enemy.damage = Math.round(enemy.damage * GRID_DMG * (1 + DANGER_DMG * d)) + (near ? Math.round(CRAWL_NORMAL_POWER * ramp) : 0);
   }
   run.hero.f.persist["goldAtFight"] = run.hero.f.gold;
   const battle = startBattle(run.hero.f, enemy, Math.floor(run.rng() * 1e9), run.carry);
@@ -925,6 +940,8 @@ export const AUTO_BATTLE_FLOOR = 1;
 /** Auto-battle is offered against normal foes, Elites and Champions (not bosses, dragons, goblins or named foes)
  *  once plain attacks are sure to win. */
 export function canAutoBattle(run: Run): boolean {
+  // The Crawl has no Quick Battle: every fight is yours.
+  if (run.gridMode) return false;
   const s = run.scene;
   if (s.t !== "combat" || s.battle.over) return false;
   if (!["normal", "elite", "champion"].includes(s.rank)) return false;
@@ -1103,9 +1120,9 @@ function afterFight(run: Run) {
   }
   // Catch your breath: a small heal after every won fight.
   restore(h, Math.ceil(h.f.maxHp * (abyssMod(run, "merciful_dark") ? 0.3 : heatOf(run) >= 4 ? 0 : 0.15)));
-  const xp = { normal: 1, elite: 3, champion: 5, crimson: 7, boss: b.enemy.crimson ? 9 : 6 }[rank];
+  const xp = { normal: run.gridMode ? 2 : 1, elite: 3, champion: 5, crimson: 7, boss: b.enemy.crimson ? 9 : 6 }[rank];
   gainXp(run, Math.round(xp * (abyssMod(run, "thick_hides") ? 1.5 : 1)));
-  const gold = { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank] * (abyssMod(run, "golden_depths") ? 2 : 1) + relicBonus(h.relics, "gold");
+  const gold = { normal: (4 + 2 * run.floor) * (run.gridMode ? 1.5 : 1), elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank] * (abyssMod(run, "golden_depths") ? 2 : 1) + relicBonus(h.relics, "gold");
   const items: GearItem[] = [];
   let scrolls = 0;
   let potions = 0;
