@@ -23,6 +23,8 @@ export interface HistoryEntry {
 export const HISTORY_SIZE = 10;
 
 export interface Meta {
+  /** The Camp's stores (Crown Shards, materials) and the Hall's upgrades. */
+  camp?: import("./camp").CampStore;
   /** Campaign runs in a row that ended without a Legendary (four, and the next run's first boss offers one). */
   dryRuns?: number;
   renown: number;

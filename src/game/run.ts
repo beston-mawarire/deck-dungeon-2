@@ -16,7 +16,7 @@ import type { Battle, Fighter, GearItem, OriginId, Rarity } from "../engine/type
 import { RARITIES } from "../engine/types";
 import { autoBattleWins } from "./auto";
 import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
-import { type EquipSlot, type Sigil, SIGIL_BAG_SIZE, sigilSlots, removeItem, gainPotions, potionCap, potionsPerFight, manaPotionCap, gainManaPotions, addToBackpack, canGuard, EQUIP_SLOTS, itemName, BACKPACK_SIZE, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { type EquipSlot, type Sigil, SIGIL_BAG_SIZE, sigilSlots, removeItem, gainPotions, potionCap, potionsPerFight, manaPotionCap, gainManaPotions, addToBackpack, canGuard, EQUIP_SLOTS, itemName, packSize, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { abyssMod, heatOf } from "./progress";
 import { generate, genName, setGenLuck } from "./gen";
 import { GEN_MINORS } from "../data/genparts";
@@ -24,6 +24,7 @@ import { SIGIL_SETS } from "../data/talisman";
 const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
 import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 import { affixById, rescaleAffixes } from "./affixpool";
+import { MATS, matOfFamily, type Mat } from "./camp";
 import { type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, idx, isFloor, isSeenTile, LAYER_FLOORS, look, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -278,6 +279,8 @@ export interface Run {
   /** The Crawl (prototype): floors are fogged grids of rooms rather than a row of paths. */
   gridMode?: boolean;
   grid?: FloorMap;
+  /** Crown Shards and Camp materials found this run (banked to the Camp as they're found). */
+  campLoot?: { crowns: number; mats: Partial<Record<Mat, number>>; banked?: { crowns: number; mats: Partial<Record<Mat, number>> } };
   /** The boss's rewards, waiting in the chest of its treasure room; and the drop out of that room under way. */
   bossChest?: Scene;
   gridDescend?: boolean;
@@ -740,6 +743,13 @@ export function gridStep(run: Run, x: number, y: number): { ok: true; entered: b
   m.pending = t;
   chooseRoom(run, m.things[t].room as RoomType);
   return { ok: true, entered: true, seen };
+}
+
+/** Something for the Camp: a material (and how many), or Crown Shards. */
+export function campGain(run: Run, mat: Mat | null, n: number, crowns = 0) {
+  const l = (run.campLoot ??= { crowns: 0, mats: {} });
+  if (mat && n) l.mats[mat] = (l.mats[mat] ?? 0) + n;
+  l.crowns += crowns;
 }
 
 /** Urns: mostly a few coins, now and then a Mana Potion, very rarely a Healing Potion. Smashed, they're gone. */
@@ -1239,6 +1249,15 @@ function afterFight(run: Run) {
     h.f.persist["blessFights"]--;
     if (h.f.persist["blessFights"] === 0) { delete h.f.persist["blessKind"]; run.message = "🐲 The Dragon's Blessing fades."; }
   }
+  // The Hall's Second Life: once a run, you get back up at half your Max HP (the foe is gone; a boss must be faced again).
+  if (b.over === "lost" && run.gridMode && (h.f.persist["secondLife"] ?? 0) > 0) {
+    h.f.persist["secondLife"] = 0;
+    h.f.hp = Math.ceil(h.f.maxHp / 2);
+    run.popup = { icon: "💫", title: "Second Life", text: "Everything goes dark... and then, somehow, you breathe again. You get back up, at half your strength. It won't happen twice." };
+    if (rank === "boss") { run.scene = { t: "map" }; return enterRoom(run, "boss"); }
+    run.message = "💫 Second Life: you get back up.";
+    return advance(run);
+  }
   if (b.over === "lost") {
     const p = h.f.persist;
     if ((b.player.flags["hits"] ?? 0) === 1) p["ach_one_hit"] = 1;
@@ -1465,6 +1484,12 @@ function afterFight(run: Run) {
     run.message = `+${bossGold} Gold${run.relicChoice ? " · a relic to choose" : relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""}${ruinNote}${run.gridMode ? "" : " · healed 30%"}${curseNote ? ` ${curseNote}` : ""}`;
     // The Crawl: the rest of the boss's hoard waits in a chest in its treasure room, beside the way down.
     if (run.gridMode && !then) {
+      // Crown Shards for the Camp's Hall (more from deeper layers), and a handful of its family's material.
+      const crowns = 1 + Math.floor((run.floor - 1) / 2);
+      campGain(run, null, 0, crowns);
+      const bm = matOfFamily(b.enemy.family);
+      if (bm) campGain(run, bm, 3);
+      run.message = `👑 +${crowns} Crown Shard${crowns === 1 ? "" : "s"}${bm ? ` · +3 ${MATS[bm].icon} ${MATS[bm].name}` : ""}. ${run.message}`;
       run.bossChest = run.scene;
       run.grid = makeTreasure(run);
       run.scene = { t: "map" };
@@ -1478,6 +1503,10 @@ function afterFight(run: Run) {
     const n = rank === "normal" ? (run.rng() < 0.3 ? 1 + Math.floor(run.rng() * 2) : 0) : rank === "elite" ? (run.rng() < 0.55 ? 2 + Math.floor(run.rng() * 3) : 0) : 3 + Math.floor(run.rng() * 3);
     if (n) { h.scrap += n; mats = `+${n} ⚙️ Scrap`; }
     if (rank !== "normal" && run.rng() < 0.15) { h.azure = (h.azure ?? 0) + 1; mats += `${mats ? " · " : ""}+1 💠 Azure`; }
+    // Camp materials, by the foe's family: Bone Dust from the Undead, Hide from Beasts, Cogs from Constructs, Sigils from Cultists.
+    const cm = matOfFamily(b.enemy.family);
+    const cn = !cm ? 0 : rank === "normal" ? (run.rng() < 0.35 ? 1 : 0) : rank === "elite" ? (run.rng() < 0.7 ? 1 + (run.rng() < 0.4 ? 1 : 0) : 0) : 2 + Math.floor(run.rng() * 2);
+    if (cm && cn) { campGain(run, cm, cn); mats += `${mats ? " · " : ""}+${cn} ${MATS[cm].icon} ${MATS[cm].name}`; }
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (relic) offerRelic(run, relic, rank === "elite" && !then ? 0.25 : 0.5, rank === "elite" && !then ? 1 : 2);
@@ -2034,7 +2063,7 @@ export function forgeTransmute(run: Run, uid: number): GearItem | string {
   removeGear(h, uid);
   const out: GearItem = { uid: h.nextUid++, base: choice.id, rarity: "legendary", level: Math.max(found.item.level, depth(run)), bonuses: {}, revealed: false };
   if (where !== "backpack") equipItem(h, out, where);
-  else if (h.backpack.length < BACKPACK_SIZE) h.backpack.push(out);
+  else if (h.backpack.length < packSize(h)) h.backpack.push(out);
   markFound(run, out);
   h.f.persist["ach_transmute"] = 1;
   recompute(h);

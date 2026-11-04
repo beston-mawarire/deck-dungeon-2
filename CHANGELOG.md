@@ -9,6 +9,18 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.73.0
+- **Camp:** on a phone, the stone frame round the page is gone. The left and right arrows are bare glowing chevrons on every screen.
+- **Camp materials:** foes in the Crawl now and then leave a material of their kind: 🦴 Bone Dust (Undead), 🐾 Hide (Beasts), 🔩 Cogs (Constructs), 🔯 Cult Sigils (Cultists). Elites and Champions leave more.
+- **Crown Shards** 👑 come from each layer's boss (more from deeper layers), along with a few of its family's material.
+- Both go straight to the Camp the moment you find them, and you keep them even if you die.
+- **The Hall is open.** Spend Crown Shards and materials on upgrades that last for every run:
+  - **Deep Pockets** (+25 starting Gold, 4 ranks).
+  - **Apothecary's Belt** (+1 starting Healing Potion, 2 ranks).
+  - **Packmule's Straps** (+1 Backpack slot, 4 ranks).
+  - **Hardy** (+4 starting Max HP, 5 ranks).
+  - **Second Life** (once a run, when you'd die, get back up at half your Max HP; a boss must be faced again).
+
 ## 1.72.2
 - **Camp:**
   - On a phone, the stone frame round the page is gone, so the archway gets the whole screen.

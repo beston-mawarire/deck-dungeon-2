@@ -11,7 +11,7 @@ import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
 import { NEGATIVE_STATUSES, rarityLabel } from "../engine/types";
 import {
-  BACKPACK_SIZE, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName,
+  packSize, scrapValue, baseOf, effectiveBase, EQUIP_SLOTS, type EquipSlot, openSlots, canGuard, equipItem, fillText, type Hero, itemLines, itemName,
   keepsOffHand, findItem, recompute, type Sigil, SIGIL_BAG_SIZE, SIGIL_FLOORS, sigilSlots, reveal, salvage, salvageNote, materials, slotsFor, unequip, upgradeCost, xpToLevel
 } from "../game/hero";
 import { LEGENDARY_LORE } from "../data/lore";
@@ -34,6 +34,7 @@ import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
+import { applyHall, bankCamp, buyHall, campOf, HALL, hallRank, MATS, type Mat } from "../game/camp";
 import { pingSession } from "./leaderboard";
 import { classify, FAMILY_NAME } from "../game/families";
 import { applyRework, canAfford, canEmpowerTarget, costText, empower, empowerBlock, extract, extractBlock, MAX_REFINE, refine, refineBlock, refineCost, rework, reworkBlock, reworkCost, SCROLL_SLOTS, scrapScroll, scrollName, scrollScrapValue } from "../game/masterwork";
@@ -749,7 +750,7 @@ function merchantScreen(r: Run, msg: string[], bad: boolean) {
       <div class="mer-panel mer-stock"><div class="mer-label">For sale</div><div class="mer-list">${stock}${reroll}</div></div>
     </div>
     <div class="mer-panel mer-inv">
-      <div class="mer-tabs"><button class="${merInv === "equipped" ? "on" : ""}" data-minv="equipped">🛡️ Equipped</button><button class="${merInv === "backpack" ? "on" : ""}" data-minv="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</button></div>
+      <div class="mer-tabs"><button class="${merInv === "equipped" ? "on" : ""}" data-minv="equipped">🛡️ Equipped</button><button class="${merInv === "backpack" ? "on" : ""}" data-minv="backpack">🎒 Backpack ${h.backpack.length}/${packSize(h)}</button></div>
       <div class="mer-list">${mine}</div>
     </div>
     <button class="mer-leave" data-leave>Leave</button>
@@ -796,6 +797,19 @@ function campBody(o: OriginId, tab: CampTab): string {
       ${(() => { const w = currentAbyssMod(); return `<p class="sub">${w.icon} This week: <b>${esc(w.name)}</b>. ${esc(w.text)}.</p>`; })()}
       ${meta.plates ? `<button class="small camp-drop ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : "＋ Give a Vanadium Plate"}</button>` : ""}
       <button class="primary camp-go" data-campabyss ${shards >= ABYSS_SHARD_COST ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 ${ABYSS_SHARD_COST}</button>`;
+  }
+  if (tab === "hall") {
+    const c = campOf(meta);
+    const store = `<div class="hall-store"><span>👑 <b>${c.crowns}</b> Crown Shard${c.crowns === 1 ? "" : "s"}</span>${(Object.keys(MATS) as Mat[]).map(k => `<span title="${esc(MATS[k].name)}, from ${MATS[k].family} foes">${MATS[k].icon} <b>${c.mats[k] ?? 0}</b> ${esc(MATS[k].name)}</span>`).join("")}</div>`;
+    return `<p>Crown Shards come from the guardians at the bottom of each layer; materials from the foes you beat, by their kind. Both come home with you, even if you fall. Spend them here on upgrades that last.</p>
+      ${store}
+      <div class="hall-list">${HALL.map(u => {
+        const rk = hallRank(meta, u.id), done = rk >= u.ranks, cost = done ? null : u.cost(rk + 1);
+        const can = !!cost && c.crowns >= cost.crowns && (c.mats[cost.mat] ?? 0) >= cost.n;
+        return `<div class="hall-up ${done ? "done" : ""}"><span class="hu-ic">${u.icon}</span><span class="hu-txt"><b>${esc(u.name)}</b><span>${esc(u.per)}${u.ranks > 1 ? " (per rank)" : ""}</span>
+          <span class="hu-pips">${Array.from({ length: u.ranks }, (_, i) => `<i class="${i < rk ? "on" : ""}"></i>`).join("")}</span></span>
+          ${done ? `<span class="hu-done">✔ Done</span>` : `<button class="hu-buy" data-hallbuy="${u.id}" ${can ? "" : "disabled"}>👑 ${cost!.crowns} · ${MATS[cost!.mat].icon} ${cost!.n}</button>`}</div>`;
+      }).join("")}</div>`;
   }
   const c = CAMP_SOON[tab]!;
   return `<p>${c.text}</p><ul>${c.list.map(x => `<li>${esc(x)}</li>`).join("")}</ul><p class="camp-soon">Being built. Coming soon.</p>`;
@@ -1086,7 +1100,7 @@ function shopScene(r: Run) {
     body = `<p class="shop-text">The Merchant buys anything, for 40% of its price.${r.scene.soldItem ? ` Last sold: <b>${esc(r.scene.soldItem)}</b>.` : ""}</p>
     <div class="forge-sides">
       <button class="forge-side ${shopSide === "equipped" ? "active" : ""}" data-shopside="equipped">🛡️ Equipped</button>
-      <button class="forge-side ${shopSide === "backpack" ? "active" : ""}" data-shopside="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</button></div>
+      <button class="forge-side ${shopSide === "backpack" ? "active" : ""}" data-shopside="backpack">🎒 Backpack ${h.backpack.length}/${packSize(h)}</button></div>
     <div class="forge-side-body">${shopSide === "backpack" ? bulkSellRow(r) : ""}${items.length ? `<div class="cards">${items.map(card).join("")}</div>` : `<p class="shop-text">Nothing here.</p>`}</div>`;
   }
   return `<h2 class="shop-title">Merchant</h2>${tabs}<div class="shop-body">${body}</div>
@@ -1106,7 +1120,7 @@ function gearGroups(r: Run, card: (it: GearItem) => string, filter: (it: GearIte
   const bp = r.hero.backpack.filter(filter);
   const grp = (cls: string, label: string, items: GearItem[]) =>
     `<div class="gear-group ${cls}"><div class="group-label">${label}</div>${items.length ? `<div class="cards">${items.map(card).join("")}</div>` : `<p class="sub">Nothing here.</p>`}</div>`;
-  return grp("equipped-group", "🛡️ Equipped", eq) + grp("backpack-group", `🎒 Backpack ${r.hero.backpack.length}/${BACKPACK_SIZE}`, bp);
+  return grp("equipped-group", "🛡️ Equipped", eq) + grp("backpack-group", `🎒 Backpack ${r.hero.backpack.length}/${packSize(r.hero)}`, bp);
 }
 
 function allGear(r: Run): GearItem[] {
@@ -1136,7 +1150,7 @@ function forgeScene(r: Run) {
     const items = lists[forgeSide];
     return `<div class="forge-sides">
         <button class="forge-side ${forgeSide === "equipped" ? "active" : ""}" data-forgeside="equipped">🛡️ Equipped${n("equipped")}</button>
-        <button class="forge-side ${forgeSide === "backpack" ? "active" : ""}" data-forgeside="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}${n("backpack")}</button></div>
+        <button class="forge-side ${forgeSide === "backpack" ? "active" : ""}" data-forgeside="backpack">🎒 Backpack ${h.backpack.length}/${packSize(h)}${n("backpack")}</button></div>
       <div class="forge-side-body">${items.length ? `<div class="cards">${items.map(card).join("")}</div>` : `<p class="sub">${empty}</p>`}</div>`;
   };
   const slotOf = (it: GearItem) => equippedSlot(r, it);
@@ -1666,7 +1680,7 @@ function bag(r: Run) {
   const body =
     bagTab === "gear" ? `${inCombat ? `<p class="sub">You can look, but you can't change gear mid-fight.</p>` : ""}<div class="row subtabs">
         <button class="small ${gearSub === "equipped" ? "primary" : ""}" data-gearsub="equipped">🛡️ Equipped</button>
-        <button class="small ${gearSub === "backpack" ? "primary" : ""}" data-gearsub="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</button>
+        <button class="small ${gearSub === "backpack" ? "primary" : ""}" data-gearsub="backpack">🎒 Backpack ${h.backpack.length}/${packSize(h)}</button>
         <button class="small ${gearSub === "sigils" ? "primary" : ""}" data-gearsub="sigils">🔮 Sigils${(h.sigils?.length ?? 0) + (h.sigilBag?.length ?? 0) ? ` (${(h.sigils?.length ?? 0) + (h.sigilBag?.length ?? 0)})` : ""}</button>
         <button class="small ${gearSub === "scrolls" ? "primary" : ""}" data-gearsub="scrolls">📜 Scrolls${h.powerScrolls?.length ? ` (${h.powerScrolls.length}/${SCROLL_SLOTS})` : ""}</button></div>
       ${gearSub === "equipped" ? `<div class="gear-group equipped-group solo"><div class="cards">${equipped}</div></div>`
@@ -2366,6 +2380,8 @@ function render2() {
   trackMarks(r);
   // Ruin Shards and Vanadium Plates go to the device (and the online backup) the moment they drop.
   if (bankRuin(meta, r)) backupVault(vaultOf(meta));
+  // Crown Shards and Camp materials go to the Camp the moment they're found.
+  if (bankCamp(meta, r)) saveMeta(meta);
   // The leaderboard server keeps its own record of how far this run has got.
   if (r.sid && r.floor !== r.reportedFloor && s.t !== "over") void reportFloor(r);
   if (s.t === "over" && !recorded && r.endRecord) recorded = r.endRecord;
@@ -2744,6 +2760,7 @@ function bind() {
     on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; campTab = "expedition"; campOffers = null; campQuest = null; });
     on("[data-campback]", () => { camp = null; kitPick = null; });
     on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; plateArmed = false; });
+    on("[data-hallbuy]", el => { const err = buyHall(meta, el.dataset.hallbuy!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });
     on("[data-cquest]", el => { const i = Number(el.dataset.cquest); campQuest = i < 0 || campQuest === i ? null : i; });
     on("[data-campabyss]", () => { pendingOrigin = camp; startAbyss(); });
     on("[data-descend]", () => { if (!camp) return; pendingOrigin = camp; startCampaign(); });
@@ -2761,8 +2778,9 @@ function bind() {
       run = nr; void startSession(nr);
     }
     function startCampaign() { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta)); withGems(nr); nr.legendaryDue = (meta.dryRuns ?? 0) >= 4;
-      // The Crawl is the game now.
+      // The Crawl is the game now; it sets out with the Hall's upgrades.
       startCrawl(nr);
+      applyHall(meta, nr);
       // A contract taken at the Camp's Quest Board comes along.
       const q = campQuest !== null ? campOffers?.[campQuest] : undefined;
       if (q) nr.bounty = { ...q, base: 0, roomsLeft: q.roomsLeft * CAMP_QUEST_ROOMS };

@@ -21,6 +21,8 @@ export const hasThirdTrinket = (h: Hero) => h.keepsake === "ks_collector";
 /** The slots this hero can actually use right now. */
 export const openSlots = (h: Hero) => EQUIP_SLOTS.filter(s => s !== "trinket3" || hasThirdTrinket(h));
 export const BACKPACK_SIZE = 8;
+/** Backpack slots for this hero (the Hall's Packmule's Straps add some). */
+export const packSize = (h: Hero) => BACKPACK_SIZE + (h.packBonus ?? 0);
 export const DRAGON_HEART_MULT = 1.5;
 /** A Talisman sigil: a set piece (its id) or a plain one (a minor module at a tier). Its level is the floor it came from. */
 export interface Sigil { uid: number; id: string; level: number; tier?: number }
@@ -73,6 +75,8 @@ export interface Hero {
   talents: Record<string, number>;
   curses: Record<string, number>;
   potions: number;
+  /** Extra Backpack slots (the Hall). */
+  packBonus?: number;
   /** The Alchemist's combat tonics, by id. */
   tonics?: Record<string, number>;
   scrolls: number;
@@ -314,6 +318,7 @@ export function recompute(h: Hero) {
   f.arms = { main: kindOf(armMain), off: kindOf(armOff), twoHanded: !!armMain && !!effectiveBase(armMain).twoHanded };
   s.maxHp += 3 * (h.level - 1); // every level-up: +3 Max HP
   s.maxHp -= f.persist["maxHpLoss"] ?? 0;
+  s.maxHp += f.persist["hallHp"] ?? 0;
   // A revealed trinket with its own faces (Dice of the Damned) replaces your main die.
   for (const slot of ["trinket1", "trinket2", "trinket3"] as const) {
     const it = h.equip[slot];
@@ -424,7 +429,7 @@ export function equipItem(h: Hero, item: GearItem, slot?: EquipSlot): string | n
   if (!keep && target === "main" && twoHanded && h.equip.off) displaced.push(h.equip.off);
   if (!keep && target === "off" && h.equip.main && effectiveBase(h.equip.main).twoHanded) displaced.push(h.equip.main);
   const inPack = h.backpack.some(i => i.uid === item.uid);
-  const free = BACKPACK_SIZE - h.backpack.length + (inPack ? 1 : 0);
+  const free = packSize(h) - h.backpack.length + (inPack ? 1 : 0);
   if (displaced.length > free) return "Your backpack is full. Salvage something first.";
   removeItem(h, item.uid);
   for (const d of displaced) removeItem(h, d.uid);
@@ -438,7 +443,7 @@ export function equipItem(h: Hero, item: GearItem, slot?: EquipSlot): string | n
 export function unequip(h: Hero, slot: EquipSlot): string | null {
   const it = h.equip[slot];
   if (!it) return null;
-  if (h.backpack.length >= BACKPACK_SIZE) return "Your backpack is full.";
+  if (h.backpack.length >= packSize(h)) return "Your backpack is full.";
   delete h.equip[slot];
   h.backpack.push(it);
   recompute(h);
@@ -447,7 +452,7 @@ export function unequip(h: Hero, slot: EquipSlot): string | null {
 
 export function addToBackpack(h: Hero, item: GearItem): string | null {
   if ((h.curses["c_overburdened"] ?? 0) > 0) return "🎒 Overburdened: your backpack won't take anything new. Equip it instead.";
-  if (h.backpack.length >= BACKPACK_SIZE) return "Your backpack is full. Salvage something first.";
+  if (h.backpack.length >= packSize(h)) return "Your backpack is full. Salvage something first.";
   h.backpack.push(item);
   return null;
 }

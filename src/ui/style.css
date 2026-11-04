@@ -1692,3 +1692,21 @@ body.crawl-on { overflow: hidden; }
   .camp-screen { padding: 0; background: #1c130b; box-shadow: none; }
   .camp-screen .camp-inner { border-radius: 0; box-shadow: none; padding-top: env(safe-area-inset-top); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
 }
+/* The Hall. */
+.hall-store { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 8px 10px; margin: 4px 0 10px; border-radius: 10px; background: rgba(40,26,14,.85); border: 1px solid #6b4c2c; font-size: .88rem; color: #d8c29a; }
+.hall-store b { color: #f3e2c2; }
+.hall-list { display: grid; gap: 8px; }
+.hall-up { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; background: rgba(28,18,10,.92); border: 1px solid #5a4028; }
+.hall-up.done { border-color: #8a6a40; opacity: .85; }
+.hu-ic { font-size: 1.7rem; flex: none; }
+.hu-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hu-txt b { color: #f3e2c2; } .hu-txt > span { font-size: .8rem; color: #b39a74; }
+.hu-pips { display: flex; gap: 4px; margin-top: 3px; } .hu-pips i { width: 14px; height: 6px; border-radius: 3px; background: #2a1d12; border: 1px solid #6b4c2c; } .hu-pips i.on { background: #f0c860; border-color: #f0c860; box-shadow: 0 0 6px rgba(240,200,96,.6); }
+.hu-buy { flex: none; min-height: 40px; padding: 6px 10px; font-size: .85rem; font-weight: 700; border-radius: 9px; background: linear-gradient(180deg, #e2b866, #b8862a); border: 1px solid #f0d28a; color: #24160a; }
+.hu-buy:disabled { background: #2a1d12; color: #8a7558; border-color: #5a4028; opacity: 1; }
+.hu-done { flex: none; font-weight: 800; color: #8fd08a; font-size: .85rem; }
+@media (max-width: 899px) {
+  .hall-up { flex-wrap: wrap; }
+  .hu-buy, .hu-done { flex: 1 1 100%; text-align: center; }
+  .gate-content { padding-left: 12px; padding-right: 12px; }
+}
