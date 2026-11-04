@@ -84,13 +84,14 @@ function crawlGear(run: Run, odds: Partial<Record<Rarity, number>>): GearItem {
   for (let k = 0; k < 8 && !["weapon", "armour"].includes(effectiveBase(it).kind); k++) it = dropItem(run, odds);
   return it;
 }
-/** The Crawl: some finds (about 30%, of any rarity) want a stronger hero than you are now:
- *  a level more for Commons, two for Uncommons, three for anything rarer. Others you can use straight away. */
+/** The Crawl: some finds (about 30%, of any rarity) want a stronger hero than you are when you find them:
+ *  from 1 to 5 levels more, with rarer finds reaching higher (a Common asks 1–2 more, a Legendary up to 5). The rest you can use straight away. */
 export const GATE_CHANCE = 0.3;
-export const GATE_STEP: Partial<Record<Rarity, number>> = { common: 1, uncommon: 2 };
+export const GATE_MAX: Partial<Record<Rarity, number>> = { common: 2, uncommon: 3, rare: 4 };
 export function gateItem(run: Run, it: GearItem) {
   if (!run.gridMode || run.rng() >= GATE_CHANCE) return;
-  it.reqLevel = run.hero.level + Math.min(3, GATE_STEP[it.rarity] ?? 3);
+  const max = GATE_MAX[it.rarity] ?? 5;
+  it.reqLevel = run.hero.level + 1 + Math.floor(run.rng() * max);
 }
 const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Record<Rarity, number>> => {
   const h = heatOf(run);

@@ -9,6 +9,13 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.71.2
+- **Level gates now range from 1 to 5 levels** above you when you find the item, still on about 30% of Crawl finds. Rarer finds can ask for more:
+  - Commons 1–2 more.
+  - Uncommons 1–3.
+  - Rares 1–4.
+  - Epics and Legendaries 1–5.
+
 ## 1.71.1
 - **Level gates, reworked:** about 30% of Crawl finds, of any rarity, want a higher level than you have when you find them: 1 more for a Common, 2 for an Uncommon, 3 (at most) for anything rarer. The rest you can use straight away, even a Legendary.
 - **Crawl monsters give a little less XP:** 1 or 2 each.

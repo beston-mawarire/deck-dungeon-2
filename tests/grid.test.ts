@@ -239,7 +239,7 @@ describe("the Crawl", () => {
     expect(r.grid!.depth).toBe(0);
   });
 
-  it("about 30% of finds, of any rarity, want a level or three more than you have", () => {
+  it("about 30% of finds, of any rarity, want 1 to 5 levels more than you have (rarer ones more)", () => {
     const r = crawl(2);
     r.hero.level = 4;
     let gated = 0;
@@ -250,7 +250,9 @@ describe("the Crawl", () => {
       gateItem(r, item);
       if (!item.reqLevel) continue;
       gated++;
-      expect(item.reqLevel - 4).toBe(rarity === "common" ? 1 : rarity === "uncommon" ? 2 : 3);
+      const extra = item.reqLevel - 4;
+      expect(extra).toBeGreaterThanOrEqual(1);
+      expect(extra).toBeLessThanOrEqual(rarity === "common" ? 2 : rarity === "uncommon" ? 3 : rarity === "rare" ? 4 : 5);
     }
     expect(gated / N).toBeGreaterThan(0.22);
     expect(gated / N).toBeLessThan(0.38);
