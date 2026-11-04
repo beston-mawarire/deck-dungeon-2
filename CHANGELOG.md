@@ -9,6 +9,11 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.72.1
+- **The Camp as archways:** each Camp option is now a big stone archway that fills the screen, with its name on a wooden plaque at the top and its contents inside the dark of the arch.
+  - Swipe left or right, or tap the glowing arrows at the sides, to move to the next archway. The dots below show where you are.
+  - On larger screens the archway sits inside the gritty stone frame, with a flickering torch on either side.
+
 ## 1.72.0
 - **The Camp:** pick your class and you go to the Camp, a gritty stone hub between runs.
   - A wooden sign hangs at the top.

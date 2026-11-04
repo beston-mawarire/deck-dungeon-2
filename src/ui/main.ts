@@ -770,46 +770,87 @@ const CAMP_SOON: Partial<Record<CampTab, { title: string; text: string; list: st
   knowledge: { title: "The Knowledge Table", text: "Scrolls of Knowledge carried up from the dungeon are studied here.", list: ["Learn what the deep holds", "Lasting insights for every class"] }
 };
 
-/** The Camp: where you get ready between runs. */
-function campScreen(o: OriginId) {
+/** One Camp option's content (it sits inside that option's archway). */
+function campBody(o: OriginId, tab: CampTab): string {
   const og = ORIGINS[o];
-  const tabs = `<div class="camp-tabs" role="tablist">${CAMP_TABS.map(t => `<button class="camp-arch ${campTab === t.id ? "on" : ""} ${t.id === "abyss" && !abyssUnlocked(meta) ? "locked" : ""}" data-camptab="${t.id}" role="tab"><span class="arch-in"><span class="ic">${t.id === "abyss" && !abyssUnlocked(meta) ? "🔒" : t.icon}</span></span><b>${t.name}</b></button>`).join("")}</div>`;
-  let body = "";
-  if (campTab === "expedition") {
-    body = `<div class="camp-card"><h3>🗺️ The Expedition</h3>
-      <p>The dungeon waits. Each layer is a Dungeon Entrance, five floors to explore and a sixth where its guardian waits, with a treasure room beyond. Find the trapdoor on every floor: there's no climbing back up.</p>
+  if (tab === "expedition") {
+    return `<p>The dungeon waits. Each layer is a Dungeon Entrance, five floors to explore and a sixth where its guardian waits, with a treasure room beyond. Find the trapdoor on every floor: there's no climbing back up.</p>
       <p class="sub">You go in with ${og.hp} HP, your class's kit, 20 Gold and nothing to drink.</p>
       ${campQuest !== null && campOffers?.[campQuest] ? `<p class="camp-quest-note">📋 Contract: ${esc(bountyText(campOffers[campQuest], o))}</p>` : `<p class="sub">No contract taken. The Quest Board has work, if you want it.</p>`}
       ${liveSave() ? `<p class="sub warn">Setting out replaces your saved run.</p>` : ""}
-      <button class="primary camp-go" data-descend>⬇️ Descend</button></div>
+      <button class="primary camp-go" data-descend>⬇️ Descend</button>
       ${masteryPanel(o)}${gemPanel(o)}${heatPanel()}`;
-  } else if (campTab === "quests") {
+  }
+  if (tab === "quests") {
     if (!campOffers) { const h = newHero(o); campOffers = makeOffers(h, makeRng(Date.now() & 0x7fffffff), 1, heroTags(h)); }
     const offers = campOffers;
-    body = `<div class="camp-card"><h3>📋 The Quest Board</h3><p>Notices nailed to a post. Take one contract into the dungeon; finish it there for its reward.</p></div>
+    return `<p>Notices nailed to a post. Take one contract into the dungeon; finish it there for its reward.</p>
       <div class="camp-quests">${offers.map((q, i) => `<button class="camp-quest ${campQuest === i ? "on" : ""}" data-cquest="${i}"><b>${esc(bountyText(q, o))}</b><span>Within ${q.roomsLeft * CAMP_QUEST_ROOMS} encounters · ${esc(rewardText(q.reward))}</span>${campQuest === i ? `<em>✔ Taken</em>` : ""}</button>`).join("")}</div>
       ${campQuest !== null ? `<button class="small camp-drop" data-cquest="-1">Tear up the contract</button>` : ""}`;
-  } else if (campTab === "abyss") {
-    const shards = meta.ruinShards ?? 0;
-    body = !abyssUnlocked(meta)
-      ? `<div class="camp-card"><h3>🔒 The Abyss is sealed</h3><p>Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find the way down.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p></div>`
-      : `<div class="camp-card"><h3>🕳️ The Abyss</h3><p>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.</p>
-        <p class="sub">🪨 ${shards} Ruin Shard${shards === 1 ? "" : "s"} · ⬛ ${meta.classPlates?.[o] ?? 0} plate${(meta.classPlates?.[o] ?? 0) === 1 ? "" : "s"} on the ${og.name} · ${meta.plates ?? 0} to give</p>
-        ${(() => { const w = currentAbyssMod(); return `<p class="sub">${w.icon} This week: <b>${esc(w.name)}</b>. ${esc(w.text)}.</p>`; })()}
-        ${meta.plates ? `<button class="small ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : "＋ Give a Vanadium Plate"}</button>` : ""}
-        <button class="primary camp-go" data-campabyss ${shards >= ABYSS_SHARD_COST ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 ${ABYSS_SHARD_COST}</button></div>`;
-  } else {
-    const c = CAMP_SOON[campTab]!;
-    body = `<div class="camp-card soon"><h3>${CAMP_TABS.find(t => t.id === campTab)!.icon} ${c.title}</h3><p>${c.text}</p><ul>${c.list.map(x => `<li>${esc(x)}</li>`).join("")}</ul><p class="camp-soon">Being built. Coming soon.</p></div>`;
   }
+  if (tab === "abyss") {
+    const shards = meta.ruinShards ?? 0;
+    if (!abyssUnlocked(meta)) return `<p>The way down is sealed. Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find it.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p>`;
+    return `<p>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.</p>
+      <p class="sub">🪨 ${shards} Ruin Shard${shards === 1 ? "" : "s"} · ⬛ ${meta.classPlates?.[o] ?? 0} plate${(meta.classPlates?.[o] ?? 0) === 1 ? "" : "s"} on the ${og.name} · ${meta.plates ?? 0} to give</p>
+      ${(() => { const w = currentAbyssMod(); return `<p class="sub">${w.icon} This week: <b>${esc(w.name)}</b>. ${esc(w.text)}.</p>`; })()}
+      ${meta.plates ? `<button class="small camp-drop ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : "＋ Give a Vanadium Plate"}</button>` : ""}
+      <button class="primary camp-go" data-campabyss ${shards >= ABYSS_SHARD_COST ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 ${ABYSS_SHARD_COST}</button>`;
+  }
+  const c = CAMP_SOON[tab]!;
+  return `<p>${c.text}</p><ul>${c.list.map(x => `<li>${esc(x)}</li>`).join("")}</ul><p class="camp-soon">Being built. Coming soon.</p>`;
+}
+
+/** The Camp: where you get ready between runs. Each option is an archway that fills the screen; slide (or tap the glowing arrows) to the next. */
+function campScreen(o: OriginId) {
+  const og = ORIGINS[o];
+  const slides = CAMP_TABS.map(t => {
+    const locked = t.id === "abyss" && !abyssUnlocked(meta);
+    return `<section class="camp-slide" data-slide="${t.id}" aria-label="${esc(t.name)}">
+      <div class="camp-gate">
+        <div class="cb-torch l"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
+        <div class="cb-torch r"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
+        <div class="gate-arch">
+          <div class="gate-key"><span>${locked ? "🔒" : t.icon}</span><b>${t.name}</b></div>
+          <div class="gate-dark"><div class="gate-content">${campBody(o, t.id)}</div></div>
+        </div>
+      </div>
+    </section>`;
+  }).join("");
+  const at = Math.max(0, CAMP_TABS.findIndex(t => t.id === campTab));
   return `<div class="cb-screen camp-screen"><div class="camp-inner">
     <div class="camp-top"><button class="camp-back" data-campback aria-label="Back">←</button>
       <div class="mer-sign camp-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">The Camp</div></div>
       <button class="camp-hero" data-campback title="Change hero"><span>${ORIGIN_ICON[o]}</span><b>${esc(og.name)}</b></button></div>
     ${note ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
-    ${tabs}
-    <div class="camp-body">${body}</div>
+    <div class="camp-stage">
+      <div class="camp-carousel" data-campstart="${at}">${slides}</div>
+      <button class="camp-arrow l" data-campstep="-1" aria-label="Previous">‹</button>
+      <button class="camp-arrow r" data-campstep="1" aria-label="Next">›</button>
+    </div>
+    <div class="camp-dots">${CAMP_TABS.map((t, i) => `<button class="${i === at ? "on" : ""}" data-campgo="${i}" aria-label="${esc(t.name)}"></button>`).join("")}</div>
   </div></div>`;
+}
+
+/** After each render: put the carousel back on the open option, and keep the arrows and dots in step as you slide. */
+function mountCamp() {
+  const car = app.querySelector<HTMLElement>(".camp-carousel");
+  if (!car) return;
+  const n = CAMP_TABS.length;
+  const at = Number(car.dataset.campstart ?? 0);
+  car.scrollLeft = at * car.clientWidth;
+  const sync = () => {
+    const i = Math.max(0, Math.min(n - 1, Math.round(car.scrollLeft / Math.max(1, car.clientWidth))));
+    campTab = CAMP_TABS[i].id;
+    app.querySelector(".camp-arrow.l")?.classList.toggle("hide", i === 0);
+    app.querySelector(".camp-arrow.r")?.classList.toggle("hide", i === n - 1);
+    app.querySelectorAll(".camp-dots button").forEach((d, k) => d.classList.toggle("on", k === i));
+  };
+  sync();
+  car.onscroll = () => sync();
+  const go = (i: number) => car.scrollTo({ left: Math.max(0, Math.min(n - 1, i)) * car.clientWidth, behavior: "smooth" });
+  app.querySelectorAll<HTMLElement>("[data-campstep]").forEach(b => (b.onclick = ev => { ev.stopPropagation(); go(Math.round(car.scrollLeft / car.clientWidth) + Number(b.dataset.campstep)); sfx("click"); }));
+  app.querySelectorAll<HTMLElement>("[data-campgo]").forEach(b => (b.onclick = ev => { ev.stopPropagation(); go(Number(b.dataset.campgo)); sfx("click"); }));
 }
 
 /** Camp contracts run over a whole layer, so they get longer than a board found below. */
@@ -2303,6 +2344,7 @@ function render2() {
   if (!run) {
     app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
+    if (camp) mountCamp();
     return;
   }
   const r = run;
