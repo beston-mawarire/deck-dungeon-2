@@ -9,6 +9,17 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.72.0
+- **The Camp:** pick your class and you go to the Camp, a gritty stone hub between runs.
+  - A wooden sign hangs at the top.
+  - The tabs are a row of stone archways (it scrolls sideways on a phone): Expedition, Quest Board, Hall, Skills, Garden, Brewery, Knowledge and the Abyss.
+- **Expedition** shows what lies below and your Mastery, Ruin Gems and Heat, with a big **Descend** button.
+- **The Crawl is the game now:** every Campaign run is a Crawl run. The old path-map Campaign is retired, and the Crawl switch is gone.
+- **Quest Board:** take one of three contracts into the dungeon (they last a whole layer), or tear it up. It shows in the top right of the map while you work on it.
+- **The Abyss** has moved from the title screen into the Camp, as its own tab: shards, plates, this week's twist, and the way in.
+- **Coming soon:** the Hall, Skills, Garden, Brewery and Knowledge tabs say what they'll hold.
+- When a run ends, **New run** takes you back to the Camp with the same hero.
+
 ## 1.71.6
 - On a phone, the Merchant's "For sale" row now sits right under the sign, above the details.
 - Urns give potions less often: a Mana Potion about 1 in 33, a Healing Potion about 1 in 100.

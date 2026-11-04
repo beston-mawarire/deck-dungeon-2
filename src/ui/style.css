@@ -1592,3 +1592,42 @@ body.crawl-on { overflow: hidden; }
 }
 /* Merchant on a phone: what's for sale sits right under the sign, then the details, then your gear. */
 @media (max-width: 719px) { .mer-stock { order: -1; flex: none; } }
+
+/* ===== The Camp ===== */
+.camp-inner { position: relative; height: 100%; max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; padding: 0 12px 12px; border-radius: 6px; overflow: hidden; color: #ead7b3;
+  background-color: #1c130b; background-image: radial-gradient(ellipse at 50% 0%, rgba(255,150,60,.18), rgba(0,0,0,0) 45%), radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,.75) 100%);
+  box-shadow: 0 0 0 3px #0c0704, inset 0 0 0 2px #3a2818; }
+.camp-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; flex: none; }
+.camp-back, .camp-hero { margin-top: 12px; min-height: 0; padding: 6px 10px; border-radius: 10px; background: radial-gradient(circle at 35% 30%, #6b4a2b, #34220f); border: 2px solid #c4a273; color: #f3e2c2; }
+.camp-back { width: 42px; height: 42px; padding: 0; font-size: 1.2rem; }
+.camp-hero { display: flex; align-items: center; gap: 6px; } .camp-hero span { font-size: 1.3rem; } .camp-hero b { font-size: .9rem; }
+.camp-sign { align-self: auto; }
+.camp-tabs { flex: none; display: flex; gap: 10px; overflow-x: auto; padding: 4px 4px 8px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.camp-arch { flex: none; scroll-snap-align: start; width: 92px; min-height: 0; padding: 7px 7px 6px; display: flex; flex-direction: column; align-items: center; gap: 5px; border: 0; border-radius: 46px 46px 6px 6px;
+  background-color: #4b3826; background-image: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27120%27 height=%2760%27%3E%3Crect width=%27120%27 height=%2760%27 fill=%27%23150d07%27/%3E%3Crect x=%272%27 y=%272%27 width=%2734%27 height=%2726%27 rx=%274%27 fill=%27%235c4632%27/%3E%3Crect x=%274%27 y=%274%27 width=%2730%27 height=%273%27 rx=%271.5%27 fill=%27%237d6447%27 opacity=%27.35%27/%3E%3Crect x=%2739%27 y=%272%27 width=%2724%27 height=%2726%27 rx=%274%27 fill=%27%234b3928%27/%3E%3Crect x=%2741%27 y=%274%27 width=%2720%27 height=%273%27 rx=%271.5%27 fill=%27%237d6447%27 opacity=%27.35%27/%3E%3Crect x=%2766%27 y=%272%27 width=%2752%27 height=%2726%27 rx=%274%27 fill=%27%23634d37%27/%3E%3Crect x=%2768%27 y=%274%27 width=%2748%27 height=%273%27 rx=%271.5%27 fill=%27%237d6447%27 opacity=%27.35%27/%3E%3Crect x=%27-20%27 y=%2731%27 width=%2738%27 height=%2727%27 rx=%274%27 fill=%27%23544030%27/%3E%3Crect x=%27-18%27 y=%2733%27 width=%2734%27 height=%273%27 rx=%271.5%27 fill=%27%237d6447%27 opacity=%27.35%27/%3E%3Crect x=%2721%27 y=%2731%27 width=%2746%27 height=%2727%27 rx=%274%27 fill=%27%235f4934%27/%3E%3Crect x=%2723%27 y=%2733%27 width=%2742%27 height=%273%27 rx=%271.5%27 fill=%27%237d6447%27 opacity=%27.35%27/%3E%3Crect x=%2770%27 y=%2731%27 width=%2730%27 height=%2727%27 rx=%274%27 fill=%27%234e3b2a%27/%3E%3Crect x=%2772%27 y=%2733%27 width=%2726%27 height=%273%27 rx=%271.5%27 fill=%27%237d6447%27 opacity=%27.35%27/%3E%3Crect x=%27103%27 y=%2731%27 width=%2738%27 height=%2727%27 rx=%274%27 fill=%27%23544030%27/%3E%3Crect x=%27105%27 y=%2733%27 width=%2734%27 height=%273%27 rx=%271.5%27 fill=%27%237d6447%27 opacity=%27.35%27/%3E%3Ccircle cx=%2718%27 cy=%2712%27 r=%271.5%27 fill=%27%232c1c0e%27 opacity=%27.6%27/%3E%3Ccircle cx=%2788%27 cy=%2744%27 r=%271.8%27 fill=%27%232c1c0e%27 opacity=%27.6%27/%3E%3Ccircle cx=%2752%27 cy=%2740%27 r=%271.2%27 fill=%27%232c1c0e%27 opacity=%27.6%27/%3E%3C/svg%3E"); background-size: 72px 36px; box-shadow: inset 0 0 0 2px #120a05, 0 4px 10px rgba(0,0,0,.6); color: #e0c89c; }
+.camp-arch .arch-in { width: 100%; height: 62px; border-radius: 40px 40px 3px 3px; background: #000; display: grid; place-items: center; box-shadow: inset 0 6px 14px rgba(0,0,0,.9), 0 0 0 2px #120a05; }
+.camp-arch .ic { font-size: 1.7rem; filter: grayscale(.4) brightness(.8); transition: filter .2s; }
+.camp-arch b { font-size: .74rem; text-shadow: 0 1px 2px #000; background: rgba(12,7,3,.75); padding: 1px 6px; border-radius: 6px; white-space: nowrap; }
+.camp-arch.on { color: #f3d58a; box-shadow: inset 0 0 0 2px #120a05, 0 0 0 2px #e0b060, 0 0 18px rgba(255,170,70,.35); }
+.camp-arch.on .arch-in { background: radial-gradient(ellipse at 50% 80%, rgba(255,150,60,.45), #000 70%); }
+.camp-arch.on .ic { filter: none; }
+.camp-arch.locked { opacity: .6; }
+.camp-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px; }
+.camp-card { background: rgba(18,11,6,.88); border: 2px solid #6b4c2c; border-radius: 12px; box-shadow: 0 0 0 2px #0c0704, 0 6px 14px rgba(0,0,0,.5); padding: 14px; }
+.camp-card h3 { margin: 0 0 8px; color: #f3d58a; font-family: Georgia, "Times New Roman", serif; font-size: 1.25rem; }
+.camp-card p { margin: 0 0 8px; color: #e0cfae; } .camp-card .sub { color: #b39a74; }
+.camp-card ul { margin: 6px 0 10px; padding-left: 20px; color: #d8c29a; }
+.camp-soon { display: inline-block; padding: 4px 10px; border-radius: 8px; background: #2a1d12; border: 1px dashed #8a6a40; color: #e0b060 !important; font-size: .85rem; }
+.camp-quest-note { color: #f0d28a !important; }
+.camp-go { width: 100%; margin-top: 6px; min-height: 54px; font-size: 1.15rem; background: linear-gradient(180deg, #e2b866, #b8862a); border-color: #f0d28a; color: #24160a; font-weight: 800; }
+.camp-quests { display: grid; gap: 8px; }
+.camp-quest { position: relative; min-height: 0; text-align: left; padding: 12px 14px; border-radius: 10px; color: #ead7b3; border: 1px solid #8a6a40;
+  background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 11px, rgba(0,0,0,.08) 11px 12px), linear-gradient(170deg, #d8c39a, #b89c6c); color: #2c1c0e; box-shadow: 0 4px 10px rgba(0,0,0,.5); transform: rotate(-.4deg); }
+.camp-quest:nth-child(2) { transform: rotate(.5deg); }
+.camp-quest b { display: block; font-size: 1rem; } .camp-quest span { font-size: .82rem; color: #4a3018; }
+.camp-quest em { position: absolute; right: 10px; top: 10px; font-style: normal; font-weight: 800; color: #2a6a2a; }
+.camp-quest.on { box-shadow: 0 0 0 3px #f0d28a, 0 6px 16px rgba(0,0,0,.6); }
+.camp-drop { align-self: center; }
+.camp-body .panel { background: rgba(18,11,6,.88); border-color: #6b4c2c; color: #ead7b3; }
+@media (min-width: 900px) { .camp-arch { width: 110px; } .camp-arch .arch-in { height: 76px; } .camp-tabs { justify-content: center; } }
+.camp-drop { background: radial-gradient(circle at 35% 30%, #6b4a2b, #34220f); border: 2px solid #8a6a40; color: #f3e2c2; }

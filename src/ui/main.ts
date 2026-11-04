@@ -31,8 +31,9 @@ import { fortunePips } from "../game/loot";
 import { LAYER_FLOORS } from "../game/grid";
 import { MANA_MAX } from "../engine/combat";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
-import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap } from "../game/hero";
-import { bountyProgress, bountyText, rewardText } from "../game/bounty";
+import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
+import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
+import { makeRng } from "../engine/rng";
 import { pingSession } from "./leaderboard";
 import { classify, FAMILY_NAME } from "../game/families";
 import { applyRework, canAfford, canEmpowerTarget, costText, empower, empowerBlock, extract, extractBlock, MAX_REFINE, refine, refineBlock, refineCost, rework, reworkBlock, reworkCost, SCROLL_SLOTS, scrapScroll, scrollName, scrollScrapValue } from "../game/masterwork";
@@ -51,8 +52,6 @@ const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;
 /** Shown on the title screens. */
 const VERSION = `v${__APP_VERSION__} · build ${__APP_BUILD__}`;
 /** Quick Battle can be switched off in Options (then only the plain Fight remains). */
-/** The Crawl (prototype): floors as fogged grids of rooms. */
-let crawlOn = (() => { try { return localStorage.getItem("dd2-crawl") === "1"; } catch { return false; } })();
 let quickOn = (() => { try { return localStorage.getItem("dd2-quick") !== "0"; } catch { return true; } })();
 let speed = (() => { try { return Number(localStorage.getItem("dd2-speed") ?? "1") || 1; } catch { return 1; } })();
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms * speed));
@@ -398,9 +397,9 @@ function titleScreen() {
   const sv = savedSummary();
   const cont = sv?.over ? `<button class="primary continue" data-continue>▶ ${sv.over.won ? "🏆 " : ""}Back to your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run's results · ${sv.mode === "abyss" ? `Abyss depth ${sv.floor}` : `floor ${sv.floor}`}</button>`
     : sv ? `<button class="primary continue" data-continue>▶ Continue your ${esc(ORIGINS[sv.origin as OriginId]?.name ?? sv.origin)} run · ${sv.mode === "abyss" ? `Abyss depth ${sv.floor}` : `${sv.mode === "endless" ? "Endless " : ""}floor ${sv.floor}`} · level ${sv.level}</button>` : "";
-  const tabs = `<div class="menu-tabs" role="tablist">
-    <button class="menu-tab ${menuTab === "campaign" ? "active" : ""}" data-menutab="campaign" role="tab">🏰 Campaign</button>
-    <button class="menu-tab abyss ${menuTab === "abyss" ? "active" : ""}" data-menutab="abyss" role="tab">${abyssUnlocked(meta) ? "🕳️" : "🔒"} Abyss Run</button></div>`;
+  // (The Abyss lives in the Camp now.)
+  menuTab = "campaign";
+  const tabs = "";
   const originCards = (abyss: boolean) => `<div class="origin-grid">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
     const og = ORIGINS[o];
     const pl = meta.classPlates?.[o] ?? 0;
@@ -417,7 +416,7 @@ function titleScreen() {
   const dailyOpenToday = meta.daily?.day !== utcDay();
   const infoRow = `<div class="menu-btns three info-row"><button class="info-btn" data-info>ℹ️ Info</button><button class="ch-btn" data-challenges>${dailyOpenToday ? `<b class="newdot" title="Today's Daily Dungeon is waiting"></b>` : ""}⚔️ Challenges</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>`;
   const head = `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>`;
-  if (menuTab === "abyss") {
+  if ((menuTab as string) === "abyss") {
     const shards = meta.ruinShards ?? 0;
     const body = !abyssUnlocked(meta)
       ? `<div class="panel abyss-locked"><p class="big">🔒 The Abyss is sealed.</p><p>Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find the way down.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p><button class="dg-stone small" data-abyssintro>❔ How it works</button></div>`
@@ -756,6 +755,65 @@ function merchantScreen(r: Run, msg: string[], bad: boolean) {
     <button class="mer-leave" data-leave>Leave</button>
   </div></div>`;
 }
+
+/** The Camp's tabs, as stone archways in a row (it scrolls sideways on a phone). */
+const CAMP_TABS: { id: CampTab; icon: string; name: string }[] = [
+  { id: "expedition", icon: "🗺️", name: "Expedition" }, { id: "quests", icon: "📋", name: "Quest Board" }, { id: "hall", icon: "🏛️", name: "Hall" },
+  { id: "skills", icon: "✨", name: "Skills" }, { id: "garden", icon: "🌱", name: "Garden" }, { id: "brewery", icon: "⚗️", name: "Brewery" },
+  { id: "knowledge", icon: "📚", name: "Knowledge" }, { id: "abyss", icon: "🕳️", name: "The Abyss" }
+];
+const CAMP_SOON: Partial<Record<CampTab, { title: string; text: string; list: string[] }>> = {
+  hall: { title: "The Hall", text: "Where Crown Shards, taken from the bosses of the deep, buy lasting upgrades for every run.", list: ["Deep Pockets: more starting Gold", "Apothecary's Belt: start with a Healing Potion", "Packmule's Straps: more Backpack space", "Hardy: more starting Max HP", "Second Life: once a run, get back up from death"] },
+  skills: { title: "Skills", text: "Each class learns new abilities as its Mastery grows. Pick the one you take into the dungeon.", list: ["New abilities unlock at Mastery milestones", "One ability a run: the new one replaces the old", "Mastery grows slowly, over many deep runs"] },
+  garden: { title: "The Garden", text: "Seeds and herbs found below grow here between runs.", list: ["Plant what you bring home", "Harvests feed the Brewery", "More plots from the Hall"] },
+  brewery: { title: "The Brewery", text: "Brew your own potions from what the Garden grows: a game of dice and sweet spots.", list: ["Healing and Mana Potions to take below", "Stranger brews from rarer herbs"] },
+  knowledge: { title: "The Knowledge Table", text: "Scrolls of Knowledge carried up from the dungeon are studied here.", list: ["Learn what the deep holds", "Lasting insights for every class"] }
+};
+
+/** The Camp: where you get ready between runs. */
+function campScreen(o: OriginId) {
+  const og = ORIGINS[o];
+  const tabs = `<div class="camp-tabs" role="tablist">${CAMP_TABS.map(t => `<button class="camp-arch ${campTab === t.id ? "on" : ""} ${t.id === "abyss" && !abyssUnlocked(meta) ? "locked" : ""}" data-camptab="${t.id}" role="tab"><span class="arch-in"><span class="ic">${t.id === "abyss" && !abyssUnlocked(meta) ? "🔒" : t.icon}</span></span><b>${t.name}</b></button>`).join("")}</div>`;
+  let body = "";
+  if (campTab === "expedition") {
+    body = `<div class="camp-card"><h3>🗺️ The Expedition</h3>
+      <p>The dungeon waits. Each layer is a Dungeon Entrance, five floors to explore and a sixth where its guardian waits, with a treasure room beyond. Find the trapdoor on every floor: there's no climbing back up.</p>
+      <p class="sub">You go in with ${og.hp} HP, your class's kit, 20 Gold and nothing to drink.</p>
+      ${campQuest !== null && campOffers?.[campQuest] ? `<p class="camp-quest-note">📋 Contract: ${esc(bountyText(campOffers[campQuest], o))}</p>` : `<p class="sub">No contract taken. The Quest Board has work, if you want it.</p>`}
+      ${liveSave() ? `<p class="sub warn">Setting out replaces your saved run.</p>` : ""}
+      <button class="primary camp-go" data-descend>⬇️ Descend</button></div>
+      ${masteryPanel(o)}${gemPanel(o)}${heatPanel()}`;
+  } else if (campTab === "quests") {
+    if (!campOffers) { const h = newHero(o); campOffers = makeOffers(h, makeRng(Date.now() & 0x7fffffff), 1, heroTags(h)); }
+    const offers = campOffers;
+    body = `<div class="camp-card"><h3>📋 The Quest Board</h3><p>Notices nailed to a post. Take one contract into the dungeon; finish it there for its reward.</p></div>
+      <div class="camp-quests">${offers.map((q, i) => `<button class="camp-quest ${campQuest === i ? "on" : ""}" data-cquest="${i}"><b>${esc(bountyText(q, o))}</b><span>Within ${q.roomsLeft * CAMP_QUEST_ROOMS} encounters · ${esc(rewardText(q.reward))}</span>${campQuest === i ? `<em>✔ Taken</em>` : ""}</button>`).join("")}</div>
+      ${campQuest !== null ? `<button class="small camp-drop" data-cquest="-1">Tear up the contract</button>` : ""}`;
+  } else if (campTab === "abyss") {
+    const shards = meta.ruinShards ?? 0;
+    body = !abyssUnlocked(meta)
+      ? `<div class="camp-card"><h3>🔒 The Abyss is sealed</h3><p>Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find the way down.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p></div>`
+      : `<div class="camp-card"><h3>🕳️ The Abyss</h3><p>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.</p>
+        <p class="sub">🪨 ${shards} Ruin Shard${shards === 1 ? "" : "s"} · ⬛ ${meta.classPlates?.[o] ?? 0} plate${(meta.classPlates?.[o] ?? 0) === 1 ? "" : "s"} on the ${og.name} · ${meta.plates ?? 0} to give</p>
+        ${(() => { const w = currentAbyssMod(); return `<p class="sub">${w.icon} This week: <b>${esc(w.name)}</b>. ${esc(w.text)}.</p>`; })()}
+        ${meta.plates ? `<button class="small ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : "＋ Give a Vanadium Plate"}</button>` : ""}
+        <button class="primary camp-go" data-campabyss ${shards >= ABYSS_SHARD_COST ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 ${ABYSS_SHARD_COST}</button></div>`;
+  } else {
+    const c = CAMP_SOON[campTab]!;
+    body = `<div class="camp-card soon"><h3>${CAMP_TABS.find(t => t.id === campTab)!.icon} ${c.title}</h3><p>${c.text}</p><ul>${c.list.map(x => `<li>${esc(x)}</li>`).join("")}</ul><p class="camp-soon">Being built. Coming soon.</p></div>`;
+  }
+  return `<div class="cb-screen camp-screen"><div class="camp-inner">
+    <div class="camp-top"><button class="camp-back" data-campback aria-label="Back">←</button>
+      <div class="mer-sign camp-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">The Camp</div></div>
+      <button class="camp-hero" data-campback title="Change hero"><span>${ORIGIN_ICON[o]}</span><b>${esc(og.name)}</b></button></div>
+    ${note ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
+    ${tabs}
+    <div class="camp-body">${body}</div>
+  </div></div>`;
+}
+
+/** Camp contracts run over a whole layer, so they get longer than a board found below. */
+const CAMP_QUEST_ROOMS = 3;
 
 /** What the action button on a picked thing says. */
 function crawlAct(room: string) {
@@ -1952,6 +2010,12 @@ function masteryPanel(o: OriginId) {
 
 /** Starting-kit picker: every option for one slot as a card with its comparison, side-scrolling on phones, a grid on big screens. */
 let kitPick: KitSlot | null = null;
+/** The Camp: the hero you've brought there, the tab open, and the contract taken at its Quest Board. */
+let camp: OriginId | null = null;
+type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "abyss";
+let campTab: CampTab = "expedition";
+let campOffers: Bounty[] | null = null;
+let campQuest: number | null = null;
 const KIT_INDEX: Record<KitSlot, number> = { main: 0, off: 1, armour: 2 };
 function kitPopup(o: OriginId, slot: KitSlot) {
   const lv = masteryLevel(meta.mastery?.[o] ?? 0);
@@ -2022,10 +2086,10 @@ function originPopup(o: OriginId) {
     ${masteryPanel(o)}
     ${gemPanel(o)}
     ${heatPanel()}
-    <div class="panel crawl-panel"><div class="row"><b class="grow">🗺️ The Crawl <span class="tag">prototype</span></b><div class="seg"><button class="small ${crawlOn ? "primary" : ""}" data-crawl="1">On</button><button class="small ${crawlOn ? "" : "primary"}" data-crawl="0">Off</button></div></div>
+    <!--crawl-panel-removed--><div hidden>
       <p class="sub">Walk the dungeon yourself. Each layer is five floors to explore and a sixth where its boss waits: find the trapdoor on each floor to go down (there's no way back up). Treasures sit in little rooms of their own, most of them guarded, and foes block the halls. Every foe is close to Elite strength, and there's no Quick Battle.</p></div>
     ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
-    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-start>🏰 Start Campaign</button><button data-closeorigin>Back</button></div>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-tocamp>🏕️ To the Camp</button><button data-closeorigin>Back</button></div>
   </div></div>`;
 }
 
@@ -2213,7 +2277,8 @@ function render() {
   // The floor's theme colours everything while you're in a run.
   const th = run ? themeOf(run) : undefined;
   if (th) document.body.dataset.theme = th.id; else delete document.body.dataset.theme;
-  document.body.classList.toggle("dg-menu", !run);
+  document.body.classList.toggle("dg-menu", !run && !camp);
+  document.body.classList.toggle("crawl-on", !run && !!camp);
   // Shops, forges and encounters: the dungeon's stone buttons (in any floor theme).
   document.body.classList.toggle("dg-scene", !!run && !(run.gridMode && run.scene.t === "shop") && ["shop", "forge", "jeweller", "event", "smith", "alchemist", "tribute", "sanctum", "bounty", "rest", "confirm"].includes(run.scene.t));
   render2();
@@ -2236,7 +2301,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     return;
   }
@@ -2574,7 +2639,7 @@ function bind() {
     on("[data-kitpick]", el => { kitPick = el.dataset.kitpick as KitSlot; });
     on("[data-kitclose]", () => { kitPick = null; });
     on("[data-kitset]", el => {
-      const o = pendingOrigin; if (!o) return;
+      const o = pendingOrigin ?? camp; if (!o) return;
       const [slot, id] = (el.dataset.kitset ?? "").split("|") as [KitSlot, string];
       const k = { ...(meta.kits?.[o] ?? {}) };
       if (id) k[slot] = id; else delete k[slot];
@@ -2627,26 +2692,40 @@ function bind() {
       const nr = newDailyRun(today); // (no Ruin Gems: the Daily stays a level field)
       run = nr; void startSession(nr);
     });
-    on("[data-startabyss]", () => {
-      const o = pendingOrigin; if (!o) return;
-      if (!spendShard(meta)) { say(`You need ${ABYSS_SHARD_COST} Ruin Shards.`); return; }
-      backupVault(vaultOf(meta));
-      mode = "abyss"; lbResult = null; lbNaming = false; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
-      const nr = newRun(o, Date.now() & 0x7fffffff, "abyss", lockedIds(meta));
-      nr.abyssMod = currentAbyssMod().id;
-      applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta));
-      nr.hero.plates = meta.classPlates?.[o] ?? 0;
-      withGems(nr);
-      run = nr; void startSession(nr);
-    });
+    on("[data-startabyss]", () => { if (pendingOrigin) startAbyss();    });
     on("[data-closeorigin]", () => { pendingOrigin = null; });
     on("[data-help]", () => { helpOpen = true; });
     on("[data-closehelp]", () => { helpOpen = false; });
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode;
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
-    on("[data-start]", () => { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta)); withGems(nr); nr.legendaryDue = (meta.dryRuns ?? 0) >= 4; if (crawlOn) startCrawl(nr); run = nr; void startSession(nr); });
-    on("[data-crawl]", el => { crawlOn = el.dataset.crawl === "1"; try { localStorage.setItem("dd2-crawl", crawlOn ? "1" : "0"); } catch { /* ignore */ } });
+    on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; campTab = "expedition"; campOffers = null; campQuest = null; });
+    on("[data-campback]", () => { camp = null; kitPick = null; });
+    on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; plateArmed = false; });
+    on("[data-cquest]", el => { const i = Number(el.dataset.cquest); campQuest = i < 0 || campQuest === i ? null : i; });
+    on("[data-campabyss]", () => { pendingOrigin = camp; startAbyss(); });
+    on("[data-descend]", () => { if (!camp) return; pendingOrigin = camp; startCampaign(); });
+    on("[data-start]", () => startCampaign());
+    function startAbyss() {
+      const o = pendingOrigin; if (!o) return;
+      if (!spendShard(meta)) { say(`You need ${ABYSS_SHARD_COST} Ruin Shards.`); pendingOrigin = null; return; }
+      backupVault(vaultOf(meta));
+      mode = "abyss"; lbResult = null; lbNaming = false; pendingOrigin = null; camp = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
+      const nr = newRun(o, Date.now() & 0x7fffffff, "abyss", lockedIds(meta));
+      nr.abyssMod = currentAbyssMod().id;
+      applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta));
+      nr.hero.plates = meta.classPlates?.[o] ?? 0;
+      withGems(nr);
+      run = nr; void startSession(nr);
+    }
+    function startCampaign() { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero); applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta)); withGems(nr); nr.legendaryDue = (meta.dryRuns ?? 0) >= 4;
+      // The Crawl is the game now.
+      startCrawl(nr);
+      // A contract taken at the Camp's Quest Board comes along.
+      const q = campQuest !== null ? campOffers?.[campQuest] : undefined;
+      if (q) nr.bounty = { ...q, base: 0, roomsLeft: q.roomsLeft * CAMP_QUEST_ROOMS };
+      camp = null; campOffers = null; campQuest = null;
+      run = nr; void startSession(nr); }
     return;
   }
   const r = run;
@@ -2793,7 +2872,7 @@ function bind() {
   on("[data-rest]", () => say(rest(r, "heal")));
   on("[data-risk]", el => confirmRisk(r, el.dataset.risk === "yes"));
   on("[data-event]", el => chooseEvent(r, Number(el.dataset.event)));
-  on("[data-newrun]", () => { clearSave(); run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
+  on("[data-newrun]", () => { clearSave(); camp = r.mode === "campaign" || r.mode === "endless" ? r.hero.origin : null; campTab = "expedition"; campOffers = null; campQuest = null; view = "title"; run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
   on("[data-endless]", () => { if (run) { run.submitted = false; run.lbDone = false; run.endRecord = undefined; } lbResult = null; continueEndless(r); recorded = null; });
   on("[data-unequip]", el => say(unequip(r.hero, el.dataset.unequip as EquipSlot)));
   on("[data-equip]", el => { const it = r.hero.backpack.find(i => i.uid === Number(el.dataset.equip)); if (it) say(equipItem(r.hero, it, el.dataset.slot as EquipSlot)); });
