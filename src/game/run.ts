@@ -24,7 +24,7 @@ import { SIGIL_SETS } from "../data/talisman";
 const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
 import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 import { affixById, rescaleAffixes } from "./affixpool";
-import { carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, idx, isFloor, isSeenTile, LAYER_FLOORS, look, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
+import { type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, idx, isFloor, isSeenTile, LAYER_FLOORS, look, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -385,7 +385,7 @@ function roomWeights(run: Run, first: boolean): Partial<Record<RoomType, number>
 }
 
 export function genChoices(run: Run): RoomType[] {
-  if (run.gridMode) { if (!run.grid || run.grid.floor !== run.floor) run.grid = makeGrid(run, 1); return []; }
+  if (run.gridMode) { if (!run.grid || run.grid.floor !== run.floor) run.grid = makeGrid(run, 0); return []; }
   if (run.step >= STEPS_PER_FLOOR) return ["boss"];
   const w = roomWeights(run, run.step === 0);
   // A gauntlet: from floor 3 (not on a floor's first step), sometimes every path is a hard fight, and nothing else.
@@ -444,7 +444,8 @@ const FOE_ROOMS: RoomType[] = ["fight", "elite", "champion", "unique", "goblin",
 /** Where this layer's services fall: the campfire on the last floor before the boss, the others spread over the rest. */
 function layerPlan(run: Run): Partial<Record<RoomType, number>> {
   const rng = run.rng, last = LAYER_FLOORS - 1, any = () => 1 + Math.floor(rng() * last);
-  const plan: Partial<Record<RoomType, number>> = { rest: last, shop: 1 + Math.floor(rng() * 3) };
+  // Two Merchants a layer: one at the entrance (floor 0), and one somewhere on the third floor.
+  const plan: Partial<Record<RoomType, number>> = { rest: last, shop: 3 };
   plan[run.jewellerNext ? "jeweller" : "forge"] = 2 + Math.floor(rng() * (last - 1));
   run.jewellerNext = !run.jewellerNext;
   if (run.floor >= MASTERWORK_FLOOR && run.mode !== "abyss") plan.masterwork = any();
@@ -472,7 +473,8 @@ export const POCKET_GUARD = 0.7;
  *  block some hallways too; a few more wander the halls, and those you can walk around. */
 export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   const rng = run.rng;
-  if (depth === 1 || !run.gridPlan) run.gridPlan = layerPlan(run);
+  if (depth === 0 || !run.gridPlan) run.gridPlan = layerPlan(run);
+  if (depth === 0) return makeEntrance(run, explored);
   const plan = run.gridPlan;
   const { tiles, rooms, start, order } = carve(rng);
   const s = roomCenter(rooms[start]);
@@ -566,12 +568,31 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   return m;
 }
 
+/** Floor 0, the way in: one small room, a Merchant in the middle and the trapdoor down in a corner. */
+function makeEntrance(run: Run, explored: number): FloorMap {
+  const rng = run.rng;
+  const tiles: Tile[] = new Array(MAP_W * MAP_H).fill(0);
+  const room: Rect = { x: 7, y: 7, w: 5, h: 5 };
+  for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++) tiles[y * MAP_W + x] = 1;
+  const m: FloorMap = { floor: run.floor, depth: 0, w: MAP_W, h: MAP_H, tiles, seen: new Array(MAP_W * MAP_H).fill(0), rooms: [room], things: [], px: 9, py: 11, explored };
+  m.things.push({ x: 9, y: 9, room: "shop" });
+  const corners: [number, number][] = [[7, 7], [11, 7], [7, 11], [11, 11]];
+  const [tx, ty] = corners[Math.floor(rng() * corners.length)];
+  m.things.push({ x: tx, y: ty, room: "trapdoor" });
+  look(m);
+  return m;
+}
+
+/** What you start a Crawl with: enough Gold for one Healing Potion at the entrance, and no more. */
+export const CRAWL_START_GOLD = 20;
+
 /** Turn a fresh run into a Crawl (the prototype). */
 export function startCrawl(run: Run) {
   run.gridMode = true;
   run.themes = [];
   run.message = "";
-  run.grid = makeGrid(run);
+  run.hero.f.gold = CRAWL_START_GOLD;
+  run.grid = makeGrid(run, 0);
   run.choices = [];
 }
 
@@ -615,7 +636,7 @@ export function descend(run: Run) {
     return;
   }
   run.grid = makeGrid(run, m.depth + 1, m.explored);
-  run.message = `🕳️ You drop through the trapdoor to floor ${m.depth + 1} of ${LAYER_FLOORS}. There's no climbing back up.`;
+  run.message = `🕳️ You drop through the trapdoor to floor ${m.depth + 1}. There's no climbing back up.`;
 }
 
 /** The thing you stepped onto is met (called as its room opens). */
@@ -1888,7 +1909,7 @@ export function advance(run: Run, fromTalent = false) {
       run.hero.f.persist["floor"] = run.floor;
       recompute(run.hero);
       run.step = 0;
-      if (run.gridMode) run.grid = makeGrid(run, 1);
+      if (run.gridMode) run.grid = makeGrid(run, 0);
       run.message = `Floor ${run.floor}. The air is colder, and the hoards are richer: your Fortune grows.`;
       if (run.mode === "abyss") {
         if (run.floor > ABYSS_FLOORS) { run.scene = { t: "over", won: true }; return; }

@@ -91,14 +91,22 @@ function drawWall(ctx: CanvasRenderingContext2D, m: FloorMap, x: number, y: numb
   ctx.stroke();
 }
 
+/** The trapdoor: a black square hole with a thin, softly glowing yellow rim, so it stands out. */
 function drawTrapdoor(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number) {
-  const s = ts * 0.78, x = cx - s / 2, y = cy - s / 2;
-  ctx.fillStyle = "#2a1a0c"; ctx.fillRect(x - 2, y - 2, s + 4, s + 4);
-  ctx.fillStyle = "#5b3b1e"; ctx.fillRect(x, y, s, s);
-  ctx.strokeStyle = "#2a1a0c"; ctx.lineWidth = 2;
-  for (let k = 1; k < 4; k++) { ctx.beginPath(); ctx.moveTo(x + (s * k) / 4, y); ctx.lineTo(x + (s * k) / 4, y + s); ctx.stroke(); }
-  ctx.strokeStyle = "#a08050"; ctx.lineWidth = 2.5;
-  ctx.beginPath(); ctx.arc(cx, cy + s * 0.18, s * 0.13, 0, Math.PI * 2); ctx.stroke();
+  const s = ts * 0.74, x = cx - s / 2, y = cy - s / 2;
+  const pulse = 0.65 + 0.35 * Math.sin(performance.now() / 600);
+  ctx.save();
+  ctx.shadowColor = `rgba(255,214,70,${0.55 * pulse})`;
+  ctx.shadowBlur = ts * 0.22;
+  ctx.fillStyle = "#000";
+  ctx.fillRect(x, y, s, s);
+  ctx.strokeStyle = "#ffd23a"; ctx.lineWidth = Math.max(2, ts / 22);
+  ctx.strokeRect(x, y, s, s);
+  ctx.restore();
+  // A little depth inside the hole.
+  const g = ctx.createLinearGradient(x, y, x, y + s);
+  g.addColorStop(0, "rgba(60,40,10,.35)"); g.addColorStop(0.35, "rgba(0,0,0,0)");
+  ctx.fillStyle = g; ctx.fillRect(x + 2, y + 2, s - 4, s - 4);
 }
 
 /** Draw the floor around the player. */
@@ -262,6 +270,8 @@ export function crawlKeys() {
   if (keysOn) return;
   keysOn = true;
   window.addEventListener("resize", () => drawCrawl());
+  // A slow redraw keeps the trapdoor's glow breathing (it does nothing when the map isn't showing).
+  window.setInterval(() => { if (!glide && document.getElementById("crawl") && runRef?.grid?.things.some(t => t.room === "trapdoor" && !t.done && isSeenTile(runRef!.grid!, t.x, t.y))) drawCrawl(); }, 120);
   window.addEventListener("keydown", ev => {
     const r = runRef, h = hooks;
     if (!r || !h || !r.grid || r.scene.t !== "map" || !document.getElementById("crawl")) return;

@@ -24,7 +24,7 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  startCrawl, ordinal, type RoomType,
+  startCrawl, ordinal, type RoomType, type ShopEntry,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -649,6 +649,10 @@ function cbDice(foe: string) {
 /** A Pokémon-style HP bar: green, then yellow below half, red below a fifth. */
 const cbHp = (hp: number, max: number) => { const p = Math.max(0, Math.min(1, hp / max)); return `<div class="cb-hp ${p <= 0.2 ? "low" : p <= 0.5 ? "mid" : ""}"><em>HP</em><span><i style="width:${p * 100}%"></i></span></div>`; };
 
+/** The fight's backdrop: a dungeon corridor in perspective (back wall, side walls, a flagstone floor running away), torchlit. */
+const CORRIDOR = `<svg class="cb-scene" viewBox="0 0 400 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="400" height="300" fill="#0c0805"/><polygon points="0,0 400,0 280,48 120,48" fill="#0f0a06"/><polygon points="0,0 120,48 120,150 0,300" fill="#24180f"/><polygon points="400,0 280,48 280,150 400,300" fill="#1f150d"/><line x1="0" y1="33.3" x2="120" y2="59.3" stroke="#120b06" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="400" y1="33.3" x2="280" y2="59.3" stroke="#110a05" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="0" y1="66.7" x2="120" y2="70.7" stroke="#120b06" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="400" y1="66.7" x2="280" y2="70.7" stroke="#110a05" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="0" y1="100.0" x2="120" y2="82.0" stroke="#120b06" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="400" y1="100.0" x2="280" y2="82.0" stroke="#110a05" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="0" y1="133.3" x2="120" y2="93.3" stroke="#120b06" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="400" y1="133.3" x2="280" y2="93.3" stroke="#110a05" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="0" y1="166.7" x2="120" y2="104.7" stroke="#120b06" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="400" y1="166.7" x2="280" y2="104.7" stroke="#110a05" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="0" y1="200.0" x2="120" y2="116.0" stroke="#120b06" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="400" y1="200.0" x2="280" y2="116.0" stroke="#110a05" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="0" y1="233.3" x2="120" y2="127.3" stroke="#120b06" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="400" y1="233.3" x2="280" y2="127.3" stroke="#110a05" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="0" y1="266.7" x2="120" y2="138.7" stroke="#120b06" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="400" y1="266.7" x2="280" y2="138.7" stroke="#110a05" stroke-width="1.6" vector-effect="non-scaling-stroke"/><rect x="120" y="48" width="160" height="102" fill="#2c1f14"/><line x1="120" y1="48.0" x2="280" y2="48.0" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="133.0" y1="48.0" x2="133.0" y2="62.6" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="159.0" y1="48.0" x2="159.0" y2="62.6" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="185.0" y1="48.0" x2="185.0" y2="62.6" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="211.0" y1="48.0" x2="211.0" y2="62.6" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="237.0" y1="48.0" x2="237.0" y2="62.6" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="263.0" y1="48.0" x2="263.0" y2="62.6" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="120" y1="62.6" x2="280" y2="62.6" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="146.0" y1="62.6" x2="146.0" y2="77.1" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="172.0" y1="62.6" x2="172.0" y2="77.1" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="198.0" y1="62.6" x2="198.0" y2="77.1" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="224.0" y1="62.6" x2="224.0" y2="77.1" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="250.0" y1="62.6" x2="250.0" y2="77.1" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="276.0" y1="62.6" x2="276.0" y2="77.1" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="120" y1="77.1" x2="280" y2="77.1" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="133.0" y1="77.1" x2="133.0" y2="91.7" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="159.0" y1="77.1" x2="159.0" y2="91.7" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="185.0" y1="77.1" x2="185.0" y2="91.7" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="211.0" y1="77.1" x2="211.0" y2="91.7" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="237.0" y1="77.1" x2="237.0" y2="91.7" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="263.0" y1="77.1" x2="263.0" y2="91.7" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="120" y1="91.7" x2="280" y2="91.7" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="146.0" y1="91.7" x2="146.0" y2="106.3" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="172.0" y1="91.7" x2="172.0" y2="106.3" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="198.0" y1="91.7" x2="198.0" y2="106.3" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="224.0" y1="91.7" x2="224.0" y2="106.3" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="250.0" y1="91.7" x2="250.0" y2="106.3" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="276.0" y1="91.7" x2="276.0" y2="106.3" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="120" y1="106.3" x2="280" y2="106.3" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="133.0" y1="106.3" x2="133.0" y2="120.9" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="159.0" y1="106.3" x2="159.0" y2="120.9" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="185.0" y1="106.3" x2="185.0" y2="120.9" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="211.0" y1="106.3" x2="211.0" y2="120.9" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="237.0" y1="106.3" x2="237.0" y2="120.9" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="263.0" y1="106.3" x2="263.0" y2="120.9" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="120" y1="120.9" x2="280" y2="120.9" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="146.0" y1="120.9" x2="146.0" y2="135.4" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="172.0" y1="120.9" x2="172.0" y2="135.4" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="198.0" y1="120.9" x2="198.0" y2="135.4" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="224.0" y1="120.9" x2="224.0" y2="135.4" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="250.0" y1="120.9" x2="250.0" y2="135.4" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="276.0" y1="120.9" x2="276.0" y2="135.4" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="120" y1="135.4" x2="280" y2="135.4" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="133.0" y1="135.4" x2="133.0" y2="150.0" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="159.0" y1="135.4" x2="159.0" y2="150.0" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="185.0" y1="135.4" x2="185.0" y2="150.0" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="211.0" y1="135.4" x2="211.0" y2="150.0" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="237.0" y1="135.4" x2="237.0" y2="150.0" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="263.0" y1="135.4" x2="263.0" y2="150.0" stroke="#140c06" stroke-width="1.4" vector-effect="non-scaling-stroke"/><path d="M180,150 L180,112 Q200,96 220,112 L220,150 Z" fill="#000"/><polygon points="0,300 120,150 280,150 400,300" fill="#3b2a1a"/><line x1="-400" y1="300" x2="50.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="-320" y1="300" x2="70.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="-240" y1="300" x2="90.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="-160" y1="300" x2="110.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="-80" y1="300" x2="130.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="0" y1="300" x2="150.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="80" y1="300" x2="170.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="160" y1="300" x2="190.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="240" y1="300" x2="210.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="320" y1="300" x2="230.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="400" y1="300" x2="250.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="480" y1="300" x2="270.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="560" y1="300" x2="290.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="640" y1="300" x2="310.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="720" y1="300" x2="330.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="800" y1="300" x2="350.0" y2="150" stroke="#1d130b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><line x1="0" y1="153.6" x2="400" y2="153.6" stroke="#1d130b" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="0" y1="162.4" x2="400" y2="162.4" stroke="#1d130b" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="0" y1="175.7" x2="400" y2="175.7" stroke="#1d130b" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="0" y1="193.1" x2="400" y2="193.1" stroke="#1d130b" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="0" y1="214.4" x2="400" y2="214.4" stroke="#1d130b" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="0" y1="239.4" x2="400" y2="239.4" stroke="#1d130b" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line x1="0" y1="268.0" x2="400" y2="268.0" stroke="#1d130b" stroke-width="1.4" vector-effect="non-scaling-stroke"/><defs><radialGradient id="cgl" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ff9a3a" stop-opacity=".30"/><stop offset="1" stop-color="#ff9a3a" stop-opacity="0"/></radialGradient><radialGradient id="cvg" cx="50%" cy="55%" r="75%"><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".75"/></radialGradient><linearGradient id="cfl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset=".5" stop-color="#000" stop-opacity="0"/></linearGradient></defs><rect x="0" y="150" width="400" height="150" fill="url(#cfl)"/><ellipse cx="60" cy="95" rx="95" ry="90" fill="url(#cgl)"/><ellipse cx="340" cy="95" rx="95" ry="90" fill="url(#cgl)"/><rect width="400" height="300" fill="url(#cvg)"/></svg>`;
+const TORCHES = `<div class="cb-torch l"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div><div class="cb-torch r"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>`;
+
 /** The Crawl's fight: a framed, Pokémon-style screen. Foe top right with its box to the left; you bottom left with yours to the right; your moves below. */
 function crawlCombat(r: Run, msg: string[], bad: boolean) {
   if (r.scene.t !== "combat") return "";
@@ -661,6 +665,7 @@ function crawlCombat(r: Run, msg: string[], bad: boolean) {
   const acts = availableActions(r);
   const traits = guardChips(e, "enemy") + foeTraits(e) + statusChips(e);
   return `<div class="cb-screen"><div class="cb-inner">
+    <div class="cb-stage">${CORRIDOR}${TORCHES}
     <div class="cb-row cb-foe-row">
       <div class="cb-box foe ${e.crimson ? "crimson" : ""}" id="cbx-enemy">
         <div class="cb-name"><b>${esc(e.name)}</b>${rank ? `<span class="cb-rank">${rank}</span>` : ""}</div>
@@ -684,6 +689,7 @@ function crawlCombat(r: Run, msg: string[], bad: boolean) {
         <div class="cb-chips">${guardChips(p, "player")}${statusChips(p)}</div>
       </div>
     </div>
+    </div>
     ${(p.statuses.stun ?? 0) > 0 ? `<div class="toast err">💫 You're Stunned: your next turn will be skipped.</div>` : ""}
     ${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(m)}</div>`).join("")}
     <div class="cb-moves ${busy ? "busy" : ""}">
@@ -691,6 +697,63 @@ function crawlCombat(r: Run, msg: string[], bad: boolean) {
     </div>
     <div class="cb-bottom"><div class="cb-pots">${potionCircle(r)}</div><div class="cb-mid"><button class="cb-speed" data-speedcycle title="Combat speed">⏩ ${speed >= 1 ? "Normal" : speed >= 0.5 ? "Fast" : "Very fast"}</button><button class="cb-menubtn" data-menu ${busy ? "disabled" : ""} aria-label="Menu">☰</button></div>${bagCircle(r)}</div>
     <details class="cb-log"><summary>Battle log</summary><div class="log">${b.log.slice().reverse().map(l => `<div class="${l.startsWith("—") ? "round" : ""}">${esc(l)}</div>`).join("")}</div></details>
+  </div></div>`;
+}
+
+/** The Crawl's Merchant: a hanging sign, the full details of whatever you tap on the left, the stock and your gear as rows of names. */
+let merPick: { k: "stock"; i: number } | { k: "own"; uid: number } | null = null;
+let merInv: "equipped" | "backpack" = "equipped";
+let merSeen: unknown = null;
+const RARITY_INK: Record<string, string> = { common: "#c9c2b4", uncommon: "#6fd08c", rare: "#6cb4ff", epic: "#c890ff", legendary: "#ffa24a", crimson: "#ff5468", epic_crimson: "#ff5468", legendary_crimson: "#ff5468" };
+function stockLabel(r: Run, e: ShopEntry): { name: string; icon: string; text: string; ink: string } {
+  if (e.kind === "item" && e.item) return { name: itemName(e.item), icon: "", text: "", ink: RARITY_INK[e.item.rarity] ?? "#e9d6b0" };
+  if (e.kind === "potion") return { name: "Healing Potion", icon: "🧪", text: "Heals 12 HP. Drink it from your potion drawer, in a fight or out of one.", ink: "#f08a7a" };
+  if (e.kind === "mana") return { name: "Mana Potion", icon: "🔷", text: `Drink it in a fight to refill your mana. You can carry ${manaPotionCap(r.hero)}.`, ink: "#7ab8ff" };
+  if (e.kind === "scroll") return { name: "Scroll of Revelation", icon: "📜", text: "Reveals a Legendary's hidden power.", ink: "#f0d28a" };
+  const rel = e.relic ? getItem(e.relic) : null;
+  return { name: rel?.name ?? "Relic", icon: "💎", text: rel?.text ?? "", ink: "#f0d28a" };
+}
+function merchantScreen(r: Run, msg: string[], bad: boolean) {
+  if (r.scene.t !== "shop") return "";
+  const sc = r.scene, h = r.hero;
+  if (merSeen !== sc) { merSeen = sc; merPick = null; merInv = "equipped"; sellArmed = null; }
+  const own = merInv === "equipped" ? EQUIP_SLOTS.map(k => h.equip[k]).filter((x): x is GearItem => !!x) : h.backpack;
+  const detail = (() => {
+    if (merPick?.k === "stock") {
+      const e = sc.stock[merPick.i];
+      if (!e) return "";
+      const full = e.kind === "potion" && !e.sold && h.potions >= potionCap(h);
+      const btn = `<button class="primary mer-act" data-buy="${merPick.i}" ${e.sold || full || h.f.gold < e.price ? "disabled" : ""}>${e.sold ? "Sold" : full ? "Your potion belt is full" : `Buy · ${e.price} 🪙`}</button>`;
+      if (e.kind === "item" && e.item) return itemCard(e.item, btn + (e.sold ? "" : compareBtns(e.item)), !e.sold);
+      const l = stockLabel(r, e);
+      return `<div class="mer-thing"><div class="mer-big">${l.icon}</div><b style="color:${l.ink}">${esc(l.name)}</b><p>${esc(l.text)}</p>${btn}</div>`;
+    }
+    if (merPick?.k === "own") {
+      const it = findItem(h, merPick.uid)?.item;
+      if (!it) return "";
+      const worn = !!equippedSlot(r, it);
+      const btn = `<button class="mer-act ${worn && sellArmed === it.uid ? "danger" : "primary"}" data-sell="${it.uid}" ${sc.soldItem ? "disabled" : ""}>${sc.soldItem ? "One sale per visit" : worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${Math.round(sellPrice(it, h) * goldMult(r))} 🪙`}</button>`;
+      return itemCard(it, btn, false, equippedSlot(r, it));
+    }
+    return `<div class="mer-empty"><span>⚖️</span><p>Tap something for sale, or something of yours, to look at it here.</p><p class="sub">The Merchant buys one thing a visit, for 40% of its price.</p></div>`;
+  })();
+  const chip = (attrs: string, name: string, ink: string, sub: string, on: boolean, dim = false) => `<button class="mer-chip ${on ? "on" : ""} ${dim ? "dim" : ""}" ${attrs}><b style="color:${ink}">${esc(name)}</b>${sub ? `<span>${sub}</span>` : ""}</button>`;
+  const stock = sc.stock.map((e, i) => { const l = stockLabel(r, e); return chip(`data-mpick="s:${i}"`, `${l.icon ? `${l.icon} ` : ""}${l.name}`, l.ink, e.sold ? "Sold" : `${e.price} 🪙`, merPick?.k === "stock" && merPick.i === i, e.sold); }).join("");
+  const reroll = r.shopRerolls >= MAX_SHOP_REROLLS ? "" : `<button class="mer-chip reroll" data-reroll ${h.f.gold < shopRerollCost(r) ? "disabled" : ""}><b>↻ New stock</b><span>${shopRerollCost(r)} 🪙</span></button>`;
+  const mine = own.length ? own.map(it => chip(`data-mpick="o:${it.uid}"`, itemName(it), RARITY_INK[it.rarity] ?? "#e9d6b0", equippedSlot(r, it), merPick?.k === "own" && merPick.uid === it.uid)).join("") : `<span class="mer-none">Nothing here.</span>`;
+  return `<div class="cb-screen mer-screen"><div class="mer-inner">
+    <div class="mer-sign" aria-label="Merchant"><i class="chain l"></i><i class="chain r"></i><div class="plank">Merchant</div></div>
+    <div class="mer-gold">🪙 <b>${h.f.gold}</b></div>
+    ${msg.length ? `<div class="mer-toasts">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(m)}</div>`).join("")}</div>` : ""}
+    <div class="mer-main">
+      <div class="mer-panel mer-detail">${detail}</div>
+      <div class="mer-panel mer-stock"><div class="mer-label">For sale</div><div class="mer-list">${stock}${reroll}</div></div>
+    </div>
+    <div class="mer-panel mer-inv">
+      <div class="mer-tabs"><button class="${merInv === "equipped" ? "on" : ""}" data-minv="equipped">🛡️ Equipped</button><button class="${merInv === "backpack" ? "on" : ""}" data-minv="backpack">🎒 Backpack ${h.backpack.length}/${BACKPACK_SIZE}</button></div>
+      <div class="mer-list">${mine}</div>
+    </div>
+    <button class="mer-leave" data-leave>Leave</button>
   </div></div>`;
 }
 
@@ -726,7 +789,7 @@ function crawlScreen(r: Run, msg: string[], bad: boolean) {
     <div class="cz cz-tr">
       <button class="cz-menu" data-menu aria-label="Menu">☰</button>
       <div class="cz-layer">${layer}</div>
-      <div class="cz-floor">Floor ${m.depth}</div>
+      <div class="cz-floor">${m.depth === 0 ? "Dungeon Entrance" : `Floor ${m.depth}`}</div>
       ${quests}
     </div>
     ${msg.length ? `<div class="cz cz-toasts">${msg.map((x, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(x)}</div>`).join("")}</div>` : ""}
@@ -2150,7 +2213,7 @@ function render() {
   if (th) document.body.dataset.theme = th.id; else delete document.body.dataset.theme;
   document.body.classList.toggle("dg-menu", !run);
   // Shops, forges and encounters: the dungeon's stone buttons (in any floor theme).
-  document.body.classList.toggle("dg-scene", !!run && ["shop", "forge", "jeweller", "event", "smith", "alchemist", "tribute", "sanctum", "bounty", "rest", "confirm"].includes(run.scene.t));
+  document.body.classList.toggle("dg-scene", !!run && !(run.gridMode && run.scene.t === "shop") && ["shop", "forge", "jeweller", "event", "smith", "alchemist", "tribute", "sanctum", "bounty", "rest", "confirm"].includes(run.scene.t));
   render2();
   // A foe with Ambush strikes before you can do anything.
   if (run && run.scene.t === "combat" && ambushPending(run.scene.battle) && !busy) { const r = run, b = run.scene.battle; setTimeout(() => void playAmbush(r, b), 0); }
@@ -2239,8 +2302,9 @@ function render2() {
   }
   const crawlView = (s.t === "map" || s.t === "resplendent") && !!r.gridMode && !!r.grid;
   const crawlFight = s.t === "combat" && !!r.gridMode;
-  document.body.classList.toggle("crawl-on", crawlView || crawlFight);
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, msg, noteBad && !!note) : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
+  const crawlShop = s.t === "shop" && !!r.gridMode;
+  document.body.classList.toggle("crawl-on", crawlView || crawlFight || crawlShop);
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, msg, noteBad && !!note) : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
   bind();
   if (s.t === "map" && r.gridMode) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => roomInfo(r, room as RoomType).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never) }); }
   else stopWalk();
@@ -2664,6 +2728,8 @@ function bind() {
   on("[data-gwalk]", el => { walkToThing(Number(el.dataset.gwalk)); });
   on("[data-gunsel]", () => { if (r.grid) r.grid.sel = undefined; });
   on("[data-potdrawer]", () => { potDrawer = !potDrawer; });
+  on("[data-mpick]", el => { const [k, v] = el.dataset.mpick!.split(":"); merPick = k === "s" ? { k: "stock", i: Number(v) } : { k: "own", uid: Number(v) }; sellArmed = null; });
+  on("[data-minv]", el => { merInv = el.dataset.minv as typeof merInv; merPick = merPick?.k === "own" ? null : merPick; sellArmed = null; });
   on("[data-potnote]", el => { say(el.dataset.potnote!, false); });
   on("[data-autoroom]", el => {
     r.message = "";

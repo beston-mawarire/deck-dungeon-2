@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
 import { inSight, isFloor, LAYER_FLOORS, lineOfSight, pathTo, reachable, SIGHT, trapdoorThing, walkDistances, type FloorMap } from "../src/game/grid";
-import { confirmRisk, descend, gridDanger, gridStep, LANDMARKS, makeGrid, newRun, startCrawl, STEPS_PER_FLOOR } from "../src/game/run";
+import { confirmRisk, CRAWL_START_GOLD, descend, gridDanger, gridStep, LANDMARKS, makeGrid, newRun, startCrawl, STEPS_PER_FLOOR } from "../src/game/run";
 import { crawlStep } from "./crawlbot";
 
 loadLibrary();
 
-const crawl = (seed: number) => { const r = newRun("warrior", seed); startCrawl(r); return r; };
+/** A Crawl run standing on floor 1 (past the entrance). */
+const crawl = (seed: number) => { const r = newRun("warrior", seed); startCrawl(r); r.grid = makeGrid(r, 1); return r; };
 const things = (m: FloorMap, room: string) => m.things.filter(t => t.room === room).length;
 
 describe("the Crawl", () => {
@@ -67,12 +68,36 @@ describe("the Crawl", () => {
     expect(pairs).toBeGreaterThan(10);
   });
 
-  it("spreads a layer's services over its five floors: one Merchant, one Forge or Jeweller, the campfire on the fifth", () => {
+  it("starts every layer at the entrance: one small room, a Merchant in the middle, the trapdoor in a corner, and Gold for one potion", () => {
+    for (let seed = 1; seed < 20; seed++) {
+      const r = newRun("rogue", seed); startCrawl(r);
+      const m = r.grid!;
+      expect(m.depth).toBe(0);
+      expect(m.rooms.length).toBe(1);
+      expect(m.things.map(t => t.room).sort()).toEqual(["shop", "trapdoor"]);
+      const shop = m.things.find(t => t.room === "shop")!, td = m.things.find(t => t.room === "trapdoor")!;
+      const room = m.rooms[0];
+      expect([shop.x, shop.y]).toEqual([room.x + 2, room.y + 2]);
+      expect([room.x, room.x + room.w - 1]).toContain(td.x);
+      expect([room.y, room.y + room.h - 1]).toContain(td.y);
+      expect(r.hero.f.gold).toBe(CRAWL_START_GOLD);
+      // Walk up to the Merchant: one Healing Potion is affordable, two are not.
+      gridStep(r, m.px, m.py - 1); gridStep(r, m.px, m.py - 1);
+      expect(r.scene.t).toBe("shop");
+      const pot = r.scene.t === "shop" ? r.scene.stock.find(e => e.kind === "potion")!.price : 0;
+      expect(pot).toBeLessThanOrEqual(CRAWL_START_GOLD);
+      expect(pot * 2).toBeGreaterThan(CRAWL_START_GOLD);
+    }
+  });
+
+  it("spreads a layer's services over its five floors: one more Merchant, one Forge or Jeweller, the campfire on the fifth", () => {
     for (let seed = 1; seed < 40; seed++) {
       const r = crawl(seed);
       const floors = [r.grid!, makeGrid(r, 2), makeGrid(r, 3), makeGrid(r, 4), makeGrid(r, 5)];
       const n = (room: string) => floors.reduce((a, m) => a + things(m, room), 0);
+      // The second Merchant is on the third floor (the first is at the entrance).
       expect(n("shop")).toBe(1);
+      expect(things(floors[2], "shop")).toBe(1);
       expect(n("forge") + n("jeweller")).toBe(1);
       expect(things(floors[4], "rest")).toBe(1);
       for (const m of floors) expect(m.things.filter(t => LANDMARKS.includes(t.room as never)).length).toBeLessThanOrEqual(2);
@@ -126,6 +151,7 @@ describe("the Crawl", () => {
     expect(r.grid!.explored).toBe(3);
     expect(r.scene.t).toBe("map");
     for (let d = 3; d <= 5; d++) { descend(r); expect(r.grid!.depth).toBe(d); }
+    expect(r.scene.t).toBe("map");
     descend(r);
     expect(LAYER_FLOORS).toBe(6);
     expect(r.scene.t).toBe("combat");

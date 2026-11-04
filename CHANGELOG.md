@@ -9,6 +9,22 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.70.0
+- **Every layer starts at the Dungeon Entrance (floor 0):** one small room, a Merchant in the middle and the trapdoor down in a corner.
+- **Two Merchants a layer:** the one at the entrance, and one somewhere on the 3rd floor.
+- **A Crawl starts with 20 Gold:** enough for one Healing Potion at the entrance, not two.
+- **The trapdoor** is now a black square hole with a thin, softly glowing yellow rim.
+- **A new Merchant screen,** dark and gritty in a rough stone frame:
+  - A wooden "Merchant" sign hangs at the top.
+  - Tap anything for sale, or anything of yours, to see its full details with Buy or Sell beneath.
+  - The stock, and your Equipped / Backpack gear, are rows of names: they scroll sideways on a phone, and the stock becomes a list beside the details on a wide screen.
+  - It all fits on one screen.
+- **Fights are darker and grittier:**
+  - The frame is uneven stone.
+  - You and the foe face each other down a torchlit dungeon corridor: a brick back wall, side walls, and a flagstone floor running away in perspective.
+  - The foe stands further off (smaller) and you're up close.
+  - The boxes, moves and log are dark stone panels.
+
 ## 1.69.3
 - The potion drawer no longer has a tray. Each potion sits in its own see-through dark circle, with no border.
 
