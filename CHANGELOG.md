@@ -9,6 +9,12 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.69.2
+- **Crawl fights:**
+  - A crit (or a big reaction) now shakes the struck side's box, yours or the foe's, instead of the whole screen.
+  - The dice are dark with a heavy border: blue for yours, red for the foe's, gold on a crit. A die still takes a status's colour when its roll causes one.
+  - The background is a deeper parchment.
+
 ## 1.69.1
 - **Crawl fights:**
   - Your box now matches the foe's: name and level, an HP bar, an MP bar, then your numbers and statuses.

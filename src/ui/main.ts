@@ -662,7 +662,7 @@ function crawlCombat(r: Run, msg: string[], bad: boolean) {
   const traits = guardChips(e, "enemy") + foeTraits(e) + statusChips(e);
   return `<div class="cb-screen"><div class="cb-inner">
     <div class="cb-row cb-foe-row">
-      <div class="cb-box foe ${e.crimson ? "crimson" : ""}">
+      <div class="cb-box foe ${e.crimson ? "crimson" : ""}" id="cbx-enemy">
         <div class="cb-name"><b>${esc(e.name)}</b>${rank ? `<span class="cb-rank">${rank}</span>` : ""}</div>
         ${e.title ? `<div class="cb-title">${esc(e.title)}</div>` : ""}
         ${cbHp(ehp, e.maxHp)}
@@ -675,7 +675,7 @@ function crawlCombat(r: Run, msg: string[], bad: boolean) {
     <div class="cb-dice">${cbDice(e.name)}</div>
     <div class="cb-row cb-hero-row">
       <div class="cb-sprite hero ${stance ? `stance-${stance}` : ""}" id="fp-player"><span>${ORIGIN_ICON[r.hero.origin]}</span></div>
-      <div class="cb-box hero">
+      <div class="cb-box hero" id="cbx-player">
         <div class="cb-name"><b>${esc(ORIGINS[r.hero.origin].name)}</b><span class="cb-rank">Lv ${r.hero.level}</span></div>
         ${cbHp(php, p.maxHp)}
         <div class="cb-mp"><em>MP</em><span>${Array.from({ length: p.maxMana || MANA_MAX }, (_, i) => `<i class="${i < (p.mana ?? 0) ? "full" : ""}"></i>`).join("")}</span></div>
@@ -2267,6 +2267,13 @@ function shake(who: "player" | "enemy", big = false) {
   void el?.offsetWidth;
   el?.classList.add("shake");
   if (big) {
+    // In a Crawl fight, a crit shakes the struck side's box too.
+    const box = document.getElementById(`cbx-${who}`);
+    box?.classList.remove("shake");
+    void box?.offsetWidth;
+    box?.classList.add("shake");
+    // (There, the box shake replaces the whole-screen shake.)
+    if (box) return;
     app.classList.remove("screen-shake");
     void app.offsetWidth;
     app.classList.add("screen-shake");
