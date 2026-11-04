@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.71.3
+- The game speed button is gone from the Crawl's fight screen (combat speed is still in Options).
+
 ## 1.71.2
 - **Level gates now range from 1 to 5 levels** above you when you find the item, still on about 30% of Crawl finds. Rarer finds can ask for more:
   - Commons 1–2 more.
