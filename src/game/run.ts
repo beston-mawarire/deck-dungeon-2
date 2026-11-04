@@ -487,6 +487,8 @@ export const CRAWL_NORMAL_POWER = 2;
 /** How often a pocket's doorway is guarded (the trapdoor's, and the rest). */
 export const TRAP_GUARD = 0.7;
 export const POCKET_GUARD = 0.5;
+/** How often a roomy hall gets a pillar of wall in the middle. */
+export const PILLAR_CHANCE = 0.5;
 /** How often a one-tile nook's doorway is guarded. */
 export const NOOK_GUARD = 0.35;
 
@@ -501,18 +503,56 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   const { tiles, rooms, start, order } = carve(rng);
   const s = roomCenter(rooms[start]);
   const m: FloorMap = { floor: run.floor, depth, w: MAP_W, h: MAP_H, tiles, seen: new Array(MAP_W * MAP_H).fill(0), rooms, things: [], px: s.x, py: s.y, explored };
+  // Some of the roomier halls get a pillar in the middle: a block of wall one to three tiles long (never where you land).
+  for (const r of rooms) {
+    if (r.w < 5 || r.h < 4 || rng() > PILLAR_CHANCE) continue;
+    const c = roomCenter(r);
+    const len = 1 + Math.floor(rng() * Math.min(3, r.w - 4));
+    const along = r.w >= r.h;
+    const cells: number[] = [];
+    for (let k = 0; k < len; k++) cells.push(along ? idx(m, c.x - Math.floor(len / 2) + k, c.y) : idx(m, c.x, c.y - Math.floor(len / 2) + k));
+    if (cells.includes(idx(m, s.x, s.y))) continue;
+    for (const i of cells) m.tiles[i] = 0;
+    // Keep every floor tile reachable; if the pillar cuts anything off, take it back out.
+    const reach = reachable(m, s.x, s.y, new Set());
+    if (m.tiles.some((t, i) => t === 1 && !reach[i])) for (const i of cells) m.tiles[i] = 1;
+  }
   const taken = new Set<number>([idx(m, s.x, s.y)]);
   const fromStart = walkDistances(m, s.x, s.y);
   const pockets = new Set<number>();
   const middle = order.filter(r => r !== start);
   const interior = (r: Rect) => {
     const out: number[] = [];
-    for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++) if (!taken.has(idx(m, x, y))) out.push(idx(m, x, y));
+    for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++) if (!taken.has(idx(m, x, y)) && m.tiles[idx(m, x, y)] === 1) out.push(idx(m, x, y));
     return out;
   };
+  /** Spots along a hall's walls (corners first) where an urn or a chest can stand without blocking a way in. */
+  const byWall = (r: Rect) => {
+    const out: [number, number][] = [];
+    for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+      const i = idx(m, x, y);
+      if (taken.has(i) || m.tiles[i] !== 1) continue;
+      const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [x + dx, y + dy] as [number, number]);
+      const walls = nb.filter(([a, b]) => m.tiles[idx(m, a, b)] === 0).length;
+      if (!walls) continue;
+      // Not where a hallway comes in: every neighbour outside the hall must be rock.
+      if (nb.some(([a, b]) => (a < r.x || a >= r.x + r.w || b < r.y || b >= r.y + r.h) && m.tiles[idx(m, a, b)] === 1)) continue;
+      // And not right beside a hallway's mouth (or another urn or chest).
+      if (nb.some(([a, b]) => { const j = idx(m, a, b); return m.tiles[j] === 1 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([ex, ey]) => { const q = [a + ex, b + ey]; return (q[0] < r.x || q[0] >= r.x + r.w || q[1] < r.y || q[1] >= r.y + r.h) && m.tiles[idx(m, q[0], q[1])] === 1; }); })) continue;
+      out.push([i, walls]);
+    }
+    return out.sort((a, b) => b[1] - a[1] || rng() - 0.5).map(([i]) => i);
+  };
+  const LOOT = ["urn", "wooden", "iron", "vault"];
+  const farFromLoot = (i: number) => m.things.every(t => !LOOT.includes(t.room) || Math.abs(t.x - (i % m.w)) + Math.abs(t.y - Math.floor(i / m.w)) > 3);
   const putAt = (i: number, room: string, guard = false) => { taken.add(i); m.things.push({ x: i % m.w, y: Math.floor(i / m.w), room, guard: guard || undefined }); return m.things.length - 1; };
   const putInHall = (room: string) => {
-    for (const r of [...(middle.length ? middle : [start])].sort(() => rng() - 0.5)) { const sp = interior(rooms[r]); if (sp.length) return putAt(sp[Math.floor(rng() * sp.length)], room); }
+    const loot = LOOT.includes(room);
+    for (const r of [...(middle.length ? middle : [start])].sort(() => rng() - 0.5)) {
+      // Urns and chests stand against a wall (corners first), spread out; anything else stands in the open.
+      const sp = loot ? byWall(rooms[r]).filter(farFromLoot).slice(0, 4) : interior(rooms[r]);
+      if (sp.length) return putAt(sp[Math.floor(rng() * sp.length)], room);
+    }
     return -1;
   };
   const count: Partial<Record<RoomType, number>> = {};
@@ -579,7 +619,11 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   for (let n = floorLandmarks(rng()); n > 0 && Object.keys(marks).length; n--) { const room = pickW(rng, marks); delete marks[room]; pois.push(room); }
   for (let n = 2 + Math.floor(rng() * 2); n > 0; n--) pois.push(chest());
   pois.sort(() => rng() - 0.5);
-  while (pois.length) pocket(pois.splice(0, pois.length > 1 && rng() < 0.35 ? 2 : 1), POCKET_GUARD);
+  while (pois.length) {
+    // Two to a little room now and then, but never two chests together.
+    const pairOk = pois.length > 1 && !(LOOT.includes(pois[0]) && LOOT.includes(pois[1]));
+    pocket(pois.splice(0, pairOk && rng() < 0.35 ? 2 : 1), POCKET_GUARD);
+  }
   // Foes across hallways: blocking the way on to other halls (and whatever hangs off them).
   const inHall = (i: number) => rooms.some(r => { const x = i % m.w, y = Math.floor(i / m.w); return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h; });
   const all = reachable(m, s.x, s.y, new Set());
@@ -612,7 +656,7 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   const urns = () => m.things.filter(t => t.room === "urn");
   for (let n = 1 + Math.floor(rng() * 3), tries = 0; n > 0 && tries < 30; tries++) {
     const r = rooms[[...middle, start][Math.floor(rng() * (middle.length + 1))]];
-    const sp = interior(r).filter(i => i !== idx(m, s.x, s.y) && urns().every(u => Math.abs(u.x - (i % m.w)) + Math.abs(u.y - Math.floor(i / m.w)) > 4));
+    const sp = byWall(r).filter(i => i !== idx(m, s.x, s.y) && farFromLoot(i) && urns().every(u => Math.abs(u.x - (i % m.w)) + Math.abs(u.y - Math.floor(i / m.w)) > 4)).slice(0, 4);
     if (!sp.length) continue;
     putAt(sp[Math.floor(rng() * sp.length)], "urn");
     n--;
@@ -659,6 +703,8 @@ export function startCrawl(run: Run) {
   run.themes = [];
   run.message = "";
   run.hero.f.gold = CRAWL_START_GOLD;
+  // You come in with nothing to drink: the entrance Merchant has a potion for you, if you want it.
+  run.hero.potions = 0;
   run.grid = makeGrid(run, 0);
   run.choices = [];
 }

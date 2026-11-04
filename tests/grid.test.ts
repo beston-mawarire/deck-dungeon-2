@@ -27,6 +27,20 @@ describe("the Crawl", () => {
     }
   });
 
+  it("some roomy halls have a pillar of wall in the middle, and nothing is cut off by it", () => {
+    let pillars = 0;
+    for (let seed = 1; seed < 60; seed++) {
+      const m = crawl(seed).grid!;
+      for (const r of m.rooms) {
+        const c = { x: r.x + Math.floor(r.w / 2), y: r.y + Math.floor(r.h / 2) };
+        if (!isFloor(m, c.x, c.y)) pillars++;
+      }
+      const d = walkDistances(m, m.px, m.py);
+      m.tiles.forEach((t, i) => { if (t === 1) expect(d[i]).toBeGreaterThanOrEqual(0); });
+    }
+    expect(pillars).toBeGreaterThan(5);
+  });
+
   it("some hallways are two tiles wide", () => {
     let wide = 0;
     for (let seed = 1; seed < 30; seed++) {
@@ -84,6 +98,7 @@ describe("the Crawl", () => {
       expect([room.x, room.x + room.w - 1]).toContain(td.x);
       expect([room.y, room.y + room.h - 1]).toContain(td.y);
       expect(r.hero.f.gold).toBe(CRAWL_START_GOLD);
+      expect(r.hero.potions).toBe(0);
       // Walk up to the Merchant: one Healing Potion is affordable, two are not.
       gridStep(r, m.px, m.py - 1); gridStep(r, m.px, m.py - 1);
       expect(r.scene.t).toBe("shop");
@@ -266,8 +281,10 @@ describe("the Crawl", () => {
       const m = crawl(seed).grid!;
       const urns = m.things.filter(t => t.room === "urn");
       expect(urns.length).toBeLessThanOrEqual(5);
-      // Two urns in the halls are never side by side.
-      for (const a of urns) for (const b of urns) if (a !== b) expect(Math.abs(a.x - b.x) + Math.abs(a.y - b.y)).toBeGreaterThan(1);
+      // Urns and chests are never side by side, and always stand against a wall (or in a nook).
+      const loot = m.things.filter(t => ["urn", "wooden", "iron", "vault"].includes(t.room));
+      for (const a of loot) for (const b of loot) if (a !== b) expect(Math.abs(a.x - b.x) + Math.abs(a.y - b.y)).toBeGreaterThan(1);
+      for (const a of loot) expect([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !isFloor(m, a.x + dx, a.y + dy))).toBe(true);
       // A nook: an urn or chest on a tile with only one way in, through a one-tile doorway.
       for (const t of m.things.filter(t => ["urn", "wooden", "iron"].includes(t.room))) {
         const open = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => isFloor(m, t.x + dx, t.y + dy));

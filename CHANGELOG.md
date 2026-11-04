@@ -9,6 +9,13 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.71.5
+- **Urns and chests:**
+  - They always stand against a wall, in a corner, or in a little room or nook, and never beside a hallway's mouth.
+  - They're spread apart (no two side by side), and a little room never holds two chests.
+- **Pillars:** about half of the roomier halls get a block of wall, one to three tiles long, in the middle. Nothing is ever cut off by it.
+- **You start a Crawl with no Healing Potions.** The entrance Merchant sells one for your 20 Gold.
+
 ## 1.71.4
 - **Chests in the Crawl give gear, not Gold.**
 - **Urns:** fewer of them (one to three in the halls), and never close together.
