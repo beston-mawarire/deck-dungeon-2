@@ -602,11 +602,11 @@ function crawlScene(r: Run) {
     if (c.done) return `<div class="cell done ${here ? "here" : ""}"><span class="ic">${here ? "🧍" : info.icon}</span></div>`;
     const open = isOpen(g, i);
     const isBoss = i === boss;
-    return `<button class="cell ${open ? "open" : "seen"} ${isBoss ? "boss-cell" : ""} ${roomClass(c.room)} ${g.sel === i ? "sel" : ""}" data-gcell="${i}" title="${esc(info.name)}"><span class="ic">${info.icon}</span>${isBoss && locked ? `<span class="lock">🔒</span>` : ""}</button>`;
+    return `<button class="cell ${open ? "open" : "seen"} ${isBoss ? "boss-cell" : ""} ${c.mark ? "landmark" : ""} ${roomClass(c.room)} ${g.sel === i ? "sel" : ""}" data-gcell="${i}" title="${esc(info.name)}"><span class="ic">${info.icon}</span>${isBoss && locked ? `<span class="lock">🔒</span>` : ""}</button>`;
   };
   const sel = g.sel !== undefined && !g.cells[g.sel].done ? g.sel : undefined;
   const pick = (() => {
-    if (sel === undefined) return `<p class="sub center crawl-hint">Tap a room next to one you've cleared to see what it is, and tap it again to go in. The boss waits at the top.</p>`;
+    if (sel === undefined) return `<p class="sub center crawl-hint">Tap a room next to one you've cleared to see what it is, and tap it again to go in. The boss waits at the top${g.cells.some(c => c.mark && !c.done) ? ", and something glimmers out in the dark: make your way to it if you dare" : ""}.</p>`;
     const room = g.cells[sel].room as RoomType;
     const info = roomInfo(r, room);
     const open = isOpen(g, sel);

@@ -431,6 +431,10 @@ export function genChoices(run: Run): RoomType[] {
 
 /** Rooms that can show up any number of times on a grid; everything else at most once (events twice). */
 const GRID_REPEAT: RoomType[] = ["fight", "elite", "wooden", "iron"];
+/** Landmarks: the altars, shrines and encounters. A floor has none, one or two, seen from the start so you can walk to them. */
+export const LANDMARKS: RoomType[] = ["sanguine", "altar", "shrine", "event", "alchemist", "blacksmith", "gambling_den", "fortune_teller", "mirror_pool", "card_sharp", "sacred_spring", "fallen_adventurer", "starving_pilgrim"];
+/** How many landmarks a floor holds: none (30%), one (45%) or two (25%). */
+const landmarkCount = (x: number) => (x < 0.3 ? 0 : x < 0.75 ? 1 : 2);
 const GRID_CAP: Partial<Record<RoomType, number>> = { event: 2, champion: 2 };
 
 /** Deal a floor's grid: the entrance at the bottom, the boss at the top, and rooms in between. */
@@ -463,7 +467,17 @@ export function makeGrid(run: Run): Grid {
     run.crossroadsGuise = Math.floor(rng() * CROSSROADS_GUISES.length);
     place("crossroads");
   }
-  // The rest from the floor's usual mix; the three rooms by the entrance are never the hard ones.
+  // Landmarks, away from the entrance (the far half of the floor when there's room), each a different one.
+  const lw = roomWeights(run, false);
+  const marks = Object.fromEntries(LANDMARKS.map(k => [k, lw[k] ?? 0]).filter(([, v]) => (v as number) > 0)) as Partial<Record<RoomType, number>>;
+  for (let n = landmarkCount(rng()); n > 0 && Object.keys(marks).length; n--) {
+    const room = pickW(rng, marks);
+    delete marks[room];
+    place(room, [0, 1, 2]);
+    const i = cells.findIndex(c => c.room === room && !c.mark);
+    if (i >= 0) cells[i].mark = true;
+  }
+  // The rest from the floor's usual mix (fights and chests, mostly); the three rooms by the entrance are never the hard ones.
   const count: Partial<Record<RoomType, number>> = {};
   for (const c of cells) if (c.room) count[c.room as RoomType] = (count[c.room as RoomType] ?? 0) + 1;
   const draw = (first: boolean): RoomType => {
@@ -473,6 +487,7 @@ export function makeGrid(run: Run): Grid {
       if ((count[k] ?? 0) >= cap) wt[k] = 0;
     }
     wt.shop = 0; wt.forge = 0; wt.rest = 0; wt.masterwork = 0;
+    for (const k of LANDMARKS) wt[k] = 0;
     const room = pickW(rng, wt);
     count[room] = (count[room] ?? 0) + 1;
     return room;

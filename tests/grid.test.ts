@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
 import { BOSS_KEY, bossIndex, entranceIndex, isOpen, isSeen, neighbours } from "../src/game/grid";
-import { confirmRisk, gridDanger, gridEnter, newRun, type Run, startCrawl } from "../src/game/run";
+import { confirmRisk, LANDMARKS, gridDanger, gridEnter, newRun, type Run, startCrawl } from "../src/game/run";
 import { botStep } from "./bot";
 
 loadLibrary();
@@ -41,9 +41,22 @@ describe("the Crawl", () => {
       expect(g.cells.every(c => c.room)).toBe(true);
       // The rooms by the entrance are never the hard ones.
       for (const i of neighbours(g, entranceIndex())) expect(["elite", "champion", "vault", "unique", "nemesis"]).not.toContain(g.cells[i].room);
-      // Only the entrance's neighbours (and the boss) can be seen at the start.
-      expect(g.cells.map((_, i) => i).filter(i => isSeen(g, i)).length).toBe(5);
+      // Only the entrance's neighbours, the boss and the landmarks can be seen at the start.
+      const marks = g.cells.filter(c => c.mark).length;
+      expect(marks).toBeLessThanOrEqual(2);
+      expect(g.cells.map((_, i) => i).filter(i => isSeen(g, i)).length).toBe(5 + marks);
+      // Altars, shrines and encounters only ever appear as landmarks.
+      expect(g.cells.filter(c => LANDMARKS.includes(c.room as never) && !c.mark).length).toBe(0);
+      for (const i of neighbours(g, entranceIndex())) expect(g.cells[i].mark).toBeFalsy();
     }
+  });
+
+  it("some floors have landmarks and some don't", () => {
+    const counts = [0, 0, 0];
+    for (let seed = 1; seed < 200; seed++) counts[crawl(seed).grid!.cells.filter(c => c.mark).length]++;
+    expect(counts[0]).toBeGreaterThan(30);
+    expect(counts[1]).toBeGreaterThan(50);
+    expect(counts[2]).toBeGreaterThan(20);
   });
 
   it("keeps the boss sealed until enough rooms are cleared", () => {

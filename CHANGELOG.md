@@ -9,6 +9,11 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.65.1
+- **The Crawl:** altars, shrines and encounters are now **landmarks**. A floor holds none, one or two of them.
+  - They glow in the fog from the start, out in the far half of the floor, so you see them and choose whether to walk there (every room on the way raises the danger).
+  - They no longer turn up as ordinary rooms: the rest of the floor is fights, chests and the services.
+
 ## 1.65.0
 - **The Crawl (prototype):** a new option when you pick your class. Each floor becomes a fogged 5×5 grid of rooms instead of a row of paths.
   - You start at the entrance (bottom middle). Rooms next to the ones you've cleared show what they are; tap one to see it, tap again to go in.

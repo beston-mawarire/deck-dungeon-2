@@ -20,6 +20,8 @@ export interface GridCell {
   /** A RoomType, or "entrance". */
   room: string;
   done?: boolean;
+  /** A landmark (an altar, a shrine, an encounter): seen from anywhere on the floor. */
+  mark?: boolean;
 }
 
 export interface Grid {
@@ -50,8 +52,8 @@ export function neighbours(g: { w: number; h: number }, i: number): number[] {
   return out;
 }
 
-/** A room you can see: next to one you've cleared (or cleared itself). The boss is always in sight. */
-export const isSeen = (g: Grid, i: number) => !!g.cells[i].done || i === bossIndex(g.w) || neighbours(g, i).some(n => g.cells[n].done);
+/** A room you can see: next to one you've cleared (or cleared itself). The boss and the floor's landmarks are always in sight. */
+export const isSeen = (g: Grid, i: number) => !!g.cells[i].done || !!g.cells[i].mark || i === bossIndex(g.w) || neighbours(g, i).some(n => g.cells[n].done);
 
 /** A room you can walk into now: seen, not yet cleared. */
 export const isOpen = (g: Grid, i: number) => !g.cells[i].done && neighbours(g, i).some(n => g.cells[n].done);

@@ -1326,6 +1326,8 @@ body[data-theme] .bag-overlay .toast:not(.err) b { color: inherit; }
 .crawl .cell .ic { font-size: clamp(1.1rem, 6vw, 1.8rem); filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
 .crawl .cell.fog { background: repeating-linear-gradient(135deg, #15111c 0 6px, #191420 6px 12px); border-color: #221c2b; }
 .crawl .cell.seen { opacity: .55; }
+.crawl .cell.landmark { border-color: rgba(176,108,240,.7); box-shadow: 0 0 12px rgba(176,108,240,.35); opacity: .85; animation: landmark 2.8s ease-in-out infinite; }
+@keyframes landmark { 50% { box-shadow: 0 0 18px rgba(176,108,240,.6); } }
 .crawl .cell.open { border-color: rgba(232,184,74,.55); box-shadow: 0 0 10px rgba(232,184,74,.18); }
 .crawl .cell.open:hover { border-color: var(--gold); }
 .crawl .cell.sel { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold), 0 0 16px rgba(232,184,74,.45); opacity: 1; }
