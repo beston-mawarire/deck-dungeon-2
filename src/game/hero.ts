@@ -225,7 +225,9 @@ export function canGuard(h: Hero): boolean {
 
 /** Rebuild the Fighter's stats and hook sources from everything the hero has. */
 /** An attribute's power: its points, and half as much again if your class favours it. */
-export const attrOf = (h: Hero, a: Attr) => attrPower(h.attrs?.[a] ?? 0);
+/** An attribute's points: what you spent this run, plus the passive tree's attribute nodes. */
+export const treeAttr = (h: Hero, a: Attr) => h.talents?.[`ta_${a}`] ?? 0;
+export const attrOf = (h: Hero, a: Attr) => attrPower((h.attrs?.[a] ?? 0) + treeAttr(h, a));
 /** Spend an unspent point on an attribute. Returns an error, or null. */
 export function spendAttr(h: Hero, a: Attr): string | null {
   if ((h.attrPoints ?? 0) <= 0) return "No points to spend. Level up to earn more.";
@@ -341,7 +343,7 @@ export function recompute(h: Hero) {
   f.arms = { main: kindOf(armMain), off: kindOf(armOff), twoHanded: !!armMain && !!effectiveBase(armMain).twoHanded };
   // Your class's base attribute: each point in it adds +1 to your base Damage.
   const ba = BASE_ATTR[h.origin as keyof typeof BASE_ATTR];
-  if (ba) s.damage += h.attrs?.[ba] ?? 0;
+  if (ba) s.damage += attrOf(h, ba);
   // Read by the fight: Faith's resistances, Vitality's Regen, and whether you swing a staff or a wand (Intellect).
   f.persist["faiRes"] = attrOf(h, "fai");
   f.persist["vitRegen"] = attrOf(h, "vit");

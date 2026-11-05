@@ -1900,6 +1900,8 @@ export function randomRelic(run: Run, quality = 1): string {
   return pool[0].id;
 }
 
+/** Levelling up heals a little (a share of Max HP). */
+export const LEVEL_HEAL = 0.15;
 export function gainXp(run: Run, n: number) {
   const h = run.hero;
   h.xp += n;
@@ -1911,7 +1913,8 @@ export function gainXp(run: Run, n: number) {
       h.attrPoints = (h.attrPoints ?? 0) + ATTR_PER_LEVEL;
       recompute(h);
       h.f.hp = Math.min(h.f.maxHp, h.f.hp + 3);
-      run.popup = { icon: "⭐", title: `Level ${h.level}!`, text: `+3 Max HP, and ${ATTR_PER_LEVEL} attribute points to spend. Open your inventory's Attributes tab to put them to use.` };
+      const healed = restore(h, Math.round(h.f.maxHp * LEVEL_HEAL));
+      run.popup = { icon: "⭐", title: `Level ${h.level}!`, text: `+3 Max HP${healed > 0 ? `, and you catch your breath (+${healed} HP)` : ""}. You have ${ATTR_PER_LEVEL} attribute points to spend: open your inventory's Attributes tab to put them to use.` };
     } else run.pendingTalents++;
   }
 }
@@ -2485,10 +2488,11 @@ export function advance(run: Run, fromTalent = false) {
         run.popup = { icon: "🕳️", title: `The Abyss — Depth ${run.floor}`, text: ABYSS_LINES[(run.floor - 2) % ABYSS_LINES.length] };
       } else if (run.floor !== FLOORS) {
         const th = themeOf(run);
-        run.popup = th ? { icon: th.icon, title: `Floor ${run.floor} — ${th.name}`, text: `${th.text} ${th.hint}. The deeper you go, the deadlier it gets — and the richer the loot.` }
-          : { icon: "⬇️", title: `Floor ${run.floor} — ${floorName(run.floor)}`, text: `${FLOOR_LINES[(run.floor - 2) % FLOOR_LINES.length]} The deeper you go, the deadlier it gets — and the richer the loot.` };
+        const where = run.gridMode ? `The ${ordinal(run.floor)} Layer` : `Floor ${run.floor}`;
+        run.popup = th ? { icon: th.icon, title: `${where} — ${th.name}`, text: `${th.text} ${th.hint}. The deeper you go, the deadlier it gets — and the richer the loot.` }
+          : { icon: "⬇️", title: `${where} — ${floorName(run.floor)}`, text: `${FLOOR_LINES[(run.floor - 2) % FLOOR_LINES.length]} The deeper you go, the deadlier it gets — and the richer the loot.` };
       }
-      if (run.floor === FLOORS && run.mode !== "abyss") run.popup = { icon: "🕳️", title: `Floor ${FLOORS} — The Source of the Darkness`, text: "You are close now. The darkness here is thick enough to taste, and every step pulls at you. A cold despair settles in your chest, whispering that the gate cannot be closed, that no one walks back out. Somewhere below, the gate breathes." };
+      if (run.floor === FLOORS && run.mode !== "abyss") run.popup = { icon: "🕳️", title: `${run.gridMode ? `The ${ordinal(FLOORS)} Layer` : `Floor ${FLOORS}`} — The Source of the Darkness`, text: "You are close now. The darkness here is thick enough to taste, and every step pulls at you. A cold despair settles in your chest, whispering that the gate cannot be closed, that no one walks back out. Somewhere below, the gate breathes." };
       if (run.floor > FLOORS && run.mode === "campaign") {
         run.scene = { t: "over", won: true };
         return;
@@ -2802,7 +2806,9 @@ export function grantScrolls(run: Run, n: number) {
 export function restore(h: Hero, amount: number) {
   let a = amount;
   eachHook(h.f, "healMult", (hm, n) => (a = Math.floor(a * hm(n))));
+  const was = h.f.hp;
   if (a > 0) h.f.hp = Math.min(h.f.maxHp, h.f.hp + a);
+  return h.f.hp - was;
 }
 
 /** Destitute: Gold can go down but never up again. Called after anything that hands out Gold. */

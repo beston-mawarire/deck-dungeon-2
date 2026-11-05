@@ -53,3 +53,6 @@ export const ATTR_HOOKS: HookDef[] = [
   attr("vit", { healMult: n => 1 + 0.08 * n }),
   attr("for", {})
 ];
+
+/** The passive tree's attribute nodes: each one taken is +1 to that attribute, on top of what you spend in a run. */
+export const TREE_ATTRS: HookDef[] = ATTRS.map(a => ({ kind: "talent", id: `ta_${a}`, name: ATTR_INFO[a].name, tags: [], text: `+1 ${ATTR_INFO[a].name}`, hooks: {} }) as HookDef);

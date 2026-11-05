@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
 import { ATTR_PER_LEVEL } from "../src/data/attributes";
 import { attrOf, recompute, spendAttr } from "../src/game/hero";
-import { gainXp, goldMult, newRun, startCrawl } from "../src/game/run";
+import { gainXp, goldMult, LEVEL_HEAL, newRun, startCrawl } from "../src/game/run";
 import { xpToLevel } from "../src/game/hero";
 
 beforeAll(() => loadLibrary());
@@ -15,6 +15,12 @@ describe("attributes", () => {
     expect(r.hero.attrPoints).toBe(ATTR_PER_LEVEL);
     expect(r.pendingTalents).toBe(0);
     expect(r.popup?.title).toMatch(/Level 2/);
+  });
+  it("levelling up heals a little", () => {
+    const r = newRun("warrior", 5); startCrawl(r);
+    r.hero.f.hp = 5;
+    gainXp(r, xpToLevel(1));
+    expect(r.hero.f.hp).toBeGreaterThanOrEqual(5 + 3 + Math.round(r.hero.f.maxHp * LEVEL_HEAL) - 1);
   });
   it("points only go where you have them, and each one shows in your stats", () => {
     const r = newRun("mage", 7); startCrawl(r);

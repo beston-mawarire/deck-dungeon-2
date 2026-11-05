@@ -13,14 +13,14 @@ import { CURSES, ORIGIN_PASSIVES } from "./origins";
 import { OLD_TRANSMUTER, RELICS } from "./relics";
 import { TALENTS } from "./talents";
 import { ABYSS_ITEMS } from "./abyss";
-import { ATTR_HOOKS } from "./attributes";
+import { ATTR_HOOKS, TREE_ATTRS } from "./attributes";
 import { ABILITY_DEFS } from "./abilities";
 
 let done = false;
 export function loadLibrary() {
   if (done) return;
   done = true;
-  register([...ABYSS_ITEMS, ...GEAR_BASES, ...LEGENDARIES, ...CRIMSON, ...BONUSES, ...EPIC_POWERS, ...RELICS, ...FUSION_RELICS, ...TALENTS, ...TRAITS, ...THEME_TRAITS, ...ORIGIN_PASSIVES, ...CURSES, ...KEEPSAKES, OLD_TRANSMUTER, ...GEN_MODULES, ...SET_PIECES, ...SET_BONUSES, ...SET_PIECES_2, ...SET_BONUSES_2, ...HEAT_HOOKS, ...ATTR_HOOKS, ...ABILITY_DEFS]);
+  register([...ABYSS_ITEMS, ...GEAR_BASES, ...LEGENDARIES, ...CRIMSON, ...BONUSES, ...EPIC_POWERS, ...RELICS, ...FUSION_RELICS, ...TALENTS, ...TRAITS, ...THEME_TRAITS, ...ORIGIN_PASSIVES, ...CURSES, ...KEEPSAKES, OLD_TRANSMUTER, ...GEN_MODULES, ...SET_PIECES, ...SET_BONUSES, ...SET_PIECES_2, ...SET_BONUSES_2, ...HEAT_HOOKS, ...ATTR_HOOKS, ...TREE_ATTRS, ...ABILITY_DEFS]);
 }
 
 export { BONUSES, CRIMSON, KEEPSAKES, CURSES, FUSION_RELICS, EPIC_POWERS, GEAR_BASES, LEGENDARIES, ORIGIN_PASSIVES, RELICS, TALENTS, TRAITS };

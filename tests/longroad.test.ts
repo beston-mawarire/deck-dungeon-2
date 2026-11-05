@@ -5,6 +5,7 @@ import { nodeBlock, passiveTree, rankText, spendNode, TREE_LAYERS, treeOf, treeP
 import { bankLongRoad, type Meta } from "../src/game/meta";
 import { familyOpenCount } from "../src/game/loot";
 import { newRun, startCrawl } from "../src/game/run";
+import { attrOf, recompute } from "../src/game/hero";
 
 beforeAll(() => loadLibrary());
 const meta = () => ({ renown: 0, runs: 0, wins: 0, bestFloor: 0 }) as unknown as Meta;
@@ -43,6 +44,29 @@ describe("the passive tree", () => {
     treeOf(m, "warrior").spent[n.key] = 1;
     const r = newRun("warrior", 3); startCrawl(r); applyHall(m, r);
     expect(r.hero.talents[n.talent]).toBe(1);
+  });
+  it("each branch opens with small attribute nodes that add to the hero's attributes", () => {
+    const m = meta(); m.layersBeaten = { warrior: 5 };
+    const b = passiveTree()[0];
+    const top = b.nodes.filter(n => n.tier === 0);
+    expect(top.every(n => n.talent.startsWith("ta_"))).toBe(true);
+    for (const n of top.slice(0, 3)) treeOf(m, "warrior").spent[n.key] = 1;
+    const r = newRun("warrior", 3); startCrawl(r); applyHall(m, r); recompute(r.hero);
+    expect(attrOf(r.hero, "str")).toBe(2);
+    expect(attrOf(r.hero, "vit")).toBe(1);
+  });
+  it("the gentler passives sit near the top and the strongest deep down; stat bumps that attributes give are gone", () => {
+    const all = passiveTree().flatMap(b => b.nodes);
+    const at = (id: string) => all.find(n => n.key === id)!.tier;
+    expect(at("t_reaper")).toBeGreaterThan(at("t_coup_de_grace"));
+    expect(at("t_reckless")).toBeGreaterThan(at("tm_practiced"));
+    expect(all.some(n => n.talent === "tm_sharp_eye" || n.talent === "t_mercenary")).toBe(false);
+  });
+  it("points in nodes the tree no longer has come back", () => {
+    const m = meta();
+    treeOf(m, "warrior").spent["t_mercenary"] = 1;
+    expect(treeOf(m, "warrior").points).toBe(1);
+    expect(treeOf(m, "warrior").spent["t_mercenary"]).toBeUndefined();
   });
   it("a rank's text shows only its own numbers", () => {
     expect(rankText("+1 / +2 / +3 Damage", 2)).toBe("+2 Damage");

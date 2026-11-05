@@ -38,7 +38,7 @@ import { mountCampMap, resetCampWalk } from "./campmap";
 import { CAMP_CASTS, type CastPlan, FISH, fishById, planCast, rollCatch } from "../game/fishing";
 import { ELITE_ONLY, MONSTERS } from "../data/monsters";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
-import { spendAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
+import { spendAttr, treeAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
 import { INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
@@ -803,7 +803,7 @@ function merchantScreen(r: Run, msg: string[], bad: boolean) {
 
 /** The Camp's tabs, as stone archways in a row (it scrolls sideways on a phone). */
 const CAMP_TABS: { id: CampTab; icon: string; name: string }[] = [
-  { id: "expedition", icon: "🗺️", name: "Expedition" }, { id: "quests", icon: "📋", name: "Quest Board" }, { id: "hall", icon: "🏛️", name: "Hall" },
+  { id: "expedition", icon: "🗺️", name: "Enter Dungeon" }, { id: "quests", icon: "📋", name: "Quest Board" }, { id: "hall", icon: "🏛️", name: "Hall" },
   { id: "skills", icon: "✨", name: "Skills" }, { id: "garden", icon: "🌱", name: "Garden" }, { id: "brewery", icon: "⚗️", name: "Brewery" },
   { id: "knowledge", icon: "📚", name: "Knowledge" }, { id: "tree", icon: "🌳", name: "Passive Tree" }, { id: "weapons", icon: "⚔️", name: "Weapon Mastery" },
   { id: "pond", icon: "🎣", name: "Still Pool" }, { id: "trophies", icon: "🏆", name: "Trophy Room" }, { id: "bestiary", icon: "📖", name: "Bestiary" },
@@ -963,14 +963,18 @@ function treeNodePopup(o: OriginId) {
   const b = passiveTree().find(br => br.id === n.branch)!;
   const why = nodeBlock(meta, o, key);
   const ranks = nodeRanks(d);
-  return `<div class="overlay popup-wrap tree-pop-wrap"><div class="popup tree-pop">
-    <button class="small closex closebtn" data-closenode aria-label="Close">✕</button>
-    <div class="tp-orb ${taken ? "has" : ""}">${esc(initials(d.name))}${ranks > 1 ? `<i>${NUMERAL[n.level]}</i>` : ""}</div>
-    <h2 class="center">${esc(d.name)}${ranks > 1 ? ` ${NUMERAL[n.level]}` : ""}</h2>
-    <p class="center sub">${b.icon} ${esc(b.name)} · row ${n.tier + 1}${taken ? " · taken" : ""}</p>
-    <div class="panel"><p>${esc(rankText(d.text, n.level))}</p>${ranks > 1 ? `<p class="sub">${n.level < ranks ? `Its next rank waits deeper in the tree.` : "Its strongest rank."}${n.level > 1 ? ` Needs ${esc(d.name)} ${NUMERAL[n.level - 1]}.` : ""}</p>` : ""}</div>
-    ${why && !taken ? `<p class="sub center">${esc(why)}</p>` : ""}
-    <div class="row plank-row" style="justify-content:center;margin-top:10px">${taken ? "" : `<button class="plank-btn" data-node="${key}" ${why ? "disabled" : ""}>＋ Add a point${treeOpen(meta, o) ? ` (${t.points} left)` : ""}</button>`}<button class="plank-btn" data-closenode>Close</button></div>
+  const attr = n.tier === 0 ? (n.talent.slice(3) as Attr) : null;
+  const body = attr
+    ? `<p><b>+1 ${esc(ATTR_INFO[attr].name)}</b> on every run with this class, on top of the points you spend as you level.</p><p class="sub">Each point of ${esc(ATTR_INFO[attr].name)}: ${ATTR_INFO[attr].lines(1).map(esc).join(", ")}.</p>`
+    : `<p>${esc(rankText(d.text, n.level))}</p>${ranks > 1 ? `<p class="sub">${n.level < ranks ? `Its next rank waits deeper in the tree.` : "Its strongest rank."}${n.level > 1 ? ` Needs ${esc(d.name)} ${NUMERAL[n.level - 1]}.` : ""}</p>` : ""}`;
+  return `<div class="tree-pop-wrap"><div class="tree-pop">
+    <button class="tp-x" data-closenode aria-label="Close">✕</button>
+    <div class="tp-orb ${taken ? "has" : ""}">${attr ? ATTR_INFO[attr].icon : esc(initials(d.name))}${ranks > 1 ? `<i>${NUMERAL[n.level]}</i>` : ""}</div>
+    <h2>${attr ? `+1 ${esc(d.name)}` : esc(d.name)}${ranks > 1 ? ` ${NUMERAL[n.level]}` : ""}</h2>
+    <p class="tp-where">${b.icon} ${esc(b.name)} · row ${n.tier + 1}${taken ? " · taken" : ""}</p>
+    <div class="tp-body">${body}</div>
+    ${why && !taken ? `<p class="tp-why">${esc(why)}</p>` : ""}
+    <div class="tp-btns">${taken ? "" : `<button class="tp-btn gold" data-node="${key}" ${why ? "disabled" : ""}>＋ Add a point${treeOpen(meta, o) ? ` (${t.points} left)` : ""}</button>`}<button class="tp-btn" data-closenode>Close</button></div>
   </div></div>`;
 }
 
@@ -1045,7 +1049,7 @@ function fishResolve(ok: boolean, miss: string) {
   render();
 }
 
-/** The Way Down: a dungeon archway, pitch black inside, with what you need to set out in its mouth. */
+/** Enter Dungeon: a dungeon archway, pitch black inside, with what you need to set out in its mouth. */
 let expPop: "heat" | "totem" | null = null;
 function expeditionScreen(o: OriginId) {
   void o;
@@ -1058,7 +1062,7 @@ function expeditionScreen(o: OriginId) {
         : `<p class="sub center">You hold no totems yet. From the third layer down, a guardian sometimes leaves one.</p>`; })()}
       <div class="row plank-row" style="justify-content:center"><button class="plank-btn" data-exppop="">Done</button></div></div></div>` : "";
   return `<div class="cb-screen exp-screen"><div class="exp-inner">
-    <div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">🗺️ The Way Down</div></div>
+    <div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">Enter Dungeon</div></div>
     <div class="exp-gate">
       <div class="cb-torch l"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
       <div class="cb-torch r"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
@@ -1097,7 +1101,7 @@ function treeScreen(o: OriginId) {
       const d = getItem(n.talent), taken = !!t.spent[n.key];
       const can = open && !nodeBlock(meta, o, n.key);
       const shut = !open || !tierOpen(t, b, n.tier);
-      nodes.push(`<button class="tnode ${taken ? "has full" : ""} ${can ? "can" : ""} ${shut ? "shut" : ""}" style="left:${p.x - TREE_COL / 2}px;top:${p.y - 30}px;width:${TREE_COL}px" data-nodeinfo="${n.key}" aria-label="${esc(d.name)}"><span class="tn-orb">${esc(initials(d.name))}${nodeRanks(d) > 1 ? `<i class="tn-num">${NUMERAL[n.level]}</i>` : ""}</span><span class="tn-name">${esc(d.name)}</span></button>`);
+      nodes.push(`<button class="tnode ${taken ? "has full" : ""} ${can ? "can" : ""} ${shut ? "shut" : ""}" style="left:${p.x - TREE_COL / 2}px;top:${p.y - 30}px;width:${TREE_COL}px" data-nodeinfo="${n.key}" aria-label="${esc(d.name)}"><span class="tn-orb ${n.tier === 0 ? "attr" : ""}">${n.tier === 0 ? ATTR_INFO[n.talent.slice(3) as Attr].icon : esc(initials(d.name))}${nodeRanks(d) > 1 ? `<i class="tn-num">${NUMERAL[n.level]}</i>` : ""}</span><span class="tn-name">${n.tier === 0 ? `+1 ${esc(d.name)}` : esc(d.name)}</span></button>`);
     }
   });
   const won = meta.layersBeaten?.[o] ?? 0;
@@ -1123,7 +1127,7 @@ function campScreen(o: OriginId) {
     ${note && !room ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
     <div class="camp-map"><canvas id="campcv"></canvas></div>
   </div></div>
-  ${room?.id === "tree" ? treeScreen(o) : room?.id === "expedition" ? expeditionScreen(o) : room ? `<div class="cb-screen grit-screen camp-room"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${room.icon} ${esc(room.name)}</div></div>
+  ${room?.id === "tree" ? treeScreen(o) : room?.id === "expedition" ? expeditionScreen(o) : room ? `<div class="cb-screen grit-screen camp-room"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${esc(room.name)}</div></div>
     ${note ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
     <div class="grit-body camp-room-body">${campBody(o, room.id)}</div>
     <button class="mer-leave plank-btn" data-closeroom>Back to the Camp</button></div></div>` : ""}`;
@@ -1139,8 +1143,8 @@ function crawlAct(room: string, r?: Run) {
   if (room === "crack") return "🧱 Push on it";
   if (room === "oath") return "🩸 Approach the stone";
   if (room === "event") return "🚪 Enter the strange room?";
-  if (room === "secret") return "🧰 Open chest";
-  if (["wooden", "iron", "crimson_vault", "bosschest"].includes(room)) return "🧰 Open chest";
+  if (room === "secret") return "Open chest";
+  if (["wooden", "iron", "crimson_vault", "bosschest"].includes(room)) return "Open chest";
   if (AUTO_ROOMS.includes(room) || ["vault", "unique", "goblin", "nemesis", "doppelganger", "crimson_elite"].includes(room)) return "⚔️ Fight";
   return "✋ Interact";
 }
@@ -1279,7 +1283,7 @@ const lootBtns = (it: GearItem, pick: boolean) => {
     : tslots.length > 1
       ? tslots.map(sl => `<button class="small take-equip" data-take="${it.uid}" data-how="equip" data-slot="${sl}"${dis}>✔ Equip ${SLOT_LABEL[sl].replace(" ★", "")}${run!.hero.equip[sl] ? "" : " (empty)"}</button>`).join("")
       : `<button class="small take-equip" data-take="${it.uid}" data-how="equip"${dis}>✔ Equip</button>`;
-  return `${gated ? `<div class="req-note">🔒 You must be level ${it.reqLevel} to equip this (you're level ${run!.hero.level}).</div>` : ""}${equip}${compareBtns(it)}<button class="small take-pack" data-take="${it.uid}" data-how="pack">Add to backpack</button>${run?.gridMode ? `<button class="small take-scrap" data-scrapfound="${it.uid}">Leave it</button>` : `<button class="small take-scrap" data-scrapfound="${it.uid}">Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`}`;
+  return `${equip}${compareBtns(it)}<button class="small take-pack" data-take="${it.uid}" data-how="pack">Add to backpack</button>${run?.gridMode ? `<button class="small take-scrap" data-scrapfound="${it.uid}">Leave it</button>` : `<button class="small take-scrap" data-scrapfound="${it.uid}">Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`}`;
 };
 const pickButtons = (it: GearItem) => lootBtns(it, true);
 const takeButtons = (it: GearItem) => lootBtns(it, false);
@@ -1558,7 +1562,60 @@ function masterworkScene(r: Run) {
   <div class="row" style="margin-top:12px"><button class="primary" data-leave>Leave</button></div>`;
 }
 
+/** A little stage for the Crawl's big moments: torchlit wall, a strip of dungeon floor, and whoever's on it. */
+function endStage(kind: string, actors: string) {
+  const torch = (side: string) => `<div class="cb-torch ${side}"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>`;
+  const floor = Array.from({ length: 20 }, (_, k) => spriteHtml(`floor_${(k * 5) % 8 + 1}`, 3, "es-tile")).join("");
+  return `<div class="end-stage ${kind}">${torch("l")}${torch("r")}<div class="es-wall"></div><div class="es-floor">${floor}</div><div class="es-actors">${actors}</div></div>`;
+}
+const sprOr = (k: string | null | undefined, scale: number, cls: string, fallback: string) => (k && hasSprite(k) ? spriteHtml(k, scale, cls) : `<span class="${cls} es-emoji">${fallback}</span>`);
+/** The run's numbers, as stone tiles. */
+function endStats(r: Run) {
+  const x = runSummary(r);
+  const where = r.mode === "abyss" ? `Depth <b>${x.floor}</b>` : `Layer <b>${r.floor}</b>${r.grid ? ` · Floor <b>${r.grid.depth}</b>` : ""}`;
+  return `<div class="end-stats"><span>🕳️ ${where}</span><span>⭐ Level <b>${r.hero.level}</b></span><span>⚔️ Kills <b>${r.stats.kills}</b></span><span>💀 Elites <b>${x.elites}</b></span><span>👹 Champions <b>${x.champions}</b></span><span>💥 Biggest hit <b>${fmtN(x.bestHit)}</b></span><span>⚔️ Damage <b>${fmtN(x.damage)}</b></span><span>🪙 Gold <b>${fmtN(x.gold)}</b></span></div>`;
+}
+
+/** The Crawl: a layer's guardian lies dead, and the stairs down glow. */
+function crawlCleared(r: Run) {
+  if (r.scene.t !== "cleared") return "";
+  const s = r.scene, next = s.floor + 1;
+  const th = themeOf(r, next);
+  const boss = sprOr(foeSprite(s.boss, undefined, true), 3, "es-dead big", "💀");
+  return `${endStage("cleared", `<div class="es-boss">${boss}${spriteHtml("skull", 3, "es-skull")}${spriteHtml("coin", 3, "es-coin c1")}${spriteHtml("coin", 3, "es-coin c2")}</div><div class="es-stairs">${spriteHtml("floor_stairs", 4, "")}</div>`)}
+    <h2 class="end-title">${esc(s.boss)} has fallen</h2>
+    <p class="end-line">${r.mode === "abyss" ? `Depth ${s.floor} of the Abyss is cleared.` : `The ${ordinal(s.floor)} Layer is cleared.`}</p>
+    <p class="end-line sub">${r.hero.f.hp}/${r.hero.f.maxHp} HP · level ${r.hero.level} · ${r.stats.kills} kills</p>
+    <p class="end-line">Below lies <b class="cl-next">${r.mode === "abyss" ? `Depth ${next} of the Abyss` : `the ${ordinal(next)} Layer${th ? `: ${th.icon} ${esc(th.name)}` : ""}`}</b>.</p>
+    <div class="end-btns"><button class="plank-btn" data-descend>Go down</button><button class="plank-btn" data-bag>🎒 Check your inventory first</button></div>`;
+}
+
+/** The Crawl's end: fallen (with whoever did it standing over you), or the last guardian beaten. */
+function crawlOver(r: Run) {
+  if (r.scene.t !== "over") return "";
+  const h = r.hero, won = r.scene.won, k = r.killer;
+  const hero = sprOr(CLASS_SPRITE[h.origin], 4, won ? "es-hero" : "es-dead hero", ORIGIN_ICON[h.origin]);
+  const killer = !won && k && !r.abandoned ? sprOr(foeSprite(k.name, k.family, k.rank === "boss"), k.rank === "boss" ? 4 : 4, "es-foe", "👹") : "";
+  const stage = won
+    ? endStage("won", `<div class="es-boss">${spriteHtml("chest_gold_open", 4, "es-chest")}${hero}${spriteHtml("coin", 3, "es-coin c1")}${spriteHtml("coin", 3, "es-coin c2")}${spriteHtml("coin", 3, "es-coin c3")}</div>`)
+    : endStage("fallen", `<div class="es-boss">${hero}${spriteHtml("skull", 3, "es-skull")}</div>${killer ? `<div class="es-killer">${killer}</div>` : ""}`);
+  const title = r.finale ? "Nothing remains. You won everything." : won && r.mode === "abyss" ? "You reached the bottom of the Abyss!" : won ? "The last guardian falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen.";
+  const gear = EQUIP_SLOTS.map(sl => h.equip[sl]).filter((x): x is GearItem => !!x);
+  return `${stage}
+    <h2 class="end-title ${won ? "won" : "lost"}">${title}</h2>
+    ${!won && k && !r.abandoned ? `<p class="end-line">Slain by <b class="cl-boss">${esc(k.name)}</b>${k.title ? ` <span class="sub">${esc(k.title)}</span>` : ""}, with ${big(k.hp)}/${big(k.maxHp)} HP left.</p>` : ""}
+    ${endStats(r)}
+    ${recorded?.achievements.length ? `<div class="end-box">${recorded.achievements.map(id => { const a = ACHIEVEMENTS.find(x => x.id === id)!; return `<p>🏆 <b>${esc(a.name)}</b>: ${esc(a.text)} <span class="sub">(+${a.renown} Renown${a.title ? ` · title “${esc(a.title)}”` : ""})</span></p>`; }).join("")}</div>` : ""}
+    ${recorded ? `<p class="end-line">🏅 +${recorded.earned} Renown (total ${meta.renown})${recorded.unlocked.length ? ` · Unlocked: <b>${recorded.unlocked.map(esc).join(", ")}</b>` : ""}</p>` : ""}
+    ${r.ruin?.shards || r.ruin?.plates ? `<p class="end-line">Kept for good: ${r.ruin.shards ? `🪨 ${r.ruin.shards} Ruin Shard${r.ruin.shards === 1 ? "" : "s"}` : ""}${r.ruin.shards && r.ruin.plates ? " · " : ""}${r.ruin.plates ? `⬛ ${r.ruin.plates} Vanadium Plate${r.ruin.plates === 1 ? "" : "s"}` : ""}</p>` : ""}
+    ${(() => { const lb = runStatsPanel(r).replace(/<div class="lb-stats">[\s\S]*?<\/div>/, "").trim(); return lb ? `<div class="end-box lb-box">${lb}</div>` : ""; })()}
+    <p class="end-sub">What you carried at the end</p>
+    <div class="end-gear">${gear.map(it => `<span class="eg-chip" style="--ink:${RARITY_INK[it.rarity] ?? "#e9d6b0"}"><b>${esc(itemName(it))}</b><i>${esc(it.rarity)} · ${esc(equippedSlot(r, it))}</i></span>`).join("")}</div>
+    <div class="end-btns">${won && !r.finale && r.mode !== "abyss" ? `<button class="plank-btn" data-endless>🌀 Delve deeper</button>` : ""}<button class="plank-btn" data-newrun>Back to the Camp</button></div>`;
+}
+
 function clearedScene(r: Run) {
+  if (r.gridMode) return crawlCleared(r);
   if (r.scene.t !== "cleared") return "";
   const s = r.scene;
   const shown = s.floor;
@@ -1794,8 +1851,8 @@ function leaderboardPopup() {
   const note = lbScope === "bounty" ? "The foes that have ended the most runs, and how many players they've claimed."
     : lbScope === "daily" && lbBoard !== "alltime" ? `Each player's best run in today's Daily Dungeon · ${esc(unit?.unit ?? "")}. Resets at midnight UTC; the best stay on All time.`
     : `Each player's best run · ${esc(unit?.unit ?? "")}`;
-  return `<div class="overlay"><div class="inner lb-pop">
-    <div class="row"><h1 class="grow">🏆 Leaderboards</h1><button class="closebtn" data-lbclose>✕ Close</button></div>
+  return `<div class="overlay dg-overlay"><div class="inner lb-pop">
+    <div class="dg-head"><h1 class="grow">Leaderboards</h1><button class="plank-btn small" data-lbclose>Close</button></div>
     <div class="lb-mains">${main}</div>
     ${lbScope === "bounty" ? "" : `${subs.length > 1 ? `<div class="row lb-tabs">${subTabs}</div>` : ""}<div class="row lb-classes">${classTabs}</div>`}
     <p class="sub lb-note">${note}</p>
@@ -1819,6 +1876,7 @@ function loadBoard(board: Board) {
 
 function overScene(r: Run) {
   if (r.scene.t !== "over") return "";
+  if (r.gridMode) return crawlOver(r);
   const h = r.hero;
   const won = r.scene.won;
   const abyss = r.mode === "abyss";
@@ -2040,7 +2098,7 @@ function crawlBag(r: Run) {
       return `<button class="inv-slot ${it ? `r-${it.rarity}` : "empty"} ${on ? "on" : ""}" data-invpick="eq:${sl}"><span>${SLOT_SHORT[sl]}</span><b>${it ? esc(itemName(it)) : "Empty"}</b></button>`; }).join("");
     const detail = !picked ? `<div class="inv-empty"><span>🔍</span><p>Tap an item to see it here.</p></div>`
       : invPick?.k === "eq" ? itemCard(picked, inCombat ? "" : `<button class="small" data-unequip="${(invPick as { slot: EquipSlot }).slot}">Take it off</button>${revealBtn(r, picked)}`)
-      : itemCard(picked, inCombat ? "" : `${picked.reqLevel && h.level < picked.reqLevel ? `<div class="req-note">🔒 You must be level ${picked.reqLevel} to equip this (you're level ${h.level}).</div>` : ""}${slotsFor(picked, h).map(sl => `<button class="small primary" data-equip="${picked.uid}" data-slot="${sl}" ${picked.reqLevel && h.level < picked.reqLevel ? "disabled" : ""}>Equip${slotsFor(picked, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, picked)}`, !inCombat);
+      : itemCard(picked, inCombat ? "" : `${slotsFor(picked, h).map(sl => `<button class="small primary" data-equip="${picked.uid}" data-slot="${sl}" ${picked.reqLevel && h.level < picked.reqLevel ? "disabled" : ""}>Equip${slotsFor(picked, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, picked)}`, !inCombat);
     // Materials and scrolls sit in the backpack too (they take no slot).
     const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.orilium ?? 0, "🔶 Orilium"], [h.starmetal, "✴️ Starmetal"], [h.scrolls, "📜 Scroll of Revelation"], [h.f.persist["skelKeys"] ?? 0, "🗝️ Skeleton Key"], ...THROWS.map(t => [h.f.persist[THROW_INFO[t].key] ?? 0, `${THROW_INFO[t].icon} ${THROW_INFO[t].name}`])].filter(([n]) => (n as number) > 0)
       .map(([n, l]) => `<span class="mer-chip mat"><b>${l}</b><span>×${n}</span></span>`).join("");
@@ -2056,14 +2114,14 @@ function crawlBag(r: Run) {
   } else if (bagTab === "attrs") {
     const baseA = BASE_ATTR[h.origin as keyof typeof BASE_ATTR];
     const rows = ATTRS.map(a => {
-      const info = ATTR_INFO[a], n = h.attrs?.[a] ?? 0, isFav = baseA === a;
+      const info = ATTR_INFO[a], spent = h.attrs?.[a] ?? 0, tree = treeAttr(h, a), n = spent + tree, isFav = baseA === a;
       // The class's base attribute also adds a point of base Damage each.
       const now = [...info.lines(attrPower(n)), ...(isFav ? [`+${n} base Damage (your class's attribute)`] : [])];
       const next = [...info.lines(attrPower(n + 1)), ...(isFav ? [`+${n + 1} base Damage (your class's attribute)`] : [])];
       const lines = now.map((l, i) => `<li class="${l !== next[i] ? "grows" : ""}"><span>${esc(l)}</span>${l !== next[i] && pts ? `<i>→ ${esc(/[+−-]?\d+%?/.exec(next[i])?.[0] ?? next[i])}</i>` : ""}</li>`).join("");
       return `<div class="attr-row ${n ? "has" : ""}">
-        <div class="attr-head"><span class="attr-ic">${info.icon}</span><b>${info.name}</b>${isFav ? `<span class="attr-fav" title="Your class's base attribute: every point also adds +1 base Damage">★ ${esc(ORIGINS[h.origin].name)}</span>` : ""}<span class="grow"></span><span class="attr-n">${n}</span>
-          <button class="attr-plus" data-attr="${a}" ${pts && n < ATTR_MAX && !inCombat ? "" : "disabled"} aria-label="Put a point into ${info.name}">+</button></div>
+        <div class="attr-head"><span class="attr-ic">${info.icon}</span><b>${info.name}</b>${isFav ? `<span class="attr-fav" title="Your class's base attribute: every point also adds +1 base Damage">★ ${esc(ORIGINS[h.origin].name)}</span>` : ""}<span class="grow"></span><span class="attr-n">${n}${tree ? `<em title="From the passive tree">+${tree} 🌳</em>` : ""}</span>
+          <button class="attr-plus" data-attr="${a}" ${pts && spent < ATTR_MAX && !inCombat ? "" : "disabled"} aria-label="Put a point into ${info.name}">+</button></div>
         <p class="attr-blurb">${esc(info.blurb)}</p><ul class="attr-lines">${lines}</ul></div>`;
     }).join("");
     body = `<div class="attr-top">${pts ? `<b>${pts}</b> point${pts === 1 ? "" : "s"} to spend` : `No points to spend. Each level-up gives ${ATTR_PER_LEVEL}.`}</div><div class="attr-list">${rows}</div>`;
@@ -2115,10 +2173,10 @@ const STORIES: Record<Mode, { icon: string; title: string; text: string }> = {
 };
 
 function helpPopup() {
-  // Each section is its own coloured card: an icon, a bright heading, and one point per line.
+  // Each section is its own card: an icon, a heading, and one point per line.
   const SECTIONS: Record<string, [string, string]> = {
-    "The goal": ["🎯", "gold"], "Your weapon is your die": ["🎲", "blue"], "In a fight": ["⚔️", "red"],
-    "Statuses and reactions": ["✴️", "purple"], "Loot": ["💎", "green"], "Tips": ["💡", "orange"]
+    "The goal": ["🎯", "gold"], "Getting about": ["👣", "green"], "Your weapon is your die": ["🎲", "blue"], "In a fight": ["⚔️", "red"],
+    "Levels and attributes": ["📈", "orange"], "Statuses and reactions": ["✴️", "purple"], "Loot": ["💎", "green"], "The Camp": ["🔥", "gold"], "Tips": ["💡", "orange"]
   };
   const anchor = (t: string) => `help-${t.toLowerCase().replace(/[^a-z]+/g, "-")}`;
   const sec = (t: string, items: string[]) => {
@@ -2127,33 +2185,42 @@ function helpPopup() {
   };
   const toc = Object.entries(SECTIONS).map(([t, [icon, tone]]) => `<a class="help-chip tone-${tone}" href="#${anchor(t)}">${icon} ${t}</a>`).join("")
     + `<a class="help-chip tone-grey" href="#help-reference">📖 Reference</a>`;
-  return `<div class="overlay"><div class="inner help">
-    <div class="row"><h1 class="grow">❓ How to play</h1><button class="closebtn" data-closehelp>✕ Close</button></div>
+  return `<div class="overlay dg-overlay"><div class="inner help">
+    <div class="dg-head"><h1 class="grow">How to play</h1><button class="plank-btn small" data-closehelp>Close</button></div>
     <nav class="help-toc">${toc}</nav>
     ${sec("The goal", [
-      "Pick a class, then go down through <b>5 floors</b>. Each floor is a few rooms you choose from, then a boss. Beat the fifth boss to win.",
-      "After winning you can keep going in <b>Endless</b> for better loot and harder bosses. Your run saves automatically at every path choice."])}
+      "Choose a hero at the Tavern, then head to the <b>Camp</b> and <b>Enter Dungeon</b>. The dungeon goes down in <b>5 layers</b> of 6 floors each. At the bottom of every layer waits its guardian: beat the fifth to win.",
+      "After winning you can <b>Delve deeper</b> for harder foes and better loot. Your run saves as you go."])}
+    ${sec("Getting about", [
+      "Tap a tile to walk there. Walk into something to deal with it: chests, doors, pools, people, foes.",
+      "Each floor has <b>stairs down</b>, glowing in the dark. Once you go down there's no climbing back up, so look around first. Locked doors need a 🗝️ Skeleton Key; some walls give when you push on them."])}
     ${sec("Your weapon is your die", [
-      "Every weapon has its own die. Each face is a <b>Miss</b>, <b>Graze</b> (half damage), <b>Hit</b> or <b>Crit</b> (double damage, ignores Armor), and some faces cast spells or add effects. Bonus damage from passives, relics and trinkets only lands on a Hit or Crit.",
-      "An off-hand weapon gives you a <b>second die</b>. Daggers, throwing knives, kunai and shuriken are built for it; ordinary weapons are clumsy there (60%). Grenades are thrown from the off-hand every 3rd round."])}
+      "Every weapon has its own die. Each face is a <b>Miss</b>, <b>Graze</b> (half damage), <b>Hit</b> or <b>Crit</b> (double damage, ignores Armor), and some faces cast spells or add effects.",
+      "An off-hand weapon gives you a <b>second die</b>. Daggers, throwing knives, kunai and shuriken are built for it; ordinary weapons are clumsy there."])}
     ${sec("In a fight", [
-      "<b>Attack</b>: roll and strike. <b>Guard</b> (needs a shield; Warriors can also Guard with a two-hander): double your Armor this round.",
-      "Each class has its own move, and each use costs 1 🔷 Mana: you have 3, full again at the start of every fight. <b>War Cry</b> (Warrior): gain a lot of Might (half as much for each cry after the first in a fight), and leave the enemy Weak and Exposed. <b>Counter</b> (Rogue): +35% Dodge this round; dodge an attack and you strike back at once with a Crit. <b>Elemental Barrier</b> (Mage, needs an elemental off-hand): roll — 5–6 blocks the hit, 3–4 halves it, 1–2 blocks nothing; every roll gives attackers your element. <b>Penance</b> (Cleric): store what you suffer this round and add it to your next attack. Used at the wrong moment, they waste your turn.",
-      "<b>Armor</b> stops a percentage of each hit. <b>Dodge</b> is a chance to avoid a hit entirely. Bosses show their next move — plan around it.",
-      "🧪 Potions heal. 🔷 Mana Potions refill your Mana (carry up to 2; shops always stock them)."])}
+      "<b>Attack</b>: roll and strike. <b>Guard</b> (needs a shield): your Armor counts double this round.",
+      "Your class's moves cost 🔷 Mana; you start every fight with it full. Gear can add abilities of its own.",
+      "🧪 Potions heal. 💣 Throwables (bombs, firepots, nets, smoke…) are used from the row under your moves, up to three of each.",
+      "You can <b>flee</b> most fights, but the foe gets a free swing as you go. Not from Elites or guardians, unless you've got smoke to hide in.",
+      "Guardians show their next move. Plan around it."])}
+    ${sec("Levels and attributes", [
+      "Every level gives <b>2 attribute points</b> to spend in your inventory, and heals you a little. Six attributes: Strength, Agility, Intellect, Faith, Vitality and Fortune. Each shows what its next point gives before you spend it.",
+      "Your class's own attribute (★) also raises your base Damage with every point."])}
     ${sec("Statuses and reactions", [
-      "Burn, Poison, Bleed, Chill, Shock, Static and more pile up on enemies (and on you). Two statuses on the same fighter can <b>react</b> — Burn + Poison is Combustion, Static + Shock sets off all the Static at once.",
-      "Pile up enough Chill, Bleed or Poison and it <b>bursts</b>. Open 🎒 mid-fight to see what's active and what your build can set off."])}
+      "Burn, Poison, Bleed, Chill, Shock, Static and more pile up on foes (and on you). Two statuses on the same fighter can <b>react</b>: Burn and Poison make Combustion, Static and Shock set off all the Static at once.",
+      "Pile up enough Chill, Bleed or Poison and it <b>bursts</b>. Open 🎒 mid-fight to see what's active."])}
     ${sec("Loot", [
-      "Rarities: Common, <span style='color:var(--uncommon)'>Uncommon</span>, <span style='color:var(--rare)'>Rare</span>, <span style='color:var(--epic)'>Epic</span>, <span style='color:var(--legendary)'>Legendary</span> and <span style='color:var(--crimson)'>Crimson</span>. Legendaries arrive hidden — use a 📜 Scroll of Revelation to reveal them.",
-      "<b>Resplendent chests</b> show face-down cards: pick one, lose the rest. The <b>Forge</b> upgrades, rerolls, combines and sacrifices gear. Merchants buy one item per visit.",
-      "Relics are passive and stack. Each level-up offers a talent. <b>Fortune</b> ✦ grows every floor: deeper means better loot."])}
+      "Rarities: Common, <span style='color:var(--uncommon)'>Uncommon</span>, <span style='color:var(--rare)'>Rare</span>, <span style='color:var(--epic)'>Epic</span>, <span style='color:var(--legendary)'>Legendary</span> and <span style='color:var(--crimson)'>Crimson</span>. Some gear needs a level before you can wear it. Some arrives hidden: a 📜 Scroll of Revelation shows what it does.",
+      "Wooden, iron and vault chests, urns, the Merchant, the Forge and stranger places along the way all give gear. What turns up leans toward your class."])}
+    ${sec("The Camp", [
+      "Between runs, the Camp keeps what you bring home: the Hall's upgrades, the Garden and the Brewery, Scrolls of Knowledge, the Bestiary and the Trophy Room, the Still Pool, and Weapon Mastery.",
+      "Once a hero has beaten all five layers, their <b>Passive Tree</b> opens: one point for every layer beaten after that."])}
     ${sec("Tips", [
-      "Your class is a starting point — you are what you wear. Build around what you find.",
-      "Elites and Champions hit hard but drop great gear. Watch for <b>⛓️ Toll</b> enemies: every action you take costs HP.",
-      "Read the enemy's chips (Unholy, Conductive, Thief…) — they tell you what works."])}
+      "Your class is a starting point: you are what you wear. Build around what you find.",
+      "Elites and Champions hit hard but drop great gear. Watch for <b>⛓️ Toll</b> foes: every action you take costs HP.",
+      "Read a foe's chips (Unholy, Conductive, Thief…): they tell you what works."])}
     ${helpGlossary()}
-    <div class="row" style="justify-content:center;margin-top:14px"><button class="primary" data-closehelp>Got it</button></div>
+    <button class="continue" data-closehelp>Got it</button>
     <p class="version">${VERSION}</p>
   </div></div>`;
 }
@@ -2382,14 +2449,15 @@ function offlinePopup() {
 function runMenu(r: Run) {
   const atMap = r.scene.t === "map";
   const over = r.scene.t === "over";
-  return `<div class="overlay popup-wrap"><div class="popup dg-popup">
-    <h2 class="dg-carved">☰ Menu</h2>
+  const b = (cls: string) => (r.gridMode ? "plank-btn" : `big ${cls}`);
+  return `<div class="overlay popup-wrap"><div class="popup dg-popup ${r.gridMode ? "run-menu" : ""}">
+    <h2 class="dg-carved">${r.gridMode ? "Menu" : "☰ Menu"}</h2>
     <div class="col" style="gap:8px;display:flex;flex-direction:column">
-      <button class="big dg-gold" data-closemenu>▶ Resume</button>
-      <button class="big dg-stone" data-mainmenu>🏠 Main menu</button>
+      <button class="${b("dg-gold")}" data-closemenu>▶ Resume</button>
+      <button class="${b("dg-stone")}" data-mainmenu>🏠 Main menu</button>
       ${musicSliders("game", false)}
-      <p class="sub center">${over ? "This run is over." : atMap ? "Your run is saved here; pick it up with Continue." : "Your run is saved at the last path choice; Continue picks it up from there."}</p>
-      ${over ? "" : `<button class="big dg-stone ${endArmed ? "danger" : ""}" data-endrun>${endArmed ? "Tap again to end this run" : "🏳️ End run"}</button>
+      <p class="sub center">${over ? "This run is over." : r.gridMode ? "Your run saves as you go; pick it up with Continue." : atMap ? "Your run is saved here; pick it up with Continue." : "Your run is saved at the last path choice; Continue picks it up from there."}</p>
+      ${over ? "" : `<button class="${b("dg-stone")} ${endArmed ? "danger" : ""}" data-endrun>${endArmed ? "Tap again to end this run" : "🏳️ End run"}</button>
       <p class="sub center">Ending the run counts as a death: you keep the Renown you've earned, but the run is gone.</p>`}
     </div></div></div>`;
 }
@@ -2400,7 +2468,7 @@ function storyBeat(p: { icon: string; title: string; text: string; list?: string
     <h1 class="center bigname">${esc(p.title)}</h1>
     <p class="story-text">${esc(p.text)}</p>
     ${p.list ? `<ul class="beat-list">${p.list.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
-    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" ${close}>Continue</button></div>
+    <button class="continue" ${close}>Continue</button>
   </div></div>`;
 }
 
@@ -2774,7 +2842,7 @@ function render2() {
   if (s.t === "over") saveRun(r, banked);
   const body =
     s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r)
-    : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r) : s.t === "offering" ? forgeScene(r, true) : s.t === "fishing" ? `<h2>Still Pool</h2>${fishingPanel("run")}<div class="fish-btns" style="margin:10px auto 0"><button class="plank-btn" data-leave>Leave the pool</button></div>` : s.t === "masterwork" ? masterworkScene(r)
+    : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r) : s.t === "offering" ? forgeScene(r, true) : s.t === "fishing" ? `${fishingPanel("run")}<div class="fish-btns" style="margin:10px auto 0"><button class="plank-btn" data-leave>Leave the pool</button></div>` : s.t === "masterwork" ? masterworkScene(r)
     : s.t === "cleared" ? clearedScene(r)
     : s.t === "smith" ? smithScene(r)
     : s.t === "alchemist" ? alchemistScene(r)
@@ -2814,7 +2882,7 @@ function render2() {
   const crawlFight = s.t === "combat" && !!r.gridMode;
   const crawlShop = s.t === "shop" && !!r.gridMode;
   document.body.classList.toggle("crawl-on", crawlView || crawlFight || crawlShop || crawlFrame);
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${strange ? `<div class="strange-screen"><div class="strange-room"></div><div class="crawl-pop-wrap strange-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div></div>` : crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat(r.gridMode ? { icon: "👑", title: "Victory!", text: "The last guardian lies still, and the dungeon's deepest door stands open behind it. Whatever was waiting down here has met its end. Take what it kept: it's yours now." } : { icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${strange ? `<div class="strange-screen"><div class="strange-room"></div><div class="crawl-pop-wrap strange-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div></div>` : crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}`;
   bind();
   // Bookmarks that scroll sideways: keep the open one in view.
   document.querySelectorAll<HTMLElement>(".bm-tabs > .on, .mer-tabs > .on").forEach(el => { const p = el.parentElement!; if (p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, el.offsetLeft - 24); });
@@ -3367,7 +3435,7 @@ function bind() {
   on("[data-rest]", () => say(rest(r, "heal")));
   on("[data-risk]", el => confirmRisk(r, el.dataset.risk === "yes"));
   on("[data-event]", el => chooseEvent(r, Number(el.dataset.event)));
-  on("[data-newrun]", () => { clearSave(); camp = r.mode === "campaign" || r.mode === "endless" ? r.hero.origin : null; campTab = "expedition"; campOffers = null; campQuest = null; view = "title"; run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
+  on("[data-newrun]", () => { clearSave(); camp = r.mode === "campaign" || r.mode === "endless" ? r.hero.origin : null; campTab = "expedition"; campRoom = null; resetCampWalk(); campOffers = null; campQuest = null; view = "title"; run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
   on("[data-endless]", () => { if (run) { run.submitted = false; run.lbDone = false; run.endRecord = undefined; } lbResult = null; continueEndless(r); recorded = null; });
   on("[data-unequip]", el => { const sl = el.dataset.unequip as EquipSlot, uid = r.hero.equip[sl]?.uid; const err = unequip(r.hero, sl); say(err); if (!err && uid !== undefined) { invPick = { k: "bp", uid }; sfx("equip"); } });
   on("[data-equip]", el => { const uid = Number(el.dataset.equip); const it = r.hero.backpack.find(i => i.uid === uid); if (!it) return; const err = equipItem(r.hero, it, el.dataset.slot as EquipSlot); say(err); if (!err) { const sl = EQUIP_SLOTS.find(k => r.hero.equip[k]?.uid === uid); if (sl) invPick = { k: "eq", slot: sl }; sfx("equip"); } });

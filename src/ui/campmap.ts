@@ -1,12 +1,12 @@
 // The Camp as a place you walk around: a cavern courtyard drawn from the tileset, with each of the Camp's options
-// as a spot you walk up to (the Hall's door, the Garden's plots, the Brewery's cauldron, the way down…).
+// as a spot you walk up to (the Hall's door, the Garden's plots, the Brewery's cauldron, the stairs into the dungeon…).
 import { atlas, CLASS_SPRITE, drawWater, drawSprite, drawTile, hasSprite } from "./sprites";
 
 export const CAMP_W = 23, CAMP_H = 25;
 export interface CampSpot { id: string; name: string; tiles: [number, number][]; locked?: boolean }
 /** A firelit hall in the middle, and each of the Camp's options in a little room of its own off it. */
 const ROOMS: { id: string; name: string; cx: number; cy: number; side: "n" | "s" | "w" | "e"; tiles?: [number, number][] }[] = [
-  { id: "quests", name: "Quest Board", cx: 7, cy: 2, side: "n" }, { id: "expedition", name: "The Way Down", cx: 11, cy: 2, side: "n" }, { id: "hall", name: "Hall", cx: 15, cy: 2, side: "n" },
+  { id: "quests", name: "Quest Board", cx: 7, cy: 2, side: "n" }, { id: "expedition", name: "Enter Dungeon", cx: 11, cy: 2, side: "n" }, { id: "hall", name: "Hall", cx: 15, cy: 2, side: "n" },
   { id: "skills", name: "Skills", cx: 2, cy: 8, side: "w" }, { id: "garden", name: "Garden", cx: 2, cy: 12, side: "w", tiles: [[1, 12], [2, 12], [3, 12]] }, { id: "trophies", name: "Trophy Room", cx: 2, cy: 16, side: "w" },
   { id: "knowledge", name: "Knowledge", cx: 20, cy: 8, side: "e" }, { id: "brewery", name: "Brewery", cx: 20, cy: 12, side: "e", tiles: [[20, 12], [21, 12]] }, { id: "bestiary", name: "Bestiary", cx: 20, cy: 16, side: "e" },
   { id: "tree", name: "Passive Tree", cx: 7, cy: 22, side: "s" }, { id: "abyss", name: "The Abyss", cx: 11, cy: 22, side: "s" }, { id: "weapons", name: "Weapon Mastery", cx: 15, cy: 22, side: "s" }
@@ -302,13 +302,18 @@ function goTo(x: number, y: number) {
 }
 
 let ticking = false;
+/** "Tap a tile to walk there": shown on each visit until you first tap. */
+let hint = true;
 export function mountCampMap(h: CampHooks) {
   hooks = h;
   atlas(() => drawCamp());
   const cv = document.getElementById("campcv") as HTMLCanvasElement | null;
   if (!cv) return;
   drawCamp();
+  const wrap = cv.parentElement;
+  if (hint && wrap && !wrap.querySelector(".camp-hint")) wrap.insertAdjacentHTML("beforeend", `<div class="camp-hint"><b>👆 Tap a tile to walk there</b><span>Walk up to a room to go in.</span></div>`);
   cv.onclick = ev => {
+    if (hint) { hint = false; wrap?.querySelector(".camp-hint")?.remove(); }
     const r = cv.getBoundingClientRect();
     const { ts, ox, oy } = layout(cv);
     const c = Math.floor((ev.clientX - r.left - ox) / ts), rr = Math.floor((ev.clientY - r.top - oy) / ts);
@@ -323,4 +328,4 @@ export function mountCampMap(h: CampHooks) {
   }
 }
 /** Back to the middle of the Camp (a fresh visit). */
-export function resetCampWalk() { pos = [...START]; camX = START[0]; camY = START[1]; path = []; target = null; }
+export function resetCampWalk() { hint = true; pos = [...START]; camX = START[0]; camY = START[1]; path = []; target = null; }

@@ -9,6 +9,19 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.87.0
+
+- **The Passive Tree, reworked.** Every branch now opens with a row of attribute nodes (+1 to an attribute each, on every run with that class). Below them, the passives run from the gentler ones at the top to the strongest deep down. The small stat bumps that attributes now give have left the tree, along with a couple of passives the dungeon had no room for. Any points in nodes that are gone come back to you.
+- The tree's node card is a scrap of night sky now, and the tree stays in view behind it.
+- **Levelling up heals you a little.**
+- **New end screens.** A cleared layer shows its guardian lying dead beside the glowing stairs; a fallen hero lies where they fell, with whoever did it standing over them; a win shows your hero with the spoils. Each shows the run's numbers on stone tiles, and the gear you carried.
+- **How to play** is rewritten for the dungeon as it is now, and it and the Leaderboards have the dungeon's look.
+- The Way Down is now **Enter Dungeon**. Every hanging sign hangs from the top of the screen, and room signs have no emoji.
+- The Camp shows "Tap a tile to walk there" when you arrive, until your first step.
+- The stairs down use the tileset's own stairs, with the same glow.
+- Fighters are bigger in fights on large screens.
+- Smaller fixes: "Open chest" has no chest emoji, the "You must be level…" note is gone (the greyed Equip button says it), and a new layer's welcome calls it a layer, not a floor.
+
 ## 1.86.0
 
 - **Fishing.** Still Pools now turn up in the dungeon. Cast your line, watch the float, and strike only on the deep tug: twitches are just the water teasing you, and most casts bring up nothing. Each pool gives you three casts.

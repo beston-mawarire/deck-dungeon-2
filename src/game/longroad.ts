@@ -1,50 +1,74 @@
 // The long road between runs: the shared passive tree, weapon mastery and totems.
 import { TALENTS } from "../data";
 import type { HookDef } from "../engine/types";
+import type { Attr } from "../data/attributes";
 import type { Meta } from "./meta";
 import type { Family, WeaponFamily } from "./families";
 
 // ---------- The passive tree ----------
 
-/** One big tree, the same for every class: the old talents, sorted into branches. A ranked talent becomes a chain
- *  of nodes (I, then II and III deeper down, each needing the one before), so it starts small and grows. */
+/** One big tree, the same for every class. Each branch opens with a row of small attribute nodes (+1 to an
+ *  attribute each), then its passives, the gentler ones near the top and the strongest deep down. A ranked passive
+ *  is a chain of nodes (I, then II and III deeper down, each needing the one before), so it starts small and grows. */
 export interface TreeNode { key: string; talent: string; level: number; prereq?: string; branch: string; tier: number; col: number }
-export interface TreeBranch { id: string; name: string; icon: string; tags: string[]; nodes: TreeNode[]; tiers: number }
+export interface TreeBranch { id: string; name: string; icon: string; tags: string[]; attrs: [Attr, Attr]; nodes: TreeNode[]; tiers: number }
 const BRANCH_DEFS: Omit<TreeBranch, "nodes" | "tiers">[] = [
-  { id: "might", name: "Might", icon: "⚔️", tags: ["Strike", "Kill"] },
-  { id: "bulwark", name: "Bulwark", icon: "🛡️", tags: ["Guard", "Thorns"] },
-  { id: "grace", name: "Grace", icon: "🗡️", tags: ["Tempo", "Crit"] },
-  { id: "affliction", name: "Affliction", icon: "☠️", tags: ["Bleed", "Poison", "Burn", "Hex", "Frost"] },
-  { id: "arcana", name: "Arcana", icon: "🔮", tags: ["Arcane", "Storm"] },
-  { id: "devotion", name: "Devotion", icon: "✝️", tags: ["Holy", "Blood"] },
-  { id: "fortune", name: "Fortune", icon: "🍀", tags: ["Gold", "Luck"] }
+  { id: "might", name: "Might", icon: "⚔️", tags: ["Strike", "Kill"], attrs: ["str", "vit"] },
+  { id: "bulwark", name: "Bulwark", icon: "🛡️", tags: ["Guard", "Thorns"], attrs: ["vit", "str"] },
+  { id: "grace", name: "Grace", icon: "🗡️", tags: ["Tempo", "Crit"], attrs: ["agi", "for"] },
+  { id: "affliction", name: "Affliction", icon: "☠️", tags: ["Bleed", "Poison", "Burn", "Hex", "Frost"], attrs: ["int", "agi"] },
+  { id: "arcana", name: "Arcana", icon: "🔮", tags: ["Arcane", "Storm"], attrs: ["int", "vit"] },
+  { id: "devotion", name: "Devotion", icon: "✝️", tags: ["Holy", "Blood"], attrs: ["fai", "vit"] },
+  { id: "fortune", name: "Fortune", icon: "🍀", tags: ["Gold", "Luck"], attrs: ["for", "agi"] }
 ];
+/** Old passives left out of the tree: the small stat bumps that attributes now give (Crit, Dodge, Healing, status
+ *  damage, Bash, Max HP…), and ones the Crawl has little room for (a 150-Gold purse, Cleave carry-over). */
+export const TREE_DROPPED = new Set(["tm_sharp_eye", "tm_nimble", "tm_field_medic", "tm_lingering_harm", "tm_studious", "tm_sturdy", "tm_heavy_hand", "tm_keen_edge",
+  "tm_steady_breath", "tm_thrifty", "t_mercenary", "t_carver"]);
+/** Weakest to strongest, from fights simulated at layer 6 with every class (each passive at rank III against the
+ *  same foes), with the build-defining ones moved to the very end. Anything unlisted sits in the middle. */
+export const TREE_ORDER = [
+  "t_bounty_hunter", "t_gold_digger", "t_blade_dance", "t_thorn_dance", "t_coup_de_grace", "t_bloodied_knuckles", "t_cold_blooded", "t_kick_down", "t_fault_finder",
+  "t_pyromaniac", "t_last_stand", "t_spellweaver", "t_righteous", "t_absolution", "t_overkill", "t_whirlwind", "t_duelist", "t_hemophile", "t_exsanguinate",
+  "t_ambidextrous", "t_slippery", "t_bloodrage", "t_heavy_hitter", "t_riposte", "t_counter_stance", "t_parrying_blades", "t_rhythm", "t_hexer", "t_twin_strikes",
+  "t_tortoise", "t_static_field", "t_shield_wall", "t_kindler", "t_pummel", "tm_offhand_drills", "t_evasion", "t_momentum", "t_shield_bash", "t_crossed_blades",
+  "t_hunters_mark", "t_live_wire", "t_light_feet", "tm_prickly", "t_toxicologist", "t_heavy_hands", "t_stalwart", "tm_opening_jab", "t_rend", "t_relentless",
+  "t_juggernaut", "t_retaliate", "t_envenomed", "t_splinter", "t_overwhelm", "tm_toughened", "tm_padded", "tm_precision", "tm_second_wind", "tm_practiced",
+  "t_thick_skin", "t_barbed", "tm_hardened", "t_haymaker", "t_double_down", "t_battle_fury", "t_vigor", "t_static_charge", "t_malediction", "t_zealotry",
+  "t_loaded_dice", "t_troll_blood", "t_lucky_streak", "t_frostbite", "t_battle_trance", "t_immunologist", "t_fault_lines", "t_executioner", "t_divine_favor",
+  "t_quick_hands", "t_vanguard", "t_iron_will", "t_fire_within", "t_pyrotechnics", "t_conductor", "t_crushing_blows", "t_exploit_opening", "t_catalyst",
+  "t_reckless", "t_boundless_static", "t_reaper"
+];
+const strength = (id: string) => { const k = TREE_ORDER.indexOf(id); return k < 0 ? TREE_ORDER.length / 2 : k; };
 /** Nodes per tier (the row you start from is this wide), and the points a branch needs before its next tier opens. */
 export const TIER_WIDTH = 5;
 export const TIER_STEP = 2;
 /** A class's tree opens once it has beaten this many layers. */
 export const TREE_LAYERS = 5;
 export const NUMERAL = ["", "I", "II", "III"];
+/** The attribute nodes a branch opens with (its own attribute, then a second one, in turn). */
+const ATTR_ROW = [0, 1, 0, 1, 0] as const;
 
 let TREE: TreeBranch[] | null = null;
 let NODES: Map<string, TreeNode> | null = null;
-/** The tree (built once from the talents: every talent's first rank first, then the second ranks, then the third). */
+/** The tree (built once from the passives). */
 export function passiveTree(): TreeBranch[] {
   if (TREE) return TREE;
   const used = new Set<string>();
   NODES = new Map();
   TREE = BRANCH_DEFS.map(b => {
-    const talents = TALENTS.filter(t => !used.has(t.id) && b.tags.includes(t.tags[0] ?? "")).sort((x, y) => (y.weight ?? 1) - (x.weight ?? 1) || x.name.localeCompare(y.name));
+    const talents = TALENTS.filter(t => !used.has(t.id) && !TREE_DROPPED.has(t.id) && b.tags.includes(t.tags[0] ?? "")).sort((x, y) => strength(x.id) - strength(y.id) || x.name.localeCompare(y.name));
     talents.forEach(t => used.add(t.id));
-    // Talents are dealt into the branch's columns; down each column a talent's ranks follow one under the other
-    // (I, then II a row deeper, then III), so a node's stronger version hangs right below it.
+    const top: TreeNode[] = ATTR_ROW.map((w, col) => ({ key: `ta_${b.attrs[w]}@${b.id}${col}`, talent: `ta_${b.attrs[w]}`, level: 1, branch: b.id, tier: 0, col }));
+    // Passives are dealt into the branch's columns below that; down each column a passive's ranks follow one under
+    // the other (I, then II a row deeper, then III), so a node's stronger version hangs right below it.
     const cols: Omit<TreeNode, "tier" | "col">[][] = Array.from({ length: TIER_WIDTH }, () => []);
     talents.forEach((t, i) => {
       for (let lv = 1; lv <= nodeRanks(t); lv++) cols[i % TIER_WIDTH].push({ key: lv === 1 ? t.id : `${t.id}#${lv}`, talent: t.id, level: lv, prereq: lv > 1 ? (lv === 2 ? t.id : `${t.id}#2`) : undefined, branch: b.id });
     });
-    const nodes = cols.flatMap((c, col) => c.map((n, tier) => ({ ...n, tier, col })));
+    const nodes = [...top, ...cols.flatMap((c, col) => c.map((n, tier) => ({ ...n, tier: tier + 1, col })))];
     for (const n of nodes) NODES!.set(n.key, n);
-    return { ...b, nodes, tiers: Math.max(...cols.map(c => c.length)) };
+    return { ...b, nodes, tiers: 1 + Math.max(...cols.map(c => c.length)) };
   });
   return TREE;
 }
@@ -55,7 +79,12 @@ export const nodeRanks = (t: HookDef) => (/\d+%?\s*\/\s*[+−-]?\d+/.test(t.text
 export const rankText = (text: string, level: number) => text.replace(/([^\s/]+)\s*\/\s*([^\s/]+)\s*\/\s*([^\s/]+)/g, (_m, a, b, c) => [a, b, c][level - 1] ?? a);
 
 export interface ClassTree { points: number; spent: Record<string, number> }
-export const treeOf = (m: Meta, origin: string): ClassTree => ((m.tree ??= {})[origin] ??= { points: 0, spent: {} });
+export function treeOf(m: Meta, origin: string): ClassTree {
+  const t = ((m.tree ??= {})[origin] ??= { points: 0, spent: {} });
+  // Nodes the tree no longer has (it was reworked) give their points back.
+  for (const k of Object.keys(t.spent)) if (!treeNode(k)) { if (t.spent[k]) t.points++; delete t.spent[k]; }
+  return t;
+}
 export const treeOpen = (m: Meta, origin: string) => (m.layersBeaten?.[origin] ?? 0) >= TREE_LAYERS;
 export const branchSpent = (t: ClassTree, b: TreeBranch) => b.nodes.reduce((a, n) => a + (t.spent[n.key] ? 1 : 0), 0);
 /** Is this tier of a branch open (enough points spent lower down)? */

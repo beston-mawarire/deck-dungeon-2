@@ -126,20 +126,20 @@ function drawWall(ctx: CanvasRenderingContext2D, m: FloorMap, x: number, y: numb
 
 /** The trapdoor: a black square hole with a thin, softly glowing yellow rim, so it stands out. */
 function drawTrapdoor(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number, boss = false) {
-  const s = ts * 0.74, x = cx - s / 2, y = cy - s / 2;
+  const sz = ts * 0.86, x = cx - sz / 2, y = cy - sz / 2;
   const pulse = 0.65 + 0.35 * Math.sin(performance.now() / 600);
+  // Stairs going down, with the same warm (or, for the guardian's, red) glow rising out of them.
   ctx.save();
-  ctx.shadowColor = boss ? `rgba(255,50,40,${0.7 * pulse})` : `rgba(255,214,70,${0.55 * pulse})`;
-  ctx.shadowBlur = ts * 0.22;
-  ctx.fillStyle = "#000";
-  ctx.fillRect(x, y, s, s);
-  ctx.strokeStyle = boss ? "#ff3a2e" : "#ffd23a"; ctx.lineWidth = Math.max(2, ts / 22);
-  ctx.strokeRect(x, y, s, s);
+  ctx.shadowColor = boss ? `rgba(255,50,40,${0.75 * pulse})` : `rgba(255,214,70,${0.6 * pulse})`;
+  ctx.shadowBlur = ts * 0.3;
+  ctx.fillStyle = "#070504"; ctx.fillRect(x, y, sz, sz);
   ctx.restore();
-  // A little depth inside the hole.
-  const g = ctx.createLinearGradient(x, y, x, y + s);
-  g.addColorStop(0, "rgba(60,40,10,.35)"); g.addColorStop(0.35, "rgba(0,0,0,0)");
-  ctx.fillStyle = g; ctx.fillRect(x + 2, y + 2, s - 4, s - 4);
+  if (!drawTile(ctx, "floor_stairs", x, y, sz)) { ctx.fillStyle = "#000"; ctx.fillRect(x, y, sz, sz); }
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  const g = ctx.createRadialGradient(cx, cy + sz * 0.2, 0, cx, cy, sz * 0.7);
+  g.addColorStop(0, boss ? `rgba(255,60,40,${0.35 * pulse})` : `rgba(255,200,80,${0.3 * pulse})`); g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g; ctx.fillRect(x, y, sz, sz);
+  ctx.restore();
 }
 
 /** Draw the floor around the player. */
