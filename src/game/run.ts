@@ -24,7 +24,7 @@ import { SIGIL_SETS } from "../data/talisman";
 const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
 import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 import { affixById, rescaleAffixes } from "./affixpool";
-import { MATS, matOfFamily, type Mat } from "./camp";
+import { MATS, matOfFamily, PLANTS, type Mat, type Plant } from "./camp";
 import { type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, idx, isFloor, isSeenTile, LAYER_FLOORS, look, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -280,7 +280,7 @@ export interface Run {
   gridMode?: boolean;
   grid?: FloorMap;
   /** Crown Shards and Camp materials found this run (banked to the Camp as they're found). */
-  campLoot?: { crowns: number; mats: Partial<Record<Mat, number>>; banked?: { crowns: number; mats: Partial<Record<Mat, number>> } };
+  campLoot?: { crowns: number; mats: Partial<Record<Mat, number>>; seeds?: Partial<Record<Plant, number>>; banked?: { crowns: number; mats: Partial<Record<Mat, number>>; seeds?: Partial<Record<Plant, number>> } };
   /** The boss's rewards, waiting in the chest of its treasure room; and the drop out of that room under way. */
   bossChest?: Scene;
   gridDescend?: boolean;
@@ -752,6 +752,14 @@ export function campGain(run: Run, mat: Mat | null, n: number, crowns = 0) {
   l.crowns += crowns;
 }
 
+/** A seed for the Camp's Garden (Heartleaf more often than Moonbell). */
+export function seedDrop(run: Run): Plant {
+  const pl: Plant = run.rng() < 0.65 ? "heartleaf" : "moonbell";
+  const l = (run.campLoot ??= { crowns: 0, mats: {} });
+  (l.seeds ??= {})[pl] = (l.seeds[pl] ?? 0) + 1;
+  return pl;
+}
+
 /** Urns: mostly a few coins, now and then a Mana Potion, very rarely a Healing Potion. Smashed, they're gone. */
 export const URN_MANA = 0.03, URN_HEAL = 0.01;
 export function smashUrn(run: Run, t: number) {
@@ -760,6 +768,7 @@ export function smashUrn(run: Run, t: number) {
   const x = run.rng();
   if (x < URN_HEAL && h.potions < potionCap(h)) { gainPotions(h, 1); run.message = "🏺 The urn shatters. A Healing Potion rolls out! 🧪"; return; }
   if (x < URN_HEAL + URN_MANA && gainManaPotions(h, 1)) { run.message = "🏺 The urn shatters. A Mana Potion! 🔷"; return; }
+  if (x < 0.13) { const pl = seedDrop(run); run.message = `🏺 The urn shatters. A seed inside: ${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}, for the Camp's Garden.`; return; }
   if (x < 0.8) { const g = 1 + Math.floor(run.rng() * (2 + run.floor)); h.f.gold += g; run.message = `🏺 The urn shatters: ${g} Gold.`; return; }
   run.message = "🏺 The urn shatters. Nothing but dust.";
 }
@@ -892,6 +901,7 @@ function enterRoom(run: Run, room: RoomType) {
       setGenLuck(genLuck(run));
       const sg = rollSigilDrop(run, 0.06, 0.1);
       const woodOdds = useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden;
+      if (run.gridMode && run.rng() < 0.3) { const pl = seedDrop(run); run.message = `Tucked in the chest: ${PLANTS[pl].seedIcon} a ${PLANTS[pl].seed}, for the Camp's Garden.`; }
       run.scene = { t: "loot", title: "Wooden Chest", items: [dropItem(run, woodOdds)], gold: run.gridMode ? 0 : (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
       return;
     }

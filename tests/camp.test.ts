@@ -23,7 +23,7 @@ describe("the Camp: Crown Shards, materials and the Hall", () => {
   it("buys Hall ranks for Crown Shards and materials, and a run sets out with them", () => {
     const m = meta();
     expect(buyHall(m, "straps")).toMatch(/Crown Shard/);
-    const c = campOf(m); c.crowns = 40; c.mats = { bone: 40, hide: 40, cog: 40, sigil: 40 };
+    const c = campOf(m); c.crowns = 99; c.mats = { bone: 99, hide: 99, cog: 99, sigil: 99 };
     for (const u of HALL) for (let k = 0; k < u.ranks; k++) expect(buyHall(m, u.id)).toBeNull();
     expect(buyHall(m, "straps")).toMatch(/complete/);
     expect(hallRank(m, "hardy")).toBe(5);

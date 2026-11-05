@@ -9,6 +9,15 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.75.0
+- **Seeds:** now and then an urn (about 1 in 8) or a chest (about 1 in 3) holds a seed: 🌰 Heartleaf or 🫘 Moonbell. They go straight to the Camp, kept even if you die.
+- **The Garden is open:** sow seeds in its plots (two to start). They grow while you're down in the dungeon (Heartleaf in one run, Moonbell in two), then give two or three herbs each.
+- **The Brewery is open:** two herbs make a brew. Each Stir heats the pot by a die.
+  - Bottle it between 10 and 14 for a potion, or at the 12–13 sweet spot for two.
+  - Go past 14 and it spoils; bottle it under 10 and you get nothing.
+  - Heartleaf makes Healing Potions, Moonbell makes Mana Potions, and brewed potions come with you on your next run.
+- **Two new Hall upgrades:** **Green Thumb** (+1 Garden plot, 4 ranks) and **Steady Hands** (the Brewery's sweet spot and safe band 1 wider, 2 ranks).
+
 ## 1.74.0
 - **Skills:** each class now has three abilities. You take one into each run, picked in the Camp's Skills archway; the new one replaces the class's own. Each costs 🔷1.
   - **Warrior:** War Cry · Crushing Blow (attack for 60% more and Fracture) · Shield Wall (Guard with no shield needed, plus Barrier of twice your Armor).

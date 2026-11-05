@@ -34,7 +34,7 @@ import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
-import { applyHall, bankCamp, buyHall, campOf, HALL, hallRank, MATS, type Mat } from "../game/camp";
+import { applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
 import { pingSession } from "./leaderboard";
 import { classify, FAMILY_NAME } from "../game/families";
 import { applyRework, canAfford, canEmpowerTarget, costText, empower, empowerBlock, extract, extractBlock, MAX_REFINE, refine, refineBlock, refineCost, rework, reworkBlock, reworkCost, SCROLL_SLOTS, scrapScroll, scrollName, scrollScrapValue } from "../game/masterwork";
@@ -810,6 +810,34 @@ function campBody(o: OriginId, tab: CampTab): string {
         return `<div class="hall-up skill ${on ? "done" : ""} ${open ? "" : "locked"}"><span class="hu-ic">${open ? k.icon : "🔒"}</span><span class="hu-txt"><b>${esc(k.name)}</b><span>${esc(k.text)}. Costs 🔷1.</span></span>
           ${on ? `<span class="hu-done">✔ Taking it</span>` : open ? `<button class="hu-buy" data-skillpick="${k.id}">Take this</button>` : `<span class="hu-lock">Mastery ${k.level}</span>`}</div>`;
       }).join("")}</div>`;
+  }
+  if (tab === "garden") {
+    const c = campOf(meta), plots = gardenPlots(meta);
+    const seeds = (Object.keys(PLANTS) as Plant[]).map(k => `<button class="garden-seed ${sowing === k ? "on" : ""}" data-sow="${k}" ${(c.seeds?.[k] ?? 0) ? "" : "disabled"}>${PLANTS[k].seedIcon} <b>${c.seeds?.[k] ?? 0}</b> ${esc(PLANTS[k].seed)}<span>${PLANTS[k].runs} run${PLANTS[k].runs === 1 ? "" : "s"} to grow</span></button>`).join("");
+    return `<p>Seeds turn up in urns and chests below. Sow them here: they grow while you're down in the dungeon, a run or two, and give two or three herbs for the Brewery.</p>
+      <div class="garden-seeds">${seeds}</div>
+      ${sowing ? `<p class="sub center">Now tap an empty plot to sow your ${esc(PLANTS[sowing].seed)}.</p>` : ""}
+      <div class="garden-plots">${plots.map((p, i) => !p
+        ? `<button class="plot empty ${sowing ? "ready" : ""}" data-plot="${i}"><span class="soil"></span><b>${sowing ? "Sow here" : "Empty"}</b></button>`
+        : `<button class="plot ${p.left ? "growing" : "grown"}" data-plot="${i}"><span class="soil"><span class="sprout">${p.left ? "🌱" : PLANTS[p.plant].icon}</span></span><b>${esc(PLANTS[p.plant].name)}</b><span>${p.left ? `${p.left} more run${p.left === 1 ? "" : "s"}` : "Ready: tap to harvest"}</span></button>`).join("")}</div>
+      <p class="sub">🌿 ${c.herbs?.heartleaf ?? 0} Heartleaf · 🪻 ${c.herbs?.moonbell ?? 0} Moonbell in store. More plots from the Hall's Green Thumb.</p>`;
+  }
+  if (tab === "brewery") {
+    const c = campOf(meta), band = brewBand(meta);
+    const waiting = c.brews && (c.brews.heal || c.brews.mana) ? `<p class="camp-quest-note">Bottled and waiting for your next run: ${c.brews.heal ? `🧪 ${c.brews.heal}` : ""} ${c.brews.mana ? `🔷 ${c.brews.mana}` : ""}</p>` : "";
+    if (!brew || brew.done) {
+      const last = brew?.done === "spoiled" ? `<p class="brew-out bad">💥 Too hot! The brew boils over and spoils.</p>` : brew?.done === "bottled" ? `<p class="brew-out ${brew.made ? "" : "bad"}">${brew.made === 2 ? "✨ The sweet spot! Two potions." : brew.made ? "🧪 A good brew: one potion." : "🥶 Too cold: the herbs never took. Nothing to bottle."}</p>` : "";
+      return `<p>Two herbs make a brew. Each stir heats the pot by a die. Bottle it between <b>${band.low}</b> and <b>${band.high}</b> for a potion, at <b>${band.sweetLo}${band.sweetHi > band.sweetLo ? `–${band.sweetHi}` : ""}</b> for two. Go past ${band.high} and it spoils.</p>
+        ${last}${waiting}
+        <div class="brew-pick">${(Object.keys(PLANTS) as Plant[]).map(k => `<button class="hu-buy" data-brew="${k}" ${(c.herbs?.[k] ?? 0) >= BREW_HERBS ? "" : "disabled"}>${PLANTS[k].icon} Brew ${PLANTS[k].brew === "heal" ? "Healing" : "Mana"} · ${BREW_HERBS} ${esc(PLANTS[k].name)} (${c.herbs?.[k] ?? 0})</button>`).join("")}</div>
+        <p class="sub">Brewed potions come with you on your next run.</p>`;
+    }
+    const pct = Math.min(100, (brew.heat / (band.high + 4)) * 100);
+    return `<p>The ${esc(PLANTS[brew.plant].name)} brew is on the fire. Bottle between <b>${band.low}</b> and <b>${band.high}</b>; <b>${band.sweetLo}${band.sweetHi > band.sweetLo ? `–${band.sweetHi}` : ""}</b> is the sweet spot.</p>
+      <div class="brew-pot"><div class="brew-gauge"><i class="band" style="left:${(band.low / (band.high + 4)) * 100}%;width:${((band.high - band.low + 1) / (band.high + 4)) * 100}%"></i><i class="sweet" style="left:${(band.sweetLo / (band.high + 4)) * 100}%;width:${((band.sweetHi - band.sweetLo + 1) / (band.high + 4)) * 100}%"></i><i class="heat" style="width:${pct}%"></i></div>
+        <div class="brew-heat">🔥 <b>${brew.heat}</b></div>
+        <div class="brew-rolls">${brew.rolls.map(r => `<span class="die-mini">${r}</span>`).join("")}</div></div>
+      <div class="brew-acts"><button class="hu-buy" data-stir>🥄 Stir</button><button class="hu-buy" data-bottle>🍶 Bottle it</button></div>`;
   }
   if (tab === "hall") {
     const c = campOf(meta);
@@ -2084,6 +2112,9 @@ type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery
 let campTab: CampTab = "expedition";
 let campOffers: Bounty[] | null = null;
 let campQuest: number | null = null;
+/** The Garden's seed being sown (pick a plot), and the Brewery's pot on the fire. */
+let sowing: Plant | null = null;
+let brew: Brew | null = null;
 const KIT_INDEX: Record<KitSlot, number> = { main: 0, off: 1, armour: 2 };
 function kitPopup(o: OriginId, slot: KitSlot) {
   const lv = masteryLevel(meta.mastery?.[o] ?? 0);
@@ -2781,6 +2812,15 @@ function bind() {
     on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; campTab = "expedition"; campOffers = null; campQuest = null; });
     on("[data-campback]", () => { camp = null; kitPick = null; });
     on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; plateArmed = false; });
+    on("[data-sow]", el => { const k = el.dataset.sow as Plant; sowing = sowing === k ? null : k; });
+    on("[data-plot]", el => {
+      const i = Number(el.dataset.plot), p = gardenPlots(meta)[i];
+      if (!p && sowing) { const err = sow(meta, i, sowing); if (err) say(err); else { saveMeta(meta); sfx("status"); if (!(campOf(meta).seeds?.[sowing] ?? 0)) sowing = null; } return; }
+      if (p) { const msg = harvest(meta, i); if (msg) { say(msg, p.left > 0); if (!p.left) { saveMeta(meta); sfx("chest"); } } }
+    });
+    on("[data-brew]", el => { const b = startBrew(meta, el.dataset.brew as Plant); if (typeof b === "string") say(b); else { brew = b; saveMeta(meta); } });
+    on("[data-stir]", () => { if (!brew) return; stir(meta, brew); sfx(brew.done ? "miss" : "roll"); if (brew.done) saveMeta(meta); });
+    on("[data-bottle]", () => { if (!brew) return; bottle(meta, brew); saveMeta(meta); sfx(brew.made ? "chest" : "miss"); });
     on("[data-skillpick]", el => { if (!camp) return; meta.skillPick = { ...(meta.skillPick ?? {}), [camp]: el.dataset.skillpick! }; saveMeta(meta); sfx("status"); });
     on("[data-hallbuy]", el => { const err = buyHall(meta, el.dataset.hallbuy!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });
     on("[data-cquest]", el => { const i = Number(el.dataset.cquest); campQuest = i < 0 || campQuest === i ? null : i; });

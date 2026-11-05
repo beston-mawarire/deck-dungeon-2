@@ -13,7 +13,20 @@ export const MATS: Record<Mat, { name: string; icon: string; family: string }> =
 };
 export const matOfFamily = (family?: string): Mat | undefined => (Object.keys(MATS) as Mat[]).find(k => MATS[k].family === family);
 
-export interface CampStore { crowns: number; mats: Partial<Record<Mat, number>>; hall: Record<string, number> }
+/** Seeds found below grow into herbs in the Garden; herbs become potions in the Brewery. */
+export type Plant = "heartleaf" | "moonbell";
+export const PLANTS: Record<Plant, { name: string; seed: string; icon: string; seedIcon: string; brew: "heal" | "mana"; runs: number }> = {
+  heartleaf: { name: "Heartleaf", seed: "Heartleaf Seed", icon: "🌿", seedIcon: "🌰", brew: "heal", runs: 1 },
+  moonbell: { name: "Moonbell", seed: "Moonbell Seed", icon: "🪻", seedIcon: "🫘", brew: "mana", runs: 2 }
+};
+export interface Plot { plant: Plant; left: number }
+export interface CampStore {
+  crowns: number; mats: Partial<Record<Mat, number>>; hall: Record<string, number>;
+  seeds?: Partial<Record<Plant, number>>; herbs?: Partial<Record<Plant, number>>;
+  /** Garden plots (null = empty), and potions brewed and waiting to be taken on the next run. */
+  plots?: (Plot | null)[];
+  brews?: { heal: number; mana: number };
+}
 export const campOf = (m: Meta): CampStore => (m.camp ??= { crowns: 0, mats: {}, hall: {} });
 
 export interface HallUpgrade {
@@ -28,6 +41,8 @@ export const HALL: HallUpgrade[] = [
   { id: "belt", name: "Apothecary's Belt", icon: "🧪", ranks: 2, per: "+1 starting Healing Potion", cost: r => ({ crowns: [2, 3][r - 1], mat: "bone", n: 2 + 2 * r }) },
   { id: "straps", name: "Packmule's Straps", icon: "🎒", ranks: 4, per: "+1 Backpack slot", cost: r => ({ crowns: [1, 2, 2, 3][r - 1], mat: "cog", n: 1 + r }) },
   { id: "hardy", name: "Hardy", icon: "❤️", ranks: 5, per: "+4 starting Max HP", cost: r => ({ crowns: [1, 1, 2, 2, 3][r - 1], mat: "bone", n: 1 + r }) },
+  { id: "thumb", name: "Green Thumb", icon: "🌱", ranks: 4, per: "+1 Garden plot (from 2)", cost: r => ({ crowns: [1, 1, 2, 3][r - 1], mat: "hide", n: 2 * r }) },
+  { id: "steady", name: "Steady Hands", icon: "🫗", ranks: 2, per: "The Brewery's sweet spot is 1 wider", cost: r => ({ crowns: [2, 3][r - 1], mat: "cog", n: 3 * r }) },
   { id: "second", name: "Second Life", icon: "💫", ranks: 1, per: "Once a run, when you would die, get back up at half your Max HP", cost: () => ({ crowns: 5, mat: "sigil", n: 6 }) }
 ];
 export const hallRank = (m: Meta, id: string) => campOf(m).hall[id] ?? 0;
@@ -56,6 +71,14 @@ export function applyHall(m: Meta, run: Run) {
   const hp = 4 * hallRank(m, "hardy");
   if (hp) h.f.persist["hallHp"] = hp;
   if (hallRank(m, "second")) h.f.persist["secondLife"] = 1;
+  // Potions brewed at the Camp come along (and the Garden grows a little while you're gone).
+  const c = campOf(m);
+  if (c.brews) {
+    h.potions += c.brews.heal;
+    h.manaPotions = (h.manaPotions ?? 0) + c.brews.mana;
+    c.brews = { heal: 0, mana: 0 };
+  }
+  for (const p of gardenPlots(m)) if (p && p.left > 0) p.left--;
   recompute(h);
   h.f.hp = h.f.maxHp;
 }
@@ -68,9 +91,74 @@ export function bankCamp(m: Meta, run: Run): boolean {
   const c = campOf(m);
   let changed = false;
   if (l.crowns > b.crowns) { c.crowns += l.crowns - b.crowns; b.crowns = l.crowns; changed = true; }
+  for (const k of Object.keys(l.seeds ?? {}) as Plant[]) {
+    const d = (l.seeds![k] ?? 0) - (b.seeds?.[k] ?? 0);
+    if (d > 0) { (c.seeds ??= {})[k] = (c.seeds[k] ?? 0) + d; (b.seeds ??= {})[k] = l.seeds![k]; changed = true; }
+  }
   for (const k of Object.keys(l.mats) as Mat[]) {
     const d = (l.mats[k] ?? 0) - (b.mats[k] ?? 0);
     if (d > 0) { c.mats[k] = (c.mats[k] ?? 0) + d; b.mats[k] = l.mats[k]; changed = true; }
   }
   return changed;
+}
+
+// ---------- The Garden ----------
+
+export const GARDEN_PLOTS = 2;
+/** The Garden's plots (two, more from Green Thumb). */
+export function gardenPlots(m: Meta): (Plot | null)[] {
+  const c = campOf(m), n = GARDEN_PLOTS + hallRank(m, "thumb");
+  const plots = (c.plots ??= []);
+  while (plots.length < n) plots.push(null);
+  return plots;
+}
+/** Sow a seed in an empty plot: it grows while you're away, a run or two. */
+export function sow(m: Meta, i: number, plant: Plant): string | null {
+  const c = campOf(m), plots = gardenPlots(m);
+  if (plots[i]) return "Something's already growing there.";
+  if ((c.seeds?.[plant] ?? 0) <= 0) return `You have no ${PLANTS[plant].seed}s.`;
+  c.seeds![plant]!--;
+  plots[i] = { plant, left: PLANTS[plant].runs };
+  return null;
+}
+/** Harvest a grown plot: two or three herbs. */
+export function harvest(m: Meta, i: number, rng: () => number = Math.random): string | null {
+  const c = campOf(m), plots = gardenPlots(m), p = plots[i];
+  if (!p) return null;
+  if (p.left > 0) return `Still growing: ${p.left} more run${p.left === 1 ? "" : "s"}.`;
+  const n = 2 + (rng() < 0.4 ? 1 : 0);
+  (c.herbs ??= {})[p.plant] = (c.herbs[p.plant] ?? 0) + n;
+  plots[i] = null;
+  return `+${n} ${PLANTS[p.plant].icon} ${PLANTS[p.plant].name}`;
+}
+
+// ---------- The Brewery: push your luck ----------
+
+/** Two herbs make a brew. Stir to heat the pot (a die each time); bottle it inside the band for a potion, at the sweet spot for two. Too hot and it spoils. */
+export const BREW_HERBS = 2;
+export const BREW_LOW = 10, BREW_SWEET = 12, BREW_HIGH = 14;
+export interface Brew { plant: Plant; heat: number; rolls: number[]; done?: "spoiled" | "bottled"; made?: number }
+export const brewBand = (m: Meta) => ({ low: BREW_LOW, sweetLo: BREW_SWEET, sweetHi: BREW_SWEET + 1 + hallRank(m, "steady"), high: BREW_HIGH + hallRank(m, "steady") });
+export function startBrew(m: Meta, plant: Plant): Brew | string {
+  const c = campOf(m);
+  if ((c.herbs?.[plant] ?? 0) < BREW_HERBS) return `You need ${BREW_HERBS} ${PLANTS[plant].name}.`;
+  c.herbs![plant]! -= BREW_HERBS;
+  return { plant, heat: 0, rolls: [] };
+}
+export function stir(m: Meta, b: Brew, rng: () => number = Math.random) {
+  if (b.done) return;
+  const r = 1 + Math.floor(rng() * 6);
+  b.rolls.push(r);
+  b.heat += r;
+  if (b.heat > brewBand(m).high) b.done = "spoiled";
+}
+export function bottle(m: Meta, b: Brew) {
+  if (b.done) return;
+  const band = brewBand(m);
+  b.done = "bottled";
+  b.made = b.heat < band.low ? 0 : b.heat >= band.sweetLo && b.heat <= band.sweetHi ? 2 : 1;
+  const c = campOf(m);
+  const k = PLANTS[b.plant].brew;
+  c.brews = c.brews ?? { heal: 0, mana: 0 };
+  c.brews[k] += b.made;
 }
