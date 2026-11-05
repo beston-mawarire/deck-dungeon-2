@@ -9,6 +9,13 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.79.0
+- Things to throw in a fight: Bombs (damage through Armor, more on deeper layers), Vile Brews (Poison and Weak) and Smoke Bombs (Blind the foe and cover your escape, even from an Elite). Merchants sell them, and they turn up in urns and chests. Carry up to three of each.
+- Fleeing costs a hit: the foe gets a free swing as you run, unless smoke covers you. It stays where it stood on the map, healed back to full, and you step back to where you came from.
+- The Rogue's Smoke Bomb covers an escape too.
+- Weapons that don't need crits: new main-hand lines reward counting 4s, a steady run of hits without a crit, rolling the same face twice, and low rolls that charge up the next big one.
+- Healing lines on gear turn up far less often.
+
 ## 1.78.1
 - Tabs everywhere are bookmarks now, standing up from the parchment page they open (the inventory's hang from the bottom).
 - Popups (chests, events and the like), the inventory's item details and the Merchant's are torn pages.

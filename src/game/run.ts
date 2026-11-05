@@ -8,7 +8,7 @@ import { CROSSROADS_GUISES, crossroadsEvent, EVENTS, type GameEvent } from "../d
 import { FUSION_RECIPES } from "../data/fusions";
 import { findRecipe, TRINKET_RECIPES } from "../data/jeweller";
 import { ELITE_ONLY, MONSTERS, makeDragon, makeGoblin, makeMonster, makeNemesis, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
-import { type Action, actionToll, BLESSINGS, isUnholy, playRound, startBattle } from "../engine/combat";
+import { type Action, actionToll, BLESSINGS, isUnholy, playRound, startBattle, THROW_INFO, THROWS, type Throw } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
 import { applyStatus, heal as healF } from "../engine/statuses";
@@ -171,7 +171,7 @@ export const ABYSS_ROOM_INFO: Partial<Record<RoomType, { name: string; icon: str
   boss: { name: "Uber boss", icon: "☠️", text: "The master of this depth, empowered. Its hoard is the richest in the Abyss." }
 };
 
-export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "relic"; item?: GearItem; relic?: string; price: number; sold?: boolean }
+export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "relic" | "throw"; item?: GearItem; relic?: string; throw?: Throw; price: number; sold?: boolean }
 
 export type Scene =
   | { t: "map" }
@@ -885,6 +885,17 @@ function gridMeet(run: Run, t: number, seen: number[]): { ok: true; entered: boo
   return { ok: true, entered: true, seen };
 }
 
+/** Bombs, Vile Brews and Smoke Bombs: bought, or found in urns and chests. You carry up to three of each. */
+export const THROW_CAP = 3;
+export const THROW_PRICE: Record<Throw, number> = { t_bomb: 28, t_brew: 22, t_smoke: 30 };
+export function gainThrow(run: Run, t: Throw): boolean {
+  const p = run.hero.f.persist, k = THROW_INFO[t].key;
+  if ((p[k] ?? 0) >= THROW_CAP) return false;
+  p[k] = (p[k] ?? 0) + 1;
+  return true;
+}
+const randomThrow = (run: Run): Throw => THROWS[Math.floor(run.rng() * THROWS.length)];
+
 /** Something for the Camp: a material (and how many), or Crown Shards. */
 export function campGain(run: Run, mat: Mat | null, n: number, crowns = 0, scrolls = 0) {
   const l = (run.campLoot ??= { crowns: 0, mats: {} });
@@ -909,6 +920,7 @@ export function smashUrn(run: Run, t: number) {
   const x = run.rng();
   if (x < URN_HEAL && h.potions < potionCap(h)) { gainPotions(h, 1); run.message = "🏺 The urn shatters. A Healing Potion rolls out! 🧪"; return; }
   if (x < URN_HEAL + URN_MANA && gainManaPotions(h, 1)) { run.message = "🏺 The urn shatters. A Mana Potion! 🔷"; return; }
+  if (x < 0.07) { const t = randomThrow(run); if (gainThrow(run, t)) { run.message = `🏺 The urn shatters. Inside: ${THROW_INFO[t].icon} a ${THROW_INFO[t].name}!`; return; } }
   if (x < 0.13) { const pl = seedDrop(run); run.message = `🏺 The urn shatters. A seed inside: ${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}, for the Camp's Garden.`; return; }
   if (x < 0.68) { const g = 1 + Math.floor(run.rng() * (2 + run.floor)); h.f.gold += g; run.message = `🏺 The urn shatters: ${g} Gold.`; return; }
   run.message = "🏺 The urn shatters. Nothing but dust.";
@@ -1045,6 +1057,7 @@ function enterRoom(run: Run, room: RoomType) {
       const sg = rollSigilDrop(run, 0.06, 0.1);
       const woodOdds = useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden;
       if (run.gridMode && run.rng() < 0.3) { const pl = seedDrop(run); run.message = `Tucked in the chest: ${PLANTS[pl].seedIcon} a ${PLANTS[pl].seed}, for the Camp's Garden.`; }
+      else if (run.gridMode && run.rng() < 0.15) { const t = randomThrow(run); if (gainThrow(run, t)) run.message = `Tucked in the chest: ${THROW_INFO[t].icon} a ${THROW_INFO[t].name}.`; }
       run.scene = { t: "loot", title: "Wooden Chest", items: [dropItem(run, woodOdds)], gold: run.gridMode ? 0 : (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
       return;
     }
@@ -1298,7 +1311,9 @@ export function availableActions(run: Run): Action[] {
     if (h.origin === "cleric") out.push("penance");
     if (h.origin === "warrior") out.push("warcry");
   }
-  if (!b.enemy.boss && !b.enemy.elite) out.push("flee");
+  // Things to throw, when you carry any.
+  for (const t of THROWS) if ((h.f.persist[THROW_INFO[t].key] ?? 0) > 0) out.push(t);
+  if (!b.enemy.boss && (!b.enemy.elite || b.player.flags["smoke"])) out.push("flee");
   return out;
 }
 
@@ -1459,7 +1474,18 @@ function afterFight(run: Run) {
     run.scene = { t: "over", won: false };
     return;
   }
-  if (b.over === "fled") { run.message = curseNote; return advance(run); }
+  if (b.over === "fled") {
+    // The Crawl: the foe stays where it stood, healed back to full; you're back on the tile you came from.
+    const m = run.gridMode ? run.grid : undefined;
+    if (m && m.last !== undefined && m.things[m.last]) {
+      m.things[m.last].done = false;
+      m.explored = Math.max(0, m.explored - 1);
+      if (m.bx !== undefined && m.by !== undefined) { m.px = m.bx; m.py = m.by; }
+      look(m);
+      run.message = [`You get away. The ${b.enemy.name} stays where it was, and its wounds are already closing.`, curseNote].filter(Boolean).join(" ");
+    } else run.message = curseNote;
+    return advance(run);
+  }
   // Transformation: after a long run of plain monster fights, a beaten monster can rise again as a Champion.
   if (b.over === "won" && rank === "normal" && !then && !b.enemy.items["m_thief"] && rollTransformation(run)) {
     const base = b.enemy.name;
@@ -1870,6 +1896,11 @@ function shopStock(run: Run): ShopEntry[] {
   stock.push({ kind: "potion", price: Math.round(15 * shopMult(run)) });
   stock.push({ kind: "mana", price: Math.round(35 * shopMult(run)) });
   if (run.rng() < 0.12) stock.push({ kind: "scroll", price: Math.round(100 * shopMult(run)) });
+  // The Crawl's Merchants also sell something to throw (one or two kinds).
+  if (run.gridMode) {
+    const kinds = [...THROWS].sort(() => run.rng() - 0.5).slice(0, run.rng() < 0.5 ? 2 : 1);
+    for (const t of kinds) stock.push({ kind: "throw", throw: t, price: Math.round(THROW_PRICE[t] * shopMult(run)) });
+  }
   return stock;
 }
 
@@ -1881,6 +1912,7 @@ export function buy(run: Run, i: number): string | null {
   if (h.f.gold < e.price) return "Not enough Gold.";
   if (e.kind === "potion" && h.potions >= potionCap(h)) return `You can't carry more than ${potionCap(h)} Healing Potions.`;
   if (e.kind === "mana" && h.manaPotions >= manaPotionCap(h)) return `You can't carry more than ${manaPotionCap(h)} Mana Potions.`;
+  if (e.kind === "throw" && e.throw && (h.f.persist[THROW_INFO[e.throw].key] ?? 0) >= THROW_CAP) return `You can't carry more than ${THROW_CAP}.`;
   if (e.kind === "item" && e.item) {
     const err = addToBackpack(h, e.item);
     if (err) return err;
@@ -1888,6 +1920,7 @@ export function buy(run: Run, i: number): string | null {
   if (e.kind === "potion") gainPotions(h, 1);
   if (e.kind === "mana") gainManaPotions(h, 1);
   if (e.kind === "scroll") h.scrolls++;
+  if (e.kind === "throw" && e.throw) gainThrow(run, e.throw);
   if (e.kind === "item" && e.item) markFound(run, e.item);
   if (e.kind === "relic" && e.relic) grantRelic(run, e.relic);
   h.f.gold -= e.price;

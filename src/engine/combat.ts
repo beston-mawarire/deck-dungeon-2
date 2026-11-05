@@ -749,7 +749,42 @@ function checkOver(b: Battle) {
 }
 
 /** Attack, Guard (needs a shield), Flee, and one action per class. */
-export type Action = "attack" | "guard" | "flee" | Skill;
+export type Action = "attack" | "guard" | "flee" | Throw | Skill;
+/** Things you throw in a fight (carried in the hero's persist as c_bomb, c_brew, c_smoke). */
+export const THROWS = ["t_bomb", "t_brew", "t_smoke"] as const;
+export type Throw = (typeof THROWS)[number];
+export const isThrow = (a: string): a is Throw => (THROWS as readonly string[]).includes(a);
+export const THROW_INFO: Record<Throw, { key: string; name: string; short: string; icon: string; text: string }> = {
+  t_bomb: { key: "c_bomb", name: "Bomb", short: "Bomb", icon: "💣", text: "Blast the foe for damage that ignores Armor (more on deeper layers)" },
+  t_brew: { key: "c_brew", name: "Vile Brew", short: "Brew", icon: "🧪", text: "Throw a harmful brew: Poison and Weak" },
+  t_smoke: { key: "c_smoke", name: "Smoke Bomb", short: "Smoke", icon: "💨", text: "Blind the foe, and you can flee this fight without being hit (even from an Elite)" }
+};
+/** How hard a Bomb hits on a layer. */
+export const bombDamage = (floor: number) => 6 + 4 * Math.max(1, floor);
+
+/** Throw something at the foe (it takes your turn). */
+function throwIt(b: Battle, t: Throw) {
+  const p = b.player, e = b.enemy, info = THROW_INFO[t];
+  if ((p.persist[info.key] ?? 0) <= 0) return;
+  p.persist[info.key]--;
+  const floor = p.persist["floor"] ?? 1;
+  if (t === "t_bomb") {
+    const lost = loseHp(b, e, bombDamage(floor));
+    log(b, `${p.name} throws a Bomb! ${e.name} takes ${lost}.`);
+    fx(b, { who: "player", kind: "text", text: "Bomb!", icon: "💣" });
+    fx(b, { who: "enemy", kind: "dmg", value: lost });
+  } else if (t === "t_brew") {
+    applyStatus(b, p, e, "poison", 3 + floor);
+    applyStatus(b, p, e, "weak", 2);
+    log(b, `${p.name} hurls a Vile Brew. It splashes and hisses.`);
+    fx(b, { who: "player", kind: "text", text: "Vile Brew", icon: "🧪" });
+  } else {
+    applyStatus(b, p, e, "blind", 2);
+    p.flags["smoke"] = 1;
+    log(b, `${p.name} throws a Smoke Bomb! A thick cloud fills the passage.`);
+    fx(b, { who: "player", kind: "text", text: "Smoke Bomb", icon: "💨" });
+  }
+}
 
 /** Begin a round. Returns true if the enemy acts first this round (Ambush). */
 export function beginRound(b: Battle): boolean {
@@ -846,6 +881,8 @@ function useSkill(b: Battle, skill: Skill) {
     // Smoke Bomb: vanish in a cloud. Evade the next two hits, and leave the foe Blinded.
     applyStatus(b, p, p, "evade", 2);
     applyStatus(b, p, e, "blind", 2);
+    // The smoke covers an escape, too.
+    p.flags["smoke"] = 1;
     log(b, `${p.name} throws a Smoke Bomb!`);
     fx(b, { who: "player", kind: "text", text: "Smoke Bomb", icon: "💨" });
   } else if (skill === "frostnova") {
@@ -910,12 +947,22 @@ export function heroPhase(b: Battle, action: Action) {
   if (checkOver(b)) return;
   if (isSkill(action) && (p.mana ?? 0) >= MANA_COST) p.persist["q_skill"] = (p.persist["q_skill"] ?? 0) + 1;
   if (action === "flee") {
-    if (e.boss || e.elite) log(b, "You can't flee from this fight.");
+    const smoke = !!p.flags["smoke"];
+    if (e.boss || (e.elite && !smoke)) log(b, "You can't flee from this fight.");
     else {
+      // Running costs a hit, unless something covers your escape.
+      if (!smoke && e.hp > 0) {
+        log(b, `${p.name} turns to run, and ${e.name} gets a free swing.`);
+        fx(b, { who: "player", kind: "text", text: "Fleeing…", icon: "🏃" });
+        act(b, e, () => attack(b, e, p));
+        if (p.hp <= 0) { checkOver(b); return; }
+      }
       b.over = "fled";
-      log(b, `${p.name} flees.`);
+      log(b, `${p.name} ${smoke ? "slips away in the smoke" : "flees"}.`);
       return;
     }
+  } else if (isThrow(action)) {
+    act(b, p, () => throwIt(b, action));
   } else if (action === "guard") {
     p.flags["guarding"] = 1;
     p.flags["guardArmor"] = 0;

@@ -22,14 +22,14 @@ import { ABYSS_SHARD_COST, addGem, GEM_BONUS, removeGem, abyssUnlocked, ABYSS_UN
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  sellItem, sellPrice, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
+  sellItem, sellPrice, THROW_CAP, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   startCrawl, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { LAYER_FLOORS } from "../game/grid";
-import { MANA_MAX } from "../engine/combat";
+import { isThrow, MANA_MAX, THROW_INFO } from "../engine/combat";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml } from "./sprites";
 import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
@@ -695,8 +695,9 @@ function crawlCombat(r: Run, msg: string[], bad: boolean) {
     </div>
     ${(p.statuses.stun ?? 0) > 0 ? `<div class="toast err">💫 You're Stunned: your next turn will be skipped.</div>` : ""}
     ${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(m)}</div>`).join("")}
+    ${acts.some(isThrow) ? `<div class="cb-throws">${acts.filter(isThrow).map(a => `<button class="cb-throw" data-act="${a}" ${busy ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}"><span>${THROW_INFO[a].icon}</span><b>${THROW_INFO[a].short}</b><i>×${p.persist[THROW_INFO[a].key] ?? 0}</i></button>`).join("")}</div>` : ""}
     <div class="cb-moves ${busy ? "busy" : ""}">
-      ${acts.map(a => `<button class="cb-move ${a === "attack" ? "attack" : a === "flee" ? "flee" : a === "guard" ? "guard" : "skill"}" data-act="${a}" ${busy || (isSkill(a) && (p.mana ?? 0) < MANA_COST) ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(p)}${isSkill(a) ? ` <span class="mana-cost">🔷${MANA_COST}</span>` : ""}</button>`).join("")}
+      ${acts.filter(a => !isThrow(a)).map(a => `<button class="cb-move ${a === "attack" ? "attack" : a === "flee" ? "flee" : a === "guard" ? "guard" : "skill"}" data-act="${a}" ${busy || (isSkill(a) && (p.mana ?? 0) < MANA_COST) ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(p)}${isSkill(a) ? ` <span class="mana-cost">🔷${MANA_COST}</span>` : ""}</button>`).join("")}
     </div>
     <div class="cb-bottom"><div class="cb-pots">${potionCircle(r)}</div><div class="cb-mid"><button class="cb-menubtn" data-menu ${busy ? "disabled" : ""} aria-label="Menu">☰</button></div>${bagCircle(r)}</div>
     <details class="cb-log"><summary>Battle log</summary><div class="log">${b.log.slice().reverse().map(l => `<div class="${l.startsWith("—") ? "round" : ""}">${esc(l)}</div>`).join("")}</div></details>
@@ -713,6 +714,7 @@ function stockLabel(r: Run, e: ShopEntry): { name: string; icon: string; text: s
   if (e.kind === "potion") return { name: "Healing Potion", icon: "🧪", text: "Heals 12 HP. Drink it from your potion drawer, in a fight or out of one.", ink: "#f08a7a" };
   if (e.kind === "mana") return { name: "Mana Potion", icon: "🔷", text: `Drink it in a fight to refill your mana. You can carry ${manaPotionCap(r.hero)}.`, ink: "#7ab8ff" };
   if (e.kind === "scroll") return { name: "Scroll of Revelation", icon: "📜", text: "Reveals a Legendary's hidden power.", ink: "#f0d28a" };
+  if (e.kind === "throw" && e.throw) { const t = THROW_INFO[e.throw]; return { name: t.name, icon: t.icon, text: `${t.text}. Use it in a fight; you can carry ${THROW_CAP}.`, ink: "#f0b070" }; }
   const rel = e.relic ? getItem(e.relic) : null;
   return { name: rel?.name ?? "Relic", icon: "💎", text: rel?.text ?? "", ink: "#f0d28a" };
 }
@@ -1807,7 +1809,7 @@ function crawlBag(r: Run) {
       : invPick?.k === "eq" ? itemCard(picked, inCombat ? "" : `<button class="small" data-unequip="${(invPick as { slot: EquipSlot }).slot}">Take it off</button>${revealBtn(r, picked)}`)
       : itemCard(picked, inCombat ? "" : `${slotsFor(picked, h).map(sl => `<button class="small primary" data-equip="${picked.uid}" data-slot="${sl}">Equip${slotsFor(picked, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, picked)}`, !inCombat);
     // Materials and scrolls sit in the backpack too (they take no slot).
-    const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.orilium ?? 0, "🔶 Orilium"], [h.starmetal, "✴️ Starmetal"], [h.scrolls, "📜 Scroll of Revelation"], [h.f.persist["skelKeys"] ?? 0, "🗝️ Skeleton Key"]].filter(([n]) => (n as number) > 0)
+    const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.orilium ?? 0, "🔶 Orilium"], [h.starmetal, "✴️ Starmetal"], [h.scrolls, "📜 Scroll of Revelation"], [h.f.persist["skelKeys"] ?? 0, "🗝️ Skeleton Key"], [h.f.persist["c_bomb"] ?? 0, "💣 Bomb"], [h.f.persist["c_brew"] ?? 0, "🧪 Vile Brew"], [h.f.persist["c_smoke"] ?? 0, "💨 Smoke Bomb"]].filter(([n]) => (n as number) > 0)
       .map(([n, l]) => `<span class="mer-chip mat"><b>${l}</b><span>×${n}</span></span>`).join("");
     const pack = mats + h.backpack.map(it => `<button class="mer-chip ${invPick?.k === "bp" && invPick.uid === it.uid ? "on" : ""}" data-invpick="bp:${it.uid}"><b style="color:${RARITY_INK[it.rarity] ?? "#e9d6b0"}">${esc(itemName(it))}</b><span>${esc(itemRarity(it))}${it.reqLevel && h.level < it.reqLevel ? ` · 🔒 Lv ${it.reqLevel}` : ""}</span></button>`).join("");
     const hk = CLASS_SPRITE[h.origin];
@@ -2353,7 +2355,10 @@ const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }
   barrier: { label: () => "Elemental Barrier", tip: "Costs 1 Mana. Uses your turn. Roll: 5–6 blocks every hit this round and gives attackers 4 stacks of your off-hand's element; 3–4 halves them and gives 2; 1–2 blocks nothing but still gives 2." },
   penance: { label: p => `Penance${p.flags["penanceStore"] ? ` (${p.flags["penanceStore"]})` : ""}`, tip: "Costs 1 Mana. Uses your turn. You take a quarter less this round, and the damage and negative statuses you take are stored; your next attack adds half as much again. A kill with it heals you." },
   warcry: { label: () => "War Cry", tip: "Costs 1 Mana. Uses your turn: gain a lot of Might (half as much for each cry after the first this fight), and leave the enemy Weak and Exposed." },
-  flee: { label: () => "Flee", tip: "Leave the fight (not Elites or bosses)." },
+  flee: { label: p => (p.flags["smoke"] ? "Flee 💨" : "Flee"), tip: "Leave the fight (not Elites or bosses). The foe gets a free hit as you go, unless smoke covers you. It stays where it was, and its wounds close." },
+  t_bomb: { label: p => `💣 Bomb ×${p.persist["c_bomb"] ?? 0}`, tip: "Uses your turn. Blast the foe for damage that ignores Armor (more on deeper layers)." },
+  t_brew: { label: p => `🧪 Vile Brew ×${p.persist["c_brew"] ?? 0}`, tip: "Uses your turn. Throw a harmful brew: it Poisons the foe and leaves it Weak." },
+  t_smoke: { label: p => `💨 Smoke Bomb ×${p.persist["c_smoke"] ?? 0}`, tip: "Uses your turn. Blind the foe; after that you can flee this fight without being hit (even from an Elite)." },
   crush: { label: () => "Crushing Blow", tip: "Costs 1 Mana. Attack for 60% more damage and Fracture the foe." },
   shieldwall: { label: () => "Shield Wall", tip: "Costs 1 Mana. Guard this round (no shield needed) and gain Barrier of twice your Armor." },
   envenom: { label: () => "Envenom", tip: "Costs 1 Mana. Poison the foe (more on deeper layers), then attack." },

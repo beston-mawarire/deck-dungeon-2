@@ -40,7 +40,7 @@ export const GEN_MINORS: GenModule[] = [
   gm({ id: "gm_dot", gen: "minor", group: "dot", name: "Festering", affix: "of Festering", tags: ["Poison", "Burn", "Bleed"], cost: 1, unit: 12, flat: true, text: "Status damage +{n}%", hooks: { stats: (s, n) => { s.dotAmp = (s.dotAmp ?? 0) + n; } } }),
   gm({ id: "gm_dealt", gen: "minor", group: "dealt", name: "Savage", affix: "of Savagery", tags: ["Strike"], cost: 1.4, unit: 6, flat: true, text: "You deal +{n}% damage", hooks: { stats: (s, n) => { s.dmgDealt = (s.dmgDealt ?? 0) + n; } } }),
   gm({ id: "gm_taken", gen: "minor", group: "taken", name: "Stalwart", affix: "of Endurance", tags: ["Guard"], cost: 1.4, unit: 5, flat: true, text: "You take {n}% less damage", hooks: { stats: (s, n) => { s.dmgTaken = (s.dmgTaken ?? 0) - Math.min(40, n); } } }),
-  gm({ id: "gm_healing", gen: "minor", group: "healing", name: "Mending", affix: "of Mending", tags: ["Blood"], cost: 0.8, unit: 12, flat: true, text: "Healing +{n}%", hooks: { healMult: n => 1 + n / 100 } }),
+  gm({ id: "gm_healing", gen: "minor", group: "healing", name: "Mending", affix: "of Mending", tags: ["Blood"], cost: 0.8, unit: 12, flat: true, weight: 0.4, text: "Healing +{n}%", hooks: { healMult: n => 1 + n / 100 } }),
   gm({ id: "gm_reaction", gen: "minor", group: "reaction", name: "Volatile", affix: "of Volatility", tags: ["Arcane", "Hex"], cost: 0.9, unit: 15, flat: true, text: "Reactions deal +{n}%", hooks: { reactionMult: (_b, _f, n) => 1 + n / 100 } }),
   gm({ id: "gm_gold", gen: "minor", group: "gold", name: "Lucky", affix: "of Plenty", tags: ["Gold"], cost: 0.5, unit: 2, text: "+{n} Gold per fight won", hooks: { onFightEnd: (b, f, n) => { if (b.over === "won" && f.id === "player") f.gold += n; } } }),
   gm({ id: "gm_thorns", gen: "minor", group: "thorns", name: "Barbed", affix: "of Barbs", tags: ["Thorns"], cost: 0.9, unit: 1, text: "When hit, deal {n} back", hooks: { whenHit: (b, c, n) => ping(b, c.attacker, n, "Barbs") } })
@@ -114,17 +114,51 @@ const allowed = (t: Trigger, p: Payload) => {
   return true;
 };
 
-export const GEN_MAJORS: GenModule[] = TRIGGERS.flatMap(t => PAYLOADS.filter(p => allowed(t, p)).map(p => {
+// ===================== RULES: weapons that reward rolls other than crits =====================
+/** A weapon line, main hand only. */
+const rule = (id: string, name: string, affix: string, tags: Tag[], unit: number, cost: number, text: string, modifyAttack: (b: Battle, c: AttackCtx, n: number) => void): GenModule =>
+  gm({ id, gen: "major", group: "rule", name, affix, tags, cost, unit, slots: ["main"], weight: 8, text, hooks: { modifyAttack: (b, c, n) => { if (!c.offhand) modifyAttack(b, c, n); } } });
+const GEN_RULES: GenModule[] = [
+  // Every 4 you roll this fight makes the rest of your hits harder.
+  rule("gr_fours", "Four-Counting", "of Fours", ["Strike", "Luck"], 1, 1.4, "Each 4 you roll this fight: +{n} Damage for the rest of it", (_b, c, n) => {
+    const f = c.attacker.flags;
+    if (c.face === 4) f["r_fours"] = (f["r_fours"] ?? 0) + 1;
+    c.bonus += (f["r_fours"] ?? 0) * n;
+  }),
+  // The steady hand: hits in a row without a crit build up; a crit spends it.
+  rule("gr_steady", "Steady", "of the Steady Hand", ["Strike"], 1, 1.5, "Steady: each hit without a crit adds +{n} Damage to the next (a crit resets it)", (_b, c, n) => {
+    const f = c.attacker.flags;
+    if (c.kind === "crit") { f["r_steady"] = 0; return; }
+    if (c.kind === "miss") return;
+    c.bonus += (f["r_steady"] ?? 0) * n;
+    f["r_steady"] = Math.min(8, (f["r_steady"] ?? 0) + 1);
+  }),
+  // Rolling the same face twice running.
+  rule("gr_twice", "Echoing", "of Echoes", ["Luck"], 3, 1.1, "Roll the same face twice in a row: +{n} Damage", (_b, c, n) => {
+    const f = c.attacker.flags;
+    if (f["r_last"] === c.face) c.bonus += n;
+    f["r_last"] = c.face;
+  }),
+  // Low rolls charge it up; the next good roll lets it all go.
+  rule("gr_charge", "Charging", "of the Gathering Storm", ["Strike", "Storm"], 2, 1.3, "Each 1–3 you roll stores a Charge; your next 4–6 deals +{n} per Charge", (_b, c, n) => {
+    const f = c.attacker.flags;
+    if (c.face <= 3) { f["r_charge"] = Math.min(5, (f["r_charge"] ?? 0) + 1); return; }
+    if (f["r_charge"]) { c.bonus += f["r_charge"] * n; f["r_charge"] = 0; }
+  })
+];
+
+export const GEN_MAJORS: GenModule[] = [...GEN_RULES, ...TRIGGERS.flatMap(t => PAYLOADS.filter(p => allowed(t, p)).map(p => {
   const id = `gj_${t.id}_${p.id}`;
   const name = `${t.text}: ${p.name}`;
   return gm({
     id, gen: "major", group: `${t.id.startsWith("f") ? "face" : t.id}_${p.id}`, name, affix: p.affix, tags: p.tags,
     cost: p.cost, unit: p.unit * t.amp, flat: p.flatAmount !== undefined,
-    weight: t.id.startsWith("f") && t.id.length === 2 ? 0.35 : 1,
+    // Healing is meant to be rare: lines that heal turn up far less often.
+    weight: (t.id.startsWith("f") && t.id.length === 2 ? 0.35 : 1) * (p.id === "heal" || p.id === "regen" ? 0.3 : 1),
     text: `${t.text}: ${p.text("{n}")}${p.id === "ping" || p.id === "heal" ? "" : ""}`,
     hooks: t.hooks(p, id, name)
   });
-}));
+}))];
 
 // ===================== FLAWS: drawbacks that buy budget back =====================
 export const GEN_FLAWS: GenModule[] = [
