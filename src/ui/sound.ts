@@ -1,5 +1,54 @@
-// Small synthesized sound effects (Web Audio), no files needed.
-type Sfx = "roll" | "hit" | "crit" | "miss" | "block" | "status" | "heal" | "reaction" | "chest" | "epic" | "legendary" | "crimson" | "win" | "lose" | "click";
+// Sound effects: recorded ones (Kenney's RPG Audio, CC0) where we have them, small synthesized ones otherwise.
+import stepA from "../assets/sfx/footstep00.ogg";
+import stepB from "../assets/sfx/footstep02.ogg";
+import stepC from "../assets/sfx/footstep04.ogg";
+import chopU from "../assets/sfx/chop.ogg";
+import sliceA from "../assets/sfx/knifeSlice.ogg";
+import sliceB from "../assets/sfx/knifeSlice2.ogg";
+import creakU from "../assets/sfx/creak1.ogg";
+import coinsU from "../assets/sfx/handleCoins.ogg";
+import latchU from "../assets/sfx/metalLatch.ogg";
+import drawU from "../assets/sfx/drawKnife2.ogg";
+import clothU from "../assets/sfx/cloth2.ogg";
+import potU from "../assets/sfx/metalPot2.ogg";
+import pageU from "../assets/sfx/bookFlip2.ogg";
+type Sfx = "roll" | "hit" | "crit" | "miss" | "block" | "status" | "heal" | "reaction" | "chest" | "epic" | "legendary" | "crimson" | "win" | "lose" | "click" | "step" | "coins" | "equip" | "smash" | "page";
+
+/** Recorded clips, decoded on first use. */
+const CLIPS: Partial<Record<Sfx, { urls: string[]; vol: number }>> = {
+  step: { urls: [stepA, stepB, stepC], vol: 0.18 },
+  hit: { urls: [chopU, sliceA], vol: 0.5 },
+  crit: { urls: [sliceB], vol: 0.6 },
+  chest: { urls: [creakU, latchU], vol: 0.5 },
+  coins: { urls: [coinsU], vol: 0.45 },
+  equip: { urls: [clothU, drawU], vol: 0.45 },
+  smash: { urls: [potU], vol: 0.5 },
+  page: { urls: [pageU], vol: 0.4 }
+};
+const decoded = new Map<string, AudioBuffer | null>();
+function playClip(kind: Sfx): boolean {
+  const c = CLIPS[kind];
+  const a = ac();
+  if (!c || !a) return false;
+  const url = c.urls[Math.floor(Math.random() * c.urls.length)];
+  const buf = decoded.get(url);
+  if (buf === undefined) {
+    decoded.set(url, null);
+    void fetch(url).then(r => r.arrayBuffer()).then(d => a.decodeAudioData(d)).then(b => { decoded.set(url, b); }).catch(() => decoded.delete(url));
+    return false;
+  }
+  if (!buf) return false;
+  const src = a.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = 0.92 + Math.random() * 0.16;
+  const g = a.createGain();
+  g.gain.value = c.vol;
+  src.connect(g).connect(a.destination);
+  src.start();
+  return true;
+}
+/** Start decoding the clips early (after the first tap), so the first hit already sounds right. */
+export function warmClips() { for (const k of Object.keys(CLIPS) as Sfx[]) for (const u of CLIPS[k]!.urls) if (!decoded.has(u) && ac()) { decoded.set(u, null); void fetch(u).then(r => r.arrayBuffer()).then(d => ac()!.decodeAudioData(d)).then(b => { decoded.set(u, b); }).catch(() => decoded.delete(u)); } }
 
 let ctx: AudioContext | null = null;
 let muted = false;
@@ -166,7 +215,10 @@ function noise(dur: number, vol = 0.15, cutoff = 1800, delay = 0) {
 }
 
 export function sfx(kind: Sfx) {
+  if (muted) return;
+  if (CLIPS[kind] && playClip(kind)) { if (kind === "crit") tone(660, 0.15, "square", 0.04, undefined, 0.03); return; }
   switch (kind) {
+    case "step": case "coins": case "equip": case "smash": case "page": return;
     case "roll": noise(0.05, 0.08, 3000); break;
     case "hit": noise(0.12, 0.25, 900); tone(110, 0.12, "triangle", 0.15, 60); break;
     case "crit": noise(0.18, 0.3, 1400); tone(220, 0.2, "sawtooth", 0.1, 90); tone(660, 0.15, "square", 0.05, undefined, 0.03); break;

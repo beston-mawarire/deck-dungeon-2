@@ -30,6 +30,8 @@ export interface MapThing {
   /** A RoomType, or "trapdoor". */
   room: string;
   done?: boolean;
+  /** For a foe: which monster it is (so the map and the fight show the same one). */
+  foe?: string;
   /** A Merchant's stock (it stays put, and so does what it sells). */
   stock?: import("./run").ShopEntry[];
   rerolls?: number;

@@ -9,6 +9,19 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.77.0
+- **Real art:** the Crawl's map and fights now use 0x72's 16×16 DungeonTileset II (CC0). It brings stone floors and brick walls (warmed toward brown), animated heroes and monsters, chests and the Merchant.
+  - Every foe on the map is the monster you'll fight.
+  - Elites and Champions wear a coloured ring.
+  - Urns, shrines and a few others are still emoji for now.
+- **Real sound:** footsteps, hits, crits and chest creaks from Kenney's RPG Audio (CC0).
+- **The trapdoor to the boss glows red.**
+- **One item per chest, and per drop:** iron chests, Mimics, the Treasure Goblin and the boss's hoard all give a single item (the best of what they'd have given).
+- **Fewer urns and chests** on each floor.
+- **Backpack:** 12 slots to start. In the Crawl you can't scrap from the backpack any more; scrap at a Forge, or tap "Leave it" on a find you don't want.
+- **Map buttons:** the menu sits just left of the inventory. While the inventory is open, its button becomes an ✕.
+- **Camp:** no arrows on phones; swipe between archways.
+
 ## 1.76.0
 - **Scrolls of Knowledge** 📜: every boss's hoard holds one. Champions (1 in 4) and iron chests (about 1 in 12) sometimes carry one too. They go straight to the Camp.
 - **The Knowledge Table is open:** spend scrolls on insights that last for every hero.

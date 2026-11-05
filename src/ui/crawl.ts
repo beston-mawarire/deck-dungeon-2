@@ -1,6 +1,7 @@
 // The Crawl (prototype): the floor drawn full-screen on a canvas, the camera on the player, point-and-click walking.
-import { idx, inSight, isFloor, isSeenTile, pathToward, SIGHT, thingAt, type FloorMap } from "../game/grid";
+import { idx, inSight, isFloor, isSeenTile, LAYER_FLOORS, pathToward, SIGHT, thingAt, type FloorMap } from "../game/grid";
 import { gridSelect, gridStep, type Run } from "../game/run";
+import { atlas, CLASS_SPRITE, drawSprite, drawTile, foeSprite, hasSprite, THING_SPRITE } from "./sprites";
 
 const STEP_MS = 130;
 
@@ -54,6 +55,9 @@ const FLOOR = "#836540", FLOOR_DARK = "#735834", GROUT = "rgba(60,40,20,.35)";
 const WALL = "#c4a273", WALL_TOP = "#d6b788", MORTAR = "#6b4c2c", OUTLINE = "#2c1c0e";
 
 function drawFloor(ctx: CanvasRenderingContext2D, x: number, y: number, sx: number, sy: number, ts: number) {
+  // The tileset's flagstones, mostly plain, now and then cracked or mossy.
+  const v = hash(x, y, 7);
+  if (drawTile(ctx, v < 0.62 ? "floor_1" : `floor_${2 + Math.floor(hash(x, y, 8) * 7)}`, sx, sy, ts)) return;
   ctx.fillStyle = hash(x, y) < 0.5 ? FLOOR : FLOOR_DARK;
   ctx.fillRect(sx, sy, ts + 0.5, ts + 0.5);
   // Flagstone seams and grit.
@@ -68,6 +72,23 @@ function drawFloor(ctx: CanvasRenderingContext2D, x: number, y: number, sx: numb
 }
 
 function drawWall(ctx: CanvasRenderingContext2D, m: FloorMap, x: number, y: number, sx: number, sy: number, ts: number) {
+  // The tileset's walls: a brick face where the floor runs up to it from below; elsewhere the dark top of the wall.
+  if (atlas()) {
+    const floorAt = (dx: number, dy: number) => isFloor(m, x + dx, y + dy);
+    if (floorAt(0, 1)) { drawTile(ctx, hash(x, y, 3) < 0.08 ? "wall_hole_1" : "wall_mid", sx, sy, ts); }
+    else {
+      ctx.fillStyle = "#21160f";
+      ctx.fillRect(sx, sy, ts + 0.5, ts + 0.5);
+      // A rim of stone where it meets the floor on a side or above.
+      ctx.fillStyle = "#5a4330";
+      const e = Math.max(2, ts / 10);
+      if (floorAt(-1, 0)) ctx.fillRect(sx, sy, e, ts + 0.5);
+      if (floorAt(1, 0)) ctx.fillRect(sx + ts - e, sy, e, ts + 0.5);
+      if (floorAt(0, -1)) ctx.fillRect(sx, sy, ts + 0.5, e);
+      if (floorAt(0, 2) || floorAt(0, 1)) { /* covered above */ }
+    }
+    return;
+  }
   ctx.fillStyle = WALL;
   ctx.fillRect(sx, sy, ts + 0.5, ts + 0.5);
   // Bricks: three courses, staggered.
@@ -95,15 +116,15 @@ function drawWall(ctx: CanvasRenderingContext2D, m: FloorMap, x: number, y: numb
 }
 
 /** The trapdoor: a black square hole with a thin, softly glowing yellow rim, so it stands out. */
-function drawTrapdoor(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number) {
+function drawTrapdoor(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number, boss = false) {
   const s = ts * 0.74, x = cx - s / 2, y = cy - s / 2;
   const pulse = 0.65 + 0.35 * Math.sin(performance.now() / 600);
   ctx.save();
-  ctx.shadowColor = `rgba(255,214,70,${0.55 * pulse})`;
+  ctx.shadowColor = boss ? `rgba(255,50,40,${0.7 * pulse})` : `rgba(255,214,70,${0.55 * pulse})`;
   ctx.shadowBlur = ts * 0.22;
   ctx.fillStyle = "#000";
   ctx.fillRect(x, y, s, s);
-  ctx.strokeStyle = "#ffd23a"; ctx.lineWidth = Math.max(2, ts / 22);
+  ctx.strokeStyle = boss ? "#ff3a2e" : "#ffd23a"; ctx.lineWidth = Math.max(2, ts / 22);
   ctx.strokeRect(x, y, s, s);
   ctx.restore();
   // A little depth inside the hole.
@@ -196,9 +217,18 @@ export function drawCrawl() {
     ctx.globalAlpha = on ? 1 : 0.6;
     ctx.fillStyle = "rgba(20,10,4,.45)";
     ctx.beginPath(); ctx.ellipse(cx, cy + ts * 0.3, ts * 0.32, ts * 0.1, 0, 0, Math.PI * 2); ctx.fill();
-    if (t.room === "trapdoor") drawTrapdoor(ctx, cx, cy, ts);
-    // (Emoji take the fill's opacity: draw them with a solid fill.)
-    else { ctx.fillStyle = "#fff"; ctx.font = emoji(ts * 0.62); ctx.fillText(h.icon(t.room), cx, cy + ts * 0.02); }
+    if (t.room === "trapdoor") drawTrapdoor(ctx, cx, cy, ts, m.depth === LAYER_FLOORS - 1);
+    else {
+      // A sprite where we have one (the foe itself, a chest, the Merchant); an emoji otherwise.
+      const sk = t.foe ? foeSprite(t.foe, undefined, false) : THING_SPRITE[t.room];
+      const scale = ts / 16;
+      const big = sk && ["ogre", "big_demon", "big_zombie"].includes(sk);
+      if (!sk || !hasSprite(sk) || !drawSprite(ctx, sk, cx, cy + ts * 0.42, big ? scale * 0.7 : scale)) {
+        ctx.fillStyle = "#fff"; ctx.font = emoji(ts * 0.62); ctx.fillText(h.icon(t.room), cx, cy + ts * 0.02);
+      }
+      // Elites and Champions wear a ring of menace.
+      if (t.room === "elite" || t.room === "champion") { ctx.strokeStyle = t.room === "champion" ? "rgba(255,120,60,.9)" : "rgba(200,140,255,.85)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(cx, cy + ts * 0.36, ts * 0.34, ts * 0.11, 0, 0, Math.PI * 2); ctx.stroke(); }
+    }
     if (m.sel === k) { ctx.strokeStyle = "#ffd27a"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, ts * 0.47, 0, Math.PI * 2); ctx.stroke(); }
     ctx.globalAlpha = 1;
   });
@@ -214,8 +244,8 @@ export function drawCrawl() {
   ctx.beginPath(); ctx.arc(pxc, pyc, ts * 0.45, 0, Math.PI * 2); ctx.stroke();
   ctx.fillStyle = "#fff";
   ctx.globalAlpha = 1;
-  ctx.font = emoji(ts * 0.6);
-  ctx.fillText(h.hero(), pxc, pyc + ts * 0.02);
+  const hk = CLASS_SPRITE[r.hero.origin];
+  if (!hk || !drawSprite(ctx, hk, pxc, pyc + ts * 0.4, ts / 16)) { ctx.font = emoji(ts * 0.6); ctx.fillText(h.hero(), pxc, pyc + ts * 0.02); }
 }
 
 function frame() {
@@ -245,6 +275,7 @@ function nextStep() {
     return;
   }
   glide = { fx, fy, tx: m.px, ty: m.py, t0: performance.now() };
+  h.sfx("step");
   if (!raf) raf = requestAnimationFrame(frame);
   // Something new came into view: stop and take a look (unless it's where you were going anyway).
   const end = path[path.length - 1] ?? goal;
@@ -279,6 +310,7 @@ export function walkToThing(t: number) {
 
 /** Hook the canvas up after each render. */
 export function mountCrawl(r: Run, h: CrawlHooks) {
+  atlas(() => { layerKey = ""; drawCrawl(); });
   runRef = r;
   hooks = h;
   const cv = document.getElementById("crawl") as HTMLCanvasElement | null;
@@ -316,7 +348,7 @@ export function crawlKeys() {
   keysOn = true;
   window.addEventListener("resize", () => drawCrawl());
   // A slow redraw keeps the trapdoor's glow breathing and the torches flickering (it does nothing when the map isn't showing).
-  window.setInterval(() => { const m = runRef?.grid; if (!document.hidden && !glide && m && document.getElementById("crawl") && (m.things.some(t => t.room === "trapdoor" && !t.done && isSeenTile(m, t.x, t.y)) || (m.torches ?? []).some(i => m.seen[i]))) drawCrawl(); }, 120);
+  window.setInterval(() => { if (!document.hidden && !glide && runRef?.grid && document.getElementById("crawl")) drawCrawl(); }, 140);
   window.addEventListener("keydown", ev => {
     const r = runRef, h = hooks;
     if (!r || !h || !r.grid || r.scene.t !== "map" || !document.getElementById("crawl")) return;

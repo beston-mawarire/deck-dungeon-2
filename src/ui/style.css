@@ -1737,3 +1737,15 @@ body.crawl-on { overflow: hidden; }
 .brew-rolls { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
 .die-mini { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; background: #3d2a19; border: 2px solid #1e1209; color: #f6ead2; font-weight: 800; }
 .brew-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* Sprites from the tileset: crisp pixels, stepped through their frames. */
+.spr { display: block; background-repeat: no-repeat; image-rendering: pixelated; image-rendering: crisp-edges; }
+@keyframes spr-anim { from { background-position-x: var(--x0); } to { background-position-x: var(--x1); } }
+.cb-sprite .spr { position: relative; z-index: 1; margin-bottom: 10px; filter: drop-shadow(0 4px 2px rgba(0,0,0,.6)); }
+.cb-sprite .foe-spr { transform: scaleX(-1); }
+.cb-sprite.hero .spr { transform: none; }
+.cb-sprite { align-items: end; display: flex; justify-content: center; }
+.cb-hero-row .cb-sprite, .cb-foe-row .cb-sprite { height: auto; min-height: 84px; }
+@media (max-width: 899px) { .camp-arrow { display: none; } }
+.cz-br { display: flex; align-items: center; gap: 10px; }
+.cz-br .cz-menu { width: 50px; height: 50px; border-radius: 50%; }
+.cz-bagx { position: fixed; z-index: 60; right: max(12px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); font-size: 2rem; color: #f3e2c2; }

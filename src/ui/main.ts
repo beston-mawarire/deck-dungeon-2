@@ -31,6 +31,7 @@ import { fortunePips } from "../game/loot";
 import { LAYER_FLOORS } from "../game/grid";
 import { MANA_MAX } from "../engine/combat";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
+import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml } from "./sprites";
 import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
@@ -133,6 +134,8 @@ let bulkArmed: "common" | "uncommon" | null = null;
 /** Items in the bag a bulk scrap would take: up to that rarity, never hidden Legendaries. */
 const bulkScrapList = (h: Hero, upTo: "common" | "uncommon") => h.backpack.filter(i => i.rarity === "common" || (upTo === "uncommon" && i.rarity === "uncommon"));
 function bulkScrapRow(h: Hero) {
+  // The Crawl: things are scrapped only at a Forge.
+  if (run?.gridMode && run.scene.t !== "forge") return "";
   const c = bulkScrapList(h, "common").length, u = bulkScrapList(h, "uncommon").length;
   if (!c && !u) return "";
   const btn = (k: "common" | "uncommon", n: number, label: string) => n ? `<button class="small ${bulkArmed === k ? "danger" : ""}" data-bulkscrap="${k}">${bulkArmed === k ? `Tap again: scrap ${n}` : label}</button>` : "";
@@ -674,12 +677,12 @@ function crawlCombat(r: Run, msg: string[], bad: boolean) {
         <div class="cb-nums">${big(Math.max(0, ehp))} / ${big(e.maxHp)} · Power ${e.items["m_death"] ? "☠️" : big(e.damage)} · Armor ${armorOf(e)}</div>
         <div class="cb-chips">${traits}</div>
       </div>
-      <div class="cb-sprite foe" id="fp-enemy"><span>${foeIcon(e)}</span></div>
+      <div class="cb-sprite foe" id="fp-enemy">${(() => { const k = foeSprite(e.name, e.family, !!e.boss); return k && hasSprite(k) ? spriteHtml(k, e.boss || e.champion ? 5 : 4, "foe-spr") : `<span>${foeIcon(e)}</span>`; })()}</div>
     </div>
     ${intent ? `<div class="cb-intent">Next: ${intent.icon} <b>${esc(intent.name)}</b> — ${esc(intent.text)}</div>` : ""}
     <div class="cb-dice">${cbDice(e.name)}</div>
     <div class="cb-row cb-hero-row">
-      <div class="cb-sprite hero ${stance ? `stance-${stance}` : ""}" id="fp-player"><span>${ORIGIN_ICON[r.hero.origin]}</span></div>
+      <div class="cb-sprite hero ${stance ? `stance-${stance}` : ""}" id="fp-player">${hasSprite(CLASS_SPRITE[r.hero.origin] ?? "") ? spriteHtml(CLASS_SPRITE[r.hero.origin], 5, "hero-spr") : `<span>${ORIGIN_ICON[r.hero.origin]}</span>`}</div>
       <div class="cb-box hero" id="cbx-player">
         <div class="cb-name"><b>${esc(ORIGINS[r.hero.origin].name)}</b><span class="cb-rank">Lv ${r.hero.level}</span></div>
         ${cbHp(php, p.maxHp)}
@@ -945,7 +948,6 @@ function crawlScreen(r: Run, msg: string[], bad: boolean) {
     <div class="crawl-vignette"></div>
     <div class="cz cz-tl">${czBars(r)}</div>
     <div class="cz cz-tr">
-      <button class="cz-menu" data-menu aria-label="Menu">☰</button>
       <div class="cz-layer">${layer}</div>
       <div class="cz-floor">${m.depth === 0 ? "Dungeon Entrance" : m.depth === TREASURE_DEPTH ? "The Hoard" : `Floor ${m.depth}`}</div>
       ${quests}
@@ -953,7 +955,7 @@ function crawlScreen(r: Run, msg: string[], bad: boolean) {
     ${msg.length ? `<div class="cz cz-toasts">${msg.map((x, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(x)}</div>`).join("")}</div>` : ""}
     ${pick}
     <div class="cz cz-bl">${potionCircle(r)}</div>
-    <div class="cz cz-br">${bagCircle(r)}</div>
+    <div class="cz cz-br"><button class="cz-menu" data-menu aria-label="Menu">☰</button>${bagCircle(r)}</div>
   </div>`;
 }
 
@@ -1046,7 +1048,7 @@ const lootBtns = (it: GearItem, pick: boolean) => {
     : tslots.length > 1
       ? tslots.map(sl => `<button class="small take-equip" data-take="${it.uid}" data-how="equip" data-slot="${sl}">✔ Equip ${SLOT_LABEL[sl].replace(" ★", "")}${run!.hero.equip[sl] ? "" : " (empty)"}</button>`).join("")
       : `<button class="small take-equip" data-take="${it.uid}" data-how="equip">✔ Equip</button>`;
-  return `${equip}${compareBtns(it)}<button class="small take-pack" data-take="${it.uid}" data-how="pack">Add to backpack</button><button class="small take-scrap" data-scrapfound="${it.uid}">Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`;
+  return `${equip}${compareBtns(it)}<button class="small take-pack" data-take="${it.uid}" data-how="pack">Add to backpack</button>${run?.gridMode ? `<button class="small take-scrap" data-scrapfound="${it.uid}">Leave it</button>` : `<button class="small take-scrap" data-scrapfound="${it.uid}">Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`}`;
 };
 const pickButtons = (it: GearItem) => lootBtns(it, true);
 const takeButtons = (it: GearItem) => lootBtns(it, false);
@@ -1632,7 +1634,7 @@ function bag(r: Run) {
     const it = h.equip[s];
     return `<div><div class="slot-label">${slotName[s]}</div>${it ? itemCard(it, inCombat ? "" : `<button class="small" data-unequip="${s}">Unequip</button>${revealBtn(r, it)}`) : `<div class="item"><span class="sub">Empty</span></div>`}</div>`;
   }).join("");
-  const pack = h.backpack.map(it => itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(s => `<button class="small primary" data-equip="${it.uid}" data-slot="${s}">Equip${slotsFor(it, h).length > 1 ? ` (${slotName[s].toLowerCase()})` : ""}</button>`).join("")}<button class="small take-scrap" data-salvage="${it.uid}">Scrap</button>${revealBtn(r, it)}`, !inCombat)).join("");
+  const pack = h.backpack.map(it => itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(s => `<button class="small primary" data-equip="${it.uid}" data-slot="${s}">Equip${slotsFor(it, h).length > 1 ? ` (${slotName[s].toLowerCase()})` : ""}</button>`).join("")}${r.gridMode ? "" : `<button class="small take-scrap" data-salvage="${it.uid}">Scrap</button>`}${revealBtn(r, it)}`, !inCombat)).join("");
   const fusable = (id: string) => (FUSABLE_RELICS.has(id) ? ` <span class="fusable-tag">🔗 Fusable</span>` : "");
   const list = (o: Record<string, number>, cls = "") => Object.entries(o).map(([id, n]) => { const d = getItem(id); return `<p class="${cls}"><b class="nm">${esc(d.name)}</b>${n > 1 ? ` ×${n}` : ""}${cls === "relic-line" ? fusable(id) : ""} — <span class="desc">${esc(fillText(d.text, n))}</span></p>`; }).join("") || `<p class="sub">None yet.</p>`;
   const passive = getItem(ORIGINS[h.origin].passive);
@@ -2483,7 +2485,7 @@ function render2() {
   const crawlFight = s.t === "combat" && !!r.gridMode;
   const crawlShop = s.t === "shop" && !!r.gridMode;
   document.body.classList.toggle("crawl-on", crawlView || crawlFight || crawlShop);
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, msg, noteBad && !!note) : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, msg, noteBad && !!note) : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
   bind();
   if (s.t === "map" && r.gridMode) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => thingInfo(r, room).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never) }); }
   else stopWalk();

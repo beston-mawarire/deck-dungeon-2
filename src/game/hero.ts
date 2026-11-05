@@ -20,7 +20,7 @@ export const EQUIP_SLOTS: EquipSlot[] = ["main", "off", "armour", "trinket1", "t
 export const hasThirdTrinket = (h: Hero) => h.keepsake === "ks_collector";
 /** The slots this hero can actually use right now. */
 export const openSlots = (h: Hero) => EQUIP_SLOTS.filter(s => s !== "trinket3" || hasThirdTrinket(h));
-export const BACKPACK_SIZE = 8;
+export const BACKPACK_SIZE = 12;
 /** Backpack slots for this hero (the Hall's Packmule's Straps add some). */
 export const packSize = (h: Hero) => BACKPACK_SIZE + (h.packBonus ?? 0);
 export const DRAGON_HEART_MULT = 1.5;
