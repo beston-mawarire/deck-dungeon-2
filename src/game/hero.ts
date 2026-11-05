@@ -11,7 +11,7 @@ import { ORIGINS } from "../data/origins";
 import { genHooks, genLines, GRADE_MARK, genTopGrade, GEN_MODULE_MAP, modValue } from "./gen";
 import { SIGIL_SETS } from "../data/talisman";
 import { PLAIN_FACES } from "../engine/combat";
-import { ATTR_MAX, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
+import { ATTR_INFO, ATTR_MAX, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
 import { eachHook, getItem } from "../engine/registry";
 import type { Fighter, GearBase, GearItem, OriginId, Rarity, Slot, StatBlock } from "../engine/types";
 
@@ -21,7 +21,7 @@ export const EQUIP_SLOTS: EquipSlot[] = ["main", "off", "armour", "trinket1", "t
 export const hasThirdTrinket = (h: Hero) => h.keepsake === "ks_collector";
 /** The slots this hero can actually use right now. */
 export const openSlots = (h: Hero) => EQUIP_SLOTS.filter(s => s !== "trinket3" || hasThirdTrinket(h));
-export const BACKPACK_SIZE = 12;
+export const BACKPACK_SIZE = 8;
 /** Backpack slots for this hero (the Hall's Packmule's Straps add some). */
 export const packSize = (h: Hero) => BACKPACK_SIZE + (h.packBonus ?? 0);
 export const DRAGON_HEART_MULT = 1.5;
@@ -190,6 +190,7 @@ export function itemLines(item: GearItem): string[] {
   if (eb.damage !== undefined) lines.push(`Damage ${weaponDamage(item)}${eb.twoHanded ? " · two-handed" : ""}${eb.offDamage ? ` · off-hand ${weaponDamage(item, true)}${offhandPenalty(item) ? " (clumsy: 60%)" : ""}` : ""}`);
   const armor = itemArmor(eb, item.level);
   if (armor) lines.push(`Armor ${armor}`);
+  if (item.attr) lines.push(`${ATTR_INFO[item.attr.a].icon} +${item.attr.n} ${ATTR_INFO[item.attr.a].name}`);
   if (eb.faces) lines.push(`Faces: ${eb.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind[0].toUpperCase() + f.kind.slice(1)}`).join(" · ")}`);
   if (eb.kind === "weapon" && eb.tags.includes("Holy")) lines.push("✝️ Holy: +15% to Undead, vampires, Crimson foes and anything that curses or Dooms. When your Ward stops an enemy's status, your next hit Smites (20% of its Max HP, once per fight).");
   if (eb.faces?.some(f => f.cleanse)) lines.push("✨ Purify: strips every negative status from the enemy and deals 2× Damage for each one (ignores Armor). Nothing on them, no damage.");
@@ -227,7 +228,9 @@ export function canGuard(h: Hero): boolean {
 /** An attribute's power: its points, and half as much again if your class favours it. */
 /** An attribute's points: what you spent this run, plus the passive tree's attribute nodes. */
 export const treeAttr = (h: Hero, a: Attr) => h.talents?.[`ta_${a}`] ?? 0;
-export const attrOf = (h: Hero, a: Attr) => attrPower((h.attrs?.[a] ?? 0) + treeAttr(h, a));
+/** An attribute's points from the gear you're wearing (its "+2 Agility" lines). */
+export const gearAttr = (h: Hero, a: Attr) => EQUIP_SLOTS.reduce((t, sl) => { const it = h.equip[sl]; return t + (it?.attr?.a === a ? it.attr.n : 0); }, 0);
+export const attrOf = (h: Hero, a: Attr) => attrPower((h.attrs?.[a] ?? 0) + treeAttr(h, a) + gearAttr(h, a));
 /** Spend an unspent point on an attribute. Returns an error, or null. */
 export function spendAttr(h: Hero, a: Attr): string | null {
   if ((h.attrPoints ?? 0) <= 0) return "No points to spend. Level up to earn more.";

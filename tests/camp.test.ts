@@ -32,7 +32,7 @@ describe("the Camp: Crown Shards, materials and the Hall", () => {
     applyHall(m, r);
     expect(r.hero.f.gold).toBe(20 + 100);
     expect(r.hero.potions).toBe(2);
-    expect(packSize(r.hero)).toBe(16);
+    expect(packSize(r.hero)).toBe(24);
     expect(r.hero.f.maxHp).toBe(hp + 20);
     expect(r.hero.f.hp).toBe(r.hero.f.maxHp);
     expect(r.hero.f.persist["secondLife"]).toBe(1);

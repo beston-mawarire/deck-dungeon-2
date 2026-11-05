@@ -326,6 +326,8 @@ export interface GearItem {
   lineTier?: Record<string, Rarity>;
   /** The Crawl: you must be this level to equip it. */
   reqLevel?: number;
+  /** The Crawl: a flat bonus to one attribute (Uncommon and up, now and then). */
+  attr?: { a: "str" | "agi" | "int" | "fai" | "vit" | "for"; n: number };
   epic?: string;
   /** Legendaries start unrevealed and act as a Common of their base type. */
   revealed: boolean;

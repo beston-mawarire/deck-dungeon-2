@@ -246,18 +246,54 @@ export function drawCamp() {
   ctx.fillStyle = "rgba(10,5,2,.5)"; ctx.beginPath(); ctx.ellipse(pcx, pcy + ts * 0.32, ts * 0.3, ts * 0.09, 0, 0, Math.PI * 2); ctx.fill();
   const sk = CLASS_SPRITE[hooks.origin()];
   if (!sk || !hasSprite(sk) || !drawSprite(ctx, sk, pcx, pcy + ts * 0.42, ts / 16)) { ctx.font = `${Math.round(ts * 0.6)}px system-ui`; ctx.textAlign = "center"; ctx.fillText("🧙", pcx, pcy); }
-  // Name plates under the spots.
-  ctx.font = `700 ${Math.max(10, Math.round(ts * 0.2))}px system-ui, sans-serif`;
+  // Name ribbons under the spots: gold, with notched tails.
+  const fs = Math.max(15, Math.round(ts * 0.34));
+  ctx.font = `800 ${fs}px Georgia, "Times New Roman", serif`;
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   for (const s of CAMP_SPOTS) {
     const sc2 = s.tiles.map(([a, b]) => toScreen(a, b));
     const cs = sc2.map(t => t[0]), rs = sc2.map(t => t[1]);
-    const cx = ox + ((Math.min(...cs) + Math.max(...cs)) / 2 + 0.5) * ts, cy = oy + (Math.max(...rs) + 1.02) * ts;
-    const tw = ctx.measureText(s.name).width + 10;
-    ctx.fillStyle = "rgba(18,11,6,.82)"; ctx.fillRect(cx - tw / 2, cy - ts * 0.13, tw, ts * 0.26);
-    ctx.strokeStyle = "#6b4c2c"; ctx.lineWidth = 1; ctx.strokeRect(cx - tw / 2 + 0.5, cy - ts * 0.13 + 0.5, tw - 1, ts * 0.26 - 1);
-    ctx.fillStyle = s.locked ? "#8a7458" : "#f0dcb4"; ctx.fillText(s.name, cx, cy + 1);
+    const cx = ox + ((Math.min(...cs) + Math.max(...cs)) / 2 + 0.5) * ts, cy = oy + (Math.max(...rs) + 1.05) * ts;
+    ribbon(ctx, cx, cy, ctx.measureText(s.name).width + fs * 1.1, fs * 1.45, !!s.locked);
+    ctx.fillStyle = s.locked ? "#5a4a36" : "#2a1708"; ctx.fillText(s.name, cx, cy + 1);
   }
+  if (hint) bubble(ctx, pcx, pcy - ts * 0.95, "Tap a tile to walk there", ts);
+}
+
+/** A gold ribbon with notched tails (a dull bronze one for rooms still locked). */
+function ribbon(ctx: CanvasRenderingContext2D, cx: number, cy: number, w: number, h: number, locked: boolean) {
+  const x0 = cx - w / 2, x1 = cx + w / 2, t = h * 0.55, y0 = cy - h / 2, y1 = cy + h / 2;
+  // Tails, folded behind.
+  ctx.fillStyle = locked ? "#4a3c2c" : "#8a5a14";
+  for (const [a, d] of [[x0, -1], [x1, 1]] as const) {
+    ctx.beginPath(); ctx.moveTo(a, y0 + h * 0.18); ctx.lineTo(a + d * t, y0 + h * 0.18); ctx.lineTo(a + d * t * 0.6, cy + h * 0.09); ctx.lineTo(a + d * t, y1 + h * 0.18); ctx.lineTo(a, y1 + h * 0.18); ctx.closePath(); ctx.fill();
+  }
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  if (locked) { g.addColorStop(0, "#8a7458"); g.addColorStop(1, "#5e4c38"); }
+  else { g.addColorStop(0, "#ffe9a6"); g.addColorStop(0.45, "#e2b866"); g.addColorStop(1, "#a8761f"); }
+  ctx.fillStyle = g; ctx.fillRect(x0, y0, w, h);
+  ctx.strokeStyle = locked ? "#3a2e22" : "#5a3a0c"; ctx.lineWidth = Math.max(1, h / 14); ctx.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
+  ctx.fillStyle = "rgba(255,255,255,.25)"; ctx.fillRect(x0 + 2, y0 + 2, w - 4, Math.max(1, h * 0.12));
+}
+
+/** A cool white speech bubble with its tail pointing down at (x, y). */
+function bubble(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, ts: number) {
+  const fs = Math.max(15, Math.round(ts * 0.34));
+  ctx.save();
+  ctx.font = `700 ${fs}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const w = ctx.measureText(text).width + fs * 1.4, h = fs * 2, bob = Math.sin(performance.now() / 420) * fs * 0.15;
+  const bx = Math.max(w / 2 + 4, Math.min(ctx.canvas.width / (window.devicePixelRatio || 1) - w / 2 - 4, x)), by = y - h / 2 + bob, r = h * 0.4;
+  ctx.shadowColor = "rgba(140,190,255,.55)"; ctx.shadowBlur = fs * 0.9;
+  ctx.fillStyle = "#f2f8ff"; ctx.strokeStyle = "#a9c4e6"; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(bx - w / 2 + r, by - h / 2); ctx.lineTo(bx + w / 2 - r, by - h / 2); ctx.quadraticCurveTo(bx + w / 2, by - h / 2, bx + w / 2, by - h / 2 + r);
+  ctx.lineTo(bx + w / 2, by + h / 2 - r); ctx.quadraticCurveTo(bx + w / 2, by + h / 2, bx + w / 2 - r, by + h / 2);
+  ctx.lineTo(x + fs * 0.45, by + h / 2); ctx.lineTo(x, by + h / 2 + fs * 0.6); ctx.lineTo(x - fs * 0.15, by + h / 2);
+  ctx.lineTo(bx - w / 2 + r, by + h / 2); ctx.quadraticCurveTo(bx - w / 2, by + h / 2, bx - w / 2, by + h / 2 - r);
+  ctx.lineTo(bx - w / 2, by - h / 2 + r); ctx.quadraticCurveTo(bx - w / 2, by - h / 2, bx - w / 2 + r, by - h / 2);
+  ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0; ctx.stroke();
+  ctx.fillStyle = "#1d2c44"; ctx.fillText(text, bx, by + 1);
+  ctx.restore();
 }
 
 function step() {
@@ -310,10 +346,8 @@ export function mountCampMap(h: CampHooks) {
   const cv = document.getElementById("campcv") as HTMLCanvasElement | null;
   if (!cv) return;
   drawCamp();
-  const wrap = cv.parentElement;
-  if (hint && wrap && !wrap.querySelector(".camp-hint")) wrap.insertAdjacentHTML("beforeend", `<div class="camp-hint"><b>👆 Tap a tile to walk there</b><span>Walk up to a room to go in.</span></div>`);
   cv.onclick = ev => {
-    if (hint) { hint = false; wrap?.querySelector(".camp-hint")?.remove(); }
+    hint = false;
     const r = cv.getBoundingClientRect();
     const { ts, ox, oy } = layout(cv);
     const c = Math.floor((ev.clientX - r.left - ox) / ts), rr = Math.floor((ev.clientY - r.top - oy) / ts);

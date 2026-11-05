@@ -6,7 +6,7 @@ import { CRIMSON, GEAR_BASES, LEGENDARIES } from "../data";
 import type { GearBase, GearItem, Rarity } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { AFFINITY } from "../data/origins";
-import { type Hero, heroTags } from "./hero";
+import { baseOf, type Hero, heroTags } from "./hero";
 import { affixPool, CONVERTED, type Grade, rollAffixes, type RollCtx } from "./affixpool";
 import { classify, type Family } from "./families";
 
@@ -204,6 +204,43 @@ export const affixesFor = (h: Hero, base: GearBase, rarity: Rarity, floor: numbe
   rollAffixes(base, rarity, floor, rng, rollCtx(h, floor), n, keep, grade);
 
 export function rollItem(h: Hero, rarity: Rarity, floor: number, rng: () => number): GearItem {
+  const it = rollItemRaw(h, rarity, floor, rng);
+  if (h.f.persist["classLoot"]) rollAttrLine(it, rng);
+  return it;
+}
+
+/** How big an attribute line is, by rarity (a range: low to high). */
+export const ATTR_LINE: Partial<Record<Rarity, [number, number]>> = { uncommon: [1, 1], rare: [1, 2], epic: [3, 5], legendary: [4, 6], crimson: [5, 7], epic_crimson: [6, 8], legendary_crimson: [7, 9] };
+/** How often an item of each rarity comes with one. */
+export const ATTR_LINE_CHANCE: Partial<Record<Rarity, number>> = { uncommon: 0.3, rare: 0.4, epic: 0.5, legendary: 0.6, crimson: 0.6, epic_crimson: 0.7, legendary_crimson: 0.7 };
+type A = NonNullable<GearItem["attr"]>["a"];
+/** Which attributes a kind of gear leans toward (weights). Light armour is mostly Agility, but not always. */
+export function attrLeans(base: GearBase): Partial<Record<A, number>> {
+  const c = classify(base);
+  if (base.kind === "trinket") return { str: 1, agi: 1, int: 1, fai: 1, vit: 1, for: 1.3 };
+  if (base.kind === "armour") {
+    if (/robe|vestment|habit|mantle|shroud/i.test(base.name)) return { int: 3, fai: 3, vit: 1, for: 0.6 };
+    return c.load === "heavy" ? { str: 3, vit: 3, fai: 0.8 } : c.load === "medium" ? { vit: 3, str: 2, agi: 2, for: 0.6 } : { agi: 4, vit: 1.5, for: 1.5 };
+  }
+  if (c.family === "shield") return c.load === "light" ? { agi: 2, str: 2, vit: 1 } : { str: 3, vit: 3, fai: 1 };
+  if (c.family === "focus" || c.family === "arcane") return base.tags.includes("Holy") ? { fai: 4, int: 2, vit: 1 } : { int: 4, fai: 1.5, for: 0.6 };
+  if (base.tags.includes("Holy")) return { fai: 4, str: 2, vit: 1 };
+  if (c.family === "knife" || c.family === "ranged" || c.family === "throwable") return { agi: 4, for: 1.5, int: 0.6 };
+  if (c.family === "shortblade") return { agi: 3, str: 2, for: 1 };
+  return { str: 4, vit: 2, agi: 0.6 };
+}
+/** Now and then, Uncommon-and-up gear in the Crawl gets "+N" to an attribute. */
+export function rollAttrLine(it: GearItem, rng: () => number) {
+  const range = ATTR_LINE[it.rarity], chance = ATTR_LINE_CHANCE[it.rarity] ?? 0;
+  if (!range || rng() >= chance) return;
+  const leans = Object.entries(attrLeans(baseOf(it.base))) as [A, number][];
+  let x = rng() * leans.reduce((s, [, w]) => s + w, 0);
+  let a = leans[leans.length - 1][0];
+  for (const [k, w] of leans) { x -= w; if (x < 0) { a = k; break; } }
+  it.attr = { a, n: range[0] + Math.floor(rng() * (range[1] - range[0] + 1)) };
+}
+
+function rollItemRaw(h: Hero, rarity: Rarity, floor: number, rng: () => number): GearItem {
   affixPool();
   rarity = earlyCap(h, rarity, rng, floor);
   // Ill Fortune (curse): about a third of Rare, Epic and Legendary finds come out one rarity lower.

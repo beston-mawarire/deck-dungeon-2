@@ -30,7 +30,7 @@ import {
 import { fortunePips } from "../game/loot";
 import { LAYER_FLOORS } from "../game/grid";
 import { isThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
-import { branchSpent, MASTERY_FAMILIES, nodeBlock, nodeRanks, NUMERAL, passiveTree, rankText, resetTree, spendNode, TIER_WIDTH, tierOpen, TOTEMS, totemById, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
+import { branchSpent, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TOTEMS, totemById, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
@@ -38,7 +38,7 @@ import { mountCampMap, resetCampWalk } from "./campmap";
 import { CAMP_CASTS, type CastPlan, FISH, fishById, planCast, rollCatch } from "../game/fishing";
 import { ELITE_ONLY, MONSTERS } from "../data/monsters";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
-import { spendAttr, treeAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
+import { gearAttr, spendAttr, treeAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
 import { INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
@@ -50,7 +50,7 @@ import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
 import { PATCH_NOTES } from "./changes";
-import { impact, type Impact, warmClips, holdMusic, isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
+import { warmClips, holdMusic, isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
 
 loadLibrary();
 
@@ -892,13 +892,13 @@ function campBody(o: OriginId, tab: CampTab): string {
     const card = (f: { name: string; family: string; traits: string[] }) => {
       const e = seen[f.name];
       const sk = foeSprite(f.name, f.family, !!e?.boss);
-      if (!e) return `<div class="beast unknown"><span class="beast-fig">${sk && hasSprite(sk) ? spriteHtml(sk, 3, "beast-spr") : "❔"}</span><b>???</b><span class="sub">Not yet beaten.</span></div>`;
+      if (!e || e.kills < BESTIARY_KILLS) return `<div class="beast unknown"><span class="beast-fig">${sk && hasSprite(sk) ? spriteHtml(sk, 3, "beast-spr") : "❔"}</span><b>${e ? esc(f.name) : "???"}</b><span class="sub">${e ? `Beaten ${e.kills}/${BESTIARY_KILLS}: its record opens at ${BESTIARY_KILLS}.` : "Not yet beaten."}</span></div>`;
       const tr = f.traits.map(id => { try { return getItem(id).name; } catch { return ""; } }).filter(Boolean).join(", ");
       return `<div class="beast"><span class="beast-fig">${sk && hasSprite(sk) ? spriteHtml(sk, 3, "beast-spr") : "👾"}</span><b>${esc(f.name)}</b><span class="sub">${esc(f.family)}${e.boss ? " · Boss" : ""}</span>
         <span class="beast-stats">Beaten ${e.kills}× · up to ${big(e.hp)} HP · Power ${big(e.power)}</span>${tr ? `<span class="beast-tr">${esc(tr)}</span>` : ""}</div>`;
     };
-    const n = foes.filter(f => seen[f.name]).length;
-    return `<p>Every foe you've beaten in the dungeon, and what it was like at its toughest. ${n} of ${foes.length} kinds so far.</p>
+    const n = foes.filter(f => (seen[f.name]?.kills ?? 0) >= BESTIARY_KILLS).length;
+    return `<p>Beat a kind of foe ${BESTIARY_KILLS} times and its record opens here: what it was like at its toughest. ${n} of ${foes.length} kinds so far.</p>
       <div class="beasts">${foes.map(card).join("")}${bosses.map(card).join("")}</div>`;
   }
   if (tab === "trophies") {
@@ -962,15 +962,15 @@ function treeNodePopup(o: OriginId) {
   const d = getItem(n.talent), t = treeOf(meta, o), taken = !!t.spent[key];
   const b = passiveTree().find(br => br.id === n.branch)!;
   const why = nodeBlock(meta, o, key);
-  const ranks = nodeRanks(d);
+  const sig = isTreeSigil(n.talent), ranks = sig ? 1 : nodeRanks(d), nm = nodeName(n, d);
   const attr = n.tier === 0 ? (n.talent.slice(3) as Attr) : null;
   const body = attr
-    ? `<p><b>+1 ${esc(ATTR_INFO[attr].name)}</b> on every run with this class, on top of the points you spend as you level.</p><p class="sub">Each point of ${esc(ATTR_INFO[attr].name)}: ${ATTR_INFO[attr].lines(1).map(esc).join(", ")}.</p>`
-    : `<p>${esc(rankText(d.text, n.level))}</p>${ranks > 1 ? `<p class="sub">${n.level < ranks ? `Its next rank waits deeper in the tree.` : "Its strongest rank."}${n.level > 1 ? ` Needs ${esc(d.name)} ${NUMERAL[n.level - 1]}.` : ""}</p>` : ""}`;
+    ? `<p><b>+1 ${esc(ATTR_INFO[attr].name)}</b> on every run with this class, on top of the points you spend as you level.</p><p class="sub">Each point of ${esc(ATTR_INFO[attr].name)}: ${shownLines(ATTR_INFO[attr].lines(1)).map(esc).join(", ")}.</p>`
+    : `<p>${esc(nodeText(d, n.level))}</p>${sig ? `<p class="sub">Once a Talisman sigil; now it's yours for good.</p>` : ""}${ranks > 1 ? `<p class="sub">${n.level < ranks ? `Its next rank waits deeper in the tree.` : "Its strongest rank."}${n.level > 1 ? ` Needs ${esc(d.name)} ${NUMERAL[n.level - 1]}.` : ""}</p>` : ""}`;
   return `<div class="tree-pop-wrap"><div class="tree-pop">
     <button class="tp-x" data-closenode aria-label="Close">✕</button>
-    <div class="tp-orb ${taken ? "has" : ""}">${attr ? ATTR_INFO[attr].icon : esc(initials(d.name))}${ranks > 1 ? `<i>${NUMERAL[n.level]}</i>` : ""}</div>
-    <h2>${attr ? `+1 ${esc(d.name)}` : esc(d.name)}${ranks > 1 ? ` ${NUMERAL[n.level]}` : ""}</h2>
+    <div class="tp-orb ${taken ? "has" : ""}">${attr ? ATTR_INFO[attr].icon : esc(initials(nm))}${ranks > 1 ? `<i>${NUMERAL[n.level]}</i>` : ""}</div>
+    <h2>${attr ? `+1 ${esc(d.name)}` : esc(nm)}${ranks > 1 ? ` ${NUMERAL[n.level]}` : ""}</h2>
     <p class="tp-where">${b.icon} ${esc(b.name)} · row ${n.tier + 1}${taken ? " · taken" : ""}</p>
     <div class="tp-body">${body}</div>
     ${why && !taken ? `<p class="tp-why">${esc(why)}</p>` : ""}
@@ -1009,7 +1009,7 @@ function fishStart() {
   const bob = (cls: string, ms: number) => { const el = document.getElementById("bobber"); if (!el) return; el.classList.add(cls); window.setTimeout(() => el.classList.remove(cls), ms); };
   for (const t of plan.twitches) timers.push(window.setTimeout(() => { bob("twitch", 320); sfx("click"); }, t));
   if (plan.bite !== null) {
-    timers.push(window.setTimeout(() => { bob("bite", plan.window); impact("status", "status"); }, plan.bite));
+    timers.push(window.setTimeout(() => { bob("bite", plan.window); sfx("status"); }, plan.bite));
     timers.push(window.setTimeout(() => fishResolve(false, "It took the bait and got away."), plan.bite + plan.window + 40));
   } else timers.push(window.setTimeout(() => fishResolve(false, "Nothing's biting. You reel in an empty hook."), (plan.twitches.at(-1) ?? 1500) + 2600));
   render();
@@ -1098,10 +1098,10 @@ function treeScreen(o: OriginId) {
       // A chain link to the node's lower rank; otherwise a faint thread up to the row above.
       const up = n.prereq ? at.get(n.prereq) : b.nodes.find(m => m.tier === n.tier - 1 && m.col === n.col);
       if (up) { const q = pos(bi, up.tier, up.col); lines.push(`<line x1="${q.x}" y1="${q.y}" x2="${p.x}" y2="${p.y}" class="${n.prereq ? "rank" : "thread"} ${t.spent[n.key] && t.spent[up.key] ? "lit" : ""}"/>`); }
-      const d = getItem(n.talent), taken = !!t.spent[n.key];
+      const d = getItem(n.talent), taken = !!t.spent[n.key], nm = nodeName(n, d), sig = isTreeSigil(n.talent);
       const can = open && !nodeBlock(meta, o, n.key);
       const shut = !open || !tierOpen(t, b, n.tier);
-      nodes.push(`<button class="tnode ${taken ? "has full" : ""} ${can ? "can" : ""} ${shut ? "shut" : ""}" style="left:${p.x - TREE_COL / 2}px;top:${p.y - 30}px;width:${TREE_COL}px" data-nodeinfo="${n.key}" aria-label="${esc(d.name)}"><span class="tn-orb ${n.tier === 0 ? "attr" : ""}">${n.tier === 0 ? ATTR_INFO[n.talent.slice(3) as Attr].icon : esc(initials(d.name))}${nodeRanks(d) > 1 ? `<i class="tn-num">${NUMERAL[n.level]}</i>` : ""}</span><span class="tn-name">${n.tier === 0 ? `+1 ${esc(d.name)}` : esc(d.name)}</span></button>`);
+      nodes.push(`<button class="tnode ${taken ? "has full" : ""} ${can ? "can" : ""} ${shut ? "shut" : ""}" style="left:${p.x - TREE_COL / 2}px;top:${p.y - 30}px;width:${TREE_COL}px" data-nodeinfo="${n.key}" aria-label="${esc(nm)}"><span class="tn-orb ${n.tier === 0 ? "attr" : sig ? "sigil" : ""}">${n.tier === 0 ? ATTR_INFO[n.talent.slice(3) as Attr].icon : esc(initials(nm))}${!sig && nodeRanks(d) > 1 ? `<i class="tn-num">${NUMERAL[n.level]}</i>` : ""}</span><span class="tn-name">${n.tier === 0 ? `+1 ${esc(nm)}` : esc(nm)}</span></button>`);
     }
   });
   const won = meta.layersBeaten?.[o] ?? 0;
@@ -1115,15 +1115,17 @@ function treeScreen(o: OriginId) {
   </div>`;
 }
 
+/** Kills of one kind of foe before its Bestiary record opens. */
+const BESTIARY_KILLS = 10;
 function campScreen(o: OriginId) {
-  const og = ORIGINS[o];
+
   // The Camp is a place you walk: tap a spot to walk to it and open it. (campTab remembers the last spot opened.)
   void campTab;
   const room = campRoom ? CAMP_TABS.find(t => t.id === campRoom) : undefined;
   return `<div class="cb-screen camp-screen camp-walk"><div class="camp-inner">
     <div class="camp-top"><button class="camp-back" data-campback aria-label="Back">←</button>
       <div class="mer-sign camp-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">The Camp</div></div>
-      <button class="camp-hero" data-campback title="Change hero"><span>${ORIGIN_ICON[o]}</span><b>${esc(og.name)}</b></button></div>
+      <span class="camp-top-pad"></span></div>
     ${note && !room ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
     <div class="camp-map"><canvas id="campcv"></canvas></div>
   </div></div>
@@ -1304,7 +1306,7 @@ function lootScene(r: Run) {
   const s = r.scene;
   const extras = [s.gold ? `🪙 ${Math.round(s.gold * goldMult(r))} Gold` : "", s.potions ? `🧪 Potion` : "", s.scrolls ? `📜 ${s.scrolls > 1 ? `${s.scrolls} Scrolls` : "Scroll"} of Revelation (yours)` : "", s.relic ? `💎 New relic: ${getItem(s.relic).name} — ${getItem(s.relic).text}` : ""].filter(Boolean);
   // After a won fight, the rewards sit in a framed Victory panel.
-  const victory = s.title === "Victory" || s.title.startsWith("You caught") || s.title === "The Mimic's hoard";
+  const victory = !r.gridMode && (s.title === "Victory" || s.title.startsWith("You caught") || s.title === "The Mimic's hoard");
   const key = sigilFound(s.sigils) + (s.crimsonKey ? `<div class="key-found">🗝️ CRIMSON KEY FOUND<span>A Crimson Vault will now be offered on your path.</span></div>` : "")
     + (s.crucible ? `<div class="key-found crucible-found">⚗️ TRANSMUTER'S CRUCIBLE<span>An artefact. At any Forge, it turns a Common item into a Legendary, for Starmetal.</span></div>` : "")
     + (s.dragonHeart ? `<div class="key-found heart-found">🫀 ${s.dragonHeart > 1 ? `DRAGON HEART · LEVEL ${s.dragonHeart}` : "DRAGON HEART"}<span>${s.dragonHeart > 1 ? "Another dragon's heart feeds yours. It beats stronger." : "Still warm. Still beating. It's yours now."}</span></div>` : "");
@@ -1484,7 +1486,7 @@ function forgeScene(r: Run, altar = false) {
       ${all.some(hasTwin) ? sides(hasTwin, it => itemCard(it, `<button class="small ${combineSel.includes(it.uid) ? "primary" : ""}" data-combinesel="${it.uid}" ${fits(it) ? "" : "disabled"}>${combineSel.includes(it.uid) ? "✓ Picked" : "Pick"}</button>`, false, slotOf(it)), it => combineSel.includes(it.uid), "No items here have a twin.") : `<p class="sub">You don't have two of the same item.</p>`}`;
   } else if (!h.crucible) {
     body = `<div class="panel locked-tool"><p><b>🔒 You're missing an artefact.</b></p>
-      <p class="sub">Transmuting needs the Transmuter's Crucible. It's said to lie with the Campaign's fifth boss.</p></div>`;
+      <p class="sub">${r.gridMode ? "Transmuting is something you have to learn first: the Camp's Knowledge Table can teach it." : "Transmuting needs the Transmuter's Crucible. It's said to lie with the Campaign's fifth boss."}</p></div>`;
   } else {
     body = `<p class="sub">The Transmuter's Crucible turns a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} ✴️ Starmetal (you have ${h.starmetal}). It arrives unrevealed.</p>
       ${sides(i => i.rarity === "common", it => itemCard(it, `<button class="small primary" data-transmute="${it.uid}" ${h.starmetal >= TRANSMUTE_COST ? "" : "disabled"}>Transmute · ${TRANSMUTE_COST} ✴️</button>`, false, slotOf(it)), () => false, "No Common items here.")}`;
@@ -2114,13 +2116,13 @@ function crawlBag(r: Run) {
   } else if (bagTab === "attrs") {
     const baseA = BASE_ATTR[h.origin as keyof typeof BASE_ATTR];
     const rows = ATTRS.map(a => {
-      const info = ATTR_INFO[a], spent = h.attrs?.[a] ?? 0, tree = treeAttr(h, a), n = spent + tree, isFav = baseA === a;
-      // The class's base attribute also adds a point of base Damage each.
-      const now = [...info.lines(attrPower(n)), ...(isFav ? [`+${n} base Damage (your class's attribute)`] : [])];
-      const next = [...info.lines(attrPower(n + 1)), ...(isFav ? [`+${n + 1} base Damage (your class's attribute)`] : [])];
+      const info = ATTR_INFO[a], spent = h.attrs?.[a] ?? 0, tree = treeAttr(h, a), gear = gearAttr(h, a), n = spent + tree + gear, isFav = baseA === a;
+      // (The class attribute's base Damage shows in your ⚔️ Damage; crit damage and staff damage stay unlisted.)
+      const now = shownLines(info.lines(attrPower(n)));
+      const next = shownLines(info.lines(attrPower(n + 1)));
       const lines = now.map((l, i) => `<li class="${l !== next[i] ? "grows" : ""}"><span>${esc(l)}</span>${l !== next[i] && pts ? `<i>→ ${esc(/[+−-]?\d+%?/.exec(next[i])?.[0] ?? next[i])}</i>` : ""}</li>`).join("");
       return `<div class="attr-row ${n ? "has" : ""}">
-        <div class="attr-head"><span class="attr-ic">${info.icon}</span><b>${info.name}</b>${isFav ? `<span class="attr-fav" title="Your class's base attribute: every point also adds +1 base Damage">★ ${esc(ORIGINS[h.origin].name)}</span>` : ""}<span class="grow"></span><span class="attr-n">${n}${tree ? `<em title="From the passive tree">+${tree} 🌳</em>` : ""}</span>
+        <div class="attr-head"><span class="attr-ic">${info.icon}</span><b>${info.name}</b>${isFav ? `<span class="attr-fav" title="Your class's base attribute: every point also adds +1 to your ⚔️ Damage">★ ${esc(ORIGINS[h.origin].name)}</span>` : ""}<span class="grow"></span><span class="attr-n">${n}${gear ? `<em title="From your gear">+${gear} 🛡️</em>` : ""}${tree ? `<em title="From the passive tree">+${tree} 🌳</em>` : ""}</span>
           <button class="attr-plus" data-attr="${a}" ${pts && spent < ATTR_MAX && !inCombat ? "" : "disabled"} aria-label="Put a point into ${info.name}">+</button></div>
         <p class="attr-blurb">${esc(info.blurb)}</p><ul class="attr-lines">${lines}</ul></div>`;
     }).join("");
@@ -2134,6 +2136,9 @@ function crawlBag(r: Run) {
 }
 
 /** Wide screens: your equipped gear, always in view on the left. */
+/** Attribute lines shown in the game (crit damage and staff damage work, unlisted). */
+const shownLines = (l: string[]) => l.filter(x => !/^(Crits deal|Staves and wands)/.test(x));
+
 function sideEquip(r: Run) {
   const h = r.hero;
   const slotName: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket 1", trinket2: "Trinket 2", trinket3: "Trinket 3 ★" };
@@ -2576,10 +2581,9 @@ function originPopup(o: OriginId) {
     <p>${esc(ORIGIN_PITCH[o])}</p>
     <p class="sub"><b>${esc(p.name)}:</b> ${esc(p.text)}.</p>
     <p class="sub">Starts with ${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p>
+    ${(() => { const ba = BASE_ATTR[o as keyof typeof BASE_ATTR]; if (!ba) return ""; const ai = ATTR_INFO[ba]; return `<div class="class-attr"><span class="ca-ic">${ai.icon}</span><div><b>Base attribute: ${esc(ai.name)}</b><p>Every point you put into ${esc(ai.name)} also adds +1 to your ⚔️ Damage, on top of what it usually gives: ${shownLines(ai.lines(1)).map(esc).join(", ")}.</p></div></div>`; })()}
     ${masteryPanel(o)}
     ${gemPanel(o)}
-    <!--crawl-panel-removed--><div hidden>
-      <p class="sub">Walk the dungeon yourself. Each layer is five floors to explore and a sixth where its boss waits: find the trapdoor on each floor to go down (there's no way back up). Treasures sit in little rooms of their own, most of them guarded, and foes block the halls. Every foe is close to Elite strength, and there's no Quick Battle.</p></div>
     ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
     <div class="row plank-row" style="justify-content:center;margin-top:12px"><button class="plank-btn" data-tocamp>🏕️ To the Camp</button><button class="plank-btn" data-closeorigin>Back</button></div>
   </div></div>`;
@@ -2924,21 +2928,7 @@ function shake(who: "player" | "enemy", big = false) {
   }
 }
 
-/** The fight being played out (so a blow can sound like what's hitting). */
-let fxBattle: Battle | null = null;
-/** What a hit on `who` sounds like: your weapon's family when you strike, the foe's kind when it does. */
-function impactFor(who: "player" | "enemy"): Impact {
-  const b = fxBattle;
-  if (who === "enemy") {
-    const main = run?.hero.equip.main;
-    const fam = main ? classify(effectiveBase(main)).family : "blunt";
-    return fam === "arcane" ? "arcane" : fam === "ranged" || fam === "throwable" ? "ranged" : fam === "blunt" || fam === "breaker" ? "blunt" : "blade";
-  }
-  const f = b?.enemy.family;
-  return f === "Beast" ? "beast" : f === "Undead" ? "undead" : f === "Construct" ? "construct" : "cultist";
-}
 async function playFx(b: Battle) {
-  fxBattle = b;
   // A huge pile of effects (big stacking builds) would take minutes to play out: skip to the last few.
   if (b.fx.length > 40) b.fx.splice(0, b.fx.length - 12);
   fxBatch++;
@@ -3009,7 +2999,7 @@ async function showFx(e: Fx) {
       render();
       floater(who, `-${e.value}`, "dmg");
       shake(who);
-      impact(impactFor(who));
+      sfx("hit");
       await sleep(420);
       return;
     case "heal":
@@ -3019,11 +3009,11 @@ async function showFx(e: Fx) {
       sfx("heal");
       await sleep(320);
       return;
-    case "crit": floater(who, "CRIT!", "crit"); shake(who, true); impact("crit", "crit"); await sleep(260); return;
+    case "crit": floater(who, "CRIT!", "crit"); shake(who, true); sfx("crit"); await sleep(260); return;
     case "miss": floater(who, e.text ?? "Miss", "miss"); sfx("miss"); await sleep(420); return;
-    case "block": floater(who, `${e.icon ?? "🛡️"} ${e.text ?? "Blocked"}`, "block"); impact("block", "block"); await sleep(380); return;
-    case "status": render(); floater(who, `${e.icon ?? ""} ${e.text ?? ""}`, (e.value ?? 0) < 0 ? "status-neg" : "status-pos"); impact("status", "status"); await sleep(330); return;
-    case "reaction": render(); floater(who, `💥 ${e.text}`, "reaction"); shake(who, true); impact("reaction", "reaction"); await sleep(520); return;
+    case "block": floater(who, `${e.icon ?? "🛡️"} ${e.text ?? "Blocked"}`, "block"); sfx("block"); await sleep(380); return;
+    case "status": render(); floater(who, `${e.icon ?? ""} ${e.text ?? ""}`, (e.value ?? 0) < 0 ? "status-neg" : "status-pos"); sfx("status"); await sleep(330); return;
+    case "reaction": render(); floater(who, `💥 ${e.text}`, "reaction"); shake(who, true); sfx("reaction"); await sleep(520); return;
     case "text": floater(who, `${e.icon ?? ""} ${e.text ?? ""}`, "text"); await sleep(380); return;
   }
 }
@@ -3326,7 +3316,8 @@ function bind() {
   on("[data-spoilsub]", el => { spoilsSub = el.dataset.spoilsub as typeof spoilsSub; });
   on("[data-talentsub]", el => { talentSub = el.dataset.talentsub as "talents" | "curses"; });
   // The Crawl: once the only find is taken (or left), the popup just closes — no "Continue" step.
-  const lootDone = () => { const sc = r.scene; if (r.gridMode && sc.t === "loot" && !sc.items.length && !sc.gold && !sc.potions && !sc.scrolls && !sc.relic && !sc.then && !sc.crimsonKey && !sc.dragonHeart && !sc.sigils?.length) finishLoot(r); };
+  // The Crawl: once the last item is dealt with, the rest (Gold, potions, scrolls) is simply pocketed: no Continue.
+  const lootDone = () => { const sc = r.scene; if (r.gridMode && sc.t === "loot" && !sc.items.length && !sc.then) finishLoot(r); };
   on("[data-fishcast]", () => fishStart());
   on("[data-fishstrike]", () => fishStrike());
   on("[data-fisheat]", el => { const t = eatFish(r, el.dataset.fisheat!); fishCaught = null; if (t) { fishNote = t; sfx("heal"); } });

@@ -47,7 +47,7 @@ export interface HallUpgrade {
 export const HALL: HallUpgrade[] = [
   { id: "pockets", name: "Deep Pockets", icon: "👛", ranks: 4, per: "+25 starting Gold", cost: r => ({ crowns: [1, 1, 2, 2][r - 1], mat: "hide", n: 1 + r }) },
   { id: "belt", name: "Apothecary's Belt", icon: "🧪", ranks: 2, per: "+1 starting Healing Potion", cost: r => ({ crowns: [2, 3][r - 1], mat: "bone", n: 2 + 2 * r }) },
-  { id: "straps", name: "Packmule's Straps", icon: "🎒", ranks: 4, per: "+1 Backpack slot", cost: r => ({ crowns: [1, 2, 2, 3][r - 1], mat: "cog", n: 1 + r }) },
+  { id: "straps", name: "Packmule's Straps", icon: "🎒", ranks: 4, per: "+4 Backpack slots", cost: r => ({ crowns: [1, 2, 2, 3][r - 1], mat: "cog", n: 1 + r }) },
   { id: "hardy", name: "Hardy", icon: "❤️", ranks: 5, per: "+4 starting Max HP", cost: r => ({ crowns: [1, 1, 2, 2, 3][r - 1], mat: "bone", n: 1 + r }) },
   { id: "thumb", name: "Green Thumb", icon: "🌱", ranks: 4, per: "+1 Garden plot (from 2)", cost: r => ({ crowns: [1, 1, 2, 3][r - 1], mat: "hide", n: 2 * r }) },
   { id: "steady", name: "Steady Hands", icon: "🫗", ranks: 2, per: "The Brewery's sweet spot is 1 wider", cost: r => ({ crowns: [2, 3][r - 1], mat: "cog", n: 3 * r }) },
@@ -84,7 +84,7 @@ export function applyHall(m: Meta, run: Run) {
   m.totemSet = undefined;
   h.f.gold += 25 * hallRank(m, "pockets");
   h.potions += hallRank(m, "belt");
-  h.packBonus = hallRank(m, "straps") || undefined;
+  h.packBonus = 4 * hallRank(m, "straps") || undefined;
   const hp = 4 * hallRank(m, "hardy");
   if (hp) h.f.persist["hallHp"] = hp;
   if (hallRank(m, "second")) h.f.persist["secondLife"] = 1;
@@ -100,6 +100,7 @@ export function applyHall(m: Meta, run: Run) {
   for (const p of gardenPlots(m)) if (p && p.left > 0) p.left--;
   // What the Knowledge Table has taught.
   for (const k of Object.keys(c.insights ?? {})) h.f.persist[`ins_${k}`] = 1;
+  if (c.insights?.["transmute"]) h.crucible = true;
   recompute(h);
   h.f.hp = h.f.maxHp;
 }
@@ -189,10 +190,10 @@ export function bottle(m: Meta, b: Brew) {
 
 export interface Insight { id: string; name: string; icon: string; text: string; cost: number }
 export const INSIGHTS: Insight[] = [
-  { id: "lore_Beast", name: "Beast Lore", icon: "🐾", text: "Your hits deal 10% more to Beasts", cost: 1 },
-  { id: "lore_Undead", name: "Grave Lore", icon: "💀", text: "Your hits deal 10% more to the Undead", cost: 1 },
-  { id: "lore_Construct", name: "Engine Lore", icon: "🔩", text: "Your hits deal 10% more to Constructs", cost: 1 },
-  { id: "lore_Cultist", name: "Cult Lore", icon: "🔯", text: "Your hits deal 10% more to Cultists", cost: 1 },
+  { id: "angling", name: "Angler's Notes", icon: "🎣", text: "Still Pools turn up in the dungeon, to fish in", cost: 1 },
+  { id: "campfires", name: "Fireside Craft", icon: "🔥", text: "A campfire waits on the last floor before each layer's guardian", cost: 2 },
+  { id: "merchant", name: "Merchant's Road", icon: "🛒", text: "A third Merchant sets up somewhere on every layer", cost: 2 },
+  { id: "transmute", name: "The Crucible's Secret", icon: "⚗️", text: "You can transmute at the dungeon's Forges: a Common item and Starmetal become a Legendary", cost: 3 },
   { id: "herbalism", name: "Herbalism", icon: "🌿", text: "Every Garden harvest gives one more herb", cost: 2 },
   { id: "keeneye", name: "Keen Eye", icon: "👁️", text: "On every floor, you know where the trapdoor is from the start", cost: 2 },
   { id: "ledger", name: "Merchant's Ledger", icon: "📒", text: "Merchants charge you 10% less", cost: 2 },

@@ -224,6 +224,8 @@ export interface Run {
   carry: number;
   /** Talent level-ups waiting to be chosen. */
   pendingTalents: number;
+  /** The Crawl: the floor of this layer where a third Merchant stands (Knowledge: Merchant's Road). */
+  gridShop2?: number;
   message: string;
   stats: { kills: number; bestHit: number; bosses: number; legendaries: number; fusions: number };
   /** Leaderboards: all the Gold you've picked up this run, and the purse last time we looked. */
@@ -484,7 +486,10 @@ const FOE_ROOMS: RoomType[] = ["fight", "elite", "champion", "unique", "goblin",
 function layerPlan(run: Run): Partial<Record<RoomType, number>> {
   const rng = run.rng, last = LAYER_FLOORS - 1, any = () => 1 + Math.floor(rng() * last);
   // Two Merchants a layer: one at the entrance (floor 0), and one somewhere on the third floor.
-  const plan: Partial<Record<RoomType, number>> = { rest: last, shop: 3 };
+  // (Campfires, and a third Merchant, come from what the Camp's Knowledge Table has taught.)
+  const plan: Partial<Record<RoomType, number>> = { shop: 3 };
+  if (run.hero.f.persist["ins_campfires"]) plan.rest = last;
+  run.gridShop2 = run.hero.f.persist["ins_merchant"] ? [1, 2, 4][Math.floor(rng() * 3)] : undefined;
   plan[run.jewellerNext ? "jeweller" : "forge"] = 2 + Math.floor(rng() * (last - 1));
   run.jewellerNext = !run.jewellerNext;
   if (run.floor >= MASTERWORK_FLOOR && run.mode !== "abyss") plan.masterwork = any();
@@ -637,6 +642,7 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   const pois: string[] = [];
   // (The Merchant stays put once met, so it stands out in a hall where it can't block a way through.)
   for (const [room, d] of Object.entries(plan) as [RoomType, number][]) if (d === depth) { if (room === "shop") putInHall(room); else pois.push(room); }
+  if (run.gridShop2 === depth) putInHall("shop");
   if (Object.keys(run.hero.curses).length > 0 && !run.seenBosses.has(`cleanse:${run.floor}`)) { run.seenBosses.add(`cleanse:${run.floor}`); pois.push("cleansing"); }
   // Faith: while you carry a curse, altars that lift curses turn up more often (another on later floors).
   else if (Object.keys(run.hero.curses).length > 0 && rng() < Math.min(0.6, 0.06 * attrOf(run.hero, "fai"))) pois.push("cleansing");
@@ -645,10 +651,24 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   // Blood Oaths: a Crawl landmark of their own.
   marks.oath = OATH_WEIGHT;
   marks.offering = OFFERING_WEIGHT;
-  marks.pond = POND_WEIGHT;
+  if (run.hero.f.persist["ins_angling"]) marks.pond = POND_WEIGHT;
   for (let n = floorLandmarks(rng()); n > 0 && Object.keys(marks).length; n--) { const room = pickW(rng, marks); delete marks[room]; pois.push(room); }
   for (let n = 1 + (rng() < 0.4 ? 1 : 0); n > 0; n--) pois.push(chest());
   pois.sort(() => rng() - 0.5);
+  // Something Strange: a door in a little nook of its own, one tile dug into a hall's wall (rock on three sides).
+  for (let k = pois.indexOf("event"); k >= 0; k = pois.indexOf("event")) {
+    const nooks: number[] = [];
+    for (const r of rooms) for (let x = r.x; x < r.x + r.w; x++) {
+      const u = (r.y - 1) * m.w + x;
+      if (r.y < 3 || m.tiles[u] !== 0 || taken.has(u) || taken.has(u + m.w)) continue;
+      if (m.tiles[u - 1] === 0 && m.tiles[u + 1] === 0 && m.tiles[u - m.w] === 0 && m.tiles[u - m.w - 1] === 0 && m.tiles[u - m.w + 1] === 0) nooks.push(u);
+    }
+    if (!nooks.length) break;
+    pois.splice(k, 1);
+    const u = nooks[Math.floor(rng() * nooks.length)];
+    m.tiles[u] = 1;
+    putAt(u, "event");
+  }
   while (pois.length) {
     // Two to a little room now and then, but never two chests together.
     const pairOk = pois.length > 1 && !(LOOT.includes(pois[0]) && LOOT.includes(pois[1]));
@@ -1354,7 +1374,6 @@ export function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic
   if (heat >= 5 && !exact) enemy.damage = Math.round(enemy.damage * 1.2);
   // The Crawl: one foe at a time, but a harder one, and the floor grows more dangerous the longer you linger.
   // The Knowledge Table's lore: hit a kind of foe you've studied harder.
-  if (run.gridMode && enemy.family && run.hero.f.persist[`ins_lore_${enemy.family}`]) enemy.dmgTaken = (enemy.dmgTaken ?? 0) + 10;
   if (run.gridMode && !exact) {
     const d = gridDanger(run);
     // Every foe in the Crawl is close to an Elite: plain monsters come much tougher.
@@ -1508,6 +1527,8 @@ function afterFight(run: Run) {
   if (run.scene.t !== "combat") return;
   const { battle: b, rank, then } = run.scene;
   const h = run.hero;
+  // Something that hit you after the foe fell (a dying blast, a toll) can still put you down: at 0 HP the fight is lost.
+  if (b.over === "won" && h.f.hp <= 0) { b.over = "lost"; b.log.push(`${h.f.name} falls.`); }
   // Curse-Eaters: curses devoured mid-fight are gone for good.
   let eaten = 0;
   for (const k of Object.keys(h.f.persist)) {

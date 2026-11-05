@@ -2372,3 +2372,12 @@ button.plank-btn:active { transform: translateY(2px); }
 .dg-overlay .sub { color: #a38a64; }
 .run-menu .plank-btn { width: 100%; }
 .run-menu .plank-btn.danger { filter: hue-rotate(-25deg) saturate(1.4); }
+.class-attr { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0; padding: 10px 12px; border-radius: 8px; background: rgba(0,0,0,.3); border: 1px solid #6b4c2c; border-left: 4px solid #e2b866; }
+.class-attr .ca-ic { font-size: 1.6rem; line-height: 1; }
+.class-attr b { color: #f3d58a; } .class-attr p { margin: 3px 0 0; font-size: .88rem; color: #d8c39c; }
+.camp-top-pad { width: 42px; flex: none; }
+/* A roomier backpack. */
+.inv-pack .mer-list { flex-wrap: wrap; align-content: flex-start; min-height: 120px; max-height: 300px; overflow-y: auto; overflow-x: hidden; }
+.inv-pack .mer-chip { flex: 1 1 140px; }
+@media (max-width: 699px) { .inv-pack .mer-list { min-height: 170px; max-height: 44vh; } }
+.ts-sky .tn-orb.sigil { border-color: #b98ae0; box-shadow: 0 0 10px rgba(185,138,224,.35); }

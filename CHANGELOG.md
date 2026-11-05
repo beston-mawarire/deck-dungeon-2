@@ -9,6 +9,20 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.88.0
+
+- **Attributes on gear.** Uncommon and better gear sometimes comes with a flat bonus to an attribute: +1 on an Uncommon, more on Rares, Epics and Legendaries. What it raises depends on the piece: light armour leans to Agility, heavy gear to Strength and Vitality, robes and staves to Intellect and Faith, but there's always a chance of something else. Your Attributes tab shows what your gear adds.
+- **The Talisman's sigils are in the Passive Tree now.** Set pieces sit mid-tree; the old set bonuses go deeper the stronger they are (a set's "Crown" is near the bottom). The ones that only repeated what attributes give were left out, and the Gilded Hand's Gold thresholds are lower.
+- **The Knowledge Table teaches useful things now**, not damage: Angler's Notes (Still Pools turn up in the dungeon), Fireside Craft (a campfire before each guardian), Merchant's Road (a third Merchant every layer) and The Crucible's Secret (transmute at the dungeon's Forges).
+- **Bestiary records open once you've beaten a kind of foe 10 times.** Until then it shows how many you have.
+- **Backpack: 8 slots to start**, and each rank of Packmule's Straps adds 4. The backpack is taller, too.
+- The class popup shows your class's base attribute, and what each point of it gives.
+- The Attributes tab is simpler: your class attribute's base Damage shows in your ⚔️ Damage instead.
+- **The Camp:** "Tap a tile to walk there" is a speech bubble above your hero, room names are on gold ribbons in bigger text, and the class name is gone from the top corner.
+- Something Strange doors stand in a little nook of their own, off a hall.
+- Fights use the old hit sounds again.
+- Fixes: you could win a fight and be left standing at 0 HP; the Mimic's hoard used the old container (and ran off small screens); and dealing with the last item in a hoard no longer leaves a Continue button.
+
 ## 1.87.0
 
 - **The Passive Tree, reworked.** Every branch now opens with a row of attribute nodes (+1 to an attribute each, on every run with that class). Below them, the passives run from the gentler ones at the top to the strongest deep down. The small stat bumps that attributes now give have left the tree, along with a couple of passives the dungeon had no room for. Any points in nodes that are gone come back to you.

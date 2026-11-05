@@ -58,9 +58,15 @@ describe("the passive tree", () => {
   it("the gentler passives sit near the top and the strongest deep down; stat bumps that attributes give are gone", () => {
     const all = passiveTree().flatMap(b => b.nodes);
     const at = (id: string) => all.find(n => n.key === id)!.tier;
-    expect(at("t_reaper")).toBeGreaterThan(at("t_coup_de_grace"));
-    expect(at("t_reckless")).toBeGreaterThan(at("tm_practiced"));
+    for (const id of ["t_reaper", "t_reckless", "t_boundless_static"]) {
+      const b = passiveTree().find(br => br.nodes.some(n => n.key === id))!;
+      const tiers = b.nodes.filter(n => n.tier > 0).map(n => n.tier).sort((x, y) => x - y);
+      expect(at(id)).toBeGreaterThanOrEqual(tiers[Math.floor(tiers.length * 0.6)]);
+    }
     expect(all.some(n => n.talent === "tm_sharp_eye" || n.talent === "t_mercenary")).toBe(false);
+    // The Talisman's sigils are in the tree too, set bonuses named for the set.
+    expect(all.some(n => n.talent === "sc_ember_signet")).toBe(true);
+    expect(all.find(n => n.talent === "sb_ember_4")?.title).toBe("Ember Court's Crown");
   });
   it("points in nodes the tree no longer has come back", () => {
     const m = meta();

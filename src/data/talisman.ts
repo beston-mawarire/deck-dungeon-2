@@ -101,7 +101,7 @@ export const SET_PIECES_2: HookDef[] = [
   piece("sc_thorn_rose", "Blood Rose", ["Thorns", "Blood"], "Your Spikes deal 25% more", { onFightStart: (_b, f) => addFlag(f, "spikeAmp", 25) }),
   // ---- The Gilded Hand (Gold, Kill) ----
   piece("sc_gild_coin", "Gilded Coin", ["Gold", "Kill"], "Kills earn {n/3} Gold", { onKill: (b, c, n) => { if (mine(b, c)) c.attacker.gold += third(n); } }),
-  piece("sc_gild_scale", "Moneychanger's Scale", ["Gold", "Strike"], "Your hits deal +1 for every 100 Gold you carry (up to +5)", { modifyAttack: (b, c) => { if (mine(b, c)) c.bonus += Math.min(5, Math.floor(c.attacker.gold / 100)); } }),
+  piece("sc_gild_scale", "Moneychanger's Scale", ["Gold", "Strike"], "Your hits deal +1 for every 50 Gold you carry (up to +5)", { modifyAttack: (b, c) => { if (mine(b, c)) c.bonus += Math.min(5, Math.floor(c.attacker.gold / 50)); } }),
   piece("sc_gild_noose", "Gallows Sigil", ["Kill"], "Your hits on enemies below 30% HP deal +{n/3}", { modifyAttack: (b, c, n) => { if (mine(b, c) && c.defender.hp < c.defender.maxHp * 0.3) c.bonus += third(n); } }),
   piece("sc_gild_seal", "Bounty Seal", ["Gold", "Kill"], "Elites, Champions and bosses you kill drop {n} more Gold", { onKill: (b, c, n) => { const d = c.defender; if (mine(b, c) && (d.elite || d.champion || d.boss)) c.attacker.gold += n; } })
 ];
@@ -122,7 +122,7 @@ export const SET_BONUSES_2: HookDef[] = [
   bonus("sb_thorn_2", "Thornwood (2)", ["Thorns"], "When you're hit, gain 1 Spikes", { whenHit: (b, c) => { if (!c.noDamage) applyStatus(b, c.defender, c.defender, "spikes", 1); } }),
   bonus("sb_thorn_3", "Thornwood (3)", ["Thorns"], "Your Spikes deal 50% more", { onFightStart: (_b, f) => addFlag(f, "spikeAmp", 50) }),
   bonus("sb_thorn_4", "Thornwood (4)", ["Thorns", "Strike"], "Your Spikes also deal your Might", { onFightStart: (_b, f) => { f.flags["bristle"] = 1; } }),
-  bonus("sb_gild_2", "Gilded Hand (2)", ["Gold"], "While you carry 150 Gold or more, you deal 10% more", { modifyAttack: (b, c) => { if (mine(b, c) && c.attacker.gold >= 150) c.mult *= 1.1; } }),
+  bonus("sb_gild_2", "Gilded Hand (2)", ["Gold"], "While you carry 75 Gold or more, you deal 10% more", { modifyAttack: (b, c) => { if (mine(b, c) && c.attacker.gold >= 75) c.mult *= 1.1; } }),
   bonus("sb_gild_3", "Gilded Hand (3)", ["Kill"], "You deal 30% more to enemies below 30% HP", { modifyAttack: (b, c) => { if (mine(b, c) && c.defender.hp < c.defender.maxHp * 0.3) c.mult *= 1.3; } }),
   bonus("sb_gild_4", "Gilded Hand (4)", ["Gold", "Blood"], "Every kill heals 5% of your Max HP and earns 5 Gold", { onKill: (b, c) => { if (mine(b, c)) { heal(b, c.attacker, Math.ceil(c.attacker.maxHp * 0.05), "Gilded Hand"); c.attacker.gold += 5; } } })
 ];

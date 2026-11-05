@@ -108,10 +108,22 @@ describe("the Crawl", () => {
     }
   });
 
+  it("Knowledge: no campfire, pools or third Merchant until learned", () => {
+    for (let seed = 1; seed < 20; seed++) {
+      const r = crawl(seed);
+      const plain = [makeGrid(r, 0), makeGrid(r, 1), makeGrid(r, 2), makeGrid(r, 3), makeGrid(r, 4), makeGrid(r, 5)];
+      expect(plain.reduce((a, m) => a + things(m, "rest") + things(m, "pond"), 0)).toBe(0);
+      r.hero.f.persist["ins_merchant"] = 1;
+      const more = [makeGrid(r, 0), makeGrid(r, 1), makeGrid(r, 2), makeGrid(r, 3), makeGrid(r, 4), makeGrid(r, 5)];
+      expect(more.reduce((a, m) => a + things(m, "shop"), 0)).toBe(3);
+    }
+  });
   it("spreads a layer's services over its five floors: one more Merchant, one Forge or Jeweller, the campfire on the fifth", () => {
     for (let seed = 1; seed < 40; seed++) {
       const r = crawl(seed);
-      const floors = [r.grid!, makeGrid(r, 2), makeGrid(r, 3), makeGrid(r, 4), makeGrid(r, 5)];
+      // (The campfire comes from the Knowledge Table's Fireside Craft.)
+      r.hero.f.persist["ins_campfires"] = 1;
+      const floors = [makeGrid(r, 0), makeGrid(r, 1), makeGrid(r, 2), makeGrid(r, 3), makeGrid(r, 4), makeGrid(r, 5)].slice(1);
       const n = (room: string) => floors.reduce((a, m) => a + things(m, room), 0);
       // The second Merchant is on the third floor (the first is at the entrance).
       expect(n("shop")).toBe(1);
