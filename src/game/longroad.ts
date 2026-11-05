@@ -83,19 +83,11 @@ export const WM_MAX = 10;
 /** Weapon mastery XP needed for a level (5, 20, 45, 80 …). */
 export const wmLevel = (xp: number) => Math.min(WM_MAX, Math.floor(Math.sqrt(Math.max(0, xp) / 5)));
 export const wmNext = (level: number) => 5 * (level + 1) * (level + 1);
-/** What a family's mastery gives at a level: +2% damage a level with that weapon, and a family effect at 5 and 10. */
-export const WM_PERK: Record<WeaponFamily, { name: string; perk: string }> = {
-  knife: { name: "Knives", perk: "+4% Crit chance" },
-  shortblade: { name: "Short Blades", perk: "+4% Dodge" },
-  greatblade: { name: "Great Blades", perk: "+1 Damage" },
-  blunt: { name: "Blunt weapons", perk: "+4% Bash" },
-  breaker: { name: "Breakers", perk: "+4% Bash" },
-  polearm: { name: "Polearms", perk: "+1 Armor" },
-  arcane: { name: "Staves and wands", perk: "Statuses you inflict deal +10% damage" },
-  ranged: { name: "Bows and slings", perk: "+4% Crit chance" }
+/** Each family's name (mastery opens more of its weapons to your loot, a few at a time). */
+export const WM_PERK: Record<WeaponFamily, { name: string }> = {
+  knife: { name: "Knives" }, shortblade: { name: "Short Blades" }, greatblade: { name: "Great Blades" }, blunt: { name: "Blunt weapons" },
+  breaker: { name: "Breakers" }, polearm: { name: "Polearms" }, arcane: { name: "Staves and wands" }, ranged: { name: "Bows and slings" }
 };
-/** Milestones reached (0, 1 at level 5, 2 at level 10). */
-export const wmMilestones = (level: number) => (level >= 10 ? 2 : level >= 5 ? 1 : 0);
 /** XP from one fight won with that weapon. */
 export const WM_XP: Record<string, number> = { normal: 1, elite: 2, champion: 3, crimson: 4, boss: 5 };
 

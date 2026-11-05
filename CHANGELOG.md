@@ -9,6 +9,14 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.82.1
+- Attributes reworked. Strength: Max HP and Bash. Agility: Dodge, Crit chance and crit damage. Intellect: status damage, reaction damage, and harder hits with staves and wands. Faith: reactions and statuses hurt you less, and altars that lift curses turn up more often. Vitality: all healing goes further, and Regen heals more. Fortune: unchanged.
+- Each class has a base attribute (Warrior Strength, Mage Intellect, Rogue Agility, Cleric Faith): every point in it also adds +1 base Damage.
+- In the Crawl, Healing Potions heal 8 and campfires a little less.
+- Weapon Mastery now opens more of a family's weapons to your loot as you master it (two-fifths at first, all of them at mastery 10) instead of adding damage.
+- The Passive Tree is drawn as nodes and links; tap a node to read it and add a point.
+- In the Crawl, the menu button sits in the middle, between the potions and the inventory.
+
 ## 1.82.0
 - The Passive Tree, a new Camp room: one great tree for every hero, the old talents grown into seven branches (Might, Bulwark, Grace, Affliction, Arcana, Devotion and Fortune), in tiers that open as you spend. A class's tree opens once it has beaten layer 5; from then on every run earns it points (2 for each layer beaten, or 1 for getting halfway through the first layer). Points can be taken back for free.
 - Weapon Mastery, a new Camp room: every weapon family learns from the fights won with it. Each level adds 2% damage with that family, and levels 5 and 10 add its own perk.

@@ -1,4 +1,4 @@
-import { TOTEM_WEIGHT, TOTEMS } from "./longroad";
+import { MASTERY_FAMILIES, TOTEM_WEIGHT, TOTEMS } from "./longroad";
 import { generate, GEN_SHARE } from "./gen";
 // Loot: rarity tables, rolling gear, chests (Wooden, Iron, Resplendent) and bad-luck protection.
 import { EPIC_CRIMSON } from "../data/abyss";
@@ -28,12 +28,49 @@ function totemWeigher(h: Hero): ((b: GearBase) => number) | null {
     return hit ? TOTEM_WEIGHT : 1;
   };
 }
-/** Does this base belong in this hero's loot? (Only the Crawl sorts loot by class.) */
+/** Does this base belong in this hero's loot? (Only the Crawl sorts loot by class, and by weapon mastery.) */
 export function classFits(h: Hero, b: GearBase): boolean {
   if (!h.f.persist["classLoot"] || (b.kind !== "weapon" && b.kind !== "off")) return true;
+  const fam = classify(b).family;
   const fams = CLASS_FAMILIES[h.origin];
-  if (!fams || (b.kind !== "weapon" && b.kind !== "off")) return true;
-  return fams.includes(classify(b).family);
+  if (fams && !fams.includes(fam)) return false;
+  // Weapon mastery: a family's weapons join the pool a few at a time as you master it.
+  return masteryOpen(b, h.f.persist[`wm_${fam}`] ?? 0);
+}
+
+/** Each weapon family's bases in the order mastery opens them (the plainest first, then by floor and name). */
+let FAMILY_ORDER: Map<string, number> | null = null;
+function familyRank(b: GearBase): { rank: number; size: number } {
+  if (!FAMILY_ORDER) {
+    FAMILY_ORDER = new Map();
+    const by = new Map<string, GearBase[]>();
+    for (const g of GEAR_BASES) {
+      if ((g.kind !== "weapon" && g.kind !== "off") || g.legendary) continue;
+      const f = classify(g).family;
+      if (!(MASTERY_FAMILIES as string[]).includes(f)) continue;
+      (by.get(f) ?? by.set(f, []).get(f)!).push(g);
+    }
+    for (const [f, list] of by) {
+      list.sort((x, y) => (x.floorMin ?? 0) - (y.floorMin ?? 0) || (x.onlyRarity ? 1 : 0) - (y.onlyRarity ? 1 : 0) || x.id.localeCompare(y.id));
+      list.forEach((g, i) => FAMILY_ORDER!.set(g.id, i));
+      FAMILY_ORDER.set(`#${f}`, list.length);
+    }
+  }
+  const rank = FAMILY_ORDER.get(b.id);
+  return rank === undefined ? { rank: -1, size: 0 } : { rank, size: FAMILY_ORDER.get(`#${classify(b).family}`) ?? 0 };
+}
+/** How much of a family is open at a mastery level: two-fifths at first, all of it at level 10. */
+export const masteryShare = (level: number) => Math.min(1, 0.4 + 0.06 * level);
+export function masteryOpen(b: GearBase, level: number): boolean {
+  const { rank, size } = familyRank(b);
+  if (rank < 0) return true;
+  return rank < Math.max(3, Math.ceil(size * masteryShare(level)));
+}
+/** How many of a family's weapons are in the pool at a mastery level, out of how many. */
+export function familyOpenCount(fam: string, level: number): { open: number; total: number } {
+  familyRank(GEAR_BASES[0]);
+  const total = FAMILY_ORDER!.get(`#${fam}`) ?? 0;
+  return { open: Math.min(total, Math.max(3, Math.ceil(total * masteryShare(level)))), total };
 }
 
 export type Odds = Partial<Record<Rarity, number>>;

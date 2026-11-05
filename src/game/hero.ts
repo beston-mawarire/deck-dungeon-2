@@ -1,5 +1,4 @@
 // The hero: origin, equipped gear, backpack, relics, talents, curses — and turning all of that into a Fighter.
-import { wmMilestones } from "./longroad";
 import { POTION_SLOTS } from "../data/potions";
 import { MANA_POTION_SLOTS } from "../data/classgear";
 import { classify, familyLine, isHeavy } from "./families";
@@ -12,7 +11,7 @@ import { ORIGINS } from "../data/origins";
 import { genHooks, genLines, GRADE_MARK, genTopGrade, GEN_MODULE_MAP, modValue } from "./gen";
 import { SIGIL_SETS } from "../data/talisman";
 import { PLAIN_FACES } from "../engine/combat";
-import { ATTR_MAX, ATTRS, attrPower, type Attr, FAVOURED } from "../data/attributes";
+import { ATTR_MAX, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
 import { eachHook, getItem } from "../engine/registry";
 import type { Fighter, GearBase, GearItem, OriginId, Rarity, Slot, StatBlock } from "../engine/types";
 
@@ -226,7 +225,7 @@ export function canGuard(h: Hero): boolean {
 
 /** Rebuild the Fighter's stats and hook sources from everything the hero has. */
 /** An attribute's power: its points, and half as much again if your class favours it. */
-export const attrOf = (h: Hero, a: Attr) => attrPower(h.attrs?.[a] ?? 0, (FAVOURED[h.origin as keyof typeof FAVOURED] ?? []).includes(a));
+export const attrOf = (h: Hero, a: Attr) => attrPower(h.attrs?.[a] ?? 0);
 /** Spend an unspent point on an attribute. Returns an error, or null. */
 export function spendAttr(h: Hero, a: Attr): string | null {
   if ((h.attrPoints ?? 0) <= 0) return "No points to spend. Level up to earn more.";
@@ -340,23 +339,13 @@ export function recompute(h: Hero) {
   f.heavyGear = EQUIP_SLOTS.some(sl => { const it = h.equip[sl]; return !!it && isHeavy(effectiveBase(it)); });
   const armMain = h.equip.main, armOff = h.equip.off;
   f.arms = { main: kindOf(armMain), off: kindOf(armOff), twoHanded: !!armMain && !!effectiveBase(armMain).twoHanded };
-  // Weapon mastery (the Crawl): +2% damage a level with the family in your main hand, and its perk at levels 5 and 10.
-  if (h.equip.main) {
-    const fam = classify(effectiveBase(h.equip.main)).family;
-    const lv = f.persist[`wm_${fam}`] ?? 0;
-    if (lv) {
-      s.dmgDealt = (s.dmgDealt ?? 0) + 2 * lv;
-      const k = wmMilestones(lv);
-      if (k) {
-        if (fam === "knife" || fam === "ranged") s.critChance += 4 * k;
-        else if (fam === "shortblade") s.dodge += 4 * k;
-        else if (fam === "greatblade") s.damage += k;
-        else if (fam === "blunt" || fam === "breaker") s.bash += 4 * k;
-        else if (fam === "polearm") s.armor += k;
-        else if (fam === "arcane") s.dotAmp = (s.dotAmp ?? 0) + 10 * k;
-      }
-    }
-  }
+  // Your class's base attribute: each point in it adds +1 to your base Damage.
+  const ba = BASE_ATTR[h.origin as keyof typeof BASE_ATTR];
+  if (ba) s.damage += h.attrs?.[ba] ?? 0;
+  // Read by the fight: Faith's resistances, Vitality's Regen, and whether you swing a staff or a wand (Intellect).
+  f.persist["faiRes"] = attrOf(h, "fai");
+  f.persist["vitRegen"] = attrOf(h, "vit");
+  f.persist["mainArcane"] = h.equip.main && classify(effectiveBase(h.equip.main)).family === "arcane" ? 1 : 0;
   s.maxHp += 3 * (h.level - 1); // every level-up: +3 Max HP
   s.maxHp -= f.persist["maxHpLoss"] ?? 0;
   s.maxHp += f.persist["hallHp"] ?? 0;

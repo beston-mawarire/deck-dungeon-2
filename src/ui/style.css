@@ -2096,3 +2096,33 @@ button.continue:active { transform: translateY(2px); box-shadow: inset 0 1px 0 r
 .tree-node:disabled { opacity: 1 !important; filter: none !important; }
 .tree-node.full { opacity: 1; }
 [data-treereset] { background: linear-gradient(180deg, #3b2b1d, #261a10) !important; border: 2px solid #6b4c2c !important; color: #ead7b3 !important; }
+/* The menu sits in the middle, between the potions and the inventory. */
+.cz-bc { bottom: max(14px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; min-height: 72px; }
+.cz-bc .cz-menu { width: 50px; height: 50px; border-radius: 50%; }
+@media (min-width: 900px) { .cz-bc { min-height: 88px; } }
+
+/* ---------- The Passive Tree as nodes and links ---------- */
+.tb-head { display: flex; align-items: baseline; gap: 8px; }
+.tb-head .sub { margin-left: auto; font-size: .75rem; }
+.tb-tiers { display: flex; flex-direction: column; align-items: stretch; padding: 4px 0 6px; }
+.tree-branch .tb-tier { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 0; border: 0; }
+/* The bar joining a tier's nodes, behind their orbs. */
+.tree-branch .tb-tier::before { content: ""; position: absolute; top: 27px; left: 16.6%; right: 16.6%; height: 3px; background: #4a3420; border-radius: 2px; }
+.tree-branch .tb-tier:not(.shut)::before { background: linear-gradient(90deg, #8a6238, #c49a5a, #8a6238); }
+.tb-link { position: relative; width: 3px; height: 20px; margin: 0 auto; background: #4a3420; border-radius: 2px; }
+.tb-link.lit { background: #c49a5a; box-shadow: 0 0 6px rgba(226,184,102,.4); }
+.tb-link .tb-need { position: absolute; left: 10px; top: 2px; white-space: nowrap; font-size: .66rem; color: #a8916c; background: none; padding: 0; }
+.tnode { all: unset; box-sizing: border-box; position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; min-width: 0; padding: 0 2px 4px; }
+.tn-orb { position: relative; width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 800 .95rem/1 Georgia, "Times New Roman", serif; color: #a8916c;
+  background: radial-gradient(circle at 40% 35%, #3a2a1c, #150d07 75%); border: 3px solid #5a4028; box-shadow: 0 3px 6px rgba(0,0,0,.6), inset 0 0 8px rgba(0,0,0,.6); transition: transform .12s; }
+.tnode:hover .tn-orb { transform: scale(1.06); }
+.tnode.has .tn-orb { color: #ffe2a0; border-color: #c49a5a; box-shadow: 0 0 10px rgba(226,184,102,.45), 0 3px 6px rgba(0,0,0,.6); }
+.tnode.full .tn-orb { color: #2a1a0c; background: radial-gradient(circle at 40% 35%, #f3d58a, #b8862a 75%); border-color: #f0d28a; }
+.tnode.shut { opacity: .42; }
+.tn-pips { position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; font-style: normal; }
+.tn-pips em { width: 7px; height: 7px; border-radius: 50%; background: #2a1d12; border: 1px solid #6b4c2c; }
+.tn-pips em.on { background: #ffd58a; border-color: #fff0c0; }
+.tn-name { margin-top: 6px; font-size: .7rem; line-height: 1.15; color: #d8c39c; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tree-pop .tp-orb { width: 72px; height: 72px; margin: 4px auto 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 800 1.3rem/1 Georgia, serif; color: #a8916c;
+  background: radial-gradient(circle at 40% 35%, #3a2a1c, #150d07 75%); border: 3px solid #5a4028; }
+.tree-pop .tp-orb.has { color: #ffe2a0; border-color: #c49a5a; box-shadow: 0 0 14px rgba(226,184,102,.45); }

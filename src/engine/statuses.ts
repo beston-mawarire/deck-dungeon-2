@@ -186,11 +186,15 @@ export function heal(b: Battle, f: Fighter, amount: number, why = "") {
 
 /** Reactions the hero causes hit half as hard, and every reaction bonus counts half. */
 export const REACTION_BASE = 0.5;
-function reactionMult(b: Battle, source: Fighter | null) {
+function reactionMult(b: Battle, source: Fighter | null, target?: Fighter) {
   let m = 1;
   if (source) eachHook(source, "reactionMult", (h, s) => (m *= h(b, source, s)));
-  return source === b.player ? REACTION_BASE * (1 + (m - 1) * 0.5) : m;
+  const out = source === b.player ? REACTION_BASE * (1 + (m - 1) * 0.5) : m;
+  // Faith: reactions that land on you hit for less.
+  return target === b.player ? out * faithCut(b.player) : out;
 }
+/** Faith's resistance: 4% less per point, at most 60%. */
+const faithCut = (f: Fighter) => 1 - Math.min(0.6, 0.04 * (f.persist["faiRes"] ?? 0));
 
 /**
  * Put a status on a fighter. Handles Ward, item negation, stacking, reactions and
@@ -275,7 +279,7 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
     const per = t.per + (t.id === "shatter_fx" ? source?.flags["shatterPlus"] ?? 0 : 0);
     // Fragile foes: Fracture shatters (and Bled Out bursts, if Thin-blooded) hit them far harder.
     const frail = (t.id === "shatter_fx" && (target.items["x_wk_fragile"] ?? 0) > 0) || (t.id === "bledout" && (target.items["x_wk_bleed"] ?? 0) > 0) ? 1.6 : 1;
-    const lost = statusLoss(b, target, Math.round(n * per * reactionMult(b, source) * frail));
+    const lost = statusLoss(b, target, Math.round(n * per * reactionMult(b, source, target) * frail));
     log(b, `${t.icon} ${t.name}! ${n} ${STATUS_INFO[t.status].name} bursts: ${target.name} takes ${lost}.`);
     const key = `rx:${target.id === "player" ? "you" : "foe"}:${t.id}`;
     b.player.persist[key] = (b.player.persist[key] ?? 0) + 1;
@@ -313,7 +317,7 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
   if (source && source !== t && (source.items["dr_echo_charm"] ?? 0) + (source.items["fx_dr_echo_charm"] ?? 0) > 0) heal(b, source, 3, "Echoing Charm");
   if (source && source !== t && (source.items["l_codex_ruin"] ?? 0) > 0) applyStatus(b, source, t, "doom", 3, depth + 1);
 
-  const m = reactionMult(b, source);
+  const m = reactionMult(b, source, t);
   switch (id) {
     case "combustion": {
       const dmg = Math.round((st(t, "burn") + st(t, "poison")) * m);
@@ -410,7 +414,7 @@ function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, de
 export function dotMult(b: Battle, f: Fighter) {
   // The hero's Burn, Poison and Bleed tick half as hard, and Status damage bonuses count half.
   if (f !== b.player) return 0.5 * (1 + (other(b, f).dotAmp ?? 0) / 200);
-  return 1 + (other(b, f).dotAmp ?? 0) / 100;
+  return (1 + (other(b, f).dotAmp ?? 0) / 100) * faithCut(f);
 }
 
 /** Consecrated for the whole fight (it never wears off). */
@@ -448,7 +452,8 @@ export function endOfRound(b: Battle, f: Fighter) {
   }
   const regen = st(f, "regen");
   if (regen > 0) {
-    heal(b, f, regen, "Regen");
+    // Vitality: Regen heals more.
+    heal(b, f, Math.round(regen * (1 + 0.1 * (f.persist["vitRegen"] ?? 0))), "Regen");
     if (f.flags["bastion"]) f.statuses.barrier = Math.min(st(f, "barrier") + regen, 4 + 4 * (f.persist["floor"] ?? 1));
     f.statuses.regen = regen - 1;
   }

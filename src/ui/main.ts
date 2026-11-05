@@ -22,7 +22,7 @@ import { ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  sellItem, sellPrice, THROW_CAP, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
+  sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   startCrawl, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
@@ -30,8 +30,9 @@ import {
 import { fortunePips } from "../game/loot";
 import { LAYER_FLOORS } from "../game/grid";
 import { isThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
-import { MASTERY_FAMILIES, nodeRanks, passiveTree, resetTree, spendNode, TIER_STEP, tierOpen, TOTEMS, TREE_LAYERS, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmMilestones, wmNext } from "../game/longroad";
-import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, FAVOURED } from "../data/attributes";
+import { MASTERY_FAMILIES, nodeRanks, passiveTree, resetTree, spendNode, TIER_STEP, tierOpen, TOTEMS, TREE_LAYERS, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
+import { familyOpenCount } from "../game/loot";
+import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
 import { spendAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
@@ -746,7 +747,7 @@ let merSeen: unknown = null;
 const RARITY_INK: Record<string, string> = { common: "#c9c2b4", uncommon: "#6fd08c", rare: "#6cb4ff", epic: "#c890ff", legendary: "#ffa24a", crimson: "#ff5468", epic_crimson: "#ff5468", legendary_crimson: "#ff5468" };
 function stockLabel(r: Run, e: ShopEntry): { name: string; icon: string; text: string; ink: string } {
   if (e.kind === "item" && e.item) return { name: itemName(e.item), icon: "", text: "", ink: RARITY_INK[e.item.rarity] ?? "#e9d6b0" };
-  if (e.kind === "potion") return { name: "Healing Potion", icon: "🧪", text: "Heals 12 HP. Drink it from your potion drawer, in a fight or out of one.", ink: "#f08a7a" };
+  if (e.kind === "potion") return { name: "Healing Potion", icon: "🧪", text: `Heals ${r.gridMode ? CRAWL_POTION_HEAL : 12} HP. Drink it from your potion drawer, in a fight or out of one.`, ink: "#f08a7a" };
   if (e.kind === "mana") return { name: "Mana Potion", icon: "🔷", text: `Drink it in a fight to refill your mana. You can carry ${manaPotionCap(r.hero)}.`, ink: "#7ab8ff" };
   if (e.kind === "scroll") return { name: "Scroll of Revelation", icon: "📜", text: "Reveals a Legendary's hidden power.", ink: "#f0d28a" };
   if (e.kind === "throw" && e.throw) { const t = THROW_INFO[e.throw]; return { name: t.name, icon: t.icon, text: `${t.text}. Use it in a fight; you can carry ${THROW_CAP}.`, ink: "#f0b070" }; }
@@ -882,11 +883,12 @@ function campBody(o: OriginId, tab: CampTab): string {
     const open = treeOpen(meta, o);
     const t = treeOf(meta, o);
     const tal = (id: string) => getItem(id);
-    const branches = passiveTree().map(b => `<div class="tree-branch"><div class="tb-head">${b.icon} <b>${esc(b.name)}</b></div>
-      ${b.tiers.map((tier, ti) => { const tOpen = open && tierOpen(t, b, ti); return `<div class="tb-tier ${tOpen ? "" : "shut"}">${tier.map(id => {
+    // Each branch: tiers of nodes stacked from its root, joined by links; a node lights up as it's filled.
+    const branches = passiveTree().map(b => `<div class="tree-branch"><div class="tb-head">${b.icon} <b>${esc(b.name)}</b><span class="sub">${b.tiers.flat().reduce((a, id) => a + (t.spent[id] ?? 0), 0)} spent</span></div>
+      <div class="tb-tiers">${b.tiers.map((tier, ti) => { const tOpen = open && tierOpen(t, b, ti); return `${ti ? `<div class="tb-link ${tOpen ? "lit" : ""}">${!tOpen && open ? `<span class="tb-need">${ti * TIER_STEP} in ${esc(b.name)}</span>` : ""}</div>` : ""}<div class="tb-tier ${tOpen ? "" : "shut"}">${tier.map(id => {
         const d = tal(id), n = t.spent[id] ?? 0, max = nodeRanks(d);
-        return `<button class="tree-node ${n ? "has" : ""} ${n >= max ? "full" : ""}" data-node="${id}" ${open && tOpen && t.points > 0 && n < max ? "" : "disabled"} title="${esc(d.text)}"><b>${esc(d.name)}</b><span>${esc(d.text)}</span><i>${n}/${max}</i></button>`;
-      }).join("")}${ti > 0 && !tOpen && open ? `<span class="tb-need">${ti * TIER_STEP} points in ${esc(b.name)}</span>` : ""}</div>`; }).join("")}</div>`).join("");
+        return `<button class="tnode ${n ? "has" : ""} ${n >= max ? "full" : ""} ${tOpen ? "" : "shut"}" data-nodeinfo="${id}" aria-label="${esc(d.name)}"><span class="tn-orb">${esc(initials(d.name))}<i class="tn-pips">${Array.from({ length: max }, (_, k) => `<em class="${k < n ? "on" : ""}"></em>`).join("")}</i></span><span class="tn-name">${esc(d.name)}</span></button>`;
+      }).join("")}</div>`; }).join("")}</div></div>`).join("");
     const won = meta.layersBeaten?.[o] ?? 0;
     return `<p>One great tree, the same for every hero: the old talents, grown into branches. Each class puts its own points into it, and they come along on every run.</p>
       ${open ? `<div class="hall-store"><span>🌳 <b>${t.points}</b> point${t.points === 1 ? "" : "s"} to spend</span>${Object.keys(t.spent).length ? `<button class="small" data-treereset>Take every point back</button>` : ""}</div>
@@ -895,12 +897,12 @@ function campBody(o: OriginId, tab: CampTab): string {
       <div class="tree ${open ? "" : "locked"}">${branches}</div>`;
   }
   if (tab === "weapons") {
-    return `<p>Every weapon family learns from the fights you win with it, whoever holds it. Each level adds a little damage with that family, and levels 5 and 10 give it something more.</p>
+    return `<p>Every weapon family learns from the fights you win with it, whoever holds it. The more you master a family, the more of its weapons turn up in your loot: a few at first, all of them at mastery ${WM_MAX}.</p>
       <div class="hall-list">${MASTERY_FAMILIES.map(fam => {
         const xp = meta.weaponXp?.[fam] ?? 0, lv = wmLevel(xp), next = wmNext(lv), prev = lv ? wmNext(lv - 1) : 0;
         const pct = lv >= WM_MAX ? 100 : Math.round(((xp - prev) / Math.max(1, next - prev)) * 100);
-        const pk = WM_PERK[fam];
-        return `<div class="hall-up ${lv >= WM_MAX ? "done" : ""}"><span class="hu-ic">${lv}</span><span class="hu-txt"><b>${esc(pk.name)}</b><span>+${2 * lv}% damage · at 5 and 10: ${esc(pk.perk)}${wmMilestones(lv) ? ` (×${wmMilestones(lv)})` : ""}</span><span class="wm-bar"><i style="width:${pct}%"></i></span></span></div>`;
+        const c = familyOpenCount(fam, lv), c2 = familyOpenCount(fam, lv + 1);
+        return `<div class="hall-up ${lv >= WM_MAX ? "done" : ""}"><span class="hu-ic">${lv}</span><span class="hu-txt"><b>${esc(WM_PERK[fam].name)}</b><span>${c.open} of ${c.total} weapons in your loot${lv < WM_MAX && c2.open > c.open ? ` · next level: ${c2.open}` : ""}</span><span class="wm-bar"><i style="width:${pct}%"></i></span></span></div>`;
       }).join("")}</div>`;
   }
   if (tab === "knowledge") {
@@ -930,6 +932,28 @@ function campBody(o: OriginId, tab: CampTab): string {
 }
 
 /** The Camp: where you get ready between runs. Each option is an archway that fills the screen; slide (or tap the glowing arrows) to the next. */
+/** Two letters for a tree node's orb. */
+const initials = (name: string) => name.replace(/[^A-Za-z ]/g, "").split(/\s+/).filter(w => w.length > 2).slice(0, 2).map(w => w[0].toUpperCase()).join("") || name.slice(0, 2).toUpperCase();
+/** The node open in its popup (the Passive Tree). */
+let treeNode: string | null = null;
+function treeNodePopup(o: OriginId) {
+  const id = treeNode!;
+  const d = getItem(id), t = treeOf(meta, o), n = t.spent[id] ?? 0, max = nodeRanks(d);
+  const b = passiveTree().find(br => br.tiers.some(ti => ti.includes(id)))!;
+  const tier = b.tiers.findIndex(ti => ti.includes(id));
+  const open = treeOpen(meta, o), tOpen = open && tierOpen(t, b, tier);
+  const why = !open ? `The ${ORIGINS[o].name}'s tree opens once it has beaten layer ${TREE_LAYERS}.` : !tOpen ? `Spend ${tier * TIER_STEP} points lower in ${b.name} first.` : n >= max ? "This node is full." : t.points <= 0 ? "No points to spend." : "";
+  return `<div class="overlay popup-wrap"><div class="popup tree-pop">
+    <button class="small closex closebtn" data-closenode aria-label="Close">✕</button>
+    <div class="tp-orb ${n ? "has" : ""}">${esc(initials(d.name))}</div>
+    <h2 class="center">${esc(d.name)}</h2>
+    <p class="center sub">${b.icon} ${esc(b.name)} · tier ${tier + 1} · ${n}/${max}</p>
+    <div class="panel"><p>${esc(d.text)}</p>${max > 1 ? `<p class="sub">Each point is a rank: ${max} in all.</p>` : ""}</div>
+    ${why ? `<p class="sub center">${esc(why)}</p>` : ""}
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="primary" data-node="${id}" ${why ? "disabled" : ""}>＋ Add a point${open ? ` (${t.points} left)` : ""}</button><button data-closenode>Close</button></div>
+  </div></div>`;
+}
+
 function campScreen(o: OriginId) {
   const og = ORIGINS[o];
   const slides = CAMP_TABS.map(t => {
@@ -1033,7 +1057,8 @@ function crawlScreen(r: Run, msg: string[], bad: boolean) {
     ${msg.length ? `<div class="cz cz-toasts">${msg.map((x, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(x)}</div>`).join("")}</div>` : ""}
     ${pick}
     <div class="cz cz-bl">${potionCircle(r)}</div>
-    <div class="cz cz-br"><button class="cz-menu" data-menu aria-label="Menu">☰</button>${bagCircle(r)}</div>
+    <div class="cz cz-bc"><button class="cz-menu" data-menu aria-label="Menu">☰</button></div>
+    <div class="cz cz-br">${bagCircle(r)}</div>
   </div>`;
 }
 
@@ -1901,13 +1926,15 @@ function crawlBag(r: Run) {
       </div>
       <div class="mer-panel inv-pack"><div class="mer-label">Backpack ${h.backpack.length}/${packSize(h)}</div><div class="mer-list">${pack || `<span class="mer-none">Empty.</span>`}</div></div>`;
   } else if (bagTab === "attrs") {
-    const fav = FAVOURED[h.origin as keyof typeof FAVOURED] ?? [];
+    const baseA = BASE_ATTR[h.origin as keyof typeof BASE_ATTR];
     const rows = ATTRS.map(a => {
-      const info = ATTR_INFO[a], n = h.attrs?.[a] ?? 0, isFav = fav.includes(a);
-      const now = info.lines(attrPower(n, isFav)), next = info.lines(attrPower(n + 1, isFav));
+      const info = ATTR_INFO[a], n = h.attrs?.[a] ?? 0, isFav = baseA === a;
+      // The class's base attribute also adds a point of base Damage each.
+      const now = [...info.lines(attrPower(n)), ...(isFav ? [`+${n} base Damage (your class's attribute)`] : [])];
+      const next = [...info.lines(attrPower(n + 1)), ...(isFav ? [`+${n + 1} base Damage (your class's attribute)`] : [])];
       const lines = now.map((l, i) => `<li class="${l !== next[i] ? "grows" : ""}"><span>${esc(l)}</span>${l !== next[i] && pts ? `<i>→ ${esc(/[+−-]?\d+%?/.exec(next[i])?.[0] ?? next[i])}</i>` : ""}</li>`).join("");
       return `<div class="attr-row ${n ? "has" : ""}">
-        <div class="attr-head"><span class="attr-ic">${info.icon}</span><b>${info.name}</b>${isFav ? `<span class="attr-fav" title="Your class leans this way: its passives are half as strong again">★ ${esc(ORIGINS[h.origin].name)}</span>` : ""}<span class="grow"></span><span class="attr-n">${n}</span>
+        <div class="attr-head"><span class="attr-ic">${info.icon}</span><b>${info.name}</b>${isFav ? `<span class="attr-fav" title="Your class's base attribute: every point also adds +1 base Damage">★ ${esc(ORIGINS[h.origin].name)}</span>` : ""}<span class="grow"></span><span class="attr-n">${n}</span>
           <button class="attr-plus" data-attr="${a}" ${pts && n < ATTR_MAX && !inCombat ? "" : "disabled"} aria-label="Put a point into ${info.name}">+</button></div>
         <p class="attr-blurb">${esc(info.blurb)}</p><ul class="attr-lines">${lines}</ul></div>`;
     }).join("");
@@ -2580,7 +2607,7 @@ function render2() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title");
   if (!run) {
-    app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${treeNode ? treeNodePopup(camp) : ""}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     if (camp) mountCamp();
     return;
@@ -3003,6 +3030,8 @@ function bind() {
     on("[data-bottle]", () => { if (!brew) return; bottle(meta, brew); saveMeta(meta); sfx(brew.made ? "chest" : "miss"); });
     on("[data-skillpick]", el => { if (!camp) return; meta.skillPick = { ...(meta.skillPick ?? {}), [camp]: el.dataset.skillpick! }; saveMeta(meta); sfx("status"); });
     on("[data-node]", el => { if (!camp) return; const err = spendNode(meta, camp, el.dataset.node!); if (err) say(err); else { saveMeta(meta); sfx("equip"); } });
+    on("[data-nodeinfo]", el => { treeNode = el.dataset.nodeinfo!; });
+    on("[data-closenode]", () => { treeNode = null; });
     on("[data-treereset]", () => { if (!camp) return; resetTree(meta, camp); saveMeta(meta); });
     on("[data-totem]", el => { const id = el.dataset.totem!; meta.totemSet = meta.totemSet === id ? undefined : id; saveMeta(meta); });
     on("[data-hallbuy]", el => { const err = buyHall(meta, el.dataset.hallbuy!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });

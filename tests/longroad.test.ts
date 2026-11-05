@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
 import { applyHall } from "../src/game/camp";
-import { recompute } from "../src/game/hero";
 import { passiveTree, spendNode, TREE_LAYERS, treeOf, treePointsFor, wmLevel } from "../src/game/longroad";
 import { bankLongRoad, type Meta } from "../src/game/meta";
+import { familyOpenCount } from "../src/game/loot";
 import { newRun, startCrawl } from "../src/game/run";
 
 beforeAll(() => loadLibrary());
@@ -41,16 +41,18 @@ describe("the passive tree", () => {
 });
 
 describe("weapon mastery and totems", () => {
-  it("fights won teach the weapon family; its level adds damage", () => {
+  it("fights won teach the weapon family; mastery opens more of its weapons to your loot", () => {
     const m = meta();
     const r = newRun("warrior", 4); startCrawl(r);
     r.hero.f.persist["wmx_shortblade"] = 25;
     bankLongRoad(m, r);
     expect(wmLevel(m.weaponXp!.shortblade!)).toBe(2);
+    const a = familyOpenCount("shortblade", 0), b = familyOpenCount("shortblade", 10);
+    expect(a.open).toBeLessThan(b.open);
+    expect(b.open).toBe(b.total);
     const r2 = newRun("warrior", 5); startCrawl(r2);
-    const before = r2.hero.f.dmgDealt ?? 0;
-    applyHall(m, r2); recompute(r2.hero);
-    expect((r2.hero.f.dmgDealt ?? 0) - before).toBe(4);
+    applyHall(m, r2);
+    expect(r2.hero.f.persist["wm_shortblade"]).toBe(2);
   });
   it("a totem set at the door is used up going in", () => {
     const m = meta(); m.totems = { giant: 1 }; m.totemSet = "giant";

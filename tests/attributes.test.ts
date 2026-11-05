@@ -21,20 +21,22 @@ describe("attributes", () => {
     const h = r.hero;
     expect(spendAttr(h, "str")).toMatch(/No points/);
     h.attrPoints = 4;
-    const dmg = h.f.damage, hp = h.f.maxHp, gold = goldMult(r);
-    spendAttr(h, "str"); spendAttr(h, "vit"); spendAttr(h, "for");
-    expect(h.f.damage).toBe(dmg + 1);
+    const dmg = h.f.damage, hp = h.f.maxHp, gold = goldMult(r), crit = h.f.critChance ?? 0;
+    spendAttr(h, "str"); spendAttr(h, "agi"); spendAttr(h, "for");
     expect(h.f.maxHp).toBe(hp + 4);
     expect(h.f.hp).toBe(h.f.maxHp);
+    expect(h.f.damage).toBe(dmg);
+    expect(h.f.critChance ?? 0).toBeGreaterThan(crit);
     expect(goldMult(r)).toBeGreaterThan(gold);
     expect(h.attrPoints).toBe(1);
   });
-  it("a class's favoured attribute is half as strong again", () => {
+  it("a class's base attribute raises its base Damage", () => {
     const r = newRun("mage", 8); startCrawl(r);
-    r.hero.attrs = { int: 4, str: 4 };
+    const dmg = r.hero.f.damage;
+    r.hero.attrs = { int: 3, str: 3 };
     recompute(r.hero);
-    expect(attrOf(r.hero, "int")).toBe(6);
-    expect(attrOf(r.hero, "str")).toBe(4);
+    expect(r.hero.f.damage).toBe(dmg + 3);
+    expect(attrOf(r.hero, "int")).toBe(3);
   });
   it(`each level is worth ${ATTR_PER_LEVEL} points`, () => expect(ATTR_PER_LEVEL).toBe(2));
 });

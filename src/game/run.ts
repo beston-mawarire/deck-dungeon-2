@@ -629,6 +629,8 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   // (The Merchant stays put once met, so it stands out in a hall where it can't block a way through.)
   for (const [room, d] of Object.entries(plan) as [RoomType, number][]) if (d === depth) { if (room === "shop") putInHall(room); else pois.push(room); }
   if (Object.keys(run.hero.curses).length > 0 && !run.seenBosses.has(`cleanse:${run.floor}`)) { run.seenBosses.add(`cleanse:${run.floor}`); pois.push("cleansing"); }
+  // Faith: while you carry a curse, altars that lift curses turn up more often (another on later floors).
+  else if (Object.keys(run.hero.curses).length > 0 && rng() < Math.min(0.6, 0.06 * attrOf(run.hero, "fai"))) pois.push("cleansing");
   const lw = roomWeights(run, false);
   const marks = Object.fromEntries(LANDMARKS.map(k => [k, lw[k] ?? 0]).filter(([, v]) => (v as number) > 0)) as Partial<Record<RoomType, number>>;
   // Blood Oaths: a Crawl landmark of their own.
@@ -1426,7 +1428,8 @@ export function drinkPotion(run: Run): string | null {
   const free = inFight && drunk === 0 && (h.f.items["lo_chalice_plenty"] ?? 0) > 0;
   if (!free) h.potions--;
   if (inFight) h.f.flags["potionsDrunk"] = drunk + 1;
-  let amount = h.f.items["l_bottomless"] ? Math.ceil(h.f.maxHp / 2) : 12;
+  // Healing is scarce in the Crawl: a potion heals less there.
+  let amount = h.f.items["l_bottomless"] ? Math.ceil(h.f.maxHp / 2) : run.gridMode ? CRAWL_POTION_HEAL : 12;
   if (h.f.items["pc_apothecary_ring"]) amount += 4;
   if (h.f.items["pc_spare_vial"]) amount += 3;
   if (h.f.items["pc_alchemist_coat"]) amount = Math.round(amount * 1.25);
@@ -2096,7 +2099,9 @@ export function forgeReroll(run: Run, uid: number): string | null {
 }
 
 /** Campfire heal: 40% of Max HP (half that while Restless). */
-export const restPct = (h: Hero) => ((h.curses["c_restless"] ?? 0) > 0 ? 0.2 : 0.4);
+/** Healing is scarce in the Crawl: potions and campfires heal less there. */
+export const CRAWL_POTION_HEAL = 8;
+export const restPct = (h: Hero) => ((h.curses["c_restless"] ?? 0) > 0 ? 0.2 : h.f.persist["classLoot"] ? 0.3 : 0.4);
 export function rest(run: Run, _choice: "heal" = "heal"): string | null {
   const h = run.hero;
   if (run.scene.t !== "rest" || run.scene.done) return null;
