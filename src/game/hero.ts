@@ -11,6 +11,7 @@ import { ORIGINS } from "../data/origins";
 import { genHooks, genLines, GRADE_MARK, genTopGrade, GEN_MODULE_MAP, modValue } from "./gen";
 import { SIGIL_SETS } from "../data/talisman";
 import { PLAIN_FACES } from "../engine/combat";
+import { ATTR_MAX, ATTRS, attrPower, type Attr, FAVOURED } from "../data/attributes";
 import { eachHook, getItem } from "../engine/registry";
 import type { Fighter, GearBase, GearItem, OriginId, Rarity, Slot, StatBlock } from "../engine/types";
 
@@ -79,6 +80,9 @@ export interface Hero {
   skill?: string;
   /** Extra Backpack slots (the Hall). */
   packBonus?: number;
+  /** The Crawl: points put into each attribute this run, and points not yet spent. */
+  attrs?: Partial<Record<Attr, number>>;
+  attrPoints?: number;
   /** The Alchemist's combat tonics, by id. */
   tonics?: Record<string, number>;
   scrolls: number;
@@ -220,6 +224,21 @@ export function canGuard(h: Hero): boolean {
 }
 
 /** Rebuild the Fighter's stats and hook sources from everything the hero has. */
+/** An attribute's power: its points, and half as much again if your class favours it. */
+export const attrOf = (h: Hero, a: Attr) => attrPower(h.attrs?.[a] ?? 0, (FAVOURED[h.origin as keyof typeof FAVOURED] ?? []).includes(a));
+/** Spend an unspent point on an attribute. Returns an error, or null. */
+export function spendAttr(h: Hero, a: Attr): string | null {
+  if ((h.attrPoints ?? 0) <= 0) return "No points to spend. Level up to earn more.";
+  if ((h.attrs?.[a] ?? 0) >= ATTR_MAX) return "That's as far as it goes this run.";
+  h.attrs = { ...(h.attrs ?? {}), [a]: (h.attrs?.[a] ?? 0) + 1 };
+  h.attrPoints = (h.attrPoints ?? 0) - 1;
+  const before = h.f.maxHp;
+  recompute(h);
+  // New Max HP from Vitality comes filled.
+  if (h.f.maxHp > before) h.f.hp += h.f.maxHp - before;
+  return null;
+}
+
 export function recompute(h: Hero) {
   // Older saves held the Crucible as a relic: it's an artefact now.
   if (h.relics["transmuter"]) { delete h.relics["transmuter"]; h.crucible = true; }
@@ -239,6 +258,8 @@ export function recompute(h: Hero) {
   f.persist["curseCount"] = curseCount;
   if (curseCount > 0) f.persist["everCursed"] = 1;
   if (h.keepsake) add(h.keepsake);
+  // Attributes (the Crawl): each one's passives, at their power.
+  for (const a of ATTRS) { const n = attrOf(h, a); if (n > 0) add(`attr_${a}`, n); }
   if (!hasThirdTrinket(h) && h.equip.trinket3) { h.backpack.push(h.equip.trinket3); delete h.equip.trinket3; }
 
   const s: StatBlock = { maxHp: o.hp, armor: 0, damage: 1, offDamage: 0, dodge: 0, bash: 0, spellAmp: 0, critChance: 0, critDmg: 0, dotAmp: 0, dmgDealt: 0, dmgTaken: 0 };

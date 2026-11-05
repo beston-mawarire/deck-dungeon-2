@@ -8,7 +8,7 @@ import { CROSSROADS_GUISES, crossroadsEvent, EVENTS, type GameEvent } from "../d
 import { FUSION_RECIPES } from "../data/fusions";
 import { findRecipe, TRINKET_RECIPES } from "../data/jeweller";
 import { ELITE_ONLY, MONSTERS, makeDragon, makeGoblin, makeMonster, makeNemesis, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
-import { type Action, actionToll, BLESSINGS, isUnholy, playRound, startBattle, THROW_INFO, THROWS, type Throw } from "../engine/combat";
+import { type Action, actionToll, BLESSINGS, BREWED_THROWS, isUnholy, playRound, startBattle, THROW_INFO, THROWS, type Throw } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
 import { applyStatus, heal as healF } from "../engine/statuses";
@@ -16,7 +16,7 @@ import type { Battle, Fighter, GearItem, OriginId, Rarity } from "../engine/type
 import { RARITIES } from "../engine/types";
 import { autoBattleWins } from "./auto";
 import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
-import { type EquipSlot, type Sigil, SIGIL_BAG_SIZE, sigilSlots, removeItem, gainPotions, potionCap, potionsPerFight, manaPotionCap, gainManaPotions, addToBackpack, canGuard, EQUIP_SLOTS, itemName, packSize, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { attrOf, type EquipSlot, type Sigil, SIGIL_BAG_SIZE, sigilSlots, removeItem, gainPotions, potionCap, potionsPerFight, manaPotionCap, gainManaPotions, addToBackpack, canGuard, EQUIP_SLOTS, itemName, packSize, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { abyssMod, heatOf } from "./progress";
 import { generate, genName, setGenLuck } from "./gen";
 import { GEN_MINORS } from "../data/genparts";
@@ -25,6 +25,7 @@ const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(b
 import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 import { affixById, rescaleAffixes } from "./affixpool";
 import { MATS, matOfFamily, PLANTS, type Mat, type Plant } from "./camp";
+import { ATTR_PER_LEVEL } from "../data/attributes";
 import { type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, type Hazard, idx, isFloor, isSeenTile, LAYER_FLOORS, layerOf, look, POOL_STEPS, SPIKE_DMG, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -775,10 +776,12 @@ function placeHazards(run: Run, m: FloorMap, rng: () => number, depth: number, s
 export function hazardStep(run: Run): number {
   const m = run.grid!, h = run.hero;
   let dmg = 0;
+  // Vitality: every three points, spikes bite one less and pools burn one step shorter.
+  const tough = Math.floor(attrOf(h, "vit") / 3);
   if (m.burn && m.burn > 0) { dmg += 1; m.burn--; if (!m.burn) m.burnKind = undefined; }
   const hz = m.haz?.[idx(m, m.px, m.py)];
-  if (hz === "spike") dmg += SPIKE_DMG;
-  else if (hz === "lava" || hz === "sludge") { m.burn = POOL_STEPS; m.burnKind = hz; }
+  if (hz === "spike") dmg += Math.max(1, SPIKE_DMG - tough);
+  else if (hz === "lava" || hz === "sludge") { m.burn = Math.max(1, POOL_STEPS - tough); m.burnKind = hz; }
   if (!dmg) return 0;
   const was = h.f.hp;
   h.f.hp = Math.max(1, h.f.hp - dmg);
@@ -887,14 +890,16 @@ function gridMeet(run: Run, t: number, seen: number[]): { ok: true; entered: boo
 
 /** Bombs, Vile Brews and Smoke Bombs: bought, or found in urns and chests. You carry up to three of each. */
 export const THROW_CAP = 3;
-export const THROW_PRICE: Record<Throw, number> = { t_bomb: 28, t_brew: 22, t_smoke: 30 };
+export const THROW_PRICE: Record<Throw, number> = { t_bomb: 28, t_fire: 24, t_frost: 24, t_knives: 20, t_holy: 22, t_net: 32, t_smoke: 30, t_brew: 0 };
+/** What can be bought or found (the Blightcap Brew only comes from the Camp's Brewery). */
+const FINDABLE_THROWS = THROWS.filter(t => !BREWED_THROWS.includes(t));
 export function gainThrow(run: Run, t: Throw): boolean {
   const p = run.hero.f.persist, k = THROW_INFO[t].key;
   if ((p[k] ?? 0) >= THROW_CAP) return false;
   p[k] = (p[k] ?? 0) + 1;
   return true;
 }
-const randomThrow = (run: Run): Throw => THROWS[Math.floor(run.rng() * THROWS.length)];
+const randomThrow = (run: Run): Throw => FINDABLE_THROWS[Math.floor(run.rng() * FINDABLE_THROWS.length)];
 
 /** Something for the Camp: a material (and how many), or Crown Shards. */
 export function campGain(run: Run, mat: Mat | null, n: number, crowns = 0, scrolls = 0) {
@@ -904,9 +909,10 @@ export function campGain(run: Run, mat: Mat | null, n: number, crowns = 0, scrol
   l.crowns += crowns;
 }
 
-/** A seed for the Camp's Garden (Heartleaf more often than Moonbell). */
+/** A seed for the Camp's Garden (Heartleaf most often, then Moonbell, then Blightcap). */
 export function seedDrop(run: Run): Plant {
-  const pl: Plant = run.rng() < 0.65 ? "heartleaf" : "moonbell";
+  const x = run.rng();
+  const pl: Plant = x < 0.55 ? "heartleaf" : x < 0.8 ? "moonbell" : "blightcap";
   const l = (run.campLoot ??= { crowns: 0, mats: {} });
   (l.seeds ??= {})[pl] = (l.seeds[pl] ?? 0) + 1;
   return pl;
@@ -1789,13 +1795,19 @@ export function randomRelic(run: Run, quality = 1): string {
   return pool[0].id;
 }
 
-function gainXp(run: Run, n: number) {
+export function gainXp(run: Run, n: number) {
   const h = run.hero;
   h.xp += n;
   while (h.xp >= xpToLevel(h.level)) {
     h.xp -= xpToLevel(h.level);
     h.level++;
-    run.pendingTalents++;
+    // The Crawl: attribute points instead of talents.
+    if (run.gridMode) {
+      h.attrPoints = (h.attrPoints ?? 0) + ATTR_PER_LEVEL;
+      recompute(h);
+      h.f.hp = Math.min(h.f.maxHp, h.f.hp + 3);
+      run.popup = { icon: "⭐", title: `Level ${h.level}!`, text: `+3 Max HP, and ${ATTR_PER_LEVEL} attribute points to spend. Open your inventory's Attributes tab to put them to use.` };
+    } else run.pendingTalents++;
   }
 }
 
@@ -1898,7 +1910,7 @@ function shopStock(run: Run): ShopEntry[] {
   if (run.rng() < 0.12) stock.push({ kind: "scroll", price: Math.round(100 * shopMult(run)) });
   // The Crawl's Merchants also sell something to throw (one or two kinds).
   if (run.gridMode) {
-    const kinds = [...THROWS].sort(() => run.rng() - 0.5).slice(0, run.rng() < 0.5 ? 2 : 1);
+    const kinds = [...FINDABLE_THROWS].sort(() => run.rng() - 0.5).slice(0, run.rng() < 0.5 ? 3 : 2);
     for (const t of kinds) stock.push({ kind: "throw", throw: t, price: Math.round(THROW_PRICE[t] * shopMult(run)) });
   }
   return stock;
@@ -1969,7 +1981,7 @@ function rollTransformation(run: Run): boolean {
 /** The Merchant sizes up your purse: +1% per 5 Gold you carry, up to +75%. */
 export const wealthMult = (run: Run) => 1 + Math.min(0.75, Math.max(0, run.hero.f.gold) / 500);
 /** Shop prices: floor and curses (priceMult) times what the Merchant thinks you can afford. */
-export const shopMult = (run: Run) => priceMult(run) * wealthMult(run);
+export const shopMult = (run: Run) => priceMult(run) * wealthMult(run) * (1 - Math.min(0.2, 0.02 * attrOf(run.hero, "for")));
 
 export const priceMult = (run: Run) => (run.hero.f.persist["ins_ledger"] ? 0.9 : 1) * (1 + 0.12 * (run.floor - 1)) * gouge(run.hero) * (heatOf(run) >= 2 ? 1.3 : 1) * (run.mode === "abyss" ? ABYSS_PRICE_MULT : 1);
 /** Each reroll at the same Merchant costs triple the last (from 15 Gold, scaled by the floor), up to 5 rerolls per visit. */
@@ -2651,10 +2663,10 @@ export function grantRelic(run: Run, id: string) {
 }
 
 /** Heat 2+: less Gold from everything (fights, chests, events, sales). */
-export const goldMult = (run: Run) => (heatOf(run) >= 2 ? 0.5 : 1);
+export const goldMult = (run: Run) => (heatOf(run) >= 2 ? 0.5 : 1) * (1 + 0.06 * attrOf(run.hero, "for"));
 
 /** Base luck for generated gear: the Abyss doubles it, every Heat level adds a little. */
-const genLuck = (run: Run) => (run.mode === "abyss" ? 2 : 1) * (1 + 0.15 * heatOf(run));
+const genLuck = (run: Run) => (run.mode === "abyss" ? 2 : 1) * (1 + 0.15 * heatOf(run)) * (1 + 0.04 * attrOf(run.hero, "for"));
 
 /** A relic reward: sometimes a choice of two instead (the player picks one). */
 function offerRelic(run: Run, relic: string, chance: number, quality = 2) {

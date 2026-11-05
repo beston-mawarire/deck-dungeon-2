@@ -24,7 +24,7 @@ it("balance probe", () => {
   }
   console.log("DEATHS", JSON.stringify(deaths));
   console.log("BALANCE", JSON.stringify(Object.fromEntries(Object.entries(res).map(([k, v]) => [k, { win: Math.round((100 * v.w) / v.n) + "%", avgFloor: (v.floors / v.n).toFixed(2) }]))));
-});
+}, 60000);
 
 // "Lucky runs": no odds are changed. We play many real runs and look at the luckiest 10% of them
 // (the ones that got furthest), to see whether a lucky run can win and how often.

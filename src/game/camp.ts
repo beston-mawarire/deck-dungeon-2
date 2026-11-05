@@ -14,18 +14,22 @@ export const MATS: Record<Mat, { name: string; icon: string; family: string }> =
 export const matOfFamily = (family?: string): Mat | undefined => (Object.keys(MATS) as Mat[]).find(k => MATS[k].family === family);
 
 /** Seeds found below grow into herbs in the Garden; herbs become potions in the Brewery. */
-export type Plant = "heartleaf" | "moonbell";
-export const PLANTS: Record<Plant, { name: string; seed: string; icon: string; seedIcon: string; brew: "heal" | "mana"; runs: number }> = {
+export type Plant = "heartleaf" | "moonbell" | "blightcap";
+export type BrewKind = "heal" | "mana" | "vile";
+export const PLANTS: Record<Plant, { name: string; seed: string; icon: string; seedIcon: string; brew: BrewKind; runs: number }> = {
   heartleaf: { name: "Heartleaf", seed: "Heartleaf Seed", icon: "🌿", seedIcon: "🌰", brew: "heal", runs: 1 },
-  moonbell: { name: "Moonbell", seed: "Moonbell Seed", icon: "🪻", seedIcon: "🫘", brew: "mana", runs: 2 }
+  moonbell: { name: "Moonbell", seed: "Moonbell Seed", icon: "🪻", seedIcon: "🫘", brew: "mana", runs: 2 },
+  blightcap: { name: "Blightcap", seed: "Blightcap Spores", icon: "🍄", seedIcon: "🍂", brew: "vile", runs: 2 }
 };
+/** What each brew is called once bottled. */
+export const BREW_NAME: Record<BrewKind, string> = { heal: "Healing Potion", mana: "Mana Potion", vile: "Blightcap Brew" };
 export interface Plot { plant: Plant; left: number }
 export interface CampStore {
   crowns: number; mats: Partial<Record<Mat, number>>; hall: Record<string, number>;
   seeds?: Partial<Record<Plant, number>>; herbs?: Partial<Record<Plant, number>>;
   /** Garden plots (null = empty), and potions brewed and waiting to be taken on the next run. */
   plots?: (Plot | null)[];
-  brews?: { heal: number; mana: number };
+  brews?: { heal: number; mana: number; vile?: number };
   /** Scrolls of Knowledge carried home, and the insights learned from them at the Knowledge Table. */
   scrolls?: number;
   insights?: Record<string, number>;
@@ -79,7 +83,9 @@ export function applyHall(m: Meta, run: Run) {
   if (c.brews) {
     h.potions += c.brews.heal;
     h.manaPotions = (h.manaPotions ?? 0) + c.brews.mana;
-    c.brews = { heal: 0, mana: 0 };
+    // Blightcap Brews go along to be thrown.
+    if (c.brews.vile) h.f.persist["c_brew"] = (h.f.persist["c_brew"] ?? 0) + c.brews.vile;
+    c.brews = { heal: 0, mana: 0, vile: 0 };
   }
   for (const p of gardenPlots(m)) if (p && p.left > 0) p.left--;
   // What the Knowledge Table has taught.
@@ -166,7 +172,7 @@ export function bottle(m: Meta, b: Brew) {
   const c = campOf(m);
   const k = PLANTS[b.plant].brew;
   c.brews = c.brews ?? { heal: 0, mana: 0 };
-  c.brews[k] += b.made;
+  c.brews[k] = (c.brews[k] ?? 0) + b.made;
 }
 
 // ---------- The Knowledge Table ----------

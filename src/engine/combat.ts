@@ -751,14 +751,21 @@ function checkOver(b: Battle) {
 /** Attack, Guard (needs a shield), Flee, and one action per class. */
 export type Action = "attack" | "guard" | "flee" | Throw | Skill;
 /** Things you throw in a fight (carried in the hero's persist as c_bomb, c_brew, c_smoke). */
-export const THROWS = ["t_bomb", "t_brew", "t_smoke"] as const;
+export const THROWS = ["t_bomb", "t_fire", "t_frost", "t_knives", "t_holy", "t_net", "t_smoke", "t_brew"] as const;
 export type Throw = (typeof THROWS)[number];
 export const isThrow = (a: string): a is Throw => (THROWS as readonly string[]).includes(a);
 export const THROW_INFO: Record<Throw, { key: string; name: string; short: string; icon: string; text: string }> = {
   t_bomb: { key: "c_bomb", name: "Bomb", short: "Bomb", icon: "💣", text: "Blast the foe for damage that ignores Armor (more on deeper layers)" },
-  t_brew: { key: "c_brew", name: "Vile Brew", short: "Brew", icon: "🧪", text: "Throw a harmful brew: Poison and Weak" },
-  t_smoke: { key: "c_smoke", name: "Smoke Bomb", short: "Smoke", icon: "💨", text: "Blind the foe, and you can flee this fight without being hit (even from an Elite)" }
+  t_fire: { key: "c_fire", name: "Fire Flask", short: "Fire", icon: "🔥", text: "Douse the foe in burning oil: heavy Burn" },
+  t_frost: { key: "c_frost", name: "Frost Flask", short: "Frost", icon: "❄️", text: "Shatter it on the foe: Chill and Soaked" },
+  t_knives: { key: "c_knives", name: "Throwing Knives", short: "Knives", icon: "🔪", text: "Three quick throws (Armor still counts against each)" },
+  t_holy: { key: "c_holy", name: "Holy Water", short: "Holy", icon: "💧", text: "Burns the Unholy badly; anything else is left Weak" },
+  t_net: { key: "c_net", name: "Weighted Net", short: "Net", icon: "🕸️", text: "Tangle the foe: it loses its next turn" },
+  t_smoke: { key: "c_smoke", name: "Smoke Bomb", short: "Smoke", icon: "💨", text: "Blind the foe, and you can flee this fight without being hit (even from an Elite)" },
+  t_brew: { key: "c_brew", name: "Blightcap Brew", short: "Brew", icon: "🍄", text: "Brewed at the Camp from Blightcap: Poison and Weak" }
 };
+/** Throws that are only ever brewed at the Camp (never bought or found). */
+export const BREWED_THROWS: Throw[] = ["t_brew"];
 /** How hard a Bomb hits on a layer. */
 export const bombDamage = (floor: number) => 6 + 4 * Math.max(1, floor);
 
@@ -774,10 +781,39 @@ function throwIt(b: Battle, t: Throw) {
     fx(b, { who: "player", kind: "text", text: "Bomb!", icon: "💣" });
     fx(b, { who: "enemy", kind: "dmg", value: lost });
   } else if (t === "t_brew") {
-    applyStatus(b, p, e, "poison", 3 + floor);
+    applyStatus(b, p, e, "poison", 4 + floor);
     applyStatus(b, p, e, "weak", 2);
-    log(b, `${p.name} hurls a Vile Brew. It splashes and hisses.`);
-    fx(b, { who: "player", kind: "text", text: "Vile Brew", icon: "🧪" });
+    log(b, `${p.name} hurls a Blightcap Brew. It splashes and hisses.`);
+    fx(b, { who: "player", kind: "text", text: "Blightcap Brew", icon: "🍄" });
+  } else if (t === "t_fire") {
+    applyStatus(b, p, e, "burn", 3 + floor);
+    log(b, `${p.name} throws a Fire Flask. Flames lick over ${e.name}.`);
+    fx(b, { who: "player", kind: "text", text: "Fire Flask", icon: "🔥" });
+  } else if (t === "t_frost") {
+    applyStatus(b, p, e, "chill", 3);
+    applyStatus(b, p, e, "soaked", 2);
+    log(b, `${p.name} throws a Frost Flask. Ice crackles over ${e.name}.`);
+    fx(b, { who: "player", kind: "text", text: "Frost Flask", icon: "❄️" });
+  } else if (t === "t_knives") {
+    let total = 0;
+    for (let k = 0; k < 3 && e.hp > 0; k++) total += loseHp(b, e, Math.max(1, 2 + floor - armorOf(e)));
+    log(b, `${p.name} throws three knives: ${e.name} takes ${total}.`);
+    fx(b, { who: "player", kind: "text", text: "Throwing Knives", icon: "🔪" });
+    fx(b, { who: "enemy", kind: "dmg", value: total });
+  } else if (t === "t_holy") {
+    if (isUnholy(e)) {
+      const lost = loseHp(b, e, Math.round(bombDamage(floor) * 1.5));
+      log(b, `${p.name} splashes Holy Water. ${e.name} shrieks and smokes: ${lost}.`);
+      fx(b, { who: "enemy", kind: "dmg", value: lost });
+    } else {
+      applyStatus(b, p, e, "weak", 3);
+      log(b, `${p.name} splashes Holy Water. ${e.name} flinches.`);
+    }
+    fx(b, { who: "player", kind: "text", text: "Holy Water", icon: "💧" });
+  } else if (t === "t_net") {
+    applyStatus(b, p, e, "stun", 1);
+    log(b, `${p.name} throws a Weighted Net over ${e.name}.`);
+    fx(b, { who: "player", kind: "text", text: "Net!", icon: "🕸️" });
   } else {
     applyStatus(b, p, e, "blind", 2);
     p.flags["smoke"] = 1;

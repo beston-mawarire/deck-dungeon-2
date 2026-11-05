@@ -29,10 +29,11 @@ import {
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { LAYER_FLOORS } from "../game/grid";
-import { isThrow, MANA_MAX, THROW_INFO } from "../engine/combat";
+import { isThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
+import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, FAVOURED } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml } from "./sprites";
-import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
+import { spendAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
 import { INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
@@ -108,7 +109,7 @@ let menuOpen = false;
 /** The current-bounty popup. */
 let bountyOpen = false;
 /** Which Inventory tab is open. */
-type BagTab = "gear" | "stats" | "relics" | "talents" | "extras";
+type BagTab = "gear" | "stats" | "relics" | "talents" | "extras" | "attrs";
 let bagTab: BagTab = "gear";
 let talentSub: "talents" | "curses" = "talents";
 let spoilsSub: "relics" | "artefacts" = "relics";
@@ -348,7 +349,7 @@ function itemCard(it: GearItem, buttons = "", compare: boolean | { hero: Hero; s
     <ul>${itemLines(it).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
     ${it.infused ? (() => { const t = baseOf(it.infused!); return `<div class="infused">💠 Infused: <b>${esc(t.name)}</b> — ${esc(t.legendary?.reveal ?? t.text)}</div>`; })() : ""}
     ${(it.upgrades ?? 0) > 0 ? `<div class="sub upgraded-note">⬆️ Upgraded ${it.upgrades}×</div>` : ""}
-    ${it.rarity === "common" && !b.legendary ? `<div class="sub mw-note">${it.refine ? `Refined ${"•".repeat(it.refine)} · ` : ""}Holds ${1 + (it.refine ?? 0)} line${it.refine ? "s" : ""} (${Math.max(0, 1 + (it.refine ?? 0) - Object.keys(it.bonuses).length)} free)${it.bound ? " · 🔒 Bound" : ""}</div>` : it.bound ? `<div class="sub mw-note">🔒 Bound</div>` : ""}
+    ${it.refine || it.bound ? `<div class="sub mw-note">${[it.refine ? `Refined ${"•".repeat(it.refine)}` : "", it.bound ? "🔒 Bound" : ""].filter(Boolean).join(" · ")}</div>` : ""}
     ${it.reworkLine ? `<div class="sub mw-note">⚒️ Reworked ${it.reworks ?? 0}× · only its marked line can be reworked</div>` : ""}
     ${typeof compare === "object" ? compareHtml(compare.hero, it, compare.slot) : compare && run ? compareHtml(run.hero, it) : ""}
     ${buttons ? `<div class="row">${buttons}</div>` : ""}
@@ -822,12 +823,12 @@ function campBody(o: OriginId, tab: CampTab): string {
   }
   if (tab === "brewery") {
     const c = campOf(meta), band = brewBand(meta);
-    const waiting = c.brews && (c.brews.heal || c.brews.mana) ? `<p class="camp-quest-note">Bottled and waiting for your next run: ${c.brews.heal ? `🧪 ${c.brews.heal}` : ""} ${c.brews.mana ? `🔷 ${c.brews.mana}` : ""}</p>` : "";
+    const waiting = c.brews && (c.brews.heal || c.brews.mana || c.brews.vile) ? `<p class="camp-quest-note">Bottled and waiting for your next run: ${c.brews.heal ? `🧪 ${c.brews.heal}` : ""} ${c.brews.mana ? `🔷 ${c.brews.mana}` : ""} ${c.brews.vile ? `🍄 ${c.brews.vile} Blightcap Brew${c.brews.vile > 1 ? "s" : ""} (to throw)` : ""}</p>` : "";
     if (!brew || brew.done) {
       const last = brew?.done === "spoiled" ? `<p class="brew-out bad">💥 Too hot! The brew boils over and spoils.</p>` : brew?.done === "bottled" ? `<p class="brew-out ${brew.made ? "" : "bad"}">${brew.made === 2 ? "✨ The sweet spot! Two potions." : brew.made ? "🧪 A good brew: one potion." : "🥶 Too cold: the herbs never took. Nothing to bottle."}</p>` : "";
       return `<p>Two herbs make a brew. Each stir heats the pot by a die. Bottle it between <b>${band.low}</b> and <b>${band.high}</b> for a potion, at <b>${band.sweetLo}${band.sweetHi > band.sweetLo ? `–${band.sweetHi}` : ""}</b> for two. Go past ${band.high} and it spoils.</p>
         ${last}${waiting}
-        <div class="brew-pick">${(Object.keys(PLANTS) as Plant[]).map(k => `<button class="hu-buy" data-brew="${k}" ${(c.herbs?.[k] ?? 0) >= BREW_HERBS ? "" : "disabled"}>${PLANTS[k].icon} Brew ${PLANTS[k].brew === "heal" ? "Healing" : "Mana"} · ${BREW_HERBS} ${esc(PLANTS[k].name)} (${c.herbs?.[k] ?? 0})</button>`).join("")}</div>
+        <div class="brew-pick">${(Object.keys(PLANTS) as Plant[]).map(k => `<button class="hu-buy" data-brew="${k}" ${(c.herbs?.[k] ?? 0) >= BREW_HERBS ? "" : "disabled"}>${PLANTS[k].icon} Brew ${PLANTS[k].brew === "heal" ? "Healing" : PLANTS[k].brew === "mana" ? "Mana" : "Blightcap"} · ${BREW_HERBS} ${esc(PLANTS[k].name)} (${c.herbs?.[k] ?? 0})</button>`).join("")}</div>
         <p class="sub">Brewed potions come with you on your next run.</p>`;
     }
     const pct = Math.min(100, (brew.heat / (band.high + 4)) * 100);
@@ -1611,6 +1612,7 @@ function tabSigs(r: Run): Record<BagTab, string> {
   return {
     gear: `${h.backpack.map(i => i.uid).sort((a, b) => a - b).join(",")}|${(h.sigilBag ?? []).map(x => x.uid).join(",")}`,
     stats: "",
+    attrs: String(h.attrPoints ?? 0),
     relics: `${ks(h.relics)}|${h.crucible ? 1 : 0}`,
     talents: `${ks(h.talents)}|${ks(h.curses)}`,
     extras: [h.keepsake ?? "", h.dragonHeart?.level ?? 0, (p["angelFights"] ?? 0) > 0, (p["blessFights"] ?? 0) > 0, (p["cloverChests"] ?? 0) > 0, ks(h.tonics)].join("|")
@@ -1798,8 +1800,9 @@ function crawlBag(r: Run) {
       <div class="inv-stats"><span>🪙 <b>${f.gold}</b></span><span>🧪 <b>${h.potions}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}</div>
       ${curses ? `<div class="inv-curses">${curses}</div>` : ""}
     </div>`;
-  const tabs: [BagTab, string][] = [["gear", "⚔️ Gear"], ["relics", "💎 Spoils"], ["talents", "🧿 Aspects"], ["extras", "✨ Extras"]];
-  if (bagTab === "stats") bagTab = "gear";
+  const pts = h.attrPoints ?? 0;
+  const tabs: [BagTab, string][] = [["gear", "⚔️ Gear"], ["attrs", "📈 Attributes"], ["relics", "💎 Spoils"], ["extras", "✨ Extras"]];
+  if (bagTab === "stats" || bagTab === "talents") bagTab = "gear";
   let body = "";
   if (bagTab === "gear") {
     const picked = invPick?.k === "eq" ? h.equip[invPick.slot] : invPick?.k === "bp" ? h.backpack.find(i => i.uid === (invPick as { uid: number }).uid) : undefined;
@@ -1809,7 +1812,7 @@ function crawlBag(r: Run) {
       : invPick?.k === "eq" ? itemCard(picked, inCombat ? "" : `<button class="small" data-unequip="${(invPick as { slot: EquipSlot }).slot}">Take it off</button>${revealBtn(r, picked)}`)
       : itemCard(picked, inCombat ? "" : `${slotsFor(picked, h).map(sl => `<button class="small primary" data-equip="${picked.uid}" data-slot="${sl}">Equip${slotsFor(picked, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, picked)}`, !inCombat);
     // Materials and scrolls sit in the backpack too (they take no slot).
-    const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.orilium ?? 0, "🔶 Orilium"], [h.starmetal, "✴️ Starmetal"], [h.scrolls, "📜 Scroll of Revelation"], [h.f.persist["skelKeys"] ?? 0, "🗝️ Skeleton Key"], [h.f.persist["c_bomb"] ?? 0, "💣 Bomb"], [h.f.persist["c_brew"] ?? 0, "🧪 Vile Brew"], [h.f.persist["c_smoke"] ?? 0, "💨 Smoke Bomb"]].filter(([n]) => (n as number) > 0)
+    const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.orilium ?? 0, "🔶 Orilium"], [h.starmetal, "✴️ Starmetal"], [h.scrolls, "📜 Scroll of Revelation"], [h.f.persist["skelKeys"] ?? 0, "🗝️ Skeleton Key"], ...THROWS.map(t => [h.f.persist[THROW_INFO[t].key] ?? 0, `${THROW_INFO[t].icon} ${THROW_INFO[t].name}`])].filter(([n]) => (n as number) > 0)
       .map(([n, l]) => `<span class="mer-chip mat"><b>${l}</b><span>×${n}</span></span>`).join("");
     const pack = mats + h.backpack.map(it => `<button class="mer-chip ${invPick?.k === "bp" && invPick.uid === it.uid ? "on" : ""}" data-invpick="bp:${it.uid}"><b style="color:${RARITY_INK[it.rarity] ?? "#e9d6b0"}">${esc(itemName(it))}</b><span>${esc(itemRarity(it))}${it.reqLevel && h.level < it.reqLevel ? ` · 🔒 Lv ${it.reqLevel}` : ""}</span></button>`).join("");
     const hk = CLASS_SPRITE[h.origin];
@@ -1820,11 +1823,23 @@ function crawlBag(r: Run) {
         <div class="inv-detail">${detail}</div>
       </div>
       <div class="mer-panel inv-pack"><div class="mer-label">Backpack ${h.backpack.length}/${packSize(h)}</div><div class="mer-list">${pack || `<span class="mer-none">Empty.</span>`}</div></div>`;
+  } else if (bagTab === "attrs") {
+    const fav = FAVOURED[h.origin as keyof typeof FAVOURED] ?? [];
+    const rows = ATTRS.map(a => {
+      const info = ATTR_INFO[a], n = h.attrs?.[a] ?? 0, isFav = fav.includes(a);
+      const now = info.lines(attrPower(n, isFav)), next = info.lines(attrPower(n + 1, isFav));
+      const lines = now.map((l, i) => `<li class="${l !== next[i] ? "grows" : ""}"><span>${esc(l)}</span>${l !== next[i] && pts ? `<i>→ ${esc(/[+−-]?\d+%?/.exec(next[i])?.[0] ?? next[i])}</i>` : ""}</li>`).join("");
+      return `<div class="attr-row ${n ? "has" : ""}">
+        <div class="attr-head"><span class="attr-ic">${info.icon}</span><b>${info.name}</b>${isFav ? `<span class="attr-fav" title="Your class leans this way: its passives are half as strong again">★ ${esc(ORIGINS[h.origin].name)}</span>` : ""}<span class="grow"></span><span class="attr-n">${n}</span>
+          <button class="attr-plus" data-attr="${a}" ${pts && n < ATTR_MAX && !inCombat ? "" : "disabled"} aria-label="Put a point into ${info.name}">+</button></div>
+        <p class="attr-blurb">${esc(info.blurb)}</p><ul class="attr-lines">${lines}</ul></div>`;
+    }).join("");
+    body = `<div class="attr-top">${pts ? `<b>${pts}</b> point${pts === 1 ? "" : "s"} to spend` : `No points to spend. Each level-up gives ${ATTR_PER_LEVEL}.`}</div><div class="attr-list">${rows}</div>`;
   } else body = `<div class="inv-other">${bag(r, true)}</div>`;
   return `<div class="cb-screen inv-screen"><div class="mer-inner inv-inner">
     ${top}
     <div class="inv-body">${body}</div>
-    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}"><i>${label.split(" ")[0]}</i><span>${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
+    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}"><i>${label.split(" ")[0]}${id === "attrs" && pts ? `<b class="tab-badge">${pts}</b>` : ""}</i><span>${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
   </div></div>`;
 }
 
@@ -2349,6 +2364,7 @@ function levelUpPopup(r: Run) {
 }
 
 const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }> = {
+  ...Object.fromEntries(THROWS.map(t => [t, { label: (p: Fighter) => `${THROW_INFO[t].icon} ${THROW_INFO[t].name} ×${p.persist[THROW_INFO[t].key] ?? 0}`, tip: `Uses your turn. ${THROW_INFO[t].text}.` }])) as Record<Throw, { label: (p: Fighter) => string; tip: string }>,
   attack: { label: () => "Attack", tip: "Roll your die and strike." },
   guard: { label: () => "Guard", tip: "Double your Armor this round; Armor can stop a whole hit. Needs a shield (a Warrior can Guard with a two-hander)." },
   counter: { label: () => "Counter", tip: "Costs 1 Mana. Uses your turn. +35% Dodge this round; if you Dodge an attack, you strike back at once with a Crit (no roll needed). If you're hit, you're a little off-balance for your next attack." },
@@ -2356,9 +2372,6 @@ const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }
   penance: { label: p => `Penance${p.flags["penanceStore"] ? ` (${p.flags["penanceStore"]})` : ""}`, tip: "Costs 1 Mana. Uses your turn. You take a quarter less this round, and the damage and negative statuses you take are stored; your next attack adds half as much again. A kill with it heals you." },
   warcry: { label: () => "War Cry", tip: "Costs 1 Mana. Uses your turn: gain a lot of Might (half as much for each cry after the first this fight), and leave the enemy Weak and Exposed." },
   flee: { label: p => (p.flags["smoke"] ? "Flee 💨" : "Flee"), tip: "Leave the fight (not Elites or bosses). The foe gets a free hit as you go, unless smoke covers you. It stays where it was, and its wounds close." },
-  t_bomb: { label: p => `💣 Bomb ×${p.persist["c_bomb"] ?? 0}`, tip: "Uses your turn. Blast the foe for damage that ignores Armor (more on deeper layers)." },
-  t_brew: { label: p => `🧪 Vile Brew ×${p.persist["c_brew"] ?? 0}`, tip: "Uses your turn. Throw a harmful brew: it Poisons the foe and leaves it Weak." },
-  t_smoke: { label: p => `💨 Smoke Bomb ×${p.persist["c_smoke"] ?? 0}`, tip: "Uses your turn. Blind the foe; after that you can flee this fight without being hit (even from an Elite)." },
   crush: { label: () => "Crushing Blow", tip: "Costs 1 Mana. Attack for 60% more damage and Fracture the foe." },
   shieldwall: { label: () => "Shield Wall", tip: "Costs 1 Mana. Guard this round (no shield needed) and gain Barrier of twice your Armor." },
   envenom: { label: () => "Envenom", tip: "Costs 1 Mana. Poison the foe (more on deeper layers), then attack." },
@@ -2953,6 +2966,7 @@ function bind() {
   on("[data-potion]", () => { say(drinkPotion(r)); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-bag]", () => { bagOpen = true; bagTab = "gear"; gearSub = "equipped"; });
   on("[data-closebag]", () => { bagOpen = false; });
+  on("[data-attr]", el => { const err = spendAttr(r.hero, el.dataset.attr as Attr); if (err) say(err, true); else sfx("equip"); });
   on("[data-bagtab]", el => { bulkArmed = null; bagTab = el.dataset.bagtab as BagTab; talentSub = "talents"; spoilsSub = "relics"; statsSub = "attributes"; });
   on("[data-statssub]", el => { statsSub = el.dataset.statssub as typeof statsSub; });
   on("[data-speedcycle]", () => { speed = speed >= 1 ? 0.5 : speed >= 0.5 ? 0.2 : 1; try { localStorage.setItem("dd2-speed", String(speed)); } catch { /* ignore */ } });

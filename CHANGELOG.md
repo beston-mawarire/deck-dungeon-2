@@ -9,6 +9,12 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.80.0
+- Attributes replace talents in the Crawl: Strength, Agility, Intellect, Faith, Vitality and Fortune. Each level-up gives 2 points, spent in the inventory's new Attributes tab, where every attribute shows what it gives now and what the next point adds. Your class's favoured attributes are half as strong again.
+- More things to throw: Fire Flasks, Frost Flasks, Throwing Knives, Holy Water and Weighted Nets join the Bomb and the Smoke Bomb.
+- The Vile Brew is now the Blightcap Brew: grown from Blightcap Spores in the Camp's Garden, brewed at the Brewery and carried into the dungeon to throw.
+- The inventory is back on the dark dungeon colour, its equipped slots have a firmer frame, and items no longer say how many lines they hold.
+
 ## 1.79.0
 - Things to throw in a fight: Bombs (damage through Armor, more on deeper layers), Vile Brews (Poison and Weak) and Smoke Bombs (Blind the foe and cover your escape, even from an Elite). Merchants sell them, and they turn up in urns and chests. Carry up to three of each.
 - Fleeing costs a hit: the foe gets a free swing as you run, unless smoke covers you. It stays where it stood on the map, healed back to full, and you step back to where you came from.

@@ -2,6 +2,7 @@
 import { idx, inside, isFloor, isSeenTile, pathTo, type FloorMap } from "../src/game/grid";
 import { confirmRisk, gridStep, type Run } from "../src/game/run";
 import { botStep } from "./bot";
+import { spendAttr } from "../src/game/hero";
 
 const RISKY = ["vault", "altar", "shrine", "crimson_vault"];
 const FIGHTS = ["fight", "elite", "champion", "unique", "nemesis", "goblin", "doppelganger", "crimson_elite"];
@@ -43,6 +44,9 @@ export function crawlTarget(run: Run, rushAfter = 2): [number, number][] {
 
 /** One bot action. */
 export function crawlStep(run: Run, rushAfter = 2) {
+  // Spend attribute points as they come: Vitality and Strength, turn about.
+  while ((run.hero.attrPoints ?? 0) > 0) spendAttr(run.hero, (run.hero.attrs?.vit ?? 0) > (run.hero.attrs?.str ?? 0) ? "str" : "vit");
+  run.popup = undefined;
   if (run.scene.t === "map") {
     const p = crawlTarget(run, rushAfter);
     for (const [x, y] of p) {
