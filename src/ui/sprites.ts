@@ -97,3 +97,43 @@ export function drawWater(ctx: CanvasRenderingContext2D, cx: number, cy: number,
   ctx.fillStyle = "rgba(200,230,255,.18)"; ctx.beginPath(); ctx.ellipse(cx - rx * 0.35, cy - ry * 0.35, rx * 0.25, ry * 0.12, -0.3, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
+
+/** The Forge: an iron anvil on a stump, a hammer resting on it, embers glowing in a brazier beside it. */
+export function drawAnvil(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number, now: number, cold = false) {
+  // (Drawn a little larger than a tile's sprites, so the Forge is hard to miss.)
+  const u = ts / 11;
+  ctx.save();
+  // Glow from the brazier.
+  if (!cold) {
+    const pulse = 0.75 + 0.25 * Math.sin(now / 260) * Math.sin(now / 410);
+    const g = ctx.createRadialGradient(cx + 4 * u, cy, 0, cx + 4 * u, cy, ts * 0.9);
+    g.addColorStop(0, `rgba(255,140,40,${0.42 * pulse})`); g.addColorStop(1, "rgba(255,120,30,0)");
+    ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.fillRect(cx - ts, cy - ts, ts * 2, ts * 2); ctx.globalCompositeOperation = "source-over";
+  }
+  // Brazier (right).
+  ctx.fillStyle = "#2a2420"; ctx.fillRect(cx + 3 * u, cy + 1 * u, 5 * u, 4 * u);
+  ctx.fillStyle = "#4a3f38"; ctx.fillRect(cx + 2.5 * u, cy + 0.5 * u, 6 * u, 1.2 * u);
+  ctx.fillStyle = cold ? "#3a2a22" : "#ff7a1e"; ctx.fillRect(cx + 3.5 * u, cy - 0.3 * u, 4 * u, 1 * u);
+  if (!cold) { ctx.fillStyle = "#ffd25a"; ctx.fillRect(cx + 4.5 * u, cy - 0.6 * u, 1.5 * u, 0.8 * u); }
+  // Stump.
+  ctx.fillStyle = "#5a3a20"; ctx.fillRect(cx - 5 * u, cy + 1.5 * u, 6 * u, 4.5 * u);
+  ctx.fillStyle = "#7a5230"; ctx.fillRect(cx - 5 * u, cy + 1.5 * u, 6 * u, 1 * u);
+  // Anvil: base, waist, face and horn.
+  ctx.fillStyle = "#2c2f36";
+  ctx.fillRect(cx - 4.5 * u, cy + 0.2 * u, 5 * u, 1.4 * u);
+  ctx.fillRect(cx - 3.5 * u, cy - 1.6 * u, 3 * u, 2 * u);
+  ctx.fillRect(cx - 6 * u, cy - 3.2 * u, 7.5 * u, 1.8 * u);
+  ctx.beginPath(); ctx.moveTo(cx - 6 * u, cy - 3.2 * u); ctx.lineTo(cx - 8.5 * u, cy - 2.4 * u); ctx.lineTo(cx - 6 * u, cy - 1.4 * u); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#6a7180"; ctx.fillRect(cx - 6 * u, cy - 3.2 * u, 7.5 * u, 0.6 * u);
+  // A hot bar on the anvil's face.
+  if (!cold) { ctx.fillStyle = "#ff9a3a"; ctx.fillRect(cx - 4.5 * u, cy - 3.9 * u, 4 * u, 0.7 * u); ctx.fillStyle = "#ffe08a"; ctx.fillRect(cx - 3.5 * u, cy - 3.9 * u, 1.6 * u, 0.4 * u); }
+  // Hammer leaning on the stump.
+  ctx.fillStyle = "#8a5a2a"; ctx.save(); ctx.translate(cx + 1.6 * u, cy + 5 * u); ctx.rotate(-0.5); ctx.fillRect(-0.5 * u, -7 * u, 1 * u, 7 * u); ctx.fillStyle = "#5a5f6a"; ctx.fillRect(-1.8 * u, -8.4 * u, 3.6 * u, 1.8 * u); ctx.restore();
+  // Sparks.
+  if (!cold) for (let k = 0; k < 3; k++) {
+    const ph = ((now / 900) + k / 3) % 1;
+    ctx.fillStyle = `rgba(255,${200 - 80 * ph},80,${1 - ph})`;
+    ctx.fillRect(cx - 2.5 * u + Math.sin(k * 2.1 + ph * 3) * 3 * u, cy - 4 * u - ph * 7 * u, 0.7 * u, 0.7 * u);
+  }
+  ctx.restore();
+}

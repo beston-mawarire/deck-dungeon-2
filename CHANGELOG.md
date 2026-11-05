@@ -9,6 +9,12 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.91.1
+
+- **Springs, altars, fountains and other fixtures stay put once used**, a little dimmer, instead of vanishing. A campfire you've rested at is left as ash and embers.
+- **The Forge is easy to spot:** an anvil on a stump with a hot bar on it, a hammer, a glowing brazier and sparks. It always gets a little room of its own. A used Forge goes cold.
+- The potion drawer's counts sit inside each potion's circle.
+
 ## 1.91.0
 
 - **Crit damage and staff damage come from gear and the tree now**, not from attributes. Agility gives Dodge and Crit chance; Intellect gives status and reaction damage. Look for "Crits deal +%" lines on gear, a new "Staves and wands deal +%" line on staves, wands and foci, and Keen Edge and Staff Lore in the Passive Tree.

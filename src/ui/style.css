@@ -2373,3 +2373,5 @@ button.plank-btn:active { transform: translateY(2px); }
 li.type-line { list-style: none; margin: 2px 0 6px -2px; }
 li.type-line::before { content: none !important; }
 .item-type { display: inline-block; padding: 2px 9px; border: 1px solid currentColor; border-radius: 4px; font-size: .82em; font-weight: 700; letter-spacing: .02em; opacity: .85; }
+/* The drawer's counts sit inside each potion's circle (the drawer clips anything outside it). */
+.cz-drawer .cz-pot b { right: 1px; bottom: 1px; min-width: 16px; height: 16px; line-height: 15px; font-size: .62rem; }

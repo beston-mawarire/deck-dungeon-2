@@ -1,7 +1,7 @@
 // The Crawl (prototype): the floor drawn full-screen on a canvas, the camera on the player, point-and-click walking.
 import { idx, inSight, isFloor, isSeenTile, layerFloors, layerOf, pathToward, SIGHT, thingAt, type FloorMap } from "../game/grid";
-import { gridSelect, gridStep, type Run } from "../game/run";
-import { atlas, CLASS_SPRITE, drawSprite, drawTile, drawWater, foeSprite, hasSprite, spriteSize, THING_SPRITE } from "./sprites";
+import { CHEST_ROOMS, gridSelect, gridStep, type Run } from "../game/run";
+import { atlas, CLASS_SPRITE, drawAnvil, drawSprite, drawTile, drawWater, foeSprite, hasSprite, spriteSize, THING_SPRITE } from "./sprites";
 
 const STEP_MS = 130;
 
@@ -249,12 +249,15 @@ export function drawCrawl() {
     if (t.room === "trapdoor") drawTrapdoor(ctx, cx, cy, ts, m.depth === layerFloors(runRef ?? {}) - 1);
     else {
       // A sprite where we have one (the foe itself, a chest, the Merchant); an emoji otherwise.
-      const sk = t.foe ? foeSprite(t.foe, undefined, false) : t.opened && THING_SPRITE[t.room] ? `${THING_SPRITE[t.room]}_open` : THING_SPRITE[t.room];
+      const sk = t.foe ? foeSprite(t.foe, undefined, false) : t.opened && THING_SPRITE[t.room] && CHEST_ROOMS.includes(t.room) ? `${THING_SPRITE[t.room]}_open` : THING_SPRITE[t.room];
+      // A fixture you've used stays, dimmed.
+      if (t.opened && !CHEST_ROOMS.includes(t.room)) ctx.globalAlpha *= 0.7;
       const big = sk && ["ogre", "big_demon", "big_zombie"].includes(sk);
       // Tall props (a column, a fountain) are shrunk to stand about a tile and a half high.
       const sz = sk ? spriteSize(sk) : null;
       const scale = sz && sz.h > 24 && !big ? Math.min(ts / 16, (ts * 1.45) / sz.h) : ts / 16;
-      if (t.room === "rest") drawCampfire(ctx, cx, cy, ts, now);
+      if (t.room === "rest") { if (t.opened) drawEmbers(ctx, cx, cy, ts); else drawCampfire(ctx, cx, cy, ts, now); }
+      else if (t.room === "forge") drawAnvil(ctx, cx, cy + ts * 0.12, ts, now, !!t.opened);
       else if (t.room === "pond") drawWater(ctx, cx, cy + ts * 0.08, ts * 0.42, ts * 0.3, now);
       else if (t.room === "event" && hasSprite("doors_leaf_open")) {
         // A strange door, set in the wall behind it, with a faint glow spilling out.
@@ -372,6 +375,14 @@ function drawPool(ctx: CanvasRenderingContext2D, kind: "lava" | "sludge", x: num
 }
 
 /** A campfire: a ring of stones, crossed logs and a flickering flame. */
+/** A campfire you've rested at: grey ash and a few dull embers. */
+function drawEmbers(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number) {
+  ctx.save();
+  ctx.fillStyle = "#3a3330"; ctx.beginPath(); ctx.ellipse(cx, cy + ts * 0.18, ts * 0.3, ts * 0.11, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#5a2a14"; for (const [dx, dy] of [[-0.1, 0.14], [0.06, 0.19], [0.13, 0.13]]) ctx.fillRect(cx + dx * ts, cy + dy * ts, ts * 0.06, ts * 0.04);
+  ctx.strokeStyle = "#4a3022"; ctx.lineWidth = ts * 0.06; ctx.beginPath(); ctx.moveTo(cx - ts * 0.2, cy + ts * 0.22); ctx.lineTo(cx + ts * 0.18, cy + ts * 0.12); ctx.stroke();
+  ctx.restore();
+}
 function drawCampfire(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number, now: number) {
   ctx.save();
   ctx.globalCompositeOperation = "lighter";

@@ -673,7 +673,8 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   }
   while (pois.length) {
     // Two to a little room now and then, but never two chests together.
-    const pairOk = pois.length > 1 && !(LOOT.includes(pois[0]) && LOOT.includes(pois[1]));
+    // (The Forge always gets a little room of its own.)
+    const pairOk = pois.length > 1 && !(LOOT.includes(pois[0]) && LOOT.includes(pois[1])) && pois[0] !== "forge" && pois[1] !== "forge";
     pocket(pois.splice(0, pairOk && rng() < 0.35 ? 2 : 1), POCKET_GUARD);
   }
   // Foes across hallways: blocking the way on to other halls (and whatever hangs off them).
@@ -1056,6 +1057,8 @@ export function descend(run: Run) {
 
 /** Chests: once opened they stay on the map, empty. */
 export const CHEST_ROOMS = ["wooden", "iron", "vault", "secret", "crimson_vault", "bosschest"];
+/** Springs, altars, fountains, the Forge and other fixtures stay on the map once used, spent (you step back off them). */
+export const FIXTURE_ROOMS = ["sacred_spring", "mirror_pool", "cleansing", "sanguine", "altar", "oath", "shrine", "offering", "forge", "masterwork", "jeweller", "bounty", "sanctum", "pond", "rest", "event", "crossroads"];
 
 /** The thing you stepped onto is met (called as its room opens). */
 function gridArrive(run: Run) {
@@ -1068,7 +1071,7 @@ function gridArrive(run: Run) {
   if (t.room === "shop") { if (m.bx !== undefined && m.by !== undefined) { m.px = m.bx; m.py = m.by; } return; }
   t.done = true;
   // Chests stay where they were, open; you step back off them.
-  if (CHEST_ROOMS.includes(t.room)) { t.opened = true; if (m.bx !== undefined && m.by !== undefined) { m.px = m.bx; m.py = m.by; } }
+  if (CHEST_ROOMS.includes(t.room) || FIXTURE_ROOMS.includes(t.room)) { t.opened = true; if (m.bx !== undefined && m.by !== undefined) { m.px = m.bx; m.py = m.by; } }
   if (t.room !== "boss") m.explored++;
 }
 
