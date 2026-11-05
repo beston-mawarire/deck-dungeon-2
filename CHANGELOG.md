@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.73.1
+- **Fixed: tapping into the dark could walk you back to somewhere you'd already cleared,** like a chest's nook. A tap on unexplored darkness now only heads for the edge of what you've seen. A tap on a wall walks you to the floor beside it.
+
 ## 1.73.0
 - **Camp:** on a phone, the stone frame round the page is gone. The left and right arrows are bare glowing chevrons on every screen.
 - **Camp materials:** foes in the Crawl now and then leave a material of their kind: 🦴 Bone Dust (Undead), 🐾 Hide (Beasts), 🔩 Cogs (Constructs), 🔯 Cult Sigils (Cultists). Elites and Champions leave more.

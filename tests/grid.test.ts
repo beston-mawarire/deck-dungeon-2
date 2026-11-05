@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
-import { inSight, isFloor, LAYER_FLOORS, lineOfSight, pathTo, reachable, SIGHT, trapdoorThing, walkDistances, type FloorMap } from "../src/game/grid";
+import { inSight, isFloor, LAYER_FLOORS, lineOfSight, pathTo, pathToward, reachable, SIGHT, trapdoorThing, walkDistances, type FloorMap } from "../src/game/grid";
 import { advance, combatAction, confirmRisk, CRAWL_START_GOLD, descend, finishLoot, gateItem, gridDanger, skipTalent, TREASURE_DEPTH, gridStep, LANDMARKS, makeGrid, newRun, startCrawl, STEPS_PER_FLOOR } from "../src/game/run";
 import { crawlStep } from "./crawlbot";
 import { equipItem } from "../src/game/hero";
@@ -325,4 +325,21 @@ describe("the Crawl", () => {
     }
     expect(deepest).toBeGreaterThanOrEqual(2);
   }, 60000);
+});
+
+describe("tapping where to walk", () => {
+  it("a tap into the dark never sends you back into a corner you've cleared out", () => {
+    const r = newRun("warrior", 31); startCrawl(r); r.grid = makeGrid(r, 1);
+    const m = r.grid;
+    // Pretend we've seen every tile within 4 of where we stand, then tap far off into the dark in every direction.
+    for (let i = 0; i < m.seen.length; i++) if (Math.hypot((i % m.w) - m.px, Math.floor(i / m.w) - m.py) <= 4) m.seen[i] = 1;
+    for (const [tx, ty] of [[0, 0], [18, 0], [0, 18], [18, 18], [m.px, 0], [0, m.py]]) {
+      if (m.seen[ty * m.w + tx]) continue;
+      const p = pathToward(m, tx, ty);
+      if (!p || !p.length) continue;
+      const [ex, ey] = p[p.length - 1];
+      // The end of the walk borders something not yet seen.
+      expect([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !m.seen[(ey + dy) * m.w + ex + dx])).toBe(true);
+    }
+  });
 });
