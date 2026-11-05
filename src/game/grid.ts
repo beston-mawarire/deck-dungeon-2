@@ -17,7 +17,6 @@ export const GRID_DMG = 1.05;
 /** Per step of danger. */
 export const DANGER_HP = 0.07;
 export const DANGER_DMG = 0.05;
-export const DANGER_WORDS = ["Quiet", "Stirring", "Restless", "Hunting", "Furious"];
 
 /** Tiles: 0 wall, 1 floor. */
 export type Tile = 0 | 1;
@@ -79,7 +78,6 @@ export type Hazard = "spike" | "lava" | "sludge";
 /** What a spike trap costs each time you step on it, and how many steps a pool's burn lasts. */
 export const SPIKE_DMG = 2;
 export const POOL_STEPS = 4;
-export const hazardAt = (m: FloorMap, i: number): Hazard | undefined => m.haz?.[i];
 /** Doors and cracked walls: you can't see past them until they're open. */
 const OPAQUE = ["locked", "crack"];
 const opaqueAt = (m: FloorMap, x: number, y: number) => m.things.some(t => !t.done && t.x === x && t.y === y && OPAQUE.includes(t.room));
@@ -152,24 +150,6 @@ function carveOnce(rng: () => number, w: number, h: number) {
   return { tiles, rooms, start, order };
 }
 
-/** Dig a little dead-end nook off a room (two tiles deep): something waits at the end, and whatever stands at its mouth must be faced. */
-export function digNook(m: { w: number; h: number; tiles: Tile[] }, r: Rect, rng: () => number): { mouth: number; end: number } | null {
-  const sides: [number, number, number, number][] = [];
-  for (let x = r.x + 1; x < r.x + r.w - 1; x++) { sides.push([x, r.y - 1, 0, -1]); sides.push([x, r.y + r.h, 0, 1]); }
-  for (let y = r.y + 1; y < r.y + r.h - 1; y++) { sides.push([r.x - 1, y, -1, 0]); sides.push([r.x + r.w, y, 1, 0]); }
-  for (let k = sides.length - 1; k > 0; k--) { const j = Math.floor(rng() * (k + 1)); [sides[k], sides[j]] = [sides[j], sides[k]]; }
-  const wall = (x: number, y: number) => x > 0 && y > 0 && x < m.w - 1 && y < m.h - 1 && m.tiles[y * m.w + x] === 0;
-  for (const [x, y, dx, dy] of sides) {
-    const ex = x + dx, ey = y + dy;
-    // The nook and everything around it (bar the room) must be solid rock, so it stays a dead end.
-    const ring: [number, number][] = [[x, y], [ex, ey], [ex + dx, ey + dy], [x - dy, y - dx], [x + dy, y + dx], [ex - dy, ey - dx], [ex + dy, ey + dx]];
-    if (!ring.every(([a, b]) => wall(a, b))) continue;
-    m.tiles[y * m.w + x] = 1;
-    m.tiles[ey * m.w + ex] = 1;
-    return { mouth: y * m.w + x, end: ey * m.w + ex };
-  }
-  return null;
-}
 
 /** Dig a small room off the floor behind a one-tile doorway (the choke point): a pocket for a treasure or two.
  *  `prefer` orders where it may hang off (best first); `avoid` are tiles it must not hang off (other pockets). */
@@ -357,4 +337,3 @@ export function pathToward(m: FloorMap, x: number, y: number): [number, number][
 export const layerOf = (floor: number) => (Math.max(1, floor) - 1) % 5;
 export const trapdoorThing = (m: FloorMap) => m.things.findIndex(t => t.room === "trapdoor");
 export const dangerOf = (m: FloorMap) => Math.floor(m.explored / DANGER_EVERY);
-export const dangerWord = (d: number) => DANGER_WORDS[Math.min(d, DANGER_WORDS.length - 1)];

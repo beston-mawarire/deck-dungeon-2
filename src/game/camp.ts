@@ -22,8 +22,6 @@ export const PLANTS: Record<Plant, { name: string; seed: string; icon: string; s
   moonbell: { name: "Moonbell", seed: "Moonbell Seed", icon: "🪻", seedIcon: "🫘", brew: "mana", runs: 2 },
   blightcap: { name: "Blightcap", seed: "Blightcap Spores", icon: "🍄", seedIcon: "🍂", brew: "vile", runs: 2 }
 };
-/** What each brew is called once bottled. */
-export const BREW_NAME: Record<BrewKind, string> = { heal: "Healing Potion", mana: "Mana Potion", vile: "Blightcap Brew" };
 export interface Plot { plant: Plant; left: number }
 export interface CampStore {
   crowns: number; mats: Partial<Record<Mat, number>>; hall: Record<string, number>;

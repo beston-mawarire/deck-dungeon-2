@@ -9,6 +9,12 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.90.0
+
+- **Balance:** the first layer eases you in more gently. Its plain foes reach full strength only on its last floors, and its Elites are a little softer on the first two floors.
+- **The Mage is sturdier:** 34 HP (was 32), and the Apprentice Staff hits a little harder; its Fizzle face is now a Spark (a graze that sets a little Burn).
+- Under the hood: unused old code and styles cleared out, so the game is a little smaller.
+
 ## 1.89.0
 
 - **The Abyss and the Daily Dungeon are walked now**, like the main dungeon. The Abyss is ten depths, each a layer of floors with an Uber boss at the bottom; the Daily is the same dungeon and hero for everyone that day.

@@ -713,8 +713,6 @@ function tryRewind(b: Battle): boolean {
   return true;
 }
 
-/** True Strike, when it saves an attack from missing: spend it (it comes back a few rounds later). */
-export const TRUESTRIKE_RECHARGE = 3;
 export const MIRROR_RECHARGE = 4;
 function useTrueStrike(a: Fighter): boolean {
   if (a.flags["tsNow"]) return true;
@@ -850,13 +848,6 @@ export const isSkill = (a: string): a is Skill => (SKILLS as readonly string[]).
 export type Skill = (typeof SKILLS)[number];
 const SKILL_NAME: Record<Skill, string> = { counter: "Counter", barrier: "Barrier", penance: "Penance", warcry: "War Cry", crush: "Crushing Blow", shieldwall: "Shield Wall", envenom: "Envenom", smokebomb: "Smoke Bomb", frostnova: "Frost Nova", arcanebolt: "Arcane Bolt", smite: "Smite", sanctuary: "Sanctuary" };
 
-/** Give mana back (gear and relics), up to the cap. */
-export function gainMana(b: Battle, f: Fighter, n: number) {
-  if (f.maxMana == null) return;
-  const before = f.mana ?? 0;
-  f.mana = Math.min(f.maxMana, before + n);
-  if (f.mana > before) fx(b, { who: f.id, kind: "text", text: `+${f.mana - before} Mana`, icon: "🔷" });
-}
 
 /** A class ability: costs 1 mana (out of mana, you attack instead). Gear can make it free of your turn, count as a Guard, or hit harder. */
 function useSkill(b: Battle, skill: Skill) {

@@ -146,4 +146,3 @@ export const HEAT_HOOKS: HookDef[] = [
   { id: "heat_dim", name: "Heat: Dim fires", kind: "curse", tags: ["Blood"], text: "All your healing is halved", hooks: { healMult: () => 0.5 } }
 ];
 
-export const setOfPiece = (id: string) => SIGIL_SETS.find(s => s.pieces.includes(id));

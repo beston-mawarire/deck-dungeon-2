@@ -508,6 +508,8 @@ const floorLandmarks = (x: number) => (x < 0.5 ? 0 : x < 0.9 ? 1 : 2);
 /** Crawl foes are near Elite strength: a plain monster's HP and Power. */
 export const CRAWL_NORMAL_HP = 1.8;
 export const CRAWL_NORMAL_POWER = 2;
+/** How much softer Elites are on the first layer's first two floors. */
+export const FIRST_ELITE_EASE = 0.85;
 /** How often a pocket's doorway is guarded (the trapdoor's, and the rest). */
 export const TRAP_GUARD = 0.7;
 export const POCKET_GUARD = 0.5;
@@ -1380,9 +1382,12 @@ export function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic
     const near = rank === "normal" && !thief;
     // They ease you in: well short of that on a layer's first floor, full strength from the fourth.
     const depthIn = run.grid?.depth ?? LAYER_FLOORS;
-    const ramp = Math.min(1, 0.25 + 0.25 * (depthIn - 1));
-    enemy.maxHp = enemy.hp = Math.round(enemy.hp * (near ? 1 + (CRAWL_NORMAL_HP - 1) * ramp : GRID_HP) * (1 + DANGER_HP * d));
-    enemy.damage = Math.round(enemy.damage * GRID_DMG * (1 + DANGER_DMG * d)) + (near ? Math.round(CRAWL_NORMAL_POWER * ramp) : 0);
+    // (The very first layer eases you in further: its plain foes reach full strength only on its last floors.)
+    const ramp = run.floor <= 1 && run.mode !== "abyss" ? Math.min(1, 0.1 + 0.18 * (depthIn - 1)) : Math.min(1, 0.25 + 0.25 * (depthIn - 1));
+    // Elites on the first layer's first two floors come a little softer too.
+    const ease = run.floor <= 1 && run.mode !== "abyss" && rank === "elite" && depthIn <= 2 ? FIRST_ELITE_EASE : 1;
+    enemy.maxHp = enemy.hp = Math.round(enemy.hp * ease * (near ? 1 + (CRAWL_NORMAL_HP - 1) * ramp : GRID_HP) * (1 + DANGER_HP * d));
+    enemy.damage = Math.round(enemy.damage * ease * GRID_DMG * (1 + DANGER_DMG * d)) + (near ? Math.round(CRAWL_NORMAL_POWER * ramp) : 0);
   }
   run.hero.f.persist["goldAtFight"] = run.hero.f.gold;
   const battle = startBattle(run.hero.f, enemy, Math.floor(run.rng() * 1e9), run.carry);
@@ -2407,14 +2412,6 @@ export function forgeCombine(run: Run, a: number, b: number): GearItem | string 
   return out;
 }
 
-/** Pairs of identical items the hero could combine. */
-export function combinablePairs(run: Run): [GearItem, GearItem][] {
-  const h = run.hero;
-  const all = [...Object.values(h.equip).filter((x): x is GearItem => !!x), ...h.backpack].filter(i => i.rarity !== "legendary" && i.rarity !== "crimson" && !baseOf(i.base).noJewel && !i.infused);
-  const pairs: [GearItem, GearItem][] = [];
-  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) if (all[i].base === all[j].base) pairs.push([all[i], all[j]]);
-  return pairs;
-}
 
 export const TRANSMUTE_COST = 4;
 

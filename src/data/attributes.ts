@@ -12,8 +12,6 @@ export const ATTR_MAX = 20;
 
 /** Each class's base attribute (its points also raise the class's base Damage). */
 export const BASE_ATTR: Record<OriginId | "hero", Attr | null> = { warrior: "str", mage: "int", rogue: "agi", cleric: "fai", hero: null };
-/** Kept for older callers: the attributes a class leans toward (just its base attribute now). */
-export const FAVOURED: Record<OriginId | "hero", Attr[]> = { warrior: ["str"], mage: ["int"], rogue: ["agi"], cleric: ["fai"], hero: [] };
 /** An attribute's power is simply its points. */
 export const attrPower = (points: number, _base = false) => points;
 

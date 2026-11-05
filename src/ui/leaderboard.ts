@@ -24,8 +24,6 @@ export const SUB_BOARDS: Record<Exclude<Scope, "bounty">, { id: Board; label: st
   abyss: STAT_BOARDS.map(b => (b.id === "floor" ? { ...b, unit: "depth reached in the Abyss" } : { ...b, unit: `${b.unit}, in the Abyss` })),
   daily: [{ id: "alltime", label: "All time", icon: "🏛️", unit: "layer, deepest Daily runs ever" }, ...STAT_BOARDS.map(b => ({ ...b, unit: `${b.unit}, today` }))]
 };
-/** Every board, for code that still lists them all. */
-export const BOARDS = [...SUB_BOARDS.campaign, ...SUB_BOARDS.daily];
 export interface Row { rank: number; name: string; title?: string; value: number; origin: string; floor: number; plates?: number; day?: string; heat?: number; you?: boolean }
 export interface KillerRow { rank: number; name: string; kills: number; players: number }
 

@@ -13,7 +13,7 @@ import { SIGIL_SETS } from "../data/talisman";
 import { PLAIN_FACES } from "../engine/combat";
 import { ATTR_INFO, ATTR_MAX, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
 import { eachHook, getItem } from "../engine/registry";
-import type { Fighter, GearBase, GearItem, OriginId, Rarity, Slot, StatBlock } from "../engine/types";
+import type { Fighter, GearBase, GearItem, OriginId, Rarity, StatBlock } from "../engine/types";
 
 export type EquipSlot = "main" | "off" | "armour" | "trinket1" | "trinket2" | "trinket3";
 /** trinket3 only opens with the Keepsake of the Collector. */
@@ -137,7 +137,6 @@ export const HEAVY_ARMOR = 1.3;
 /** An item's Armor: its base, half its levels, and more for heavy armour and shields. */
 export const itemArmor = (eb: GearBase, level: number) => (eb.armor ? Math.round((eb.armor + Math.floor((level - 1) / 2)) * (isHeavy(eb) ? HEAVY_ARMOR : 1)) : 0);
 export const RARITY_DAMAGE: Record<Rarity, number> = { common: 0, uncommon: 0, rare: 1, epic: 3, legendary: 1, crimson: 3, epic_crimson: 8, legendary_crimson: 12 };
-export const RARITY_COLOR: Record<Rarity, string> = { common: "#9a9aa2", uncommon: "#4fc074", rare: "#4f9cf0", epic: "#b06cf0", legendary: "#f08a2a", crimson: "#e0283f", epic_crimson: "#ff2e88", legendary_crimson: "#ff7a1a" };
 
 /**
  * Ordinary weapons (swords, axes, maces...) are clumsy in the off-hand: 60% damage. Daggers, throwing knives,
@@ -209,7 +208,6 @@ export function itemLines(item: GearItem): string[] {
   return lines;
 }
 
-export const slotOfBase = (b: GearBase): Slot => b.slot;
 
 /** Dodge % from a piece of Dodge gear: set by its rarity, +1 per level. */
 export function itemDodge(it: GearItem): number {
@@ -548,7 +546,6 @@ export const REROLL_COST = 4;
 /** Each Forge reroll on the same item costs double the last, up to 5 rerolls per item. Deeper items start dearer. */
 export const MAX_REROLLS = 5;
 export const rerollCost = (item: GearItem, h?: Hero) => Math.ceil((REROLL_COST + Math.floor((item.level - 1) / 2)) * 2 ** (item.rerolls ?? 0) * gouge(h));
-export const rerollsLeft = (item: GearItem) => Math.max(0, MAX_REROLLS - (item.rerolls ?? 0));
 
 /** Tags of everything equipped, relics and talents (used to lean loot and talent offers). */
 export function heroTags(h: Hero): Map<string, number> {

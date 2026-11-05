@@ -31,7 +31,6 @@ const COUNTS: Partial<Record<Rarity, { minor: [number, number]; major: [number, 
 const GREATER: Partial<Record<Rarity, number>> = { common: 0.012, uncommon: 0.018, rare: 0.024, epic: 0.03, legendary: 0.045, crimson: 0.06 };
 export const GRADE_MULT = [1, 1.5, 2, 3];
 export const GRADE_MARK = ["", "✦", "✦✦", "✦✦✦"];
-export const GRADE_NAME = ["", "Greater", "Grand", "Mythic"];
 /** Drawback chance: rare on Rare, Epic and Legendary, near-certain on Crimson-veined. */
 const FLAW: Partial<Record<Rarity, number>> = { rare: 0.08, epic: 0.1, legendary: 0.12, crimson: 0.85 };
 /** Overcharged items: rare on purpose (about 1 drop in 300, more from bosses, the Abyss and Heat). */

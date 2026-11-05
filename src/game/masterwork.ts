@@ -1,7 +1,7 @@
 // The Masterwork: rework one affix line, extract an item's lines into a Scroll of Power, empower a Common with a scroll,
 // and refine a Common so it can hold more. Paid for with Scrap, Azure dust (Rares), Orilium (Epics), Starmetal and Gold.
 import type { GearBase, GearItem, Rarity } from "../engine/types";
-import { affixById, affixValue, type Grade } from "./affixpool";
+import { affixById, type Grade } from "./affixpool";
 import { classify, FAMILY_NAME, type Family } from "./families";
 import { baseOf, findItem, type Hero, recompute } from "./hero";
 import { affixesFor } from "./loot";
@@ -180,5 +180,3 @@ export function scrapScroll(h: Hero, uid: number): Cost | null {
   return v;
 }
 
-/** Value of a scroll line at its tier (for display). */
-export const scrollLineValue = (s: PowerScroll, id: string) => s.lines[id] ?? (affixById(id) ? affixValue(affixById(id)!, s.rarity, s.kind, 1) : 1);

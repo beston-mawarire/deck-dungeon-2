@@ -14,7 +14,7 @@ export const AFFINITY: Record<OriginId, string[]> = {
 export const ORIGINS: Record<OriginId, { name: string; hp: number; kit: string[]; passive: string; blurb: string }> = {
   warrior: { name: "Warrior", hp: 36, kit: ["w_sword", "o_wooden_shield", "a_chain"], passive: "o_warrior", blurb: "Steel and shield. Strength makes the wall." },
   rogue: { name: "Rogue", hp: 32, kit: ["w_dagger", "w_throwing_knife", "a_leather"], passive: "o_rogue", blurb: "Two blades, first strike. Agility keeps you untouched." },
-  mage: { name: "Mage", hp: 32, kit: ["w_staff", "o_ember_charm", "a_cloth"], passive: "o_mage", blurb: "Every face a spell. Intellect makes them burst." },
+  mage: { name: "Mage", hp: 34, kit: ["w_staff", "o_ember_charm", "a_cloth"], passive: "o_mage", blurb: "Every face a spell. Intellect makes them burst." },
   cleric: { name: "Cleric", hp: 34, kit: ["w_blessed_mace", "o_holy_symbol", "a_padded"], passive: "o_cleric", blurb: "Holy wrath that outlasts. Faith takes the pain." }
 };
 
