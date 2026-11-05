@@ -1172,7 +1172,9 @@ function allGear(r: Run): GearItem[] {
   return [...EQUIP_SLOTS.map(s => r.hero.equip[s]).filter((x): x is GearItem => !!x), ...r.hero.backpack];
 }
 
-let forgeTab: "upgrade" | "scrap" | "offer" | "combine" | "transmute" = "upgrade";
+let forgeTab: "upgrade" | "scrap" | "offer" | "combine" | "transmute" | "reveal" = "upgrade";
+/** The Forge's Reveal bench: the hidden Legendary placed in its slot. */
+let revealSel: number | null = null;
 const offerSel = new Set<number>();
 /** Forge: which half of your gear is shown, and the two items picked to Combine. */
 let forgeSide: "equipped" | "backpack" = "equipped";
@@ -1183,7 +1185,7 @@ const oddsWord = (p: number) => p >= 50 ? "likely" : p >= 25 ? "possible" : p >=
 function forgeScene(r: Run) {
   const h = r.hero;
   const fusions = availableFusions(r);
-  const tabs = [["upgrade", "Upgrade"], ["scrap", "Scrap"], ["offer", "Offering"], ["transmute", h.crucible ? "Transmute" : "🔒 Transmute"]];
+  const tabs = [["upgrade", "Upgrade"], ["scrap", "Scrap"], ["offer", "Offering"], ["transmute", h.crucible ? "Transmute" : "🔒 Transmute"], ...(r.gridMode ? [["reveal", "📜 Reveal"]] : [])];
   const eq = EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x);
   const exists = (u: number) => !!findItem(h, u);
   for (const u of [...offerSel]) if (!exists(u)) offerSel.delete(u);
@@ -1200,7 +1202,14 @@ function forgeScene(r: Run) {
   };
   const slotOf = (it: GearItem) => equippedSlot(r, it);
   let body = "";
-  if (forgeTab === "upgrade") {
+  if (forgeTab === "reveal") {
+    const hidden = [...eq, ...h.backpack].filter(it => baseOf(it.base).legendary && !it.revealed);
+    const sel = hidden.find(it => it.uid === revealSel);
+    body = `<p class="sub">A Legendary keeps its true power hidden until it's revealed. Put it on the bench beside a Scroll of Revelation, and reveal it.</p>
+      <div class="reveal-bench"><div class="rb-slot ${sel ? "full" : ""}">${sel ? `<b class="nm-${sel.rarity}">${esc(itemName(sel))}</b>` : `<span>Legendary</span>`}</div><span class="rb-plus">+</span><div class="rb-slot ${h.scrolls ? "full" : ""}">${h.scrolls ? `<b>📜 Scroll of Revelation</b><span>${h.scrolls} carried</span>` : `<span>Scroll</span>`}</div></div>
+      <button class="primary camp-go" data-revealgo ${sel && h.scrolls ? "" : "disabled"}>✨ Reveal</button>
+      <div class="mer-list">${hidden.length ? hidden.map(it => `<button class="mer-chip ${revealSel === it.uid ? "on" : ""}" data-revealpick="${it.uid}"><b style="color:${RARITY_INK[it.rarity]}">${esc(itemName(it))}</b><span>${equippedSlot(r, it) || "Backpack"}</span></button>`).join("") : `<span class="mer-none">No hidden Legendaries.</span>`}</div>`;
+  } else if (forgeTab === "upgrade") {
     body = `<p class="sub">Upgrading raises an item's level (more damage, stronger lines). To rework a line, find a Masterwork.</p>
     ${sides(() => true, it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>`, false, slotOf(it)))}`;
   } else if (forgeTab === "scrap") {
@@ -1768,10 +1777,11 @@ function crawlBag(r: Run) {
   const curses = Object.entries(h.curses).map(([id, n]) => `<span class="inv-curse" title="${esc(getItem(id).text)}">🕯️ ${esc(getItem(id).name)}${n > 1 ? ` ×${n}` : ""}</span>`).join("");
   const top = `<div class="inv-top">
       <div class="inv-stats"><span>❤️ <b>${Math.max(0, f.hp)}</b>/${f.maxHp}</span><span>⚔️ <b>${f.damage}</b>${f.offDamage !== undefined ? `+${f.offDamage}` : ""}</span><span>🛡️ <b>${armorOf(f)}</b></span><span>💨 <b>${Math.round(f.dodge ?? 0)}%</b></span><span>🎯 <b>${Math.round(f.critChance ?? 0)}%</b></span><span>Lv <b>${h.level}</b></span></div>
-      <div class="inv-stats"><span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span>${h.azure ? `<span>💠 <b>${h.azure}</b></span>` : ""}${h.orilium ? `<span>🔶 <b>${h.orilium}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}<span>🧪 <b>${h.potions}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}<span>📜 <b>${h.scrolls}</b></span></div>
+      <div class="inv-stats"><span>🪙 <b>${f.gold}</b></span><span>🧪 <b>${h.potions}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}</div>
       ${curses ? `<div class="inv-curses">${curses}</div>` : ""}
     </div>`;
-  const tabs: [BagTab, string][] = [["gear", "⚔️ Gear"], ["stats", "📊 Stats"], ["relics", "💎 Spoils"], ["talents", "🧿 Aspects"], ["extras", "✨ Extras"]];
+  const tabs: [BagTab, string][] = [["gear", "⚔️ Gear"], ["relics", "💎 Spoils"], ["talents", "🧿 Aspects"], ["extras", "✨ Extras"]];
+  if (bagTab === "stats") bagTab = "gear";
   let body = "";
   if (bagTab === "gear") {
     const picked = invPick?.k === "eq" ? h.equip[invPick.slot] : invPick?.k === "bp" ? h.backpack.find(i => i.uid === (invPick as { uid: number }).uid) : undefined;
@@ -1780,7 +1790,10 @@ function crawlBag(r: Run) {
     const detail = !picked ? `<div class="inv-empty"><span>🔍</span><p>Tap an item to see it here.</p></div>`
       : invPick?.k === "eq" ? itemCard(picked, inCombat ? "" : `<button class="small" data-unequip="${(invPick as { slot: EquipSlot }).slot}">Take it off</button>${revealBtn(r, picked)}`)
       : itemCard(picked, inCombat ? "" : `${slotsFor(picked, h).map(sl => `<button class="small primary" data-equip="${picked.uid}" data-slot="${sl}">Equip${slotsFor(picked, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, picked)}`, !inCombat);
-    const pack = h.backpack.map(it => `<button class="mer-chip ${invPick?.k === "bp" && invPick.uid === it.uid ? "on" : ""}" data-invpick="bp:${it.uid}"><b style="color:${RARITY_INK[it.rarity] ?? "#e9d6b0"}">${esc(itemName(it))}</b><span>${esc(itemRarity(it))}${it.reqLevel && h.level < it.reqLevel ? ` · 🔒 Lv ${it.reqLevel}` : ""}</span></button>`).join("");
+    // Materials and scrolls sit in the backpack too (they take no slot).
+    const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.orilium ?? 0, "🔶 Orilium"], [h.starmetal, "✴️ Starmetal"], [h.scrolls, "📜 Scroll of Revelation"]].filter(([n]) => (n as number) > 0)
+      .map(([n, l]) => `<span class="mer-chip mat"><b>${l}</b><span>×${n}</span></span>`).join("");
+    const pack = mats + h.backpack.map(it => `<button class="mer-chip ${invPick?.k === "bp" && invPick.uid === it.uid ? "on" : ""}" data-invpick="bp:${it.uid}"><b style="color:${RARITY_INK[it.rarity] ?? "#e9d6b0"}">${esc(itemName(it))}</b><span>${esc(itemRarity(it))}${it.reqLevel && h.level < it.reqLevel ? ` · 🔒 Lv ${it.reqLevel}` : ""}</span></button>`).join("");
     const hk = CLASS_SPRITE[h.origin];
     body = `${inCombat ? `<p class="sub center">You can look, but you can't change gear mid-fight.</p>` : ""}
       <div class="inv-main">
@@ -1792,8 +1805,8 @@ function crawlBag(r: Run) {
   } else body = `<div class="inv-other">${bag(r, true)}</div>`;
   return `<div class="cb-screen inv-screen"><div class="mer-inner inv-inner">
     ${top}
-    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}">${label}</button>`).join("")}</div>
     <div class="inv-body">${body}</div>
+    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}">${label}</button>`).join("")}</div>
   </div></div>`;
 }
 
@@ -1813,6 +1826,8 @@ function sideEquip(r: Run) {
 }
 
 function revealBtn(r: Run, it: GearItem) {
+  // The Crawl: Legendaries are revealed at a Forge.
+  if (r.gridMode) return "";
   const b = baseOf(it.base);
   if (!b.legendary || it.revealed) return "";
   return `<button class="small primary" data-reveal="${it.uid}" ${r.hero.scrolls ? "" : "disabled"}>📜 Reveal</button>`;
@@ -2523,13 +2538,18 @@ function render2() {
       else celebrate(["rare", "epic", "legendary"].includes(getItem(relicNow).rarity ?? "") ? (getItem(relicNow).rarity as string) : "rare", "NEW RELIC", false);
     }
   }
-  const crawlView = (s.t === "map" || s.t === "resplendent") && !!r.gridMode && !!r.grid;
+  // The Crawl: finds and encounters pop up over the map; every other scene sits in the dungeon's stone frame.
+  const POPS = ["loot", "pick", "event", "confirm", "rest", "tribute"];
+  const crawlPop = !!r.gridMode && !!r.grid && POPS.includes(s.t);
+  const crawlView = (s.t === "map" || s.t === "resplendent" || crawlPop) && !!r.gridMode && !!r.grid;
+  const FRAMED: Record<string, string> = { forge: "Forge", masterwork: "Masterwork", jeweller: "Jeweller", alchemist: "Alchemist", smith: "Blacksmith", sanctum: "Dragon Sanctum", bounty: "Bounty Board", talent: "Level Up", cleared: "Layer Cleared", over: r.scene.t === "over" && r.scene.won ? "Victory" : "Fallen" };
+  const crawlFrame = !!r.gridMode && !!FRAMED[s.t];
   const crawlFight = s.t === "combat" && !!r.gridMode;
   const crawlShop = s.t === "shop" && !!r.gridMode;
-  document.body.classList.toggle("crawl-on", crawlView || crawlFight || crawlShop);
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, msg, noteBad && !!note) : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
+  document.body.classList.toggle("crawl-on", crawlView || crawlFight || crawlShop || crawlFrame);
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
   bind();
-  if (s.t === "map" && r.gridMode) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => thingInfo(r, room).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never) }); }
+  if (crawlView) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => thingInfo(r, room).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never) }); }
   else stopWalk();
 }
 
@@ -2981,6 +3001,8 @@ function bind() {
   on("[data-gwalk]", el => { walkToThing(Number(el.dataset.gwalk)); });
   on("[data-gunsel]", () => { if (r.grid) r.grid.sel = undefined; });
   on("[data-potdrawer]", () => { potDrawer = !potDrawer; });
+  on("[data-revealpick]", el => { revealSel = Number(el.dataset.revealpick); });
+  on("[data-revealgo]", () => { if (revealSel === null) return; const err = reveal(r.hero, revealSel); say(err ?? "The Legendary reveals its true power!", !!err); if (!err) { revealSel = null; celebrate("legendary", "REVEALED"); } });
   on("[data-invpick]", el => { const [k, v] = el.dataset.invpick!.split(":"); invPick = k === "eq" ? { k: "eq", slot: v as EquipSlot } : { k: "bp", uid: Number(v) }; });
   on("[data-mpick]", el => { const [k, v] = el.dataset.mpick!.split(":"); merPick = k === "s" ? { k: "stock", i: Number(v) } : { k: "own", uid: Number(v) }; sellArmed = null; });
   on("[data-minv]", el => { merInv = el.dataset.minv as typeof merInv; merPick = merPick?.k === "own" ? null : merPick; sellArmed = null; });

@@ -9,6 +9,15 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.77.2
+- Chest finds and events now open as a popup over the map instead of a new screen.
+- Forge, Masterwork, Jeweller, Alchemist, Blacksmith, Sanctum, Bounty Board, Level Up and end screens use the gritty stone frame with a hanging sign.
+- Item cards on the inventory and reward screens are now off-white scrolls; the item name's colour shows its rarity.
+- Backpack tabs moved to the bottom row beside the close button; Stats tab removed.
+- Scrap and Scrolls of Revelation are now backpack items, off the top bar.
+- Legendaries are revealed only at the Forge's new Reveal tab: Legendary in one slot, scroll in the other.
+- Urns drop gold a little less often.
+
 ## 1.77.1
 - **A new inventory for the Crawl,** a full page in the dungeon's colours:
   - **Top:** your stats (HP, Damage, Armor, Dodge, Crit, level), your Gold, materials and potions, and any curses.

@@ -783,7 +783,7 @@ export function smashUrn(run: Run, t: number) {
   if (x < URN_HEAL && h.potions < potionCap(h)) { gainPotions(h, 1); run.message = "🏺 The urn shatters. A Healing Potion rolls out! 🧪"; return; }
   if (x < URN_HEAL + URN_MANA && gainManaPotions(h, 1)) { run.message = "🏺 The urn shatters. A Mana Potion! 🔷"; return; }
   if (x < 0.13) { const pl = seedDrop(run); run.message = `🏺 The urn shatters. A seed inside: ${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}, for the Camp's Garden.`; return; }
-  if (x < 0.8) { const g = 1 + Math.floor(run.rng() * (2 + run.floor)); h.f.gold += g; run.message = `🏺 The urn shatters: ${g} Gold.`; return; }
+  if (x < 0.68) { const g = 1 + Math.floor(run.rng() * (2 + run.floor)); h.f.gold += g; run.message = `🏺 The urn shatters: ${g} Gold.`; return; }
   run.message = "🏺 The urn shatters. Nothing but dust.";
 }
 
