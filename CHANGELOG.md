@@ -9,6 +9,16 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.76.0
+- **Scrolls of Knowledge** 📜: every boss's hoard holds one. Champions (1 in 4) and iron chests (about 1 in 12) sometimes carry one too. They go straight to the Camp.
+- **The Knowledge Table is open:** spend scrolls on insights that last for every hero.
+  - **Lore** (1 scroll each): Beast Lore, Grave Lore, Engine Lore and Cult Lore. Each makes your hits deal 10% more to foes of that kind.
+  - **Herbalism** (2): every Garden harvest gives one more herb.
+  - **Keen Eye** (2): on every floor, you know where the trapdoor is from the start.
+  - **Merchant's Ledger** (2): Merchants charge you 10% less.
+  - **Treasure Sense** (3): on every floor, you can sense where its chests lie.
+- Every Camp archway now works; none is "coming soon" any more.
+
 ## 1.75.0
 - **Seeds:** now and then an urn (about 1 in 8) or a chest (about 1 in 3) holds a seed: 🌰 Heartleaf or 🫘 Moonbell. They go straight to the Camp, kept even if you die.
 - **The Garden is open:** sow seeds in its plots (two to start). They grow while you're down in the dungeon (Heartleaf in one run, Moonbell in two), then give two or three herbs each.

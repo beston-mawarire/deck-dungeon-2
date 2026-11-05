@@ -34,7 +34,7 @@ import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
-import { applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
+import { INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
 import { pingSession } from "./leaderboard";
 import { classify, FAMILY_NAME } from "../game/families";
 import { applyRework, canAfford, canEmpowerTarget, costText, empower, empowerBlock, extract, extractBlock, MAX_REFINE, refine, refineBlock, refineCost, rework, reworkBlock, reworkCost, SCROLL_SLOTS, scrapScroll, scrollName, scrollScrapValue } from "../game/masterwork";
@@ -763,13 +763,6 @@ const CAMP_TABS: { id: CampTab; icon: string; name: string }[] = [
   { id: "skills", icon: "✨", name: "Skills" }, { id: "garden", icon: "🌱", name: "Garden" }, { id: "brewery", icon: "⚗️", name: "Brewery" },
   { id: "knowledge", icon: "📚", name: "Knowledge" }, { id: "abyss", icon: "🕳️", name: "The Abyss" }
 ];
-const CAMP_SOON: Partial<Record<CampTab, { title: string; text: string; list: string[] }>> = {
-  hall: { title: "The Hall", text: "Where Crown Shards, taken from the bosses of the deep, buy lasting upgrades for every run.", list: ["Deep Pockets: more starting Gold", "Apothecary's Belt: start with a Healing Potion", "Packmule's Straps: more Backpack space", "Hardy: more starting Max HP", "Second Life: once a run, get back up from death"] },
-  skills: { title: "Skills", text: "Each class learns new abilities as its Mastery grows. Pick the one you take into the dungeon.", list: ["New abilities unlock at Mastery milestones", "One ability a run: the new one replaces the old", "Mastery grows slowly, over many deep runs"] },
-  garden: { title: "The Garden", text: "Seeds and herbs found below grow here between runs.", list: ["Plant what you bring home", "Harvests feed the Brewery", "More plots from the Hall"] },
-  brewery: { title: "The Brewery", text: "Brew your own potions from what the Garden grows: a game of dice and sweet spots.", list: ["Healing and Mana Potions to take below", "Stranger brews from rarer herbs"] },
-  knowledge: { title: "The Knowledge Table", text: "Scrolls of Knowledge carried up from the dungeon are studied here.", list: ["Learn what the deep holds", "Lasting insights for every class"] }
-};
 
 /** One Camp option's content (it sits inside that option's archway). */
 function campBody(o: OriginId, tab: CampTab): string {
@@ -839,6 +832,16 @@ function campBody(o: OriginId, tab: CampTab): string {
         <div class="brew-rolls">${brew.rolls.map(r => `<span class="die-mini">${r}</span>`).join("")}</div></div>
       <div class="brew-acts"><button class="hu-buy" data-stir>🥄 Stir</button><button class="hu-buy" data-bottle>🍶 Bottle it</button></div>`;
   }
+  if (tab === "knowledge") {
+    const c = campOf(meta);
+    return `<p>Scrolls of Knowledge carried up from below are studied here. Every boss's hoard holds one; Champions and iron chests sometimes do too. What you learn stays with every hero, for good.</p>
+      <div class="hall-store"><span>📜 <b>${c.scrolls ?? 0}</b> Scroll${(c.scrolls ?? 0) === 1 ? "" : "s"} of Knowledge</span></div>
+      <div class="hall-list">${INSIGHTS.map(k => {
+        const known = !!c.insights?.[k.id];
+        return `<div class="hall-up ${known ? "done" : ""}"><span class="hu-ic">${k.icon}</span><span class="hu-txt"><b>${esc(k.name)}</b><span>${esc(k.text)}</span></span>
+          ${known ? `<span class="hu-done">✔ Learned</span>` : `<button class="hu-buy" data-learn="${k.id}" ${(c.scrolls ?? 0) >= k.cost ? "" : "disabled"}>📜 ${k.cost}</button>`}</div>`;
+      }).join("")}</div>`;
+  }
   if (tab === "hall") {
     const c = campOf(meta);
     const store = `<div class="hall-store"><span>👑 <b>${c.crowns}</b> Crown Shard${c.crowns === 1 ? "" : "s"}</span>${(Object.keys(MATS) as Mat[]).map(k => `<span title="${esc(MATS[k].name)}, from ${MATS[k].family} foes">${MATS[k].icon} <b>${c.mats[k] ?? 0}</b> ${esc(MATS[k].name)}</span>`).join("")}</div>`;
@@ -852,8 +855,7 @@ function campBody(o: OriginId, tab: CampTab): string {
           ${done ? `<span class="hu-done">✔ Done</span>` : `<button class="hu-buy" data-hallbuy="${u.id}" ${can ? "" : "disabled"}>👑 ${cost!.crowns} · ${MATS[cost!.mat].icon} ${cost!.n}</button>`}</div>`;
       }).join("")}</div>`;
   }
-  const c = CAMP_SOON[tab]!;
-  return `<p>${c.text}</p><ul>${c.list.map(x => `<li>${esc(x)}</li>`).join("")}</ul><p class="camp-soon">Being built. Coming soon.</p>`;
+  return "";
 }
 
 /** The Camp: where you get ready between runs. Each option is an archway that fills the screen; slide (or tap the glowing arrows) to the next. */
@@ -2812,6 +2814,7 @@ function bind() {
     on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; campTab = "expedition"; campOffers = null; campQuest = null; });
     on("[data-campback]", () => { camp = null; kitPick = null; });
     on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; plateArmed = false; });
+    on("[data-learn]", el => { const err = learn(meta, el.dataset.learn!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });
     on("[data-sow]", el => { const k = el.dataset.sow as Plant; sowing = sowing === k ? null : k; });
     on("[data-plot]", el => {
       const i = Number(el.dataset.plot), p = gardenPlots(meta)[i];

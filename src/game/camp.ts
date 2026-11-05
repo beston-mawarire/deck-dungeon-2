@@ -26,6 +26,9 @@ export interface CampStore {
   /** Garden plots (null = empty), and potions brewed and waiting to be taken on the next run. */
   plots?: (Plot | null)[];
   brews?: { heal: number; mana: number };
+  /** Scrolls of Knowledge carried home, and the insights learned from them at the Knowledge Table. */
+  scrolls?: number;
+  insights?: Record<string, number>;
 }
 export const campOf = (m: Meta): CampStore => (m.camp ??= { crowns: 0, mats: {}, hall: {} });
 
@@ -79,6 +82,8 @@ export function applyHall(m: Meta, run: Run) {
     c.brews = { heal: 0, mana: 0 };
   }
   for (const p of gardenPlots(m)) if (p && p.left > 0) p.left--;
+  // What the Knowledge Table has taught.
+  for (const k of Object.keys(c.insights ?? {})) h.f.persist[`ins_${k}`] = 1;
   recompute(h);
   h.f.hp = h.f.maxHp;
 }
@@ -90,6 +95,7 @@ export function bankCamp(m: Meta, run: Run): boolean {
   const b = (l.banked ??= { crowns: 0, mats: {} });
   const c = campOf(m);
   let changed = false;
+  if ((l.scrolls ?? 0) > (b.scrolls ?? 0)) { c.scrolls = (c.scrolls ?? 0) + (l.scrolls! - (b.scrolls ?? 0)); b.scrolls = l.scrolls; changed = true; }
   if (l.crowns > b.crowns) { c.crowns += l.crowns - b.crowns; b.crowns = l.crowns; changed = true; }
   for (const k of Object.keys(l.seeds ?? {}) as Plant[]) {
     const d = (l.seeds![k] ?? 0) - (b.seeds?.[k] ?? 0);
@@ -126,7 +132,7 @@ export function harvest(m: Meta, i: number, rng: () => number = Math.random): st
   const c = campOf(m), plots = gardenPlots(m), p = plots[i];
   if (!p) return null;
   if (p.left > 0) return `Still growing: ${p.left} more run${p.left === 1 ? "" : "s"}.`;
-  const n = 2 + (rng() < 0.4 ? 1 : 0);
+  const n = 2 + (rng() < 0.4 ? 1 : 0) + (campOf(m).insights?.herbalism ? 1 : 0);
   (c.herbs ??= {})[p.plant] = (c.herbs[p.plant] ?? 0) + n;
   plots[i] = null;
   return `+${n} ${PLANTS[p.plant].icon} ${PLANTS[p.plant].name}`;
@@ -161,4 +167,28 @@ export function bottle(m: Meta, b: Brew) {
   const k = PLANTS[b.plant].brew;
   c.brews = c.brews ?? { heal: 0, mana: 0 };
   c.brews[k] += b.made;
+}
+
+// ---------- The Knowledge Table ----------
+
+export interface Insight { id: string; name: string; icon: string; text: string; cost: number }
+export const INSIGHTS: Insight[] = [
+  { id: "lore_Beast", name: "Beast Lore", icon: "🐾", text: "Your hits deal 10% more to Beasts", cost: 1 },
+  { id: "lore_Undead", name: "Grave Lore", icon: "💀", text: "Your hits deal 10% more to the Undead", cost: 1 },
+  { id: "lore_Construct", name: "Engine Lore", icon: "🔩", text: "Your hits deal 10% more to Constructs", cost: 1 },
+  { id: "lore_Cultist", name: "Cult Lore", icon: "🔯", text: "Your hits deal 10% more to Cultists", cost: 1 },
+  { id: "herbalism", name: "Herbalism", icon: "🌿", text: "Every Garden harvest gives one more herb", cost: 2 },
+  { id: "keeneye", name: "Keen Eye", icon: "👁️", text: "On every floor, you know where the trapdoor is from the start", cost: 2 },
+  { id: "ledger", name: "Merchant's Ledger", icon: "📒", text: "Merchants charge you 10% less", cost: 2 },
+  { id: "treasure", name: "Treasure Sense", icon: "🧭", text: "On every floor, you can sense where its chests lie", cost: 3 }
+];
+export function learn(m: Meta, id: string): string | null {
+  const ins = INSIGHTS.find(x => x.id === id);
+  if (!ins) return null;
+  const c = campOf(m);
+  if (c.insights?.[id]) return "You already know this.";
+  if ((c.scrolls ?? 0) < ins.cost) return `You need ${ins.cost} Scroll${ins.cost === 1 ? "" : "s"} of Knowledge.`;
+  c.scrolls = (c.scrolls ?? 0) - ins.cost;
+  (c.insights ??= {})[id] = 1;
+  return null;
 }

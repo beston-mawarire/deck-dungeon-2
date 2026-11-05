@@ -280,7 +280,7 @@ export interface Run {
   gridMode?: boolean;
   grid?: FloorMap;
   /** Crown Shards and Camp materials found this run (banked to the Camp as they're found). */
-  campLoot?: { crowns: number; mats: Partial<Record<Mat, number>>; seeds?: Partial<Record<Plant, number>>; banked?: { crowns: number; mats: Partial<Record<Mat, number>>; seeds?: Partial<Record<Plant, number>> } };
+  campLoot?: { crowns: number; mats: Partial<Record<Mat, number>>; seeds?: Partial<Record<Plant, number>>; scrolls?: number; banked?: { crowns: number; mats: Partial<Record<Mat, number>>; seeds?: Partial<Record<Plant, number>>; scrolls?: number } };
   /** The boss's rewards, waiting in the chest of its treasure room; and the drop out of that room under way. */
   bossChest?: Scene;
   gridDescend?: boolean;
@@ -666,6 +666,10 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   }
   m.torches = wallTorches(m, rng, 4 + Math.floor(rng() * 3));
   look(m);
+  // The Knowledge Table: Keen Eye shows the trapdoor, Treasure Sense the chests, from the moment you land.
+  const sense = (room: (r: string) => boolean) => { for (const t of m.things) if (room(t.room)) m.seen[idx(m, t.x, t.y)] = 1; };
+  if (run.hero.f.persist["ins_keeneye"]) sense(r => r === "trapdoor");
+  if (run.hero.f.persist["ins_treasure"]) sense(r => r === "wooden" || r === "iron" || r === "vault");
   return m;
 }
 
@@ -746,8 +750,9 @@ export function gridStep(run: Run, x: number, y: number): { ok: true; entered: b
 }
 
 /** Something for the Camp: a material (and how many), or Crown Shards. */
-export function campGain(run: Run, mat: Mat | null, n: number, crowns = 0) {
+export function campGain(run: Run, mat: Mat | null, n: number, crowns = 0, scrolls = 0) {
   const l = (run.campLoot ??= { crowns: 0, mats: {} });
+  if (scrolls) l.scrolls = (l.scrolls ?? 0) + scrolls;
   if (mat && n) l.mats[mat] = (l.mats[mat] ?? 0) + n;
   l.crowns += crowns;
 }
@@ -914,6 +919,7 @@ function enterRoom(run: Run, room: RoomType) {
         // On a Crawl layer's first floor, a smaller one.
         return fight(run, run.gridMode && run.grid?.depth === 1 ? "normal" : "elite", "mimic");
       }
+      if (run.gridMode && run.rng() < 0.08) { campGain(run, null, 0, 0, 1); run.message = "Among the coins' dust: 📜 a Scroll of Knowledge, for the Camp."; }
       const ironOdds = useClover(run) ? luckyOdds(tables(run).iron) : tables(run).iron;
       const items = [dropItem(run, ironOdds)];
       if (key) items.push(dropItem(run, ironOdds));
@@ -1091,6 +1097,8 @@ function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "cr
   }
   if (heat >= 5 && !exact) enemy.damage = Math.round(enemy.damage * 1.2);
   // The Crawl: one foe at a time, but a harder one, and the floor grows more dangerous the longer you linger.
+  // The Knowledge Table's lore: hit a kind of foe you've studied harder.
+  if (run.gridMode && enemy.family && run.hero.f.persist[`ins_lore_${enemy.family}`]) enemy.dmgTaken = (enemy.dmgTaken ?? 0) + 10;
   if (run.gridMode && !exact) {
     const d = gridDanger(run);
     // Every foe in the Crawl is close to an Elite: plain monsters come much tougher.
@@ -1500,10 +1508,10 @@ function afterFight(run: Run) {
     if (run.gridMode && !then) {
       // Crown Shards for the Camp's Hall (more from deeper layers), and a handful of its family's material.
       const crowns = 1 + Math.floor((run.floor - 1) / 2);
-      campGain(run, null, 0, crowns);
+      campGain(run, null, 0, crowns, 1);
       const bm = matOfFamily(b.enemy.family);
       if (bm) campGain(run, bm, 3);
-      run.message = `👑 +${crowns} Crown Shard${crowns === 1 ? "" : "s"}${bm ? ` · +3 ${MATS[bm].icon} ${MATS[bm].name}` : ""}. ${run.message}`;
+      run.message = `👑 +${crowns} Crown Shard${crowns === 1 ? "" : "s"} · 📜 a Scroll of Knowledge${bm ? ` · +3 ${MATS[bm].icon} ${MATS[bm].name}` : ""}. ${run.message}`;
       run.bossChest = run.scene;
       run.grid = makeTreasure(run);
       run.scene = { t: "map" };
@@ -1521,6 +1529,8 @@ function afterFight(run: Run) {
     const cm = matOfFamily(b.enemy.family);
     const cn = !cm ? 0 : rank === "normal" ? (run.rng() < 0.35 ? 1 : 0) : rank === "elite" ? (run.rng() < 0.7 ? 1 + (run.rng() < 0.4 ? 1 : 0) : 0) : 2 + Math.floor(run.rng() * 2);
     if (cm && cn) { campGain(run, cm, cn); mats += `${mats ? " · " : ""}+${cn} ${MATS[cm].icon} ${MATS[cm].name}`; }
+    // Scrolls of Knowledge, for the Camp's Knowledge Table: Champions sometimes carry one.
+    if (rank === "champion" && run.rng() < 0.25) { campGain(run, null, 0, 0, 1); mats += `${mats ? " · " : ""}+1 📜 Scroll of Knowledge`; }
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (relic) offerRelic(run, relic, rank === "elite" && !then ? 0.25 : 0.5, rank === "elite" && !then ? 1 : 2);
@@ -1759,7 +1769,7 @@ export const wealthMult = (run: Run) => 1 + Math.min(0.75, Math.max(0, run.hero.
 /** Shop prices: floor and curses (priceMult) times what the Merchant thinks you can afford. */
 export const shopMult = (run: Run) => priceMult(run) * wealthMult(run);
 
-export const priceMult = (run: Run) => (1 + 0.12 * (run.floor - 1)) * gouge(run.hero) * (heatOf(run) >= 2 ? 1.3 : 1) * (run.mode === "abyss" ? ABYSS_PRICE_MULT : 1);
+export const priceMult = (run: Run) => (run.hero.f.persist["ins_ledger"] ? 0.9 : 1) * (1 + 0.12 * (run.floor - 1)) * gouge(run.hero) * (heatOf(run) >= 2 ? 1.3 : 1) * (run.mode === "abyss" ? ABYSS_PRICE_MULT : 1);
 /** Each reroll at the same Merchant costs triple the last (from 15 Gold, scaled by the floor), up to 5 rerolls per visit. */
 export const MAX_SHOP_REROLLS = 5;
 export const shopRerollCost = (run: Run) => Math.round(15 * shopMult(run)) * 3 ** run.shopRerolls;

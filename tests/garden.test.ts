@@ -38,3 +38,20 @@ describe("the Garden and the Brewery", () => {
     expect(campOf(m).brews!.heal).toBe(0);
   });
 });
+
+describe("the Knowledge Table", () => {
+  it("scrolls buy insights that every run then carries", async () => {
+    const { learn, INSIGHTS } = await import("../src/game/camp");
+    const { makeGrid } = await import("../src/game/run");
+    const m = meta();
+    campOf(m).scrolls = 2;
+    expect(learn(m, "treasure")).toMatch(/Scroll/);
+    expect(learn(m, "keeneye")).toBeNull();
+    expect(learn(m, "keeneye")).toMatch(/already/);
+    expect(INSIGHTS.length).toBe(8);
+    const r = newRun("rogue", 4); startCrawl(r); applyHall(m, r);
+    const g = makeGrid(r, 1);
+    const td = g.things.find(t => t.room === "trapdoor")!;
+    expect(g.seen[td.y * g.w + td.x]).toBe(1);
+  });
+});
