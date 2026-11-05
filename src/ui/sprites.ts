@@ -71,7 +71,7 @@ export const THING_SPRITE: Record<string, string> = {
   alchemist: "wizzard_f", blacksmith: "dwarf_f", gambling_den: "lizard_m", card_sharp: "lizard_f", fortune_teller: "pumpkin_dude", jeweller: "elf_f",
   starving_pilgrim: "tiny_zombie", fallen_adventurer: "skull", event: "doors_leaf_open", shrine: "column",
   sanguine: "fount_red", altar: "fount_red", oath: "fount_red", sacred_spring: "fount_blue", mirror_pool: "fount_blue", cleansing: "fount_blue",
-  forge: "weapon_big_hammer", masterwork: "weapon_golden_sword", offering: "flask_big_yellow", bounty: "wall_banner_yellow", sanctum: "wall_banner_green", crossroads: "floor_ladder"
+  forge: "weapon_big_hammer", masterwork: "weapon_golden_sword", offering: "flask_big_yellow", bounty: "wall_banner_yellow", sanctum: "wall_banner_green", crossroads: "floor_ladder", crimson_elite: "masked_orc"
 };
 /** A sprite's size in pixels (for fitting tall ones into a tile). */
 export const spriteSize = (k: string) => (S[k] ? { w: S[k].w, h: S[k].h } : null);

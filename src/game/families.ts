@@ -1,5 +1,5 @@
 // Item families, weights and damage classes. Every base belongs to a family (which affixes and Scrolls of Power fit it),
-// a load (light, medium or heavy: heavy gear stops Dodge, Evade and Haste) and, for weapons, a damage class.
+// a load (light, medium or heavy: heavy gear halves Dodge and stops Evade and Haste) and, for weapons, a damage class.
 import type { GearBase } from "../engine/types";
 import { baseOf } from "./hero";
 

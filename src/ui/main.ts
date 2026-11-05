@@ -22,7 +22,7 @@ import { ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, fishCast, eatFish, sellFish, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
+  sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   startCrawl, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
@@ -30,7 +30,7 @@ import {
 import { fortunePips } from "../game/loot";
 import { layerFloors } from "../game/grid";
 import { isThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
-import { branchSpent, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TOTEMS, totemById, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
+import { branchSpent, isTreeRelic, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TOTEMS, totemById, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
@@ -50,7 +50,8 @@ import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
 import { PATCH_NOTES } from "./changes";
-import { warmClips, holdMusic, isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
+import menuBg from "../assets/menu_bg.png";
+import { warmClips, holdMusic, isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Place, type Track } from "./sound";
 
 loadLibrary();
 
@@ -778,10 +779,10 @@ function merchantScreen(r: Run, msg: string[], bad: boolean) {
       const it = findItem(h, merPick.uid)?.item;
       if (!it) return "";
       const worn = !!equippedSlot(r, it);
-      const btn = `<button class="mer-act ${worn && sellArmed === it.uid ? "danger" : "primary"}" data-sell="${it.uid}" ${sc.soldItem ? "disabled" : ""}>${sc.soldItem ? "One sale per visit" : worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${Math.round(sellPrice(it, h) * goldMult(r))} 🪙`}</button>`;
+      const btn = `<button class="mer-act ${worn && sellArmed === it.uid ? "danger" : "primary"}" data-sell="${it.uid}">${worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${Math.round(sellPrice(it, h) * goldMult(r))} 🪙`}</button>`;
       return itemCard(it, btn, false, equippedSlot(r, it));
     }
-    return `<div class="mer-empty"><span>⚖️</span><p>Tap something for sale, or something of yours, to look at it here.</p><p class="sub">The Merchant buys one thing a visit, for 40% of its price.</p></div>`;
+    return `<div class="mer-empty"><span>⚖️</span><p>Tap something for sale, or something of yours, to look at it here.</p><p class="sub">The Merchant buys anything you bring, for 40% of its price.</p></div>`;
   })();
   const chip = (attrs: string, name: string, ink: string, sub: string, on: boolean, dim = false) => `<button class="mer-chip ${on ? "on" : ""} ${dim ? "dim" : ""}" ${attrs}><b style="color:${ink}">${esc(name)}</b>${sub ? `<span>${sub}</span>` : ""}</button>`;
   const stock = sc.stock.map((e, i) => { const l = stockLabel(r, e); return chip(`data-mpick="s:${i}"`, `${l.icon ? `${l.icon} ` : ""}${l.name}`, l.ink, e.sold ? "Sold" : `${e.price} 🪙`, merPick?.k === "stock" && merPick.i === i, e.sold); }).join("");
@@ -964,11 +965,11 @@ function treeNodePopup(o: OriginId) {
   const d = getItem(n.talent), t = treeOf(meta, o), taken = !!t.spent[key];
   const b = passiveTree().find(br => br.id === n.branch)!;
   const why = nodeBlock(meta, o, key);
-  const sig = isTreeSigil(n.talent), ranks = sig ? 1 : nodeRanks(d), nm = nodeName(n, d);
+  const sig = isTreeSigil(n.talent) || isTreeRelic(n.talent), rel = isTreeRelic(n.talent), ranks = sig ? 1 : nodeRanks(d), nm = nodeName(n, d);
   const attr = n.tier === 0 ? (n.talent.slice(3) as Attr) : null;
   const body = attr
     ? `<p><b>+1 ${esc(ATTR_INFO[attr].name)}</b> on every run with this class, on top of the points you spend as you level.</p><p class="sub">Each point of ${esc(ATTR_INFO[attr].name)}: ${shownLines(ATTR_INFO[attr].lines(1)).map(esc).join(", ")}.</p>`
-    : `<p>${esc(nodeText(d, n.level))}</p>${sig ? `<p class="sub">Once a Talisman sigil; now it's yours for good.</p>` : ""}${ranks > 1 ? `<p class="sub">${n.level < ranks ? `Its next rank waits deeper in the tree.` : "Its strongest rank."}${n.level > 1 ? ` Needs ${esc(d.name)} ${NUMERAL[n.level - 1]}.` : ""}</p>` : ""}`;
+    : `<p>${esc(nodeText(d, n.level))}</p>${sig ? `<p class="sub">${rel ? "Once a relic" : "Once a Talisman sigil"}; now it's yours for good.</p>` : ""}${ranks > 1 ? `<p class="sub">${n.level < ranks ? `Its next rank waits deeper in the tree.` : "Its strongest rank."}${n.level > 1 ? ` Needs ${esc(d.name)} ${NUMERAL[n.level - 1]}.` : ""}</p>` : ""}`;
   return `<div class="tree-pop-wrap"><div class="tree-pop">
     <button class="tp-x" data-closenode aria-label="Close">✕</button>
     <div class="tp-orb ${taken ? "has" : ""}">${attr ? ATTR_INFO[attr].icon : esc(initials(nm))}${ranks > 1 ? `<i>${NUMERAL[n.level]}</i>` : ""}</div>
@@ -1052,12 +1053,19 @@ function fishResolve(ok: boolean, miss: string) {
 }
 
 /** Enter Dungeon: a dungeon archway, pitch black inside, with what you need to set out in its mouth. */
-let expPop: "heat" | "totem" | null = null;
+let expPop: "heat" | "totem" | "layer" | null = null;
+/** The layer the next run starts on (any layer up to the one after the class's best). */
+let startLayer = 1;
+const maxStartLayer = (o: OriginId) => Math.min(FLOORS, (meta.layersBeaten?.[o] ?? 0) + 1);
 function expeditionScreen(o: OriginId) {
   void o;
   const tot = meta.totemSet ? totemById(meta.totemSet) : undefined;
   const heat = meta.heat ?? 0;
   const pop = expPop === "heat" ? `<div class="overlay popup-wrap exp-pop"><div class="popup"><button class="small closex closebtn" data-exppop="" aria-label="Close">✕</button><h2 class="center">🔥 Heat</h2>${heatPanel()}<div class="row plank-row" style="justify-content:center"><button class="plank-btn" data-exppop="">Done</button></div></div></div>`
+    : expPop === "layer" ? `<div class="overlay popup-wrap exp-pop"><div class="popup"><button class="small closex closebtn" data-exppop="" aria-label="Close">✕</button><h2 class="center">Choose a layer</h2>
+      <p class="sub center">Start from any layer up to the one after the deepest the ${esc(ORIGINS[o].name)} has beaten. Starting deeper, you set out stronger: a few levels, a little Gold and some gear in your pack.</p>
+      <div class="layer-picks">${Array.from({ length: maxStartLayer(o) }, (_, i) => i + 1).map(n => `<button class="plank-btn ${Math.min(startLayer, maxStartLayer(o)) === n ? "on" : ""}" data-startlayer="${n}">The ${ordinal(n)} Layer${n > 1 ? ` <span>from level ${layerStartLevel(n)}</span>` : ""}</button>`).join("")}</div>
+      ${maxStartLayer(o) < FLOORS ? `<p class="sub center">Beat the ${ordinal(maxStartLayer(o))} Layer to start from the next one.</p>` : ""}</div></div>`
     : expPop === "totem" ? `<div class="overlay popup-wrap exp-pop"><div class="popup"><button class="small closex closebtn" data-exppop="" aria-label="Close">✕</button><h2 class="center">🗿 Totems</h2>
       ${(() => { const held = TOTEMS.filter(t => (meta.totems?.[t.id] ?? 0) > 0); return held.length
         ? `<p class="sub center">Set one at the door: it leans the loot its way, and it's used up as you go in.</p><div class="mer-list totem-list">${held.map(t => `<button class="mer-chip ${meta.totemSet === t.id ? "on" : ""}" data-totem="${t.id}"><b>${t.icon} ${esc(t.name)}</b><span>×${meta.totems![t.id]} · ${esc(t.text)}</span></button>`).join("")}</div>`
@@ -1070,9 +1078,10 @@ function expeditionScreen(o: OriginId) {
       <div class="cb-torch r"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
       <div class="exp-arch"><div class="exp-dark">
         <div class="exp-btns">
-          <button class="plank-btn exp-go" data-descend>⬇️ Descend</button>
-          <button class="plank-btn" data-exppop="heat">🔥 Heat${heat ? ` · ${heat}` : ""}</button>
-          <button class="plank-btn" data-exppop="totem">🗿 Totem${tot ? ` · ${tot.icon}` : ""}</button>
+          <button class="plank-btn exp-go" data-descend>Descend</button>
+          <button class="plank-btn" data-exppop="layer">Layer · ${ordinal(Math.min(startLayer, maxStartLayer(o)))}</button>
+          <button class="plank-btn" data-exppop="heat">Heat${heat ? ` · ${heat}` : ""}</button>
+          <button class="plank-btn" data-exppop="totem">Totem${tot ? ` · ${esc(tot.name)}` : ""}</button>
         </div>
       </div></div>
     </div>
@@ -1100,10 +1109,10 @@ function treeScreen(o: OriginId) {
       // A chain link to the node's lower rank; otherwise a faint thread up to the row above.
       const up = n.prereq ? at.get(n.prereq) : b.nodes.find(m => m.tier === n.tier - 1 && m.col === n.col);
       if (up) { const q = pos(bi, up.tier, up.col); lines.push(`<line x1="${q.x}" y1="${q.y}" x2="${p.x}" y2="${p.y}" class="${n.prereq ? "rank" : "thread"} ${t.spent[n.key] && t.spent[up.key] ? "lit" : ""}"/>`); }
-      const d = getItem(n.talent), taken = !!t.spent[n.key], nm = nodeName(n, d), sig = isTreeSigil(n.talent);
+      const d = getItem(n.talent), taken = !!t.spent[n.key], nm = nodeName(n, d), sig = isTreeSigil(n.talent) || isTreeRelic(n.talent), rel = isTreeRelic(n.talent);
       const can = open && !nodeBlock(meta, o, n.key);
       const shut = !open || !tierOpen(t, b, n.tier);
-      nodes.push(`<button class="tnode ${taken ? "has full" : ""} ${can ? "can" : ""} ${shut ? "shut" : ""}" style="left:${p.x - TREE_COL / 2}px;top:${p.y - 30}px;width:${TREE_COL}px" data-nodeinfo="${n.key}" aria-label="${esc(nm)}"><span class="tn-orb ${n.tier === 0 ? "attr" : sig ? "sigil" : ""}">${n.tier === 0 ? ATTR_INFO[n.talent.slice(3) as Attr].icon : esc(initials(nm))}${!sig && nodeRanks(d) > 1 ? `<i class="tn-num">${NUMERAL[n.level]}</i>` : ""}</span><span class="tn-name">${n.tier === 0 ? `+1 ${esc(nm)}` : esc(nm)}</span></button>`);
+      nodes.push(`<button class="tnode ${taken ? "has full" : ""} ${can ? "can" : ""} ${shut ? "shut" : ""}" style="left:${p.x - TREE_COL / 2}px;top:${p.y - 30}px;width:${TREE_COL}px" data-nodeinfo="${n.key}" aria-label="${esc(nm)}"><span class="tn-orb ${n.tier === 0 ? "attr" : rel ? "relic" : sig ? "sigil" : ""}">${n.tier === 0 ? ATTR_INFO[n.talent.slice(3) as Attr].icon : esc(initials(nm))}${!sig && nodeRanks(d) > 1 ? `<i class="tn-num">${NUMERAL[n.level]}</i>` : ""}</span><span class="tn-name">${n.tier === 0 ? `+1 ${esc(nm)}` : esc(nm)}</span></button>`);
     }
   });
   const won = meta.layersBeaten?.[o] ?? 0;
@@ -1119,6 +1128,11 @@ function treeScreen(o: OriginId) {
 
 /** Kills of one kind of foe before its Bestiary record opens. */
 const BESTIARY_KILLS = 10;
+/** Which music fits where you are: a guardian's fight, the dungeon floors, the Camp or the title. */
+function musicPlace(): Place {
+  if (run) return (run.scene.t === "combat" && run.scene.rank === "boss") || (run.gridMode && run.grid && run.grid.depth >= layerFloors(run) - 1 && run.scene.t === "combat") ? "boss" : "floor";
+  return camp ? "camp" : "title";
+}
 function campScreen(o: OriginId) {
 
   // The Camp is a place you walk: tap a spot to walk to it and open it. (campTab remembers the last spot opened.)
@@ -1586,27 +1600,30 @@ function crawlCleared(r: Run) {
   const s = r.scene, next = s.floor + 1;
   const th = themeOf(r, next);
   const boss = sprOr(foeSprite(s.boss, undefined, true), 3, "es-dead big", "💀");
-  return `${endStage("cleared", `<div class="es-boss">${boss}${spriteHtml("skull", 3, "es-skull")}${spriteHtml("coin", 3, "es-coin c1")}${spriteHtml("coin", 3, "es-coin c2")}</div><div class="es-stairs">${spriteHtml("floor_stairs", 4, "")}</div>`)}
-    <h2 class="end-title">${esc(s.boss)} has fallen</h2>
-    <p class="end-line">${r.mode === "abyss" ? `Depth ${s.floor} of the Abyss is cleared.` : `The ${ordinal(s.floor)} Layer is cleared.`}</p>
-    <p class="end-line sub">${r.hero.f.hp}/${r.hero.f.maxHp} HP · level ${r.hero.level} · ${r.stats.kills} kills</p>
-    <p class="end-line">Below lies <b class="cl-next">${r.mode === "abyss" ? `Depth ${next} of the Abyss` : `the ${ordinal(next)} Layer${th ? `: ${th.icon} ${esc(th.name)}` : ""}`}</b>.</p>
-    <div class="end-btns"><button class="plank-btn" data-descend>Go down</button><button class="plank-btn" data-bag>🎒 Check your inventory first</button></div>`;
+  const hero = sprOr(CLASS_SPRITE[r.hero.origin], 4, "es-hero", ORIGIN_ICON[r.hero.origin]);
+  const abyss = r.mode === "abyss";
+  return `${endStage("won cleared", `<div class="es-boss">${hero}${spriteHtml("coin", 3, "es-coin c1")}${spriteHtml("coin", 3, "es-coin c2")}</div><div class="es-boss">${boss}${spriteHtml("skull", 3, "es-skull")}</div><div class="es-stairs">${spriteHtml("floor_stairs", 4, "")}</div>`)}
+    <h2 class="end-title won">${abyss ? `Depth ${s.floor} conquered!` : `The ${ordinal(s.floor)} Layer is conquered!`}</h2>
+    <p class="end-line"><b class="cl-boss">${esc(s.boss)}</b> has fallen.</p>
+    ${endStats(r)}
+    <p class="end-line">Below lies <b class="cl-next">${abyss ? `Depth ${next} of the Abyss` : `the ${ordinal(next)} Layer${th ? `: ${th.icon} ${esc(th.name)}` : ""}`}</b>, and it's harder than anything up here.</p>
+    <div class="end-btns"><button class="plank-btn" data-descend>Go deeper</button><button class="plank-btn" data-retire>Head back to the Camp</button><button class="plank-btn" data-bag>Check your inventory</button></div>
+    <p class="end-sub">Heading back ends the run well: everything you've earned goes home with you${abyss ? "" : `, and your next run can start from the ${ordinal(Math.min(next, FLOORS))} Layer`}.</p>`;
 }
 
 /** The Crawl's end: fallen (with whoever did it standing over you), or the last guardian beaten. */
 function crawlOver(r: Run) {
   if (r.scene.t !== "over") return "";
   const h = r.hero, won = r.scene.won, k = r.killer;
-  const hero = sprOr(CLASS_SPRITE[h.origin], 4, won ? "es-hero" : "es-dead hero", ORIGIN_ICON[h.origin]);
+  const hero = sprOr(CLASS_SPRITE[h.origin], 4, won || r.retired ? "es-hero" : "es-dead hero", ORIGIN_ICON[h.origin]);
   const killer = !won && k && !r.abandoned ? sprOr(foeSprite(k.name, k.family, k.rank === "boss"), k.rank === "boss" ? 4 : 4, "es-foe", "👹") : "";
-  const stage = won
+  const stage = won || r.retired
     ? endStage("won", `<div class="es-boss">${spriteHtml("chest_gold_open", 4, "es-chest")}${hero}${spriteHtml("coin", 3, "es-coin c1")}${spriteHtml("coin", 3, "es-coin c2")}${spriteHtml("coin", 3, "es-coin c3")}</div>`)
     : endStage("fallen", `<div class="es-boss">${hero}${spriteHtml("skull", 3, "es-skull")}</div>${killer ? `<div class="es-killer">${killer}</div>` : ""}`);
-  const title = r.finale ? "Nothing remains. You won everything." : won && r.mode === "abyss" ? "You reached the bottom of the Abyss!" : won ? "The last guardian falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen.";
+  const title = r.finale ? "Nothing remains. You won everything." : won && r.mode === "abyss" ? "You reached the bottom of the Abyss!" : won ? "The last guardian falls. You win!" : r.retired ? `Home from the ${ordinal(r.floor)} Layer, victorious.` : r.abandoned ? "You gave up the run." : "You have fallen.";
   const gear = EQUIP_SLOTS.map(sl => h.equip[sl]).filter((x): x is GearItem => !!x);
   return `${stage}
-    <h2 class="end-title ${won ? "won" : "lost"}">${title}</h2>
+    <h2 class="end-title ${won || r.retired ? "won" : "lost"}">${title}</h2>
     ${!won && k && !r.abandoned ? `<p class="end-line">Slain by <b class="cl-boss">${esc(k.name)}</b>${k.title ? ` <span class="sub">${esc(k.title)}</span>` : ""}, with ${big(k.hp)}/${big(k.maxHp)} HP left.</p>` : ""}
     ${endStats(r)}
     ${recorded?.achievements.length ? `<div class="end-box">${recorded.achievements.map(id => { const a = ACHIEVEMENTS.find(x => x.id === id)!; return `<p>🏆 <b>${esc(a.name)}</b>: ${esc(a.text)} <span class="sub">(+${a.renown} Renown${a.title ? ` · title “${esc(a.title)}”` : ""})</span></p>`; }).join("")}</div>` : ""}
@@ -2093,8 +2110,8 @@ function crawlBag(r: Run) {
       ${curses ? `<div class="inv-curses">${curses}</div>` : ""}
     </div>`;
   const pts = h.attrPoints ?? 0;
-  const tabs: [BagTab, string][] = [["gear", "⚔️ Gear"], ["attrs", "📈 Attributes"], ["relics", "💎 Spoils"], ["extras", "✨ Extras"]];
-  if (bagTab === "stats" || bagTab === "talents") bagTab = "gear";
+  const tabs: [BagTab, string][] = [["gear", "⚔️ Gear"], ["attrs", "📈 Attributes"], ["extras", "⚗️ Artefacts"]];
+  if (bagTab === "stats" || bagTab === "talents" || bagTab === "relics") bagTab = "gear";
   let body = "";
   if (bagTab === "gear") {
     const picked = invPick?.k === "eq" ? h.equip[invPick.slot] : invPick?.k === "bp" ? h.backpack.find(i => i.uid === (invPick as { uid: number }).uid) : undefined;
@@ -2129,12 +2146,43 @@ function crawlBag(r: Run) {
         <p class="attr-blurb">${esc(info.blurb)}</p><ul class="attr-lines">${lines}</ul></div>`;
     }).join("");
     body = `<div class="attr-top">${pts ? `<b>${pts}</b> point${pts === 1 ? "" : "s"} to spend` : `No points to spend. Each level-up gives ${ATTR_PER_LEVEL}.`}</div><div class="attr-list">${rows}</div>`;
-  } else body = `<div class="inv-other">${bag(r, true)}</div>`;
+  } else body = crawlArtefacts(r);
   return `<div class="cb-screen inv-screen"><div class="mer-inner inv-inner">
     ${top}
     <div class="inv-body">${body}</div>
     <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}"><i>${label.split(" ")[0]}${id === "attrs" && pts ? `<b class="tab-badge">${pts}</b>` : ""}</i><span>${id === "attrs" ? `<span class="lb-long">Attributes</span><span class="lb-short">Attr</span>` : label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
   </div></div>`;
+}
+
+/** The Crawl's Artefacts tab: what you carry besides gear, any Blessings on you, and your curses. */
+function crawlArtefacts(r: Run) {
+  const h = r.hero, p = h.f.persist;
+  const tile = (icon: string, name: string, n: number | string | null, text: string, cls = "") =>
+    `<div class="af-tile ${cls}"><span class="af-ic">${icon}</span><div class="af-txt"><b>${esc(name)}${n !== null ? ` <em>${typeof n === "number" ? `×${n}` : esc(n)}</em>` : ""}</b><span>${esc(text)}</span></div></div>`;
+  const carried = [
+    tile("📜", "Scrolls of Revelation", h.scrolls, h.scrolls ? "Use one on a hidden Legendary, from the Gear tab." : "Reveal a hidden Legendary's power.", h.scrolls ? "" : "dim"),
+    tile("🗝️", "Skeleton Keys", p["skelKeys"] ?? 0, "Open a locked door on a floor.", p["skelKeys"] ? "" : "dim"),
+    tile("✴️", "Starmetal", h.starmetal, "From scrapped Legendary and Crimson gear. Jewellers and the Crucible want it.", h.starmetal ? "" : "dim"),
+    tile("⚙️", "Scrap", h.scrap, "Upgrades at the Forge.", h.scrap ? "" : "dim"),
+    ...(h.azure ? [tile("💠", "Azure", h.azure, "A rare crystal from Elites and Champions.")] : []),
+    ...(h.crimsonKeys ? [tile("🩸", "Crimson Keys", h.crimsonKeys, "A Crimson Vault waits somewhere below.", "crimson")] : []),
+    ...(h.crucible ? [tile("⚗️", "Transmuter's Crucible", null, `At a Forge: a Common item and ${TRANSMUTE_COST} Starmetal become a Legendary.`, "gold")] : []),
+    ...(h.dragonHeart ? [tile("🫀", "Dragon Heart", `level ${h.dragonHeart.level}`, h.dragonHeart.unified ? "Unified: every one of your stats is 50% stronger." : "Still beating. A Dragon Sanctum could bind it to you.", "crimson")] : []),
+    ...(h.keepsake ? [tile("🕯️", getItem(h.keepsake).name, null, `Keepsake: ${getItem(h.keepsake).text}.`, "gold")] : []),
+    ...Object.entries(h.tonics ?? {}).map(([id, n]) => tile(TONICS[id].icon, TONICS[id].name, n, TONICS[id].text))
+  ].join("");
+  const angel = p["angelFights"] ?? 0, dragon = p["blessFights"] ?? 0, clover = p["cloverChests"] ?? 0;
+  const bless = [
+    angel > 0 ? tile("👼", "Angelic Blessing", `${angel} fight${angel === 1 ? "" : "s"}`, "Immune to negative statuses; heal 2 as each fight begins.", "bless") : "",
+    dragon > 0 ? tile("🐲", "Dragon's Blessing", `${dragon} fight${dragon === 1 ? "" : "s"}`, BLESSINGS[p["blessKind"] ?? 0], "bless") : "",
+    clover > 0 ? tile("🍀", "Four-Leaf Clover", `${clover} chest${clover === 1 ? "" : "s"}`, "Better odds of Rare, Epic and Legendary from chests.", "bless") : ""
+  ].join("");
+  const curses = Object.entries(h.curses).map(([id, n]) => tile("🕯️", getItem(id).name, n > 1 ? n : null, fillText(getItem(id).text, n), "curse")).join("");
+  return `<div class="af-list">
+    <h3 class="af-head">Carried</h3><div class="af-grid">${carried}</div>
+    ${bless ? `<h3 class="af-head">Blessings</h3><div class="af-grid">${bless}</div>` : ""}
+    <h3 class="af-head">Curses</h3>${curses ? `<div class="af-grid">${curses}</div>` : `<p class="af-none">No curses on you. Shrines, cursing foes and dark magic lay them on; something holy lifts them.</p>`}
+  </div>`;
 }
 
 /** Wide screens: your equipped gear, always in view on the left. */
@@ -2327,27 +2375,23 @@ function changesScreen() {
       <div class="patch-grid">${n.sections.map(sec => `<section class="patch-sec"><h3>${sec.icon} ${esc(sec.title)}</h3><ul>${sec.items.map(([b, t]) => `<li><b>${esc(b)}</b>${t ? `: ${esc(t)}` : ""}</li>`).join("")}</ul></section>`).join("")}</div>
       <p class="patch-outro">${esc(n.outro)}</p>
     </article>`).join("");
-  return `<div class="changes-page"><div class="row opt-head"><button class="small dg-stone" data-changesback>← Back</button><h1 class="grow dg-carved">📰 Changes</h1></div>${notes}</div>`;
+  return `<div class="changes-page m3-page"><div class="dg-head"><h1 class="grow">Changes</h1><button class="plank-btn small" data-changesback>Back</button></div>${notes}</div>`;
 }
 
 function splashScreen() {
   const sv = savedSummary();
-  return `<div class="splash dungeon">
-    <div class="dg-arch" aria-hidden="true"></div>
-    <div class="dg-torch left" aria-hidden="true"><b></b><i></i></div><div class="dg-torch right" aria-hidden="true"><b></b><i></i></div>
-    <div class="dg-embers" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => `<span style="left:${(i * 37) % 100}%;animation-delay:${(i * 0.73) % 6}s;animation-duration:${6 + (i % 5)}s"></span>`).join("")}</div>
-    <div class="splash-dice">🎲</div>
-    <div class="splash-head"><h1 class="splash-title">DECK DUNGEON <span>2</span></h1></div>
-    <p class="splash-tag">Venture into the depths of darkness. Slay the horrors within.</p>
-    <div class="splash-buttons">
-      ${musicBlocked() ? `<button class="small music-hint" data-startmusic>🎵 Tap for music</button>` : ""}
-      <button class="primary big" data-play>${sv ? "▶ Play (continue available)" : "▶ Play"}</button>
-      <button class="big" data-help>❓ How to play</button>
-      <button class="big lb-btn" data-lb>🏆 Leaderboards</button>
-      <button class="big" data-changes>📰 Changes</button>
-      <button class="big" data-options>⚙️ Options</button>
+  return `<div class="splash menu3" style="--menu-bg:url(${menuBg})">
+    <div class="m3-bg" aria-hidden="true"></div>
+    <div class="m3-title"><div class="mer-sign m3-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank"><span class="m3-deck">Deck Dungeon</span><span class="m3-three">3</span></div></div></div>
+    <p class="m3-tag">Venture into the depths. Slay the horrors within.</p>
+    <div class="m3-buttons">
+      ${musicBlocked() ? `<button class="plank-btn m3-music" data-startmusic>Tap for music</button>` : ""}
+      <button class="plank-btn m3-play" data-play>${sv ? "Continue" : "Play"}</button>
+      <button class="plank-btn" data-help>How to play</button>
+      <button class="plank-btn" data-lb>Leaderboards</button>
+      <div class="m3-pair"><button class="plank-btn" data-changes>Changes</button><button class="plank-btn" data-options>Options</button></div>
     </div>
-    <p class="sub splash-foot dg-plaque">🏅 ${meta.renown} Renown · ${meta.runs} runs · ${meta.wins} wins</p>
+    <p class="m3-foot">${meta.renown} Renown · ${meta.runs} runs · ${meta.wins} wins</p>
     <p class="version">${VERSION}</p>
   </div>`;
 }
@@ -2400,7 +2444,7 @@ function comparePopup(r: Run): string {
 /** Options as a page of its own (from the title screen). */
 function optionsPage() {
   return optionsPopup()
-    .replace('<div class="overlay popup-wrap"><div class="popup options-pop">', '<div class="options-page"><div class="row opt-head"><button class="small dg-stone" data-closeoptions>← Back</button><h1 class="grow dg-carved">⚙️ Options</h1></div><div class="options-pop as-page">')
+    .replace('<div class="overlay popup-wrap"><div class="popup options-pop">', '<div class="options-page m3-page"><div class="dg-head"><h1 class="grow">Options</h1><button class="plank-btn small" data-closeoptions>Back</button></div><div class="options-pop as-page">')
     .replace('<button class="small closex closebtn" data-closeoptions aria-label="Close">✕</button>', '')
     .replace('<h1 class="center bigname">⚙️ Options</h1>', '');
 }
@@ -2416,7 +2460,6 @@ function optionsPopup() {
       ${opt("Sound effects", "", `<button class="small ${isMuted() ? "" : "primary"}" data-mute>${isMuted() ? "🔇 Off" : "🔊 On"}</button>`)}
       ${musicSliders(undefined, false)}`)}
     ${sec("⚔️", "Gameplay", `
-      ${opt("Quick Battle", "Fights you can't lose can play themselves out, from the map or mid-fight.", `<div class="seg"><button class="small ${quickOn ? "primary" : ""}" data-quick="1">On</button><button class="small ${quickOn ? "" : "primary"}" data-quick="0">Off</button></div>`)}
       ${opt("Combat speed", "How fast dice roll and blows land.", `<div class="seg">${sp(1, "Normal")}${sp(0.5, "Fast")}${sp(0.2, "Very fast")}</div>`)}`)}
     ${sec("💾", "Progress & backup", `
       <p class="sub">Renown, unlocks, the Codex and any saved run are kept in this browser${leaderboardOn() ? ", with a copy online" : ""}.</p>
@@ -2806,7 +2849,7 @@ function render() {
 function render2() {
   // Not in a run: a new build can load straight away.
   if (!run && updateReady()) applyUpdate();
-  playMusic(run ? "game" : "title");
+  playMusic(run ? "game" : "title", musicPlace());
   if (!run) {
     app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${treeNode ? treeNodePopup(camp) : ""}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
@@ -2883,7 +2926,7 @@ function render2() {
   const strange = s.t === "event" && !!s.strange && !!r.gridMode;
   const crawlPop = !!r.gridMode && !!r.grid && POPS.includes(s.t) && !strange;
   const crawlView = (s.t === "map" || s.t === "resplendent" || crawlPop) && !!r.gridMode && !!r.grid;
-  const FRAMED: Record<string, string> = { forge: "Forge", offering: "Offering Altar", fishing: "Still Pool", masterwork: "Masterwork", jeweller: "Jeweller", alchemist: "Alchemist", smith: "Blacksmith", sanctum: "Dragon Sanctum", bounty: "Bounty Board", talent: "Level Up", cleared: "Layer Cleared", over: r.scene.t === "over" && r.scene.won ? "Victory" : "Fallen" };
+  const FRAMED: Record<string, string> = { forge: "Forge", offering: "Offering Altar", fishing: "Still Pool", masterwork: "Masterwork", jeweller: "Jeweller", alchemist: "Alchemist", smith: "Blacksmith", sanctum: "Dragon Sanctum", bounty: "Bounty Board", talent: "Level Up", cleared: "Layer Conquered", over: r.scene.t === "over" && (r.scene.won || r.retired) ? "Victory" : "Fallen" };
   const crawlFrame = !!r.gridMode && !!FRAMED[s.t];
   const crawlFight = s.t === "combat" && !!r.gridMode;
   const crawlShop = s.t === "shop" && !!r.gridMode;
@@ -3096,7 +3139,7 @@ function on(sel: string, fn: (el: HTMLElement) => void) {
 function bind() {
   on("[data-mute]", () => toggleMute());
   on("[data-togglemusic]", () => toggleMusic());
-  on("[data-startmusic]", () => playMusic(run ? "game" : "title"));
+  on("[data-startmusic]", () => playMusic(run ? "game" : "title", musicPlace()));
   // Leaderboards (title screen and end of run).
   on("[data-lb]", () => { lbOpen = true; if (run?.scene.t === "over" && (run.daily || run.mode === "abyss")) { lbScope = run.daily ? "daily" : "abyss"; lbBoard = "floor"; } loadBoard(lbBoard); });
   on("[data-lbclose]", () => { lbOpen = false; });
@@ -3224,6 +3267,7 @@ function bind() {
     on("[data-fishcast]", () => fishStart());
     on("[data-fishstrike]", () => fishStrike());
     on("[data-exppop]", el => { expPop = (el.dataset.exppop || null) as typeof expPop; });
+    on("[data-startlayer]", el => { startLayer = Number(el.dataset.startlayer); expPop = null; });
     on("[data-campback]", () => { camp = null; kitPick = null; });
     on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; plateArmed = false; });
     on("[data-learn]", el => { const err = learn(meta, el.dataset.learn!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });
@@ -3266,6 +3310,9 @@ function bind() {
       // The Crawl is the game now; it sets out with the Hall's upgrades.
       startCrawl(nr);
       applyHall(meta, nr);
+      // Starting deeper: the layer chosen at Enter Dungeon (never past the one after the class's best).
+      const from = Math.min(startLayer, maxStartLayer(o));
+      if (from > 1) beginAtLayer(nr, from);
       // The ability picked at the Camp's Skills (if it's still open to this class).
       const sk = meta.skillPick?.[o];
       if (sk && CLASS_SKILLS[o].some(k => k.id === sk && masteryLevel(meta.mastery?.[o] ?? 0) >= k.level) && sk !== CLASS_SKILLS[o][0].id) nr.hero.skill = sk;
@@ -3329,6 +3376,7 @@ function bind() {
   on("[data-fisheat]", el => { const t = eatFish(r, el.dataset.fisheat!); fishCaught = null; if (t) { fishNote = t; sfx("heal"); } });
   on("[data-fishsell]", el => { const t = sellFish(r, el.dataset.fishsell!); fishCaught = null; if (t) { fishNote = t; sfx("coins"); } });
   on("[data-fishkeep]", () => { fishCaught = null; fishNote = "You wrap it up and stow it. It'll go home with you."; });
+  on("[data-retire]", () => { retireRun(r); });
   on("[data-take]", el => { compareOpen = null; const err = takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack", el.dataset.slot as EquipSlot | undefined); say(err); if (!err) lootDone(); });
   on("[data-compare]", el => { compareOpen = { uid: Number(el.dataset.compare), slot: el.dataset.slot as EquipSlot | undefined }; });
   on("[data-compareclose]", () => { compareOpen = null; });

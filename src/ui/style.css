@@ -2375,3 +2375,57 @@ li.type-line::before { content: none !important; }
 .item-type { display: inline-block; padding: 2px 9px; border: 1px solid currentColor; border-radius: 4px; font-size: .82em; font-weight: 700; letter-spacing: .02em; opacity: .85; }
 /* The drawer's counts sit inside each potion's circle (the drawer clips anything outside it). */
 .cz-drawer .cz-pot b { right: 1px; bottom: 1px; min-width: 16px; height: 16px; line-height: 15px; font-size: .62rem; }
+/* The Artefacts tab. */
+.af-list { padding: 4px 2px 8px; }
+.af-head { margin: 10px 2px 6px; font-family: Georgia, "Times New Roman", serif; color: #f3d58a; font-size: 1.05rem; text-transform: none; }
+.af-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.af-tile { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; background: linear-gradient(180deg, #2a1d12, #1a110a); border: 1px solid #5a4028; border-left: 4px solid #8a6a40; box-shadow: inset 0 1px 0 rgba(255,220,160,.05); }
+.af-tile.dim { opacity: .55; }
+.af-tile.gold { border-left-color: #e2b866; } .af-tile.crimson { border-left-color: #d0304a; } .af-tile.bless { border-left-color: #7fb0e8; } .af-tile.curse { border-left-color: #9a5ad0; }
+.af-ic { font-size: 1.6rem; line-height: 1; flex: none; }
+.af-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.af-txt b { color: #f0dcb4; } .af-txt b em { font-style: normal; color: #e2b866; margin-left: 4px; }
+.af-txt span { color: #b39a74; font-size: .84rem; }
+.af-none { color: #a38a64; font-size: .88rem; margin: 2px 4px; }
+.ts-sky .tn-orb.relic { border-color: #e2b866; box-shadow: 0 0 10px rgba(226,184,102,.35); }
+.end-stage.cleared .es-actors { gap: 18px; }
+.layer-picks { display: flex; flex-direction: column; gap: 8px; margin: 12px auto; max-width: 320px; }
+.layer-picks .plank-btn span { font-weight: 600; font-size: .8rem; opacity: .8; margin-left: 6px; }
+.layer-picks .plank-btn.on { outline: 2px solid #f3d58a; outline-offset: 2px; }
+
+/* ---------- The main menu (Deck Dungeon 3) ---------- */
+.splash.menu3 { position: relative; min-height: 100dvh; margin: -16px; padding: max(18px, env(safe-area-inset-top)) 16px 28px; overflow: hidden; justify-content: flex-start; gap: 6px; isolation: isolate; background: #080503; }
+.splash.menu3 > * { position: relative; z-index: 1; }
+.m3-bg { position: absolute !important; inset: 0; z-index: 0 !important; background: var(--menu-bg) center 22% / cover no-repeat; image-rendering: pixelated; filter: saturate(1.05);
+  -webkit-mask: linear-gradient(180deg, #000 0%, #000 60%, transparent 100%); mask: linear-gradient(180deg, #000 0%, #000 60%, transparent 100%); }
+.m3-bg::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, transparent 30%, rgba(0,0,0,.55) 100%); }
+@media (min-aspect-ratio: 4/3) { .m3-bg { background-position: center 30%; } }
+.m3-title { margin-top: 0; }
+.m3-sign { margin: calc(-1 * max(18px, env(safe-area-inset-top))) auto 0; padding-top: max(40px, calc(env(safe-area-inset-top) + 30px)) !important; }
+.m3-sign .chain { height: calc(100% - 22px) !important; top: 0 !important; }
+.m3-sign .plank { display: flex; align-items: baseline; gap: 12px; font-size: clamp(1.6rem, 7vw, 2.6rem) !important; padding: 12px 34px 14px !important; letter-spacing: .04em; }
+.m3-deck { font-family: Georgia, "Times New Roman", serif; }
+.m3-three { font-family: Georgia, "Times New Roman", serif; font-size: 1.5em; line-height: .8; color: #ffd56a; text-shadow: 0 2px 0 #3a1e06, 0 0 18px rgba(255,190,80,.55); }
+.m3-tag { margin: 10px 0 auto; color: #e0d0b2; font-style: italic; text-shadow: 0 2px 4px #000, 0 0 10px #000; }
+.m3-buttons { display: flex; flex-direction: column; gap: 10px; width: min(320px, 90%); margin-top: clamp(120px, 34vh, 380px); }
+.m3-buttons .plank-btn { width: 100%; font-size: 1.08rem; }
+.m3-buttons .m3-play { font-size: 1.25rem; padding: 15px 36px !important; background: repeating-linear-gradient(0deg, rgba(0,0,0,.06) 0 2px, transparent 2px 8px), linear-gradient(180deg, #e8b85a, #b8822c 55%, #8a5a18) !important; color: #2a1606 !important; text-shadow: 0 1px 0 rgba(255,230,170,.5); }
+.m3-pair { display: flex; gap: 10px; } .m3-pair .plank-btn { flex: 1; padding-left: 26px !important; padding-right: 26px !important; }
+.m3-music { font-size: .92rem !important; }
+.m3-foot { margin: 18px 0 0; padding: 6px 16px; border-radius: 6px; background: rgba(20,12,6,.8); border: 1px solid #5a4028; color: #cdbfa9; font-size: .88rem; }
+.menu3 .version { color: #7a6a54; }
+@media (min-width: 1000px) and (min-height: 760px) { .m3-buttons, .m3-title, .m3-tag { zoom: 1.2; } }
+
+/* Options and Changes, as pages in the same look. */
+.m3-page { min-height: 100dvh; margin: -16px; padding: max(12px, env(safe-area-inset-top)) 16px 28px; color: #ead7b3; background: radial-gradient(ellipse at 50% 0%, rgba(255,150,60,.10), transparent 55%), linear-gradient(180deg, #1c130b, #120c07); }
+.m3-page .dg-head { top: 0; }
+.m3-page .patch, .m3-page .opt-sec { background: linear-gradient(180deg, #2a1d12, #1c130b) !important; border: 1px solid #4a3828 !important; border-radius: 8px !important; box-shadow: 0 3px 8px rgba(0,0,0,.4) !important; color: #e3cfa8; }
+.m3-page .patch.latest { border-color: #c49a5a !important; }
+.m3-page .patch-title, .m3-page .opt-sec h3 { color: #f3d58a !important; font-family: Georgia, "Times New Roman", serif; }
+.m3-page .patch-kicker { color: #e2b866 !important; }
+.m3-page .patch-sec { background: rgba(0,0,0,.22) !important; border: 0 !important; }
+.m3-page .sub, .m3-page .opt-txt .sub { color: #a38a64 !important; }
+.m3-page button.small:not(.plank-btn) { background: linear-gradient(180deg, #2e2219, #1f160f); color: #e3cfa8; border: 1px solid #4a3828; }
+.m3-page button.small.primary:not(.plank-btn) { background: linear-gradient(180deg, #e2b866, #b8862a); color: #24160a; border-color: #f0d28a; }
+.splash.menu3 { overflow: visible; }
+.m3-bg { position: fixed !important; }

@@ -9,6 +9,20 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.92.0
+
+- **Deck Dungeon 3.** A new main menu: a torchlit hall drawn from the dungeon's own tiles, the title on a hanging sign, and plank buttons. Options and Changes match it, and Changes has notes for the new game.
+- **Music:** six new tracks. Two quiet ones play at the Camp, three cycle on the dungeon floors, and two play in guardian fights. They're compressed small and only load when needed.
+- **Layers are stages.** Beating a layer's guardian shows a victory screen: go deeper, or head back to the Camp with the run counted as a success, not a death.
+- **Start deeper:** at Enter Dungeon, the new Layer button lets you start from any layer up to the one after your class's best. You set out a few levels up, with a potion, some Gold and three pieces of gear.
+- **Harder the deeper you go:** every layer is tougher than the last, every floor within a layer a little tougher than the one before, and from the 4th layer foes carry much more HP.
+- **Below the first layer:** Crimson foes (in rooms of their own, with a red-magenta glow), dragons and Blessings, all more likely the deeper you go.
+- **Relics are gone from the dungeon's floors.** Every relic's effect is in the Passive Tree now, common ones near the top and Legendary ones deep. The tree opens once a class beats the 1st Layer.
+- Heavy gear halves your Dodge instead of removing it.
+- The Merchant buys as many things as you like.
+- The inventory's Spoils tab is gone, and Extras is now **Artefacts**: what you carry, any Blessings on you, and your curses.
+- The Enter Dungeon buttons have no emoji.
+
 ## 1.91.1
 
 - **Springs, altars, fountains and other fixtures stay put once used**, a little dimmer, instead of vanishing. A campfire you've rested at is left as ash and embers.

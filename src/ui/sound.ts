@@ -63,7 +63,18 @@ export function toggleMute() {
 
 // ---------- Music: the title track on the menus, the gameplay track during a run ----------
 export type Track = "title" | "game";
-const TRACK_URL: Record<Track, string> = { title: "music/title.mp3", game: "music/gameplay.mp3" };
+/** Where you are decides what plays: each place has a playlist that cycles track to track (a single track loops).
+ *  The title and the Camp use the menu volume; the dungeon floors and the guardians' fights use the game volume. */
+export type Place = "title" | "camp" | "floor" | "boss";
+const PLAYLIST: Record<Place, string[]> = {
+  title: ["music/title.mp3"],
+  camp: ["music/beyond_mist.mp3", "music/white_moss.mp3"],
+  floor: ["music/hollow_vale.mp3", "music/silent_reach.mp3", "music/gameplay.mp3"],
+  boss: ["music/moonlight.mp3", "music/pale_waters.mp3"]
+};
+const PLACE_TRACK: Record<Place, Track> = { title: "title", camp: "title", floor: "game", boss: "game" };
+let place: Place | null = null;
+const nextIn: Partial<Record<Place, number>> = {};
 /** Default volumes: the gameplay track sits low under the action. */
 const DEFAULT_VOL: Record<Track, number> = { title: 0.5, game: 0.15 };
 const vol: Record<Track, number> = { ...DEFAULT_VOL };
@@ -144,20 +155,31 @@ function routeThroughGain(m: HTMLAudioElement) {
   }
 }
 
-/** Switch to a track (no-op if it's already playing). Browsers only allow sound after a tap, so we retry then. */
-export function playMusic(k: Track) {
+/** The next track of a place's playlist (it starts somewhere different each session). */
+function pickTrack(p: Place): string {
+  const list = PLAYLIST[p];
+  const i = (nextIn[p] ?? Math.floor(Math.random() * list.length)) % list.length;
+  nextIn[p] = i + 1;
+  return list[i];
+}
+/** Switch to a place's music (no-op if it's already playing). Browsers only allow sound after a tap, so we retry then. */
+export function playMusic(k: Track, where: Place = k === "title" ? "title" : "floor") {
   if (typeof Audio === "undefined") return;
-  if (musicKey === k && music) { applyVolume(); if (music.paused) tryPlay(); return; }
-  musicKey = k;
+  if (place === where && music) { applyVolume(); if (music.paused) tryPlay(); return; }
+  place = where;
+  musicKey = PLACE_TRACK[where];
+  const url = pickTrack(where);
   // One audio element for the whole session: making a new one (and a new Web Audio source) for every track change
   // leaked memory over many runs until the page slowed to a halt.
-  if (music) { music.pause(); music.src = TRACK_URL[k]; music.load(); }
+  if (music) { music.pause(); music.src = url; music.load(); }
   else {
-    music = new Audio(TRACK_URL[k]);
-    music.loop = true;
+    music = new Audio(url);
     music.preload = "auto";
     routeThroughGain(music);
+    // At the end of a track, the place's next one (a playlist of one just loops).
+    music.addEventListener("ended", () => { if (!music || !place) return; music.src = pickTrack(place); music.load(); tryPlay(); });
   }
+  music.loop = PLAYLIST[where].length === 1;
   applyVolume();
   tryPlay();
   // Browsers (iPhones especially) only allow sound from a real tap or key press, and only some events

@@ -1,5 +1,5 @@
 // The long road between runs: the shared passive tree, weapon mastery and totems.
-import { TALENTS } from "../data";
+import { RELICS, TALENTS } from "../data";
 import type { HookDef } from "../engine/types";
 import type { Attr } from "../data/attributes";
 import { SET_BONUSES, SET_BONUSES_2, SET_PIECES, SET_PIECES_2 } from "../data/talisman";
@@ -49,13 +49,24 @@ const SIGIL_DROPPED = new Set(["sc_flame_locket", "sc_conductor_ring", "sc_loade
 const BONUS_NAME = ["", "", "Favour", "Blessing", "Crown"];
 const sigilDefs = () => [...SET_PIECES, ...SET_PIECES_2, ...SET_BONUSES, ...SET_BONUSES_2].filter(d => !SIGIL_DROPPED.has(d.id));
 export const isTreeSigil = (id: string) => /^s[cb]_/.test(id);
+// The old relics live in the tree too (there are none on the dungeon's floors any more), each as one passive at the
+// strength of a single relic. Common ones sit high in the tree, Legendary ones deep. Left out: the few tied to the old
+// game (Resplendent chests, Mimic-proof iron chests) and the Grail's four extra potions (healing stays small).
+const RELIC_DROPPED = new Set(["gamblers_glove", "skeleton_key", "pc_grail"]);
+let RELIC_IDS: Set<string> | null = null;
+const relicDefs = () => RELICS.filter(r => !RELIC_DROPPED.has(r.id) && (r.tags?.length ?? 0) > 0);
+export const isTreeRelic = (id: string) => (RELIC_IDS ??= new Set(relicDefs().map(r => r.id))).has(id);
+/** Passives that are a single node (sigils and relics: no I / II / III chain). */
+const singleNode = (id: string) => isTreeSigil(id) || isTreeRelic(id);
 /** A tree passive's text at a rank (sigils read at their tree strength). */
-export const nodeText = (d: HookDef, level: number) => (isTreeSigil(d.id) ? fillText(d.text, SIGIL_TREE_STACKS) : rankText(d.text, level));
+export const nodeText = (d: HookDef, level: number) =>
+  isTreeSigil(d.id) ? fillText(d.text, SIGIL_TREE_STACKS) : isTreeRelic(d.id) ? fillText(d.text, 1).replace(/\s*\([+−-][^)]*\)\s*$/, "") : rankText(d.text, level);
 /** The name a node shows ("Ember Court (2)" becomes "Ember Court's Favour"). */
 export const nodeName = (n: TreeNode, d: HookDef) => n.title ?? d.name;
 const strength = (id: string) => {
   // Set pieces sit mid-tree; a set's bonuses get stronger (and deeper) with the number of pieces it once needed.
   if (id.startsWith("sc_")) return TREE_ORDER.length * 0.45;
+  if (isTreeRelic(id)) return TREE_ORDER.length * ({ common: 0.12, uncommon: 0.32, rare: 0.6, legendary: 0.96 } as Record<string, number>)[RELICS.find(r => r.id === id)?.rarity ?? "common"];
   const sb = /^sb_.+_(\d)$/.exec(id);
   if (sb) return TREE_ORDER.length * ({ 2: 0.5, 3: 0.72, 4: 0.97 } as Record<string, number>)[sb[1]];
   const k = TREE_ORDER.indexOf(id); return k < 0 ? TREE_ORDER.length / 2 : k;
@@ -64,7 +75,7 @@ const strength = (id: string) => {
 export const TIER_WIDTH = 5;
 export const TIER_STEP = 2;
 /** A class's tree opens once it has beaten this many layers. */
-export const TREE_LAYERS = 5;
+export const TREE_LAYERS = 1;
 export const NUMERAL = ["", "I", "II", "III"];
 /** The attribute nodes a branch opens with (its own attribute, then a second one, in turn). */
 const ATTR_ROW = [0, 1, 0, 1, 0] as const;
@@ -77,7 +88,7 @@ export function passiveTree(): TreeBranch[] {
   const used = new Set<string>();
   NODES = new Map();
   TREE = BRANCH_DEFS.map(b => {
-    const talents = [...TALENTS, ...sigilDefs()].filter(t => !used.has(t.id) && !TREE_DROPPED.has(t.id) && b.tags.includes(t.tags[0] ?? "")).sort((x, y) => strength(x.id) - strength(y.id) || x.name.localeCompare(y.name));
+    const talents = [...TALENTS, ...sigilDefs(), ...relicDefs()].filter(t => !used.has(t.id) && !TREE_DROPPED.has(t.id) && b.tags.includes(t.tags[0] ?? "")).sort((x, y) => strength(x.id) - strength(y.id) || x.name.localeCompare(y.name));
     talents.forEach(t => used.add(t.id));
     const top: TreeNode[] = ATTR_ROW.map((w, col) => ({ key: `ta_${b.attrs[w]}@${b.id}${col}`, talent: `ta_${b.attrs[w]}`, level: 1, branch: b.id, tier: 0, col }));
     // Passives are dealt into the branch's columns below that; down each column a passive's ranks follow one under
@@ -88,7 +99,7 @@ export function passiveTree(): TreeBranch[] {
       const title = sb ? `${t.name.replace(/\s*\(\d\)$/, "")}'s ${BONUS_NAME[Number(sb[1])]}` : undefined;
       // Into the shortest column (the leftmost of them), so each passive goes as high as the ones before it allow.
       const col = cols.reduce((best, c, k) => (c.length < cols[best].length ? k : best), i % TIER_WIDTH);
-      for (let lv = 1; lv <= (isTreeSigil(t.id) ? 1 : nodeRanks(t)); lv++) cols[col].push({ key: lv === 1 ? t.id : `${t.id}#${lv}`, talent: t.id, level: lv, prereq: lv > 1 ? (lv === 2 ? t.id : `${t.id}#2`) : undefined, branch: b.id, title });
+      for (let lv = 1; lv <= (singleNode(t.id) ? 1 : nodeRanks(t)); lv++) cols[col].push({ key: lv === 1 ? t.id : `${t.id}#${lv}`, talent: t.id, level: lv, prereq: lv > 1 ? (lv === 2 ? t.id : `${t.id}#2`) : undefined, branch: b.id, title });
     });
     const nodes = [...top, ...cols.flatMap((c, col) => c.map((n, tier) => ({ ...n, tier: tier + 1, col })))];
     for (const n of nodes) NODES!.set(n.key, n);
@@ -144,7 +155,7 @@ export function resetTree(m: Meta, origin: string) {
 /** The talents a class's spent nodes add up to (each node is one rank). */
 export function treeTalents(m: Meta, origin: string): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const [key, v] of Object.entries(treeOf(m, origin).spent)) { const n = treeNode(key); if (v && n) out[n.talent] = isTreeSigil(n.talent) ? SIGIL_TREE_STACKS : (out[n.talent] ?? 0) + 1; }
+  for (const [key, v] of Object.entries(treeOf(m, origin).spent)) { const n = treeNode(key); if (v && n) out[n.talent] = isTreeSigil(n.talent) ? SIGIL_TREE_STACKS : isTreeRelic(n.talent) ? 1 : (out[n.talent] ?? 0) + 1; }
   return out;
 }
 /** Points a finished run earns its class (once the tree is open): one for each layer beaten. */

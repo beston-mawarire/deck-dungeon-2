@@ -256,6 +256,13 @@ export function drawCrawl() {
       // Tall props (a column, a fountain) are shrunk to stand about a tile and a half high.
       const sz = sk ? spriteSize(sk) : null;
       const scale = sz && sz.h > 24 && !big ? Math.min(ts / 16, (ts * 1.45) / sz.h) : ts / 16;
+      // A Crimson foe: a red-magenta glow pulsing round it.
+      if (t.room === "crimson_elite" && !t.done) {
+        const pulse = 0.6 + 0.4 * Math.sin(now / 420);
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, ts * 0.85);
+        g.addColorStop(0, `rgba(255,40,120,${0.55 * pulse})`); g.addColorStop(0.55, `rgba(200,20,90,${0.25 * pulse})`); g.addColorStop(1, "rgba(160,0,80,0)");
+        ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.fillRect(cx - ts, cy - ts, ts * 2, ts * 2); ctx.restore();
+      }
       if (t.room === "rest") { if (t.opened) drawEmbers(ctx, cx, cy, ts); else drawCampfire(ctx, cx, cy, ts, now); }
       else if (t.room === "forge") drawAnvil(ctx, cx, cy + ts * 0.12, ts, now, !!t.opened);
       else if (t.room === "pond") drawWater(ctx, cx, cy + ts * 0.08, ts * 0.42, ts * 0.3, now);

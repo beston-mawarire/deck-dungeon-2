@@ -265,6 +265,8 @@ export interface Run {
   killer?: { name: string; title?: string; family?: string; traitIds?: string[]; nemesis?: boolean; rank: string; hp: number; maxHp: number; damage: number; armor: number; crimson?: boolean; traits: string[]; statuses: [string, number][] };
   /** The player ended this run themselves. */
   abandoned?: boolean;
+  /** Went home after conquering a layer (the run ends well, not in death). */
+  retired?: boolean;
   /** The end-of-run results (Renown, unlocks, achievements), kept with the save so a finished run can be reopened. */
   endRecord?: { earned: number; unlocked: string[]; achievements: string[]; mastery?: { origin: string; gained: number; level: number; levelUp: boolean } };
   /** The leaderboard confirmed this run's latest post. */
@@ -385,7 +387,12 @@ export const UNHOLY_REROLL = 0.4;
 export const DOPPEL_AMBUSH = 0.35;
 export const OWN_PATH_EVENTS = [...CLEANSING_EVENTS, "sanguine_altar", "blood_oath", ...Object.values(EVENT_ROOMS) as string[]];
 /** Can this event happen right now (once-a-run ones not yet met, enough Gold, deep enough)? */
-const eventOpen = (run: Run, e: GameEvent) => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || Object.keys(run.hero.curses).length > 0) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e);
+/** The Crawl: dragons and Blessings only below the first layer, and likelier the deeper you go (the layer they start on). */
+export const DEEP_EVENTS: Record<string, number> = { dragon: 2, chained_dragon: 2, blind_dragon: 2, angelic_statue: 2, lucky_pot: 3 };
+const eventMinFloor = (run: Run, e: GameEvent) => (run.gridMode ? DEEP_EVENTS[e.id] ?? Math.min(e.minFloor ?? 0, 3) : e.minFloor ?? 0);
+const eventOpen = (run: Run, e: GameEvent) => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || Object.keys(run.hero.curses).length > 0) && run.floor >= eventMinFloor(run, e) && run.hero.f.gold >= eventGold(run, e);
+/** How often an event turns up behind a strange door: the deep ones grow likelier layer by layer. */
+const eventWeight = (run: Run, e: GameEvent) => (e.weight ?? 1) * (run.gridMode && DEEP_EVENTS[e.id] ? 1 + 0.6 * (run.floor - DEEP_EVENTS[e.id]) : 1);
 /** A quiet stretch: from floor 1, some steps offer no fights at all. */
 export const PEACEFUL_CHANCE = 0.15;
 export const MASTERWORK_FLOOR = 2;
@@ -510,6 +517,14 @@ export const CRAWL_NORMAL_HP = 1.8;
 export const CRAWL_NORMAL_POWER = 2;
 /** How much softer Elites are on the first layer's first two floors. */
 export const FIRST_ELITE_EASE = 0.85;
+/** Chance a floor has a Crimson foe's room: this much per layer below the first, up to the cap. */
+export const CRIMSON_ROOM_STEP = 0.1, CRIMSON_ROOM_MAX = 0.5;
+/** Every layer is a stage of its own, harder than the one before; within a layer, each floor down is a little harder.
+ *  From the 4th layer, foes also carry much more HP (fights there used to be over in two or three rounds). */
+export const LAYER_HP = 0.06, DEEP_HP = 0.15, DEEP_FROM = 4, FLOOR_STEP = 0.04;
+export const layerScale = (run: Run, depthIn: number) => (run.mode === "abyss" ? 1 : 1 + FLOOR_STEP * Math.max(0, depthIn - 1));
+const layerHpMult = (run: Run) => (run.mode === "abyss" ? 1 : 1 + LAYER_HP * (run.floor - 1) + (run.floor >= DEEP_FROM ? DEEP_HP * (run.floor - DEEP_FROM + 1) : 0));
+const layerDmgMult = (run: Run) => (run.mode === "abyss" ? 1 : 1 + 0.04 * (run.floor - 1));
 /** How often a pocket's doorway is guarded (the trapdoor's, and the rest). */
 export const TRAP_GUARD = 0.7;
 export const POCKET_GUARD = 0.5;
@@ -656,6 +671,8 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   if (run.hero.f.persist["ins_angling"]) marks.pond = POND_WEIGHT;
   for (let n = floorLandmarks(rng()); n > 0 && Object.keys(marks).length; n--) { const room = pickW(rng, marks); delete marks[room]; pois.push(room); }
   for (let n = 1 + (rng() < 0.4 ? 1 : 0); n > 0; n--) pois.push(chest());
+  // Crimson foes: from the 2nd layer, now and then (likelier the deeper you go), each in a room of its own.
+  if (crimsonActive(run) && rng() < Math.min(CRIMSON_ROOM_MAX, CRIMSON_ROOM_STEP * (run.floor - 1))) pocket(["crimson_elite"], 0);
   pois.sort(() => rng() - 0.5);
   // Something Strange: a door in a little nook of its own, one tile dug into a hall's wall (rock on three sides).
   for (let k = pois.indexOf("event"); k >= 0; k = pois.indexOf("event")) {
@@ -1077,7 +1094,8 @@ function gridArrive(run: Run) {
 
 /** The Crimson mechanic kicks in once you've beaten the campaign's fifth boss. */
 export function crimsonActive(run: Run) {
-  return run.floor > FLOORS;
+  // (The dungeon: from the 2nd layer. The old Campaign: after its fifth boss.)
+  return run.gridMode ? run.floor >= 2 : run.floor > FLOORS;
 }
 
 // ---------- Rooms ----------
@@ -1208,7 +1226,7 @@ function enterRoom(run: Run, room: RoomType) {
     case "event": {
       // Unique encounters (the dragon, the mirror pool) happen at most once per run.
       const pool = EVENTS.filter(e => !OWN_PATH_EVENTS.includes(e.id) && eventOpen(run, e));
-      const ev = pickW(run.rng, Object.fromEntries(pool.map(e => [e.id, e.weight ?? 1])) as Record<string, number>);
+      const ev = pickW(run.rng, Object.fromEntries(pool.map(e => [e.id, eventWeight(run, e)])) as Record<string, number>);
       startEvent(run, pool.find(e => e.id === ev)!);
       // The Crawl: what's behind the door plays out in a room of its own.
       if (run.gridMode && run.scene.t === "event") run.scene.strange = true;
@@ -1388,9 +1406,9 @@ export function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic
     // (The very first layer eases you in further: its plain foes reach full strength only on its last floors.)
     const ramp = run.floor <= 1 && run.mode !== "abyss" ? Math.min(1, 0.1 + 0.18 * (depthIn - 1)) : Math.min(1, 0.25 + 0.25 * (depthIn - 1));
     // Elites on the first layer's first two floors come a little softer too.
-    const ease = run.floor <= 1 && run.mode !== "abyss" && rank === "elite" && depthIn <= 2 ? FIRST_ELITE_EASE : 1;
-    enemy.maxHp = enemy.hp = Math.round(enemy.hp * ease * (near ? 1 + (CRAWL_NORMAL_HP - 1) * ramp : GRID_HP) * (1 + DANGER_HP * d));
-    enemy.damage = Math.round(enemy.damage * ease * GRID_DMG * (1 + DANGER_DMG * d)) + (near ? Math.round(CRAWL_NORMAL_POWER * ramp) : 0);
+    const ease = (run.floor <= 1 && run.mode !== "abyss" && rank === "elite" && depthIn <= 2 ? FIRST_ELITE_EASE : 1) * layerScale(run, depthIn);
+    enemy.maxHp = enemy.hp = Math.round(enemy.hp * ease * layerHpMult(run) * (near ? 1 + (CRAWL_NORMAL_HP - 1) * ramp : GRID_HP) * (1 + DANGER_HP * d));
+    enemy.damage = Math.round(enemy.damage * ease * layerDmgMult(run) * GRID_DMG * (1 + DANGER_DMG * d)) + (near ? Math.round(CRAWL_NORMAL_POWER * ramp) : 0);
   }
   run.hero.f.persist["goldAtFight"] = run.hero.f.gold;
   const battle = startBattle(run.hero.f, enemy, Math.floor(run.rng() * 1e9), run.carry);
@@ -1768,6 +1786,7 @@ function afterFight(run: Run) {
     const bossGold = Math.round(gold * goldMult(run));
     h.f.gold += bossGold;
     if (!run.gridMode) restore(h, Math.round(h.f.maxHp * 0.3));
+    if (run.gridMode) relic = undefined; // (No relics in the dungeon: their effects live in the Passive Tree.)
     if (relic) offerRelic(run, relic, 1);
     grantScrolls(run, scrolls);
     recompute(h);
@@ -1867,6 +1886,7 @@ function afterFight(run: Run) {
     if (rank === "champion" && run.rng() < CHAMPION_SEED) { const pl = seedDrop(run); mats += `${mats ? " · " : ""}${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}`; }
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
+  if (run.gridMode) relic = undefined;
   if (relic) offerRelic(run, relic, rank === "elite" && !then ? 0.25 : 0.5, rank === "elite" && !then ? 1 : 2);
   // Talisman sigils: plain ones from Elites, set pieces mostly from Champions and up.
   const sigil = crawlFoe ? null : rollSigilDrop(run, ({ normal: 0, elite: 0.18, champion: 0.3, crimson: 0.35, boss: 0.4 } as Record<string, number>)[rank] ?? 0, rank === "elite" && !then ? 0.12 : 0.6);
@@ -1947,6 +1967,42 @@ export function gainXp(run: Run, n: number) {
       run.popup = { icon: "⭐", title: `Level ${h.level}!`, text: `+3 Max HP${healed > 0 ? `, and you catch your breath (+${healed} HP)` : ""}. You have ${ATTR_PER_LEVEL} attribute points to spend: open your inventory's Attributes tab to put them to use.` };
     } else run.pendingTalents++;
   }
+}
+
+// ---------- Layers as stages ----------
+/** The level you set out at when starting from a deeper layer. */
+export const layerStartLevel = (L: number) => 1 + 3 * (L - 1);
+/** Start the run from a deeper layer (one the class has earned): a few levels, a little Gold, a potion and some
+ *  gear in the pack, so the hero isn't left behind. */
+export function beginAtLayer(run: Run, L: number) {
+  if (!run.gridMode || L <= 1) return;
+  const h = run.hero;
+  run.floor = L;
+  h.f.persist["floor"] = L;
+  h.f.persist["startLayer"] = L;
+  recompute(h);
+  while (h.level < layerStartLevel(L)) gainXp(run, xpToLevel(h.level) - h.xp);
+  h.f.hp = h.f.maxHp;
+  h.f.gold += 25 * (L - 1);
+  h.potions = Math.max(h.potions, 1);
+  const kit: GearItem[] = [];
+  for (let k = 0; k < 3; k++) {
+    const it = rollItem(h, L >= 3 && run.rng() < 0.35 ? "epic" : "rare", L - 1, run.rng);
+    if (it.reqLevel && it.reqLevel > h.level) it.reqLevel = h.level;
+    kit.push(it);
+    if (h.backpack.length < packSize(h)) h.backpack.push(it);
+  }
+  run.gridPlan = undefined;
+  run.grid = makeGrid(run, 0);
+  run.popup = { icon: "🕳️", title: `The ${ordinal(L)} Layer`, text: `You set out from the ${ordinal(L)} Layer at level ${h.level}, with ${h.attrPoints ?? 0} attribute points to spend, a potion, some Gold, and gear in your pack: ${kit.map(i => itemName(i)).join(", ")}.` };
+}
+
+/** Head back to the Camp after conquering a layer: the run ends, as a success (not a death). */
+export function retireRun(run: Run) {
+  if (run.scene.t !== "cleared") return;
+  run.retired = true;
+  run.popup = undefined;
+  run.scene = { t: "over", won: false };
 }
 
 // ---------- Loot scenes ----------
@@ -2041,8 +2097,8 @@ function shopStock(run: Run): ShopEntry[] {
     gateItem(run, item);
     stock.push({ kind: "item", item, price: Math.round(PRICE[item.rarity] * shopMult(run)) });
   }
-  const shopRelic = randomRelic(run);
-  stock.push({ kind: "relic", relic: shopRelic, price: Math.round((({ common: 70, uncommon: 100, rare: 150, legendary: 280 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 90) * shopMult(run)) });
+  const shopRelic = run.gridMode ? null : randomRelic(run);
+  if (shopRelic) stock.push({ kind: "relic", relic: shopRelic, price: Math.round((({ common: 70, uncommon: 100, rare: 150, legendary: 280 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 90) * shopMult(run)) });
   stock.push({ kind: "potion", price: Math.round(15 * shopMult(run)) });
   stock.push({ kind: "mana", price: Math.round(35 * shopMult(run)) });
   if (run.rng() < 0.12) stock.push({ kind: "scroll", price: Math.round(100 * shopMult(run)) });
@@ -2085,7 +2141,7 @@ export const sellPrice = (item: GearItem, h?: Hero) => {
   return (h?.curses["c_tarnished"] ?? 0) > 0 ? Math.ceil(n / 2) : n;
 };
 
-/** Sell one item (equipped or in the bag) — once per Merchant visit. */
+/** Sell an item (equipped or in the bag): as many as you like. */
 export function sellItem(run: Run, uid: number): string | null {
   const s = run.scene;
   if (s.t !== "shop") return null;
@@ -2230,7 +2286,8 @@ export function chooseEvent(run: Run, i: number) {
     addMaxHp: (n: number) => { h.f.persist["maxHpLoss"] = (h.f.persist["maxHpLoss"] ?? 0) - n; recompute(h); h.f.hp += n; },
     cutMaxHp: (n: number) => { h.f.persist["maxHpLoss"] = (h.f.persist["maxHpLoss"] ?? 0) + n; recompute(h); h.f.hp = Math.max(1, Math.min(h.f.hp, h.f.maxHp)); },
     gainItem: (r: Rarity) => { const it = rollItem(h, r, depth(run), run.rng); found.push(it); return it; },
-    gainRelic: () => { const id = randomRelic(run); grantRelic(run, id); return getItem(id).name; },
+    // (The dungeon has no relics: what would have been one is a purse of Gold.)
+    gainRelic: () => { if (run.gridMode) { const g = Math.round((20 + 8 * run.floor) * goldMult(run)); h.f.gold += g; return `a purse of ${g} Gold`; } const id = randomRelic(run); grantRelic(run, id); return `a relic: ${getItem(id).name}`; },
     loseRelic: () => { const ids = Object.keys(h.relics); if (!ids.length) return null; const id = ids[Math.floor(run.rng() * ids.length)]; h.relics[id]--; if (!h.relics[id]) delete h.relics[id]; recompute(h); return getItem(id).name; },
     relicCount: () => Object.keys(h.relics).length,
     addCurse: () => { const c = CURSES[Math.floor(run.rng() * CURSES.length)]; h.curses[c.id] = (h.curses[c.id] ?? 0) + 1; recompute(h); return c.name; },
@@ -2264,6 +2321,7 @@ export function chooseEvent(run: Run, i: number) {
       return itemName(it);
     },
     gainCommonRelic: () => {
+      if (run.gridMode) { const g = Math.round((15 + 6 * run.floor) * goldMult(run)); h.f.gold += g; return `a purse of ${g} Gold`; }
       const pool = RELICS.filter(r => (r.rarity ?? "common") === "common" && !isLocked(r.id));
       const id = pool[Math.floor(run.rng() * pool.length)].id;
       grantRelic(run, id);

@@ -109,7 +109,7 @@ export const EVENTS: GameEvent[] = [
       sanguine(0.3, "Temper your gear", "A random equipped item gains 4 levels", c => { const nm = c.upgradeRandom(4); return nm ? `${nm} drinks deep and grows stronger (+4 levels).` : "You carry nothing for it to temper. The altar keeps your blood anyway."; }),
       sanguine(0.4, "Wash away your curses", "Lifts every curse you carry", c => { const n = c.clearCurses(); return n ? `${n} curse${n === 1 ? "" : "s"} dissolve in the red.` : "You had no curses. The altar keeps your blood anyway."; }),
       sanguine(0.5, "Take on a random curse", "", c => `A whisper settles in your bones. You are cursed: ${c.addCurse()}.`),
-      sanguine(0.6, "An offering for a relic", "A random Common relic", c => `Something small and warm rises from the basin: ${c.gainCommonRelic()}.`),
+      sanguine(0.6, "An offering for something small", "Something small and warm", c => `Something small and warm rises from the basin: ${c.gainCommonRelic()}.`),
       sanguine(0.7, "Pray for a Crimson Key", "A slim chance. Most likely nothing at all", c => {
         if (c.rng() < 0.12) { c.addCrimsonKey(); return "The basin boils and spits out a key, red as a wound. 🗝️ A Crimson Key!"; }
         return "The basin drinks, and drinks, and gives nothing back.";
@@ -192,7 +192,7 @@ export const EVENTS: GameEvent[] = [
   { id: "blacksmith", unique: true, title: "The Wandering Blacksmith", icon: "⚒️", text: "A blacksmith has set up a portable anvil in a side passage. \"Two jobs, free of charge. I like your face.\"",
     options: [{ label: "Visit the anvil", run: () => "" }] },
   { id: "dealer", title: "The Crossroads Dealer", icon: "🎩", text: "A smiling figure offers a trade: one of your relics for two of theirs, sight unseen.",
-    options: [{ label: "Trade a random relic for two", can: c => c.relicCount() > 0, run: c => { const lost = c.loseRelic(); const a = c.gainRelic(); const b = c.gainRelic(); return `You gave up ${lost} and received ${a} and ${b}.`; } }, leave] },
+    options: [{ label: "Trade a random relic for two", can: c => c.relicCount() > 0, run: c => { const lost = c.loseRelic(); const a = c.gainRelic(); const b = c.gainRelic(); return `You gave up ${lost} and received ${a.replace(/^a relic: /, "")} and ${b.replace(/^a relic: /, "")}.`; } }, leave] },
   { id: "fountain", title: "Blood Fountain", icon: "⛲", text: "Red water bubbles from cracked stone. It whispers of treasure for those who bleed.",
     options: [
       { label: "Bleed into it (lose 8 HP)", hint: "A Rare item", can: c => c.hp() > 8, run: c => { c.hurt(8); const it = c.gainItem("rare"); return `The fountain gives up a treasure (${it.rarity}).`; } },
@@ -223,7 +223,7 @@ export const EVENTS: GameEvent[] = [
     options: [{ label: "Pray to the stone god", hint: "+6 Max HP", run: c => { c.addMaxHp(6); return "You feel sturdier. +6 Max HP."; } },
       { label: "Pray to the golden god", hint: "+45 Gold", run: c => { c.addGold(45); return "Coins spill from the statue's hand. +45 Gold."; } }] },
   { id: "pilgrim", title: "The Starving Pilgrim", icon: "🧎", text: "A thin pilgrim begs for coin to buy bread from the next merchant.",
-    options: [{ label: "Give 20 Gold", hint: "Kindness, sometimes repaid", can: c => c.gold() >= 20, run: c => { c.addGold(-20); if (c.rng() < 0.5) return `\"Take this — it was my master's.\" You receive a relic: ${c.gainRelic()}.`; c.addXp(3); return "They bless you. You feel wiser. +3 XP."; } }, leave] },
+    options: [{ label: "Give 20 Gold", hint: "Kindness, sometimes repaid", can: c => c.gold() >= 20, run: c => { c.addGold(-20); if (c.rng() < 0.5) return `\"Take this — it was my master's.\" You receive ${c.gainRelic()}.`; c.addXp(3); return "They bless you. You feel wiser. +3 XP."; } }, leave] },
   { id: "embers", title: "Altar of Embers", icon: "🕯️", text: "A brazier of white fire. A carved plaque reads: PAY IN FLESH.",
     options: [{ label: "Hold your hand in the flame (lose 12 HP)", hint: "An Epic item", can: c => c.hp() > 12, run: c => { c.hurt(12); c.gainItem("epic"); return "The fire takes its due and gives back something remarkable."; } }, leave] },
   { id: "card_sharp", title: "The Card Sharp", icon: "🃏", text: "A grinning rogue shuffles a deck. \"Your potion against my scrolls.\"",

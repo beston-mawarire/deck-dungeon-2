@@ -2,6 +2,23 @@
 export interface PatchNote { title: string; version: string; date: string; intro: string; sections: { icon: string; title: string; items: [string, string][] }[]; outro: string }
 
 export const PATCH_NOTES: PatchNote[] = [
+  {
+    title: "Deck Dungeon 3", version: "2.0", date: "November 2026",
+    intro: "A new dungeon, walked tile by tile. Layers to conquer, a Camp to come home to, and a hero that grows with every run.",
+    sections: [
+      { icon: "🕳️", title: "The dungeon", items: [
+        ["Walk it", "tap a tile to move; chests, fountains, foes and stranger things wait in rooms off the halls, and the stairs down glow in the dark."],
+        ["Layers are stages", "beat a layer's guardian and head home victorious, or go deeper. Every layer is harder than the last, and you can start from the next one once you've beaten it."],
+        ["Deeper is stranger", "Crimson foes, dragons and Blessings only turn up below the first layer, more often the deeper you go."]] },
+      { icon: "🔥", title: "The Camp", items: [
+        ["A place to walk", "the Hall's upgrades, the Garden and the Brewery, the Knowledge Table, the Bestiary, the Trophy Room, the Still Pool and Weapon Mastery."],
+        ["The Passive Tree", "one point for every layer beaten: attribute nodes at the top, and every old talent, sigil and relic below, the strongest deepest."]] },
+      { icon: "⚔️", title: "Your hero", items: [
+        ["Attributes", "two points a level in Strength, Agility, Intellect, Faith, Vitality or Fortune. Your class's own attribute raises your Damage too."],
+        ["Gear", "rarer gear can raise an attribute; some needs a level before you can wear it."]] }
+    ],
+    outro: "Everyone starts afresh. See you below."
+  },
 
   {
     title: "Mana and class abilities", version: "1.60", date: "3 November 2026",

@@ -187,7 +187,7 @@ export function itemLines(item: GearItem): string[] {
   const lines: string[] = [];
   if (item.reqLevel) lines.push(`🔒 Requires level ${item.reqLevel}`);
   lines.push(`${TYPE_MARK}${familyLine(eb)}`);
-  if (isHeavy(eb)) lines.push(`🪨 Heavy: no Dodge, Evade or Haste while you wear it, but ${eb.kind === "weapon" ? "it hits 15% harder" : "it carries 30% more Armor"}.`);
+  if (isHeavy(eb)) lines.push(`🪨 Heavy: half Dodge and no Evade or Haste while you wear it, but ${eb.kind === "weapon" ? "it hits 15% harder" : "it carries 30% more Armor"}.`);
   if (eb.damage !== undefined) lines.push(`Damage ${weaponDamage(item)}${eb.twoHanded ? " · two-handed" : ""}${eb.offDamage ? ` · off-hand ${weaponDamage(item, true)}${offhandPenalty(item) ? " (clumsy: 60%)" : ""}` : ""}`);
   const armor = itemArmor(eb, item.level);
   if (armor) lines.push(`Armor ${armor}`);
@@ -340,7 +340,7 @@ export function recompute(h: Hero) {
     const c = classify(bs);
     return c.strike === "blade" ? "sharp" : c.strike === "blunt" || c.strike === "breaking" ? "blunt" : "other";
   };
-  // Heavy gear (any heavy weapon, armour or shield): no Dodge, Evade or Haste.
+  // Heavy gear (any heavy weapon, armour or shield): half Dodge, no Evade or Haste.
   f.heavyGear = EQUIP_SLOTS.some(sl => { const it = h.equip[sl]; return !!it && isHeavy(effectiveBase(it)); });
   const armMain = h.equip.main, armOff = h.equip.off;
   f.arms = { main: kindOf(armMain), off: kindOf(armOff), twoHanded: !!armMain && !!effectiveBase(armMain).twoHanded };
