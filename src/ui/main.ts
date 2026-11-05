@@ -18,7 +18,7 @@ import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
 import { GEN_MODULE_MAP, modValue } from "../game/gen";
 import { CLASS_SKILLS, ABYSS_MODS, ACHIEVEMENTS, applyKit, currentAbyssMod, HEAT_LEVELS, HEAT_MAX, HEAT_RENOWN, heatOf, KIT_RARE_LEVEL, KIT_COMMON_LEVEL, KIT_SLOTS, KIT_UNCOMMON_LEVEL, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX, MASTERY_XP } from "../game/progress";
-import { ABYSS_SHARD_COST, addGem, GEM_BONUS, removeGem, abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
+import { ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem, abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
@@ -443,6 +443,7 @@ function titleScreen() {
         ${backupPanel()}`;
     return `${head}${tabs}${infoRow}${cont}${body}<p class="version">${VERSION}</p>`;
   }
+  return tavernScreen(head, infoRow, cont);
   return `${head}${tabs}${infoRow}
   ${cont}
   <div class="campaign-hero">
@@ -453,6 +454,36 @@ function titleScreen() {
   <p class="sub">You are what you wear and what you find. Your weapon is your die; gear, relics and talents bend it.</p>
   ${originCards(false)}
   <p class="version">${VERSION}</p>`;
+}
+
+/** The Tavern: where your heroes sit after you press Play. Pick one at its table, then walk out to the Camp.
+ *  Locked heroes sit in the shadows, with how to bring them in. */
+function tavernScreen(head: string, infoRow: string, cont: string) {
+  const seat = (o: OriginId) => {
+    const og = ORIGINS[o];
+    const open = classOpen(meta, o);
+    const lv = masteryLevel(meta.mastery?.[o] ?? 0);
+    const won = meta.layersBeaten?.[o] ?? 0;
+    const sk = CLASS_SPRITE[o];
+    const fig = sk && hasSprite(sk) ? spriteHtml(sk, 6, "tav-spr") : `<span class="tav-emoji">${ORIGIN_ICON[o]}</span>`;
+    return `<button class="tav-seat ${open ? "" : "locked"}" ${open ? `data-origin="${o}"` : "disabled"} aria-label="${esc(og.name)}">
+      <span class="tav-fig">${fig}</span>${open ? "" : `<span class="tav-lock">🔒</span>`}
+      <span class="tav-table"></span>
+      <b class="tav-name">${open ? esc(og.name) : "???"}</b>
+      <span class="tav-sub">${open ? `${lv >= 2 ? `${"★".repeat(Math.min(lv, 6))} · ` : ""}${won ? `${won} layer${won === 1 ? "" : "s"} beaten` : esc(og.blurb)}` : esc(CLASS_UNLOCK[o]?.text ?? "")}</span>
+    </button>`;
+  };
+  const order: OriginId[] = ["warrior", "mage", "cleric", "rogue"];
+  return `<div class="tavern">
+    ${head}${infoRow}${cont}
+    <div class="tav-room">
+      <div class="mer-sign tav-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">The Tavern</div></div>
+      <div class="tav-bar"><span class="tav-keep">${hasSprite("dwarf_m") ? spriteHtml("dwarf_m", 4) : "🍺"}</span><span class="tav-bottles">🍾 🍷 🍺</span></div>
+      <p class="tav-say">“Pull up a chair. Who's going down tonight?”</p>
+      <div class="tav-seats">${order.map(seat).join("")}</div>
+    </div>
+    <p class="version">${VERSION}</p>
+  </div>`;
 }
 
 function heatPanel() {
@@ -2890,7 +2921,7 @@ function bind() {
       optionsOpen = false;
       say("All progress has been reset.", false);
     });
-    on("[data-origin]", el => { pendingOrigin = el.dataset.origin as OriginId; plateArmed = false; });
+    on("[data-origin]", el => { const o = el.dataset.origin as OriginId; if (!classOpen(meta, o)) return; pendingOrigin = o; plateArmed = false; });
     on("[data-menutab]", el => {
       menuTab = el.dataset.menutab as typeof menuTab; restoreOpen = false; restoreMsg = "";
       // The first visit to the Abyss tab explains it.

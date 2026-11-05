@@ -10,6 +10,7 @@ import type { GearBase, HookDef, OriginId, Rarity, Tag } from "../engine/types";
 import { register } from "../engine/registry";
 import { BONUSES, EPIC_POWERS, GEAR_BASES } from "../data";
 import { GEN_MAJORS, GEN_MINORS, type GenModule } from "../data/genparts";
+import { ABILITY_DEFS, ABILITY_LINES } from "../data/abilities";
 import { modValue } from "./gen";
 import { classify, type Family, type Load } from "./families";
 import { AFFIX_FIXES } from "../data/affixfixes";
@@ -35,6 +36,9 @@ export interface Affix {
   heatMin?: number;
   needsCurse?: boolean;
   floorMin?: number;
+  /** The Crawl only, and only once your class has beaten this many layers. */
+  crawlOnly?: boolean;
+  classLayers?: number;
   tags: Tag[];
 }
 
@@ -100,6 +104,8 @@ export function affixPool(): Affix[] {
     const kinds = m.slots ? ALL_KINDS.filter(k => m.slots!.includes(k === "weapon" ? "main" : k === "off" ? "off" : k === "armour" ? "armour" : "trinket")) : ALL_KINDS;
     out.push({ id: m.id, def: m, grade: "major", group: m.group, kinds, gen: m, weight: 0.35 * (m.weight ?? 1), tags: m.tags });
   }
+  // ---- Major: abilities on items (the Crawl) ----
+  for (const ab of ABILITY_LINES) out.push({ id: `ab_${ab.skill}`, def: ABILITY_DEFS.find(d => d.id === `ab_${ab.skill}`)!, grade: "major", group: "ability", kinds: ab.kinds, families: ab.families, loads: ab.loads, weight: 1.6, crawlOnly: true, classLayers: ab.layers, tags: [] });
   // ---- Grand: the old Epic powers ----
   for (const p of EPIC_POWERS) out.push({ id: p.id, def: p, grade: "grand", group: p.id, kinds: ALL_KINDS, weight: 1, tags: p.tags });
   // ---- Hand-made effects ----
@@ -159,10 +165,10 @@ const SLOTS: Record<Rarity, ("minor" | "major" | "grand" | "mm")[]> = {
   legendary_crimson: ["grand", "grand", "grand", "major"]
 };
 
-export interface RollCtx { origin: OriginId; heat: number; everCursed: boolean; floor: number; locked: Set<string>; tagWeight: (tags: readonly string[]) => number }
+export interface RollCtx { origin: OriginId; heat: number; everCursed: boolean; floor: number; locked: Set<string>; tagWeight: (tags: readonly string[]) => number; crawl?: boolean; classLayers?: number }
 
 /** Can this affix go on this base? */
-export function fits(a: Affix, base: GearBase, ctx?: Pick<RollCtx, "origin" | "heat" | "everCursed" | "floor">): boolean {
+export function fits(a: Affix, base: GearBase, ctx?: Pick<RollCtx, "origin" | "heat" | "everCursed" | "floor" | "crawl" | "classLayers">): boolean {
   if (!a.kinds.includes(base.kind)) return false;
   const c = classify(base);
   if (a.families && !a.families.includes(c.family)) return false;
@@ -172,6 +178,8 @@ export function fits(a: Affix, base: GearBase, ctx?: Pick<RollCtx, "origin" | "h
     if ((a.heatMin ?? 0) > ctx.heat) return false;
     if (a.needsCurse && !ctx.everCursed) return false;
     if ((a.floorMin ?? 0) > ctx.floor) return false;
+    if (a.crawlOnly && !ctx.crawl) return false;
+    if ((a.classLayers ?? 0) > (ctx.classLayers ?? 0)) return false;
   }
   return true;
 }

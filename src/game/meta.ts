@@ -25,6 +25,8 @@ export const HISTORY_SIZE = 10;
 export interface Meta {
   /** The Camp's stores (Crown Shards, materials) and the Hall's upgrades. */
   camp?: import("./camp").CampStore;
+  /** The Crawl: how many layers each class has beaten (its best run). Opens other classes and more of its loot. */
+  layersBeaten?: Partial<Record<string, number>>;
   /** The ability each class takes into its runs (from the Camp's Skills). */
   skillPick?: Record<string, string>;
   /** Campaign runs in a row that ended without a Legendary (four, and the next run's first boss offers one). */
@@ -198,6 +200,8 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
     m.nemesis = { name: k.name, family: k.family, traits: (k.traitIds ?? []).filter(t => /^(m_|x_)/.test(t) && t !== "m_death" && t !== "m_the_end" && t !== "m_goblin" && t !== "m_thief"), level: again ? (m.nemesis?.level ?? 1) + 1 : 1 };
   }
   if (run.mode === "abyss") m.abyssBest = Math.max(m.abyssBest ?? 0, Math.min(run.floor, 10));
+  const won = run.hero.f.persist["layersWon"] ?? 0;
+  if (run.gridMode && won) (m.layersBeaten ??= {})[run.hero.origin] = Math.max(m.layersBeaten[run.hero.origin] ?? 0, won);
   else m.bestFloor = Math.max(m.bestFloor, run.floor);
   bankRuin(m, run);
   m.found = [...new Set([...m.found, ...run.found])];
@@ -226,3 +230,13 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
   saveMeta(m);
   return { earned, achievements: got, mastery: { origin: o, gained, level: lv, levelUp: lv > beforeLv }, unlocked: UNLOCK_TIERS.filter(t => before < t.at && m.renown >= t.at).map(t => t.name) };
 }
+
+
+/** The classes in the Tavern: the Warrior and the Mage from the start; beat the first layer's boss as the Mage for the
+ *  Cleric, as the Warrior for the Rogue. */
+export const CLASS_UNLOCK: Record<string, { by: string; text: string } | null> = {
+  warrior: null, mage: null,
+  cleric: { by: "mage", text: "Beat the first layer's boss as the Mage." },
+  rogue: { by: "warrior", text: "Beat the first layer's boss as the Warrior." }
+};
+export const classOpen = (m: Meta, origin: string) => { const u = CLASS_UNLOCK[origin]; return !u || (m.layersBeaten?.[u.by] ?? 0) >= 1; };

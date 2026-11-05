@@ -8,7 +8,7 @@ import { CROSSROADS_GUISES, crossroadsEvent, EVENTS, type GameEvent } from "../d
 import { FUSION_RECIPES } from "../data/fusions";
 import { findRecipe, TRINKET_RECIPES } from "../data/jeweller";
 import { ELITE_ONLY, MONSTERS, makeDragon, makeGoblin, makeMonster, makeNemesis, makeThief, makeUnique, type MonsterRank, UNIQUES } from "../data/monsters";
-import { type Action, actionToll, BLESSINGS, BREWED_THROWS, isUnholy, playRound, startBattle, THROW_INFO, THROWS, type Throw } from "../engine/combat";
+import { type Action, actionToll, BLESSINGS, BREWED_THROWS, isSkill, isUnholy, playRound, startBattle, THROW_INFO, THROWS, type Throw } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
 import { applyStatus, heal as healF } from "../engine/statuses";
@@ -827,6 +827,8 @@ export function startCrawl(run: Run) {
   run.hero.f.gold = CRAWL_START_GOLD;
   // You come in with nothing to drink: the entrance Merchant has a potion for you, if you want it.
   run.hero.potions = 0;
+  // Loot sorted by class: each class finds its own weapons and off-hands.
+  run.hero.f.persist["classLoot"] = 1;
   run.grid = makeGrid(run, 0);
   run.choices = [];
 }
@@ -1196,7 +1198,7 @@ function openResplendent(run: Run) {
 
 // ---------- Combat ----------
 
-function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" | "nemesis" | "doppel", defName?: string) {
+export function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" | "nemesis" | "doppel", defName?: string) {
   run.hero.f.persist["floor"] = run.floor;
   // The Crawl: the foe you walked into is the one you fight.
   const known = !then && rank !== "boss" && !defName && !!run.nextFoe;
@@ -1329,6 +1331,8 @@ export function availableActions(run: Run): Action[] {
     if (h.origin === "cleric") out.push("penance");
     if (h.origin === "warrior") out.push("warcry");
   }
+  // Abilities your gear grants (each one a button of its own, costing Mana like your class's).
+  for (const id of Object.keys(h.f.items)) if (id.startsWith("ab_")) { const sk = id.slice(3) as Action; if (isSkill(sk) && !out.includes(sk)) out.push(sk); }
   // Things to throw, when you carry any.
   for (const t of THROWS) if ((h.f.persist[THROW_INFO[t].key] ?? 0) > 0) out.push(t);
   if (!b.enemy.boss && (!b.enemy.elite || b.player.flags["smoke"])) out.push("flee");
@@ -1723,6 +1727,13 @@ function afterFight(run: Run) {
       const bm = matOfFamily(b.enemy.family);
       if (bm) campGain(run, bm, 3);
       run.message = `👑 +${crowns} Crown Shard${crowns === 1 ? "" : "s"} · 📜 a Scroll of Knowledge${bm ? ` · +3 ${MATS[bm].icon} ${MATS[bm].name}` : ""}. ${run.message}`;
+      // Layers this class has beaten (it unlocks other classes, and more of this class's loot).
+      if (run.mode !== "abyss") {
+        const was = h.f.persist["layersWon"] ?? 0;
+        h.f.persist["layersWon"] = Math.max(was, run.floor);
+        const joins = run.floor === 1 && h.origin === "mage" ? "Cleric" : run.floor === 1 && h.origin === "warrior" ? "Rogue" : null;
+        if (joins && (h.f.persist["classLayers"] ?? 0) < 1) run.popup = { icon: "🍺", title: `The ${joins} will be waiting`, text: `Word of your win travels up through the dark. When this run is over, a ${joins} will be sitting in the Tavern, ready to join you.` };
+      }
       run.bossChest = run.scene;
       run.grid = makeTreasure(run);
       run.scene = { t: "map" };

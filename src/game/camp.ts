@@ -72,6 +72,8 @@ export function buyHall(m: Meta, id: string): string | null {
 /** A Crawl run sets out with the Hall's upgrades. */
 export function applyHall(m: Meta, run: Run) {
   const h = run.hero;
+  // How far this class has got before: some of its loot only turns up once it has beaten a layer.
+  h.f.persist["classLayers"] = m.layersBeaten?.[h.origin] ?? 0;
   h.f.gold += 25 * hallRank(m, "pockets");
   h.potions += hallRank(m, "belt");
   h.packBonus = hallRank(m, "straps") || undefined;

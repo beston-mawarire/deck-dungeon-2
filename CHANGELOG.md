@@ -9,6 +9,13 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.81.0
+- The Tavern: Play now leads to a tavern where your heroes sit at their tables. Pick one, then go on to the Camp.
+- Classes unlock: the Warrior and the Mage are there from the start. Beat the first layer's boss as the Mage and the Cleric joins; beat it as the Warrior and the Rogue does. Locked heroes sit in the shadows with how to bring them in.
+- Each class has its own loot in the Crawl: its own weapons and off-hands (armour, rings, amulets and charms are shared).
+- Abilities on items: some gear grants an ability, a button of its own in a fight that costs Mana (Shield Wall on shields, Crushing Blow on heavy weapons, Envenom on daggers, Smoke Bomb on light armour, Arcane Bolt on wands and staves, and more). Frost Nova, Smite and Sanctuary only turn up once your class has beaten a layer.
+- Every popup has the dungeon look: dark wood, a bronze frame and muted buttons.
+
 ## 1.80.1
 - Chests are the tileset's chests in every popup, in their own metals: wood, iron, gold for Vaults, violet for secret chests, red for a boss's hoard. Opened chests stay where they were, open and empty.
 - A chest's popup shows the chest and its name in a frame.

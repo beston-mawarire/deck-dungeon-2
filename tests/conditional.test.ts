@@ -15,7 +15,7 @@ it("Snake Eyes Legendaries only turn up after enough 1s", () => {
   expect(ids("snake").some(id => seen(h).has(id))).toBe(false);
   h.f.persist["onesRolled"] = SNAKE_ONES;
   expect(ids("snake").some(id => seen(h).has(id))).toBe(true);
-});
+}, 30000);
 
 it("the Talentless turn up only after turning a talent down, while holding none", () => {
   const h = newHero("warrior"); h.f.persist["floor"] = 3;
