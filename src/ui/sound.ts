@@ -12,6 +12,26 @@ import drawU from "../assets/sfx/drawKnife2.ogg";
 import clothU from "../assets/sfx/cloth2.ogg";
 import potU from "../assets/sfx/metalPot2.ogg";
 import pageU from "../assets/sfx/bookFlip2.ogg";
+// Kenney's Impact Sounds (CC0): hits that sound like what's hitting.
+import i_metalL from "../assets/sfx/impactMetal_light_000.ogg";
+import i_metalM from "../assets/sfx/impactMetal_medium_001.ogg";
+import i_punchH from "../assets/sfx/impactPunch_heavy_000.ogg";
+import i_woodH from "../assets/sfx/impactWood_heavy_002.ogg";
+import i_glassL from "../assets/sfx/impactGlass_light_001.ogg";
+import i_glassM from "../assets/sfx/impactGlass_medium_002.ogg";
+import i_woodL from "../assets/sfx/impactWood_light_000.ogg";
+import i_softH from "../assets/sfx/impactSoft_heavy_001.ogg";
+import i_punchM from "../assets/sfx/impactPunch_medium_002.ogg";
+import i_woodM from "../assets/sfx/impactWood_medium_003.ogg";
+import i_plank from "../assets/sfx/impactPlank_medium_001.ogg";
+import i_metalH from "../assets/sfx/impactMetal_heavy_000.ogg";
+import i_plateH from "../assets/sfx/impactPlate_heavy_002.ogg";
+import i_plateM from "../assets/sfx/impactPlate_medium_001.ogg";
+import i_bell from "../assets/sfx/impactBell_heavy_001.ogg";
+import i_glassH from "../assets/sfx/impactGlass_heavy_000.ogg";
+import i_mining from "../assets/sfx/impactMining_002.ogg";
+import i_tin from "../assets/sfx/impactTin_medium_001.ogg";
+import i_softM from "../assets/sfx/impactSoft_medium_000.ogg";
 type Sfx = "roll" | "hit" | "crit" | "miss" | "block" | "status" | "heal" | "reaction" | "chest" | "epic" | "legendary" | "crimson" | "win" | "lose" | "click" | "step" | "coins" | "equip" | "smash" | "page";
 
 /** Recorded clips, decoded on first use. */
@@ -25,7 +45,48 @@ const CLIPS: Partial<Record<Sfx, { urls: string[]; vol: number }>> = {
   smash: { urls: [potU], vol: 0.5 },
   page: { urls: [pageU], vol: 0.4 }
 };
+/** What a blow sounds like: by the weapon you swing, or by the kind of foe that hits you. */
+export type Impact = "blade" | "blunt" | "arcane" | "ranged" | "beast" | "undead" | "construct" | "cultist" | "crit" | "block" | "status" | "reaction";
+const IMPACTS: Record<Impact, { urls: string[]; vol: number }> = {
+  blade: { urls: [i_metalL, i_metalM], vol: 0.42 },
+  blunt: { urls: [i_punchH, i_woodH], vol: 0.5 },
+  arcane: { urls: [i_glassL, i_glassM], vol: 0.4 },
+  ranged: { urls: [i_woodL, i_plank], vol: 0.45 },
+  beast: { urls: [i_softH, i_punchM], vol: 0.5 },
+  undead: { urls: [i_woodM, i_plank], vol: 0.45 },
+  construct: { urls: [i_metalH, i_plateH], vol: 0.45 },
+  cultist: { urls: [i_punchM, i_softM], vol: 0.45 },
+  crit: { urls: [i_bell, i_plateH], vol: 0.4 },
+  block: { urls: [i_plateM, i_tin], vol: 0.45 },
+  status: { urls: [i_glassL], vol: 0.28 },
+  reaction: { urls: [i_glassH, i_mining], vol: 0.45 }
+};
 const decoded = new Map<string, AudioBuffer | null>();
+/** Play a blow's sound (falls back to the old hit when it isn't loaded yet). */
+export function impact(kind: Impact, fallback: Sfx = "hit") {
+  if (muted) return;
+  if (!playUrls(IMPACTS[kind])) sfx(fallback);
+}
+function playUrls(c: { urls: string[]; vol: number }): boolean {
+  const a = ac();
+  if (!a) return false;
+  const url = c.urls[Math.floor(Math.random() * c.urls.length)];
+  const buf = decoded.get(url);
+  if (buf === undefined) {
+    decoded.set(url, null);
+    void fetch(url).then(r => r.arrayBuffer()).then(d => a.decodeAudioData(d)).then(b => { decoded.set(url, b); }).catch(() => decoded.delete(url));
+    return false;
+  }
+  if (!buf) return false;
+  const src = a.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = 0.92 + Math.random() * 0.16;
+  const g = a.createGain();
+  g.gain.value = c.vol;
+  src.connect(g).connect(a.destination);
+  src.start();
+  return true;
+}
 function playClip(kind: Sfx): boolean {
   const c = CLIPS[kind];
   const a = ac();
@@ -48,7 +109,8 @@ function playClip(kind: Sfx): boolean {
   return true;
 }
 /** Start decoding the clips early (after the first tap), so the first hit already sounds right. */
-export function warmClips() { for (const k of Object.keys(CLIPS) as Sfx[]) for (const u of CLIPS[k]!.urls) if (!decoded.has(u) && ac()) { decoded.set(u, null); void fetch(u).then(r => r.arrayBuffer()).then(d => ac()!.decodeAudioData(d)).then(b => { decoded.set(u, b); }).catch(() => decoded.delete(u)); } }
+export function warmClips() { for (const u of Object.values(IMPACTS).flatMap(c => c.urls)) if (!decoded.has(u) && ac()) { decoded.set(u, null); void fetch(u).then(r => r.arrayBuffer()).then(d => ac()!.decodeAudioData(d)).then(b => { decoded.set(u, b); }).catch(() => decoded.delete(u)); }
+  for (const k of Object.keys(CLIPS) as Sfx[]) for (const u of CLIPS[k]!.urls) if (!decoded.has(u) && ac()) { decoded.set(u, null); void fetch(u).then(r => r.arrayBuffer()).then(d => ac()!.decodeAudioData(d)).then(b => { decoded.set(u, b); }).catch(() => decoded.delete(u)); } }
 
 let ctx: AudioContext | null = null;
 let muted = false;

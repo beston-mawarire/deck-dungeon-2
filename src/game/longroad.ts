@@ -101,13 +101,14 @@ export function treePointsFor(layersWon: number, _deepest = 0): number {
 
 // ---------- Weapon mastery ----------
 
-export const MASTERY_FAMILIES: WeaponFamily[] = ["knife", "shortblade", "greatblade", "blunt", "breaker", "polearm", "arcane", "ranged"];
+export const MASTERY_FAMILIES: (WeaponFamily | "shield")[] = ["knife", "shortblade", "greatblade", "blunt", "breaker", "polearm", "arcane", "ranged", "shield"];
 export const WM_MAX = 10;
 /** Weapon mastery XP needed for a level (5, 20, 45, 80 …). */
 export const wmLevel = (xp: number) => Math.min(WM_MAX, Math.floor(Math.sqrt(Math.max(0, xp) / 5)));
 export const wmNext = (level: number) => 5 * (level + 1) * (level + 1);
 /** Each family's name (mastery opens more of its weapons to your loot, a few at a time). */
-export const WM_PERK: Record<WeaponFamily, { name: string }> = {
+export const WM_PERK: Record<WeaponFamily | "shield", { name: string }> = {
+  shield: { name: "Shields" },
   knife: { name: "Knives" }, shortblade: { name: "Short Blades" }, greatblade: { name: "Great Blades" }, blunt: { name: "Blunt weapons" },
   breaker: { name: "Breakers" }, polearm: { name: "Polearms" }, arcane: { name: "Staves and wands" }, ranged: { name: "Bows and slings" }
 };

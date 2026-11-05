@@ -1,2 +1,4 @@
 Art: 16x16 DungeonTileset II by 0x72 (CC0) — https://0x72.itch.io/dungeontileset-ii
 Sound: RPG Audio by Kenney (CC0) — https://kenney.nl/assets/rpg-audio
+
+Impact sounds (impact*.ogg): "Impact Sounds" by Kenney (www.kenney.nl), CC0 1.0.

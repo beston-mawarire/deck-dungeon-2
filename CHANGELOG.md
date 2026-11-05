@@ -9,6 +9,17 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.85.0
+- Fights sound like what's hitting: blades ring, blunt weapons thud, staves chime, and foes sound like what they are (beasts, the undead, constructs, cultists). Crits, blocks, statuses and reactions have their own sounds too (Kenney's Impact Sounds).
+- Strange doors stand in the walls now, with a faint violet glow.
+- Shields join Weapon Mastery: winning with one in your off-hand masters it, and opens more of them to your loot.
+- The Way Down is a dark archway with Descend, Heat and Totem in its mouth.
+- The heroes' descriptions match how they play now (base attributes, their own gear).
+- Epics and Legendaries drop a little more often, and an iron chest can now hold one.
+- The wooden and iron chests swap looks; chests no longer say what they might hold.
+- Chest popups are a shade darker with firmer writing, a darker comparison box, and the level an item needs in its own dark plate. If you're not high enough yet, Equip is greyed out and says why.
+- Taking, bagging or leaving a chest's item closes the popup straight away.
+
 ## 1.84.0
 - Something Strange is an open door now. Tap it and choose "Enter the strange room?": what's inside plays out in a dark room of its own.
 - The class popup no longer shows Heat, and its buttons are studded wooden planks.

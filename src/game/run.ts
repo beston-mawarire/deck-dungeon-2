@@ -129,8 +129,8 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
   elite: { name: "Elite", icon: "💀", text: "A tougher fight. Always drops an item." },
   champion: { name: "Champion", icon: "👹", text: "Very dangerous. Rare loot and often a Scroll of Revelation." },
-  wooden: { name: "Wooden Chest", icon: "📦", text: "One item, Common or Uncommon." },
-  iron: { name: "Iron Chest", icon: "🧰", text: "One item, Uncommon or Rare. Sometimes a Mimic." },
+  wooden: { name: "Wooden Chest", icon: "📦", text: "An old wooden chest." },
+  iron: { name: "Iron Chest", icon: "🧰", text: "A heavy chest, bound in iron." },
   vault: { name: "Guarded Vault", icon: "🏛️", text: "Beat a Champion, then open a Resplendent chest." },
   altar: { name: "Blood Altar", icon: "🩸", text: "Pay 25% of your Max HP for a Resplendent chest." },
   shrine: { name: "Cursed Shrine", icon: "🕯️", text: "Take a curse for a Resplendent chest." },
@@ -162,7 +162,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   goblin: { name: "Treasure Goblin", icon: "💰", text: "A Treasure Goblin, stuffed with loot! Kill it within 3 rounds before it escapes, and everything it carries is yours." },
   oath: { name: "Blood Oath", icon: "🩸", text: "A stone that wants a promise in blood. Give up Max HP for good, and take an item." },
   offering: { name: "Offering Altar", icon: "⚱️", text: "An altar that takes what you lay on it. Give it two or more items and it may give one back, better. Or nothing at all." },
-  secret: { name: "Secret Chest", icon: "💎", text: "Hidden away behind a locked door: rare materials, a great deal of Gold, or very good loot." },
+  secret: { name: "Secret Chest", icon: "💎", text: "Hidden away behind a locked door." },
   crimson_vault: { name: "Crimson Vault", icon: "🗝️", text: "Spend a Crimson Key: fight a Crimson boss for a Crimson item. Die here and your run is over." }
 };
 
@@ -612,6 +612,9 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
       }
     }
     const spots = dug.cells.filter(c => c !== dug.front).sort(() => rng() - 0.5);
+    // A strange door stands in a wall: put it on a cell with rock behind it (above), if the room has one.
+    const ev = items.indexOf("event");
+    if (ev >= 0) { const w = spots.findIndex(c => m.tiles[c - m.w] === 0); if (w >= 0 && w !== ev) [spots[ev], spots[w]] = [spots[w], spots[ev]]; }
     items.forEach((it, k) => putAt(spots[k] ?? dug.front, it));
     // A locked door or a cracked wall in the doorway instead of a guard.
     if (door) { putAt(dug.door, door); return; }
@@ -1575,8 +1578,11 @@ function afterFight(run: Run) {
     k.n++; k.hp = Math.max(k.hp, e.maxHp); k.power = Math.max(k.power, e.damage); k.family = e.family; if (rank === "boss") k.boss = true;
   }
   // Weapon mastery: every win in the Crawl teaches the weapon in your main hand.
-  if (run.gridMode && h.equip.main) {
-    const fam = classify(effectiveBase(h.equip.main)).family;
+  if (run.gridMode) for (const it of [h.equip.main, h.equip.off]) {
+    // (The off-hand teaches only a shield: a second weapon learns nothing extra.)
+    if (!it) continue;
+    const fam = classify(effectiveBase(it)).family;
+    if (it === h.equip.off && fam !== "shield") continue;
     if ((MASTERY_FAMILIES as string[]).includes(fam)) h.f.persist[`wmx_${fam}`] = (h.f.persist[`wmx_${fam}`] ?? 0) + (WM_XP[rank] ?? 1);
   }
   const gold = crawlFoe ? 0 : { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank] * (abyssMod(run, "golden_depths") ? 2 : 1) + relicBonus(h.relics, "gold");

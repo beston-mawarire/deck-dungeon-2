@@ -65,7 +65,8 @@ export function foeSprite(name: string, family?: string, boss = false): string |
 export const CLASS_SPRITE: Record<string, string> = { warrior: "knight_m", mage: "wizzard_m", rogue: "elf_m", cleric: "angel", hero: "knight_f" };
 /** Things on the map that have a sprite. */
 export const THING_SPRITE: Record<string, string> = {
-  wooden: "chest_wood", iron: "chest_iron", vault: "chest_gold", bosschest: "chest_crimson", crimson_vault: "chest_crimson", secret: "chest_arcane", shop: "dwarf_m", goblin: "goblin",
+  // (The plain tileset chest reads as iron-bound; its paler recolour as wood.)
+  wooden: "chest_iron", iron: "chest_wood", vault: "chest_gold", bosschest: "chest_crimson", crimson_vault: "chest_crimson", secret: "chest_arcane", shop: "dwarf_m", goblin: "goblin",
   // The landmarks: people where someone's there, things where something is.
   alchemist: "wizzard_f", blacksmith: "dwarf_f", gambling_den: "lizard_m", card_sharp: "lizard_f", fortune_teller: "pumpkin_dude", jeweller: "elf_f",
   starving_pilgrim: "tiny_zombie", fallen_adventurer: "skull", event: "doors_leaf_open", shrine: "column",

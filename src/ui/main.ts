@@ -30,7 +30,7 @@ import {
 import { fortunePips } from "../game/loot";
 import { LAYER_FLOORS } from "../game/grid";
 import { isThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
-import { branchSpent, MASTERY_FAMILIES, nodeBlock, nodeRanks, NUMERAL, passiveTree, rankText, resetTree, spendNode, TIER_WIDTH, tierOpen, TOTEMS, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
+import { branchSpent, MASTERY_FAMILIES, nodeBlock, nodeRanks, NUMERAL, passiveTree, rankText, resetTree, spendNode, TIER_WIDTH, tierOpen, TOTEMS, totemById, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
@@ -49,7 +49,7 @@ import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
 import { PATCH_NOTES } from "./changes";
-import { holdMusic, isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
+import { impact, type Impact, warmClips, holdMusic, isMusicOff, isMuted, musicBlocked, toggleMusic, musicVolume, onMusicBlockChange, playMusic, setMusicVolume, sfx, toggleMute, type Track } from "./sound";
 
 loadLibrary();
 
@@ -350,7 +350,7 @@ function itemCard(it: GearItem, buttons = "", compare: boolean | { hero: Hero; s
     ${equippedAs ? `<div class="eqbadge">⚔️ Equipped · ${esc(equippedAs)}</div>` : ""}
     <div class="meta">${itemRarity(it)}${it.gen ? ` · <span class="gen-tag" title="Made by chance: a generated item">⚒ forged by chance</span>` : ""} · ${b.slot === "main" ? "weapon" : b.slot === "off" ? "off-hand" : b.slot} · level ${it.level}</div>
     <div class="nm">${esc(itemName(it))}</div>
-    <ul>${itemLines(it).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+    <ul>${itemLines(it).map(l => `<li${l.startsWith("🔒 Requires level") ? ` class="req-line"` : ""}>${esc(l)}</li>`).join("")}</ul>
     ${it.infused ? (() => { const t = baseOf(it.infused!); return `<div class="infused">💠 Infused: <b>${esc(t.name)}</b> — ${esc(t.legendary?.reveal ?? t.text)}</div>`; })() : ""}
     ${(it.upgrades ?? 0) > 0 ? `<div class="sub upgraded-note">⬆️ Upgraded ${it.upgrades}×</div>` : ""}
     ${it.refine || it.bound ? `<div class="sub mw-note">${[it.refine ? `Refined ${"•".repeat(it.refine)}` : "", it.bound ? "🔒 Bound" : ""].filter(Boolean).join(" · ")}</div>` : ""}
@@ -970,6 +970,35 @@ function treeNodePopup(o: OriginId) {
   </div></div>`;
 }
 
+/** The Way Down: a dungeon archway, pitch black inside, with what you need to set out in its mouth. */
+let expPop: "heat" | "totem" | null = null;
+function expeditionScreen(o: OriginId) {
+  void o;
+  const tot = meta.totemSet ? totemById(meta.totemSet) : undefined;
+  const heat = meta.heat ?? 0;
+  const pop = expPop === "heat" ? `<div class="overlay popup-wrap exp-pop"><div class="popup"><button class="small closex closebtn" data-exppop="" aria-label="Close">✕</button><h2 class="center">🔥 Heat</h2>${heatPanel()}<div class="row plank-row" style="justify-content:center"><button class="plank-btn" data-exppop="">Done</button></div></div></div>`
+    : expPop === "totem" ? `<div class="overlay popup-wrap exp-pop"><div class="popup"><button class="small closex closebtn" data-exppop="" aria-label="Close">✕</button><h2 class="center">🗿 Totems</h2>
+      ${(() => { const held = TOTEMS.filter(t => (meta.totems?.[t.id] ?? 0) > 0); return held.length
+        ? `<p class="sub center">Set one at the door: it leans the loot its way, and it's used up as you go in.</p><div class="mer-list totem-list">${held.map(t => `<button class="mer-chip ${meta.totemSet === t.id ? "on" : ""}" data-totem="${t.id}"><b>${t.icon} ${esc(t.name)}</b><span>×${meta.totems![t.id]} · ${esc(t.text)}</span></button>`).join("")}</div>`
+        : `<p class="sub center">You hold no totems yet. From the third layer down, a guardian sometimes leaves one.</p>`; })()}
+      <div class="row plank-row" style="justify-content:center"><button class="plank-btn" data-exppop="">Done</button></div></div></div>` : "";
+  return `<div class="cb-screen exp-screen"><div class="exp-inner">
+    <div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">🗺️ The Way Down</div></div>
+    <div class="exp-gate">
+      <div class="cb-torch l"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
+      <div class="cb-torch r"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
+      <div class="exp-arch"><div class="exp-dark">
+        <div class="exp-btns">
+          <button class="plank-btn exp-go" data-descend>⬇️ Descend</button>
+          <button class="plank-btn" data-exppop="heat">🔥 Heat${heat ? ` · ${heat}` : ""}</button>
+          <button class="plank-btn" data-exppop="totem">🗿 Totem${tot ? ` · ${tot.icon}` : ""}</button>
+        </div>
+      </div></div>
+    </div>
+    <button class="mer-leave plank-btn" data-closeroom>Back to the Camp</button>
+  </div></div>${pop}`;
+}
+
 /** The Passive Tree's room: the whole tree under a night sky, scrolling both ways. Branches side by side; each row
  *  opens as you spend in its branch; a node's next rank hangs below it, linked. */
 const TREE_COL = 84, TREE_ROW = 104, TREE_GAP = 64, TREE_HEAD = 74, TREE_PAD = 40;
@@ -1019,10 +1048,10 @@ function campScreen(o: OriginId) {
     ${note && !room ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
     <div class="camp-map"><canvas id="campcv"></canvas></div>
   </div></div>
-  ${room?.id === "tree" ? treeScreen(o) : room ? `<div class="cb-screen grit-screen camp-room"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${room.icon} ${esc(room.name)}</div></div>
+  ${room?.id === "tree" ? treeScreen(o) : room?.id === "expedition" ? expeditionScreen(o) : room ? `<div class="cb-screen grit-screen camp-room"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${room.icon} ${esc(room.name)}</div></div>
     ${note ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
     <div class="grit-body camp-room-body">${campBody(o, room.id)}</div>
-    <button class="mer-leave" data-closeroom>Back to the Camp</button></div></div>` : ""}`;
+    <button class="mer-leave plank-btn" data-closeroom>Back to the Camp</button></div></div>` : ""}`;
 }
 
 /** Camp contracts run over a whole layer, so they get longer than a board found below. */
@@ -1165,14 +1194,17 @@ const compareBtns = (it: GearItem): string => {
 };
 const lootBtns = (it: GearItem, pick: boolean) => {
   const hands = handSlots(it);
+  // Not strong enough yet: the equip buttons are greyed out, and a plain note says why.
+  const gated = !!run && !!it.reqLevel && run.hero.level < it.reqLevel;
+  const dis = gated ? " disabled" : "";
   // Trinkets: a button for each trinket slot (empty ones say so).
   const tslots = run ? slotsFor(it, run.hero).filter(sl => sl.startsWith("trinket")) : [];
   const equip = hands
-    ? hands.map(sl => `<button class="small take-equip" data-take="${it.uid}" data-how="equip" data-slot="${sl}">✔ Equip ${HAND_LABEL[sl]}</button>`).join("")
+    ? hands.map(sl => `<button class="small take-equip" data-take="${it.uid}" data-how="equip" data-slot="${sl}"${dis}>✔ Equip ${HAND_LABEL[sl]}</button>`).join("")
     : tslots.length > 1
-      ? tslots.map(sl => `<button class="small take-equip" data-take="${it.uid}" data-how="equip" data-slot="${sl}">✔ Equip ${SLOT_LABEL[sl].replace(" ★", "")}${run!.hero.equip[sl] ? "" : " (empty)"}</button>`).join("")
-      : `<button class="small take-equip" data-take="${it.uid}" data-how="equip">✔ Equip</button>`;
-  return `${equip}${compareBtns(it)}<button class="small take-pack" data-take="${it.uid}" data-how="pack">Add to backpack</button>${run?.gridMode ? `<button class="small take-scrap" data-scrapfound="${it.uid}">Leave it</button>` : `<button class="small take-scrap" data-scrapfound="${it.uid}">Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`}`;
+      ? tslots.map(sl => `<button class="small take-equip" data-take="${it.uid}" data-how="equip" data-slot="${sl}"${dis}>✔ Equip ${SLOT_LABEL[sl].replace(" ★", "")}${run!.hero.equip[sl] ? "" : " (empty)"}</button>`).join("")
+      : `<button class="small take-equip" data-take="${it.uid}" data-how="equip"${dis}>✔ Equip</button>`;
+  return `${gated ? `<div class="req-note">🔒 You must be level ${it.reqLevel} to equip this (you're level ${run!.hero.level}).</div>` : ""}${equip}${compareBtns(it)}<button class="small take-pack" data-take="${it.uid}" data-how="pack">Add to backpack</button>${run?.gridMode ? `<button class="small take-scrap" data-scrapfound="${it.uid}">Leave it</button>` : `<button class="small take-scrap" data-scrapfound="${it.uid}">Scrap${pick ? ` (+${run ? scrapValue(run.hero, it) : 0} ⚙️)` : ""}</button>`}`;
 };
 const pickButtons = (it: GearItem) => lootBtns(it, true);
 const takeButtons = (it: GearItem) => lootBtns(it, false);
@@ -1181,7 +1213,7 @@ const takeButtons = (it: GearItem) => lootBtns(it, false);
 const sigilFound = (names?: string[]) => (names ?? []).map(n => `<div class="sigil-found"><b>🔮 Sigil found</b><span class="sf-name">${esc(n)}</span><span class="sf-where">In Inventory › Gear › Sigils</span></div>`).join("");
 
 /** A chest popup's heading: the chest itself (from the tileset, open) above its name in a frame. */
-const CHEST_TITLE: [RegExp, string][] = [[/^Wooden Chest/, "chest_wood_open"], [/^Iron Chest/, "chest_iron_open"], [/^Secret Chest/, "chest_arcane_open"], [/hoard/i, "chest_crimson_open"], [/^Guarded Vault|Resplendent/, "chest_gold_open"]];
+const CHEST_TITLE: [RegExp, string][] = [[/^Wooden Chest/, "chest_iron_open"], [/^Iron Chest/, "chest_wood_open"], [/^Secret Chest/, "chest_arcane_open"], [/hoard/i, "chest_crimson_open"], [/^Guarded Vault|Resplendent/, "chest_gold_open"]];
 function chestHead(title: string): string | null {
   const hit = CHEST_TITLE.find(([re]) => re.test(title));
   if (!hit || !hasSprite(hit[1])) return null;
@@ -1933,7 +1965,7 @@ function crawlBag(r: Run) {
       return `<button class="inv-slot ${it ? `r-${it.rarity}` : "empty"} ${on ? "on" : ""}" data-invpick="eq:${sl}"><span>${SLOT_SHORT[sl]}</span><b>${it ? esc(itemName(it)) : "Empty"}</b></button>`; }).join("");
     const detail = !picked ? `<div class="inv-empty"><span>🔍</span><p>Tap an item to see it here.</p></div>`
       : invPick?.k === "eq" ? itemCard(picked, inCombat ? "" : `<button class="small" data-unequip="${(invPick as { slot: EquipSlot }).slot}">Take it off</button>${revealBtn(r, picked)}`)
-      : itemCard(picked, inCombat ? "" : `${slotsFor(picked, h).map(sl => `<button class="small primary" data-equip="${picked.uid}" data-slot="${sl}">Equip${slotsFor(picked, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, picked)}`, !inCombat);
+      : itemCard(picked, inCombat ? "" : `${picked.reqLevel && h.level < picked.reqLevel ? `<div class="req-note">🔒 You must be level ${picked.reqLevel} to equip this (you're level ${h.level}).</div>` : ""}${slotsFor(picked, h).map(sl => `<button class="small primary" data-equip="${picked.uid}" data-slot="${sl}" ${picked.reqLevel && h.level < picked.reqLevel ? "disabled" : ""}>Equip${slotsFor(picked, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, picked)}`, !inCombat);
     // Materials and scrolls sit in the backpack too (they take no slot).
     const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.orilium ?? 0, "🔶 Orilium"], [h.starmetal, "✴️ Starmetal"], [h.scrolls, "📜 Scroll of Revelation"], [h.f.persist["skelKeys"] ?? 0, "🗝️ Skeleton Key"], ...THROWS.map(t => [h.f.persist[THROW_INFO[t].key] ?? 0, `${THROW_INFO[t].icon} ${THROW_INFO[t].name}`])].filter(([n]) => (n as number) > 0)
       .map(([n, l]) => `<span class="mer-chip mat"><b>${l}</b><span>×${n}</span></span>`).join("");
@@ -1995,10 +2027,10 @@ function revealBtn(r: Run, it: GearItem) {
 
 const ORIGIN_ICON: Record<OriginId, string> = { warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" };
 const ORIGIN_PITCH: Record<OriginId, string> = {
-  warrior: "The Warrior wins by standing firm. Guarding is your craft — with a shield, or even with a two-handed weapon — and every Guard makes you hit harder. Let loose a War Cry for a swell of Might. Build into shields, heavy weapons and Armor and you become a wall that hits back.",
-  rogue: "The Rogue wins by never being where the blow lands. Two dice, first strikes and crits — and Counter: brace, dodge the next attack and strike back with a hit that can't miss. Stack Dodge and crit gear and you'll dance through fights untouched.",
-  mage: "The Mage wins by stacking statuses until they explode. Every face can be a spell; Burn, Chill, Static and more combine into reactions and bursts. With an elemental off-hand, raise an Elemental Barrier that throws your element back at attackers. Fragile early, devastating later.",
-  cleric: "The Cleric wins by outlasting. Healing, Ward and Holy weapons that Smite the wicked — and Penance: kneel, take what they give you, and return every point of it in one blow. Survives what others can't, and turns suffering into damage."
+  warrior: "The Warrior wins by standing firm. Guarding is your craft, with a shield or even a two-handed weapon, and every Guard makes you hit harder; let loose a War Cry for a swell of Might. Your base attribute is Strength: every point raises your Max HP, your Bash and your base Damage. You find swords, axes, maces, hammers, polearms and shields, and the shields can carry Shield Wall.",
+  rogue: "The Rogue wins by never being where the blow lands. Two blades, two dice and the first strike, and Counter: brace, dodge the next attack and strike back with a hit that can't miss. Your base attribute is Agility: every point raises your Dodge, your Crit chance, your crit damage and your base Damage. You find daggers, short blades, bows and throwing weapons, and the daggers can carry Envenom.",
+  mage: "The Mage wins by stacking statuses until they explode. Every face can be a spell; Burn, Chill, Static and more combine into reactions and bursts. With an elemental off-hand, raise an Elemental Barrier that throws your element back at attackers. Your base attribute is Intellect: every point raises your status and reaction damage, your staves' and wands' hits and your base Damage. You find staves, wands, focuses and ritual daggers. Fragile early, devastating later.",
+  cleric: "The Cleric wins by outlasting. Ward and Holy weapons that Smite the wicked, and Penance: kneel, take what they give you, and return it in one blow. Your base attribute is Faith: every point means reactions and statuses hurt you less, curse-lifting altars come sooner, and your base Damage rises. You find maces, hammers, shields and holy focuses."
 };
 
 const STORIES: Record<Mode, { icon: string; title: string; text: string }> = {
@@ -2749,7 +2781,21 @@ function shake(who: "player" | "enemy", big = false) {
   }
 }
 
+/** The fight being played out (so a blow can sound like what's hitting). */
+let fxBattle: Battle | null = null;
+/** What a hit on `who` sounds like: your weapon's family when you strike, the foe's kind when it does. */
+function impactFor(who: "player" | "enemy"): Impact {
+  const b = fxBattle;
+  if (who === "enemy") {
+    const main = run?.hero.equip.main;
+    const fam = main ? classify(effectiveBase(main)).family : "blunt";
+    return fam === "arcane" ? "arcane" : fam === "ranged" || fam === "throwable" ? "ranged" : fam === "blunt" || fam === "breaker" ? "blunt" : "blade";
+  }
+  const f = b?.enemy.family;
+  return f === "Beast" ? "beast" : f === "Undead" ? "undead" : f === "Construct" ? "construct" : "cultist";
+}
 async function playFx(b: Battle) {
+  fxBattle = b;
   // A huge pile of effects (big stacking builds) would take minutes to play out: skip to the last few.
   if (b.fx.length > 40) b.fx.splice(0, b.fx.length - 12);
   fxBatch++;
@@ -2820,7 +2866,7 @@ async function showFx(e: Fx) {
       render();
       floater(who, `-${e.value}`, "dmg");
       shake(who);
-      sfx("hit");
+      impact(impactFor(who));
       await sleep(420);
       return;
     case "heal":
@@ -2830,11 +2876,11 @@ async function showFx(e: Fx) {
       sfx("heal");
       await sleep(320);
       return;
-    case "crit": floater(who, "CRIT!", "crit"); shake(who, true); sfx("crit"); await sleep(260); return;
+    case "crit": floater(who, "CRIT!", "crit"); shake(who, true); impact("crit", "crit"); await sleep(260); return;
     case "miss": floater(who, e.text ?? "Miss", "miss"); sfx("miss"); await sleep(420); return;
-    case "block": floater(who, `${e.icon ?? "🛡️"} ${e.text ?? "Blocked"}`, "block"); sfx("block"); await sleep(380); return;
-    case "status": render(); floater(who, `${e.icon ?? ""} ${e.text ?? ""}`, (e.value ?? 0) < 0 ? "status-neg" : "status-pos"); sfx("status"); await sleep(330); return;
-    case "reaction": render(); floater(who, `💥 ${e.text}`, "reaction"); shake(who, true); sfx("reaction"); await sleep(520); return;
+    case "block": floater(who, `${e.icon ?? "🛡️"} ${e.text ?? "Blocked"}`, "block"); impact("block", "block"); await sleep(380); return;
+    case "status": render(); floater(who, `${e.icon ?? ""} ${e.text ?? ""}`, (e.value ?? 0) < 0 ? "status-neg" : "status-pos"); impact("status", "status"); await sleep(330); return;
+    case "reaction": render(); floater(who, `💥 ${e.text}`, "reaction"); shake(who, true); impact("reaction", "reaction"); await sleep(520); return;
     case "text": floater(who, `${e.icon ?? ""} ${e.text ?? ""}`, "text"); await sleep(380); return;
   }
 }
@@ -3038,7 +3084,8 @@ function bind() {
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
     on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; campTab = "expedition"; campRoom = null; resetCampWalk(); campOffers = null; campQuest = null; });
-    on("[data-closeroom]", () => { campRoom = null; });
+    on("[data-closeroom]", () => { campRoom = null; expPop = null; });
+    on("[data-exppop]", el => { expPop = (el.dataset.exppop || null) as typeof expPop; });
     on("[data-campback]", () => { camp = null; kitPick = null; });
     on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; plateArmed = false; });
     on("[data-learn]", el => { const err = learn(meta, el.dataset.learn!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });
@@ -3133,10 +3180,12 @@ function bind() {
   on("[data-sigscrap]", el => { const n = scrapSigil(r, Number(el.dataset.sigscrap)); if (n) say(`+${n} Scrap`, false); });
   on("[data-spoilsub]", el => { spoilsSub = el.dataset.spoilsub as typeof spoilsSub; });
   on("[data-talentsub]", el => { talentSub = el.dataset.talentsub as "talents" | "curses"; });
-  on("[data-take]", el => { compareOpen = null; say(takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack", el.dataset.slot as EquipSlot | undefined)); });
+  // The Crawl: once the only find is taken (or left), the popup just closes — no "Continue" step.
+  const lootDone = () => { const sc = r.scene; if (r.gridMode && sc.t === "loot" && !sc.items.length && !sc.gold && !sc.potions && !sc.scrolls && !sc.relic && !sc.then && !sc.crimsonKey && !sc.dragonHeart && !sc.sigils?.length) finishLoot(r); };
+  on("[data-take]", el => { compareOpen = null; const err = takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack", el.dataset.slot as EquipSlot | undefined); say(err); if (!err) lootDone(); });
   on("[data-compare]", el => { compareOpen = { uid: Number(el.dataset.compare), slot: el.dataset.slot as EquipSlot | undefined }; });
   on("[data-compareclose]", () => { compareOpen = null; });
-  on("[data-scrapfound]", el => { compareOpen = null; scrapFound(r, Number(el.dataset.scrapfound)); });
+  on("[data-scrapfound]", el => { compareOpen = null; scrapFound(r, Number(el.dataset.scrapfound)); lootDone(); });
   on("[data-finish]", () => { r.message = ""; finishLoot(r); });
   on("[data-card]", el => {
     pickResplendent(r, Number(el.dataset.card));
@@ -3254,6 +3303,8 @@ onMusicBlockChange(() => render());
 watchForUpdates(() => { if (run && run.scene.t !== "map" && run.scene.t !== "over") say("✨ An update is ready. It will load at your next path choice (your run is saved).", false); render(); });
 
 // Going offline: tell the player what that means. Coming back: a quick note.
+// Sounds start decoding on the first tap (browsers only allow audio after one), so the first blow already sounds right.
+window.addEventListener("pointerdown", () => warmClips(), { once: true });
 window.addEventListener("offline", () => { offlineOpen = true; render(); });
 window.addEventListener("online", () => { offlineOpen = false; say("📶 You're back online.", false); void flushQueue(); if (vaultDirty()) backupVault(vaultOf(meta)); render(); });
 

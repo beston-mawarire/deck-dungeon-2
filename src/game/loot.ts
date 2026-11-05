@@ -77,14 +77,15 @@ export type Odds = Partial<Record<Rarity, number>>;
 
 export const TABLES = {
   wooden: { common: 70, uncommon: 30 },
-  iron: { uncommon: 76, rare: 24 },
+  // (Epics and Legendaries a little more often since 1.85: a rare iron chest holds one now.)
+  iron: { uncommon: 72, rare: 25, epic: 2.6, legendary: 0.4 },
   drop: { common: 66.5, uncommon: 28, rare: 5.5 },
-  elite: { uncommon: 66, rare: 31, epic: 2.6, legendary: 0.4 },
-  champion: { uncommon: 19, rare: 67, epic: 11, legendary: 3 },
-  boss: { rare: 91.2, epic: 7.2, legendary: 1.6 },
+  elite: { uncommon: 62, rare: 32, epic: 5, legendary: 1 },
+  champion: { uncommon: 16, rare: 64, epic: 15, legendary: 5 },
+  boss: { rare: 86, epic: 11, legendary: 3 },
   /** Crimson Elites: harder, better loot (and sometimes a Crimson Key). */
   crimson: { rare: 69, epic: 26, legendary: 5 },
-  shop: { common: 15, uncommon: 56.8, rare: 27, epic: 1.2 }
+  shop: { common: 14, uncommon: 56, rare: 28, epic: 2 }
 } satisfies Record<string, Odds>;
 
 /** Campaign boss picks grow richer floor by floor: early bosses mostly offer Uncommons, a Rare is a treat. */
