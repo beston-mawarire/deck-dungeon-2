@@ -25,6 +25,8 @@ export const HISTORY_SIZE = 10;
 export interface Meta {
   /** The Camp's stores (Crown Shards, materials) and the Hall's upgrades. */
   camp?: import("./camp").CampStore;
+  /** The ability each class takes into its runs (from the Camp's Skills). */
+  skillPick?: Record<string, string>;
   /** Campaign runs in a row that ended without a Legendary (four, and the next run's first boss offers one). */
   dryRuns?: number;
   renown: number;

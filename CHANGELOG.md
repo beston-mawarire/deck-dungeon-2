@@ -9,6 +9,17 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.74.0
+- **Skills:** each class now has three abilities. You take one into each run, picked in the Camp's Skills archway; the new one replaces the class's own. Each costs 🔷1.
+  - **Warrior:** War Cry · Crushing Blow (attack for 60% more and Fracture) · Shield Wall (Guard with no shield needed, plus Barrier of twice your Armor).
+  - **Rogue:** Counter · Envenom (Poison, then attack) · Smoke Bomb (Evade the next 2 hits and Blind the foe).
+  - **Mage:** Elemental Barrier · Frost Nova (Chill 3 and Stun) · Arcane Bolt (twice your Damage, straight through Armor).
+  - **Cleric:** Penance · Smite (Burn 3, attack, heal a little) · Sanctuary (heal a quarter of your Max HP and gain a Ward).
+- **Unlocking:** the second ability opens at Mastery 3, the third at Mastery 6.
+- **Slower Mastery:**
+  - It now comes from floors reached in the Crawl (a little each) and bosses beaten (two each). A full layer is worth about 6.
+  - The levels need more than before: Mastery 3 is now 30, Mastery 6 is 165, and Mastery 10 is 680.
+
 ## 1.73.1
 - **Fixed: tapping into the dark could walk you back to somewhere you'd already cleared,** like a chest's nook. A tap on unexplored darkness now only heads for the edge of what you've seen. A tap on a wall walks you to the floor beside it.
 

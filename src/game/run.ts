@@ -1109,10 +1109,14 @@ export function availableActions(run: Run): Action[] {
   if (canGuard(h)) out.push("guard");
   // Class actions are always offered, even when they'd be wasted (e.g. Counter while Evade already covers the next hit):
   // reading the fight is part of the skill.
-  if (h.origin === "rogue") out.push("counter");
-  if (h.origin === "mage" && h.f.barrierElement) out.push("barrier");
-  if (h.origin === "cleric") out.push("penance");
-  if (h.origin === "warrior") out.push("warcry");
+  // The ability chosen at the Camp's Skills (one a run); otherwise the class's own.
+  if (h.skill) out.push(h.skill as Action);
+  else {
+    if (h.origin === "rogue") out.push("counter");
+    if (h.origin === "mage" && h.f.barrierElement) out.push("barrier");
+    if (h.origin === "cleric") out.push("penance");
+    if (h.origin === "warrior") out.push("warcry");
+  }
   if (!b.enemy.boss && !b.enemy.elite) out.push("flee");
   return out;
 }

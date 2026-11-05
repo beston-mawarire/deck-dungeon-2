@@ -17,7 +17,7 @@ import {
 import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
 import { GEN_MODULE_MAP, modValue } from "../game/gen";
-import { ABYSS_MODS, ACHIEVEMENTS, applyKit, currentAbyssMod, HEAT_LEVELS, HEAT_MAX, HEAT_RENOWN, heatOf, KIT_RARE_LEVEL, KIT_COMMON_LEVEL, KIT_SLOTS, KIT_UNCOMMON_LEVEL, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX, MASTERY_XP } from "../game/progress";
+import { CLASS_SKILLS, ABYSS_MODS, ACHIEVEMENTS, applyKit, currentAbyssMod, HEAT_LEVELS, HEAT_MAX, HEAT_RENOWN, heatOf, KIT_RARE_LEVEL, KIT_COMMON_LEVEL, KIT_SLOTS, KIT_UNCOMMON_LEVEL, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX, MASTERY_XP } from "../game/progress";
 import { ABYSS_SHARD_COST, addGem, GEM_BONUS, removeGem, abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
@@ -797,6 +797,19 @@ function campBody(o: OriginId, tab: CampTab): string {
       ${(() => { const w = currentAbyssMod(); return `<p class="sub">${w.icon} This week: <b>${esc(w.name)}</b>. ${esc(w.text)}.</p>`; })()}
       ${meta.plates ? `<button class="small camp-drop ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : "＋ Give a Vanadium Plate"}</button>` : ""}
       <button class="primary camp-go" data-campabyss ${shards >= ABYSS_SHARD_COST ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 ${ABYSS_SHARD_COST}</button>`;
+  }
+  if (tab === "skills") {
+    const lv = masteryLevel(meta.mastery?.[o] ?? 0);
+    const pick = meta.skillPick?.[o] ?? CLASS_SKILLS[o][0].id;
+    const xp = meta.mastery?.[o] ?? 0;
+    const next = MASTERY_XP[Math.min(MASTERY_MAX, lv + 1)];
+    return `<p>The ${og.name}'s abilities. You take one into each run: pick it here. New ones open as your ${og.name} Mastery grows, and Mastery comes slowly, from deep runs and fallen bosses.</p>
+      <p class="sub">⭐ Mastery ${lv}${lv < MASTERY_MAX ? ` · ${xp}/${next} to the next` : " · mastered"}</p>
+      <div class="hall-list">${CLASS_SKILLS[o].map(k => {
+        const open = lv >= k.level, on = pick === k.id;
+        return `<div class="hall-up skill ${on ? "done" : ""} ${open ? "" : "locked"}"><span class="hu-ic">${open ? k.icon : "🔒"}</span><span class="hu-txt"><b>${esc(k.name)}</b><span>${esc(k.text)}. Costs 🔷1.</span></span>
+          ${on ? `<span class="hu-done">✔ Taking it</span>` : open ? `<button class="hu-buy" data-skillpick="${k.id}">Take this</button>` : `<span class="hu-lock">Mastery ${k.level}</span>`}</div>`;
+      }).join("")}</div>`;
   }
   if (tab === "hall") {
     const c = campOf(meta);
@@ -2232,7 +2245,15 @@ const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }
   barrier: { label: () => "Elemental Barrier", tip: "Costs 1 Mana. Uses your turn. Roll: 5–6 blocks every hit this round and gives attackers 4 stacks of your off-hand's element; 3–4 halves them and gives 2; 1–2 blocks nothing but still gives 2." },
   penance: { label: p => `Penance${p.flags["penanceStore"] ? ` (${p.flags["penanceStore"]})` : ""}`, tip: "Costs 1 Mana. Uses your turn. You take a quarter less this round, and the damage and negative statuses you take are stored; your next attack adds half as much again. A kill with it heals you." },
   warcry: { label: () => "War Cry", tip: "Costs 1 Mana. Uses your turn: gain a lot of Might (half as much for each cry after the first this fight), and leave the enemy Weak and Exposed." },
-  flee: { label: () => "Flee", tip: "Leave the fight (not Elites or bosses)." }
+  flee: { label: () => "Flee", tip: "Leave the fight (not Elites or bosses)." },
+  crush: { label: () => "Crushing Blow", tip: "Costs 1 Mana. Attack for 60% more damage and Fracture the foe." },
+  shieldwall: { label: () => "Shield Wall", tip: "Costs 1 Mana. Guard this round (no shield needed) and gain Barrier of twice your Armor." },
+  envenom: { label: () => "Envenom", tip: "Costs 1 Mana. Poison the foe (more on deeper layers), then attack." },
+  smokebomb: { label: () => "Smoke Bomb", tip: "Costs 1 Mana. Uses your turn: Evade the next 2 hits and Blind the foe for 2 rounds." },
+  frostnova: { label: () => "Frost Nova", tip: "Costs 1 Mana. Uses your turn: Chill the foe 3 and Stun it for its next turn." },
+  arcanebolt: { label: () => "Arcane Bolt", tip: "Costs 1 Mana. Deal twice your Damage (more on deeper layers) straight through Armor." },
+  smite: { label: () => "Smite", tip: "Costs 1 Mana. Burn the foe 3, attack, and heal 8% of your Max HP." },
+  sanctuary: { label: () => "Sanctuary", tip: "Costs 1 Mana. Uses your turn: heal a quarter of your Max HP and gain a Ward." }
 };
 
 // ---------- Render ----------
@@ -2760,6 +2781,7 @@ function bind() {
     on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; campTab = "expedition"; campOffers = null; campQuest = null; });
     on("[data-campback]", () => { camp = null; kitPick = null; });
     on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; plateArmed = false; });
+    on("[data-skillpick]", el => { if (!camp) return; meta.skillPick = { ...(meta.skillPick ?? {}), [camp]: el.dataset.skillpick! }; saveMeta(meta); sfx("status"); });
     on("[data-hallbuy]", el => { const err = buyHall(meta, el.dataset.hallbuy!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });
     on("[data-cquest]", el => { const i = Number(el.dataset.cquest); campQuest = i < 0 || campQuest === i ? null : i; });
     on("[data-campabyss]", () => { pendingOrigin = camp; startAbyss(); });
@@ -2781,6 +2803,9 @@ function bind() {
       // The Crawl is the game now; it sets out with the Hall's upgrades.
       startCrawl(nr);
       applyHall(meta, nr);
+      // The ability picked at the Camp's Skills (if it's still open to this class).
+      const sk = meta.skillPick?.[o];
+      if (sk && CLASS_SKILLS[o].some(k => k.id === sk && masteryLevel(meta.mastery?.[o] ?? 0) >= k.level) && sk !== CLASS_SKILLS[o][0].id) nr.hero.skill = sk;
       // A contract taken at the Camp's Quest Board comes along.
       const q = campQuest !== null ? campOffers?.[campQuest] : undefined;
       if (q) nr.bounty = { ...q, base: 0, roomsLeft: q.roomsLeft * CAMP_QUEST_ROOMS };

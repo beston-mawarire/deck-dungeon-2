@@ -9,7 +9,7 @@ import type { Run } from "./run";
 
 // ---------- Class Mastery ----------
 /** Total mastery XP needed for each level (level 1 is free). */
-export const MASTERY_XP = [0, 0, 8, 22, 45, 80, 130, 200, 300, 440, 640];
+export const MASTERY_XP = [0, 0, 10, 30, 60, 105, 165, 245, 350, 490, 680];
 export const MASTERY_MAX = 10;
 /** Common starting-kit choices open at this mastery level; Uncommon ones at the next. */
 export const KIT_COMMON_LEVEL = 2;
@@ -35,10 +35,36 @@ export function masteryLevel(xp: number): number {
 }
 /** Mastery XP a run earns for its class: from floors reached plus bosses beaten (a Campaign win is worth about 6). */
 export function masteryFor(run: Run): number {
+  // The Crawl: a little for every floor reached (a layer is seven), and two for every boss. Mastery is meant to come slowly.
+  if (run.gridMode) return Math.round(0.6 * ((run.floor - 1) * 7 + Math.min(run.grid?.depth ?? 0, 6)) + 2 * run.stats.bosses);
   const won = run.scene.t === "over" && run.scene.won;
   // About 6 for winning the Campaign (floor 5's boss); deeper runs earn more.
   return Math.round(0.55 * (Math.max(0, run.floor - 1 + (won ? 1 : 0)) + run.stats.bosses));
 }
+
+/** Class abilities: the first is the class's own; the others open at these Mastery levels. One goes into each run. */
+export const CLASS_SKILLS: Record<string, { id: string; level: number; name: string; icon: string; text: string }[]> = {
+  warrior: [
+    { id: "warcry", level: 1, name: "War Cry", icon: "📯", text: "Gain a lot of Might, and leave the foe Weak and Exposed" },
+    { id: "crush", level: 3, name: "Crushing Blow", icon: "🔨", text: "Attack for 60% more and Fracture the foe" },
+    { id: "shieldwall", level: 6, name: "Shield Wall", icon: "🧱", text: "Guard this round, no shield needed, and gain Barrier of twice your Armor" }
+  ],
+  rogue: [
+    { id: "counter", level: 1, name: "Counter", icon: "🗡️", text: "+35% Dodge this round; dodge a hit and strike back with a Crit" },
+    { id: "envenom", level: 3, name: "Envenom", icon: "🧪", text: "Poison the foe (more on deeper layers), then attack" },
+    { id: "smokebomb", level: 6, name: "Smoke Bomb", icon: "💨", text: "Evade the next 2 hits and Blind the foe" }
+  ],
+  mage: [
+    { id: "barrier", level: 1, name: "Elemental Barrier", icon: "🔮", text: "Roll to block this round's hits and give attackers your off-hand's element" },
+    { id: "frostnova", level: 3, name: "Frost Nova", icon: "❄️", text: "Chill the foe deeply and Stun it for a turn" },
+    { id: "arcanebolt", level: 6, name: "Arcane Bolt", icon: "✴️", text: "Deal twice your Damage straight through Armor" }
+  ],
+  cleric: [
+    { id: "penance", level: 1, name: "Penance", icon: "✝️", text: "Take less this round and store it; your next attack adds half again" },
+    { id: "smite", level: 3, name: "Smite", icon: "⚡", text: "Burn the foe and attack, healing a little" },
+    { id: "sanctuary", level: 6, name: "Sanctuary", icon: "🕊️", text: "Heal a quarter of your Max HP and gain a Ward" }
+  ]
+};
 
 export type KitSlot = "main" | "off" | "armour";
 export const KIT_SLOTS: KitSlot[] = ["main", "off", "armour"];

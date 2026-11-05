@@ -1710,3 +1710,6 @@ body.crawl-on { overflow: hidden; }
   .hu-buy, .hu-done { flex: 1 1 100%; text-align: center; }
   .gate-content { padding-left: 12px; padding-right: 12px; }
 }
+.hall-up.locked { opacity: .55; }
+.hu-lock { flex: none; font-size: .8rem; font-weight: 700; color: #b39a74; padding: 6px 10px; border: 1px dashed #6b4c2c; border-radius: 9px; }
+@media (max-width: 899px) { .hu-lock { flex: 1 1 100%; text-align: center; } }

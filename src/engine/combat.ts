@@ -9,7 +9,7 @@ export const COUNTER_DODGE = 35;
 /** Class abilities cost mana; every class starts each fight with this much. */
 export const MANA_COST = 1;
 export const MANA_MAX = 3;
-export const SKILLS = ["counter", "barrier", "penance", "warcry"] as const;
+export const SKILLS = ["counter", "barrier", "penance", "warcry", "crush", "shieldwall", "envenom", "smokebomb", "frostnova", "arcanebolt", "smite", "sanctuary"] as const;
 export const PENANCE_RETURN = 1.5;
 export const BASH_CAP = 30;
 import { applyStatus, conductive, endOfRound, heal, loseHp, other, statusLoss, smoulderSoulAction, st, startOfTurn, staticTick } from "./statuses";
@@ -749,7 +749,7 @@ function checkOver(b: Battle) {
 }
 
 /** Attack, Guard (needs a shield), Flee, and one action per class. */
-export type Action = "attack" | "guard" | "flee" | "counter" | "barrier" | "penance" | "warcry";
+export type Action = "attack" | "guard" | "flee" | Skill;
 
 /** Begin a round. Returns true if the enemy acts first this round (Ambush). */
 export function beginRound(b: Battle): boolean {
@@ -777,7 +777,7 @@ export function beginRound(b: Battle): boolean {
 
 export const isSkill = (a: string): a is Skill => (SKILLS as readonly string[]).includes(a);
 export type Skill = (typeof SKILLS)[number];
-const SKILL_NAME: Record<Skill, string> = { counter: "Counter", barrier: "Barrier", penance: "Penance", warcry: "War Cry" };
+const SKILL_NAME: Record<Skill, string> = { counter: "Counter", barrier: "Barrier", penance: "Penance", warcry: "War Cry", crush: "Crushing Blow", shieldwall: "Shield Wall", envenom: "Envenom", smokebomb: "Smoke Bomb", frostnova: "Frost Nova", arcanebolt: "Arcane Bolt", smite: "Smite", sanctuary: "Sanctuary" };
 
 /** Give mana back (gear and relics), up to the cap. */
 export function gainMana(b: Battle, f: Fighter, n: number) {
@@ -817,6 +817,62 @@ function useSkill(b: Battle, skill: Skill) {
     p.flags["penanceRound"] = b.round;
     log(b, `${p.name} kneels in Penance. What you suffer this round is stored (${p.flags["penanceStore"] ?? 0} so far).`);
     fx(b, { who: "player", kind: "text", text: "Penance", icon: "✝️" });
+  } else if (skill === "crush") {
+    // Crushing Blow: a heavy swing that cracks their guard.
+    p.flags["crushBlow"] = 1;
+    applyStatus(b, p, e, "fracture", 2);
+    log(b, `${p.name} winds up a Crushing Blow!`);
+    fx(b, { who: "player", kind: "text", text: "Crushing Blow", icon: "🔨" });
+    p.dmgDealt = (p.dmgDealt ?? 0) + 60;
+    heroAttack(b);
+    p.dmgDealt = (p.dmgDealt ?? 0) - 60;
+    p.flags["crushBlow"] = 0;
+  } else if (skill === "shieldwall") {
+    // Shield Wall: brace behind whatever you hold. Guard this round (no shield needed), and a Barrier as thick as your Armor twice over.
+    p.flags["guarding"] = 1;
+    p.flags["guardArmor"] = 0;
+    p.flags["guards"] = (p.flags["guards"] ?? 0) + 1;
+    eachHook(p, "onGuard", (h, s) => h(b, p, s));
+    applyStatus(b, p, p, "barrier", Math.max(3, 2 * armorOf(p)));
+    log(b, `${p.name} raises a Shield Wall (Armor ${armorOf(p)}).`);
+    fx(b, { who: "player", kind: "text", text: "Shield Wall", icon: "🧱" });
+  } else if (skill === "envenom") {
+    // Envenom: coat the blade, then strike.
+    applyStatus(b, p, e, "poison", 4 + (p.persist["floor"] ?? 1));
+    log(b, `${p.name} envenoms the blade.`);
+    fx(b, { who: "player", kind: "text", text: "Envenom", icon: "🧪" });
+    heroAttack(b);
+  } else if (skill === "smokebomb") {
+    // Smoke Bomb: vanish in a cloud. Evade the next two hits, and leave the foe Blinded.
+    applyStatus(b, p, p, "evade", 2);
+    applyStatus(b, p, e, "blind", 2);
+    log(b, `${p.name} throws a Smoke Bomb!`);
+    fx(b, { who: "player", kind: "text", text: "Smoke Bomb", icon: "💨" });
+  } else if (skill === "frostnova") {
+    // Frost Nova: a burst of cold. Chill deep and Stun it for a turn.
+    applyStatus(b, p, e, "chill", 3);
+    applyStatus(b, p, e, "stun", 1);
+    log(b, `${p.name} looses a Frost Nova!`);
+    fx(b, { who: "player", kind: "text", text: "Frost Nova", icon: "❄️" });
+  } else if (skill === "arcanebolt") {
+    // Arcane Bolt: raw force that ignores Armor (twice your Damage, more the deeper you go).
+    const n = Math.max(1, 2 * p.damage + (p.persist["floor"] ?? 1));
+    const got = loseHp(b, e, n);
+    fx(b, { who: "enemy", kind: "dmg", value: got });
+    log(b, `${p.name} hurls an Arcane Bolt: ${got} damage, straight through Armor.`);
+  } else if (skill === "smite") {
+    // Smite: a holy strike that burns, and mends you a little.
+    applyStatus(b, p, e, "burn", 3);
+    log(b, `${p.name} calls down a Smite!`);
+    fx(b, { who: "player", kind: "text", text: "Smite", icon: "⚡" });
+    heroAttack(b);
+    heal(b, p, Math.ceil(p.maxHp * 0.08), "Smite");
+  } else if (skill === "sanctuary") {
+    // Sanctuary: a moment of grace. Heal a quarter of your Max HP and a Ward against the next status.
+    heal(b, p, Math.ceil(p.maxHp * 0.25), "Sanctuary");
+    applyStatus(b, p, p, "ward", 1);
+    log(b, `${p.name} prays for Sanctuary.`);
+    fx(b, { who: "player", kind: "text", text: "Sanctuary", icon: "🕊️" });
   } else {
     // War Cry: a big swell of Might (more the deeper you are; half as much for each cry after the first this fight), and the enemy is cowed.
     const n = p.flags["used_warcry"];

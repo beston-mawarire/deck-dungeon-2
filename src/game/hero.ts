@@ -75,6 +75,8 @@ export interface Hero {
   talents: Record<string, number>;
   curses: Record<string, number>;
   potions: number;
+  /** The class ability taken on this run (from the Camp's Skills); none = the class's own. */
+  skill?: string;
   /** Extra Backpack slots (the Hall). */
   packBonus?: number;
   /** The Alchemist's combat tonics, by id. */
