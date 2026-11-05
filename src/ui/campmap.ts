@@ -2,24 +2,37 @@
 // as a spot you walk up to (the Hall's door, the Garden's plots, the Brewery's cauldron, the way down…).
 import { atlas, CLASS_SPRITE, drawSprite, drawTile, hasSprite } from "./sprites";
 
-export const CAMP_W = 9, CAMP_H = 15;
+export const CAMP_W = 23, CAMP_H = 25;
 export interface CampSpot { id: string; name: string; tiles: [number, number][]; locked?: boolean }
-/** Where everything stands (x, y). */
-export const CAMP_SPOTS: CampSpot[] = [
-  { id: "quests", name: "Quest Board", tiles: [[1, 1]] },
-  { id: "expedition", name: "The Way Down", tiles: [[4, 1]] },
-  { id: "hall", name: "Hall", tiles: [[7, 1]] },
-  { id: "skills", name: "Skills", tiles: [[1, 4]] },
-  { id: "knowledge", name: "Knowledge", tiles: [[7, 4]] },
-  { id: "garden", name: "Garden", tiles: [[1, 8], [2, 8]] },
-  { id: "brewery", name: "Brewery", tiles: [[6, 8], [7, 8]] },
-  { id: "tree", name: "Passive Tree", tiles: [[1, 11]] },
-  { id: "weapons", name: "Weapon Mastery", tiles: [[7, 11]] },
-  { id: "abyss", name: "The Abyss", tiles: [[4, 13]] }
+/** A firelit hall in the middle, and each of the Camp's options in a little room of its own off it. */
+const ROOMS: { id: string; name: string; cx: number; cy: number; side: "n" | "s" | "w" | "e"; tiles?: [number, number][] }[] = [
+  { id: "quests", name: "Quest Board", cx: 7, cy: 2, side: "n" }, { id: "expedition", name: "The Way Down", cx: 11, cy: 2, side: "n" }, { id: "hall", name: "Hall", cx: 15, cy: 2, side: "n" },
+  { id: "skills", name: "Skills", cx: 2, cy: 8, side: "w" }, { id: "garden", name: "Garden", cx: 2, cy: 12, side: "w", tiles: [[1, 12], [2, 12], [3, 12]] }, { id: "trophies", name: "Trophy Room", cx: 2, cy: 16, side: "w" },
+  { id: "knowledge", name: "Knowledge", cx: 20, cy: 8, side: "e" }, { id: "brewery", name: "Brewery", cx: 20, cy: 12, side: "e", tiles: [[20, 12], [21, 12]] }, { id: "bestiary", name: "Bestiary", cx: 20, cy: 16, side: "e" },
+  { id: "tree", name: "Passive Tree", cx: 7, cy: 22, side: "s" }, { id: "abyss", name: "The Abyss", cx: 11, cy: 22, side: "s" }, { id: "weapons", name: "Weapon Mastery", cx: 15, cy: 22, side: "s" }
 ];
-/** The campfire in the middle (in the way, but not a spot). */
-const FIRE: [number, number] = [4, 6];
-const START: [number, number] = [4, 9];
+/** Where everything stands (x, y). */
+export const CAMP_SPOTS: CampSpot[] = ROOMS.map(r => ({ id: r.id, name: r.name, tiles: r.tiles ?? [[r.cx, r.cy]] }));
+const HUB = { x0: 6, x1: 16, y0: 7, y1: 17 };
+/** The campfire in the middle of the hall (in the way, but not a spot). */
+const FIRE: [number, number] = [11, 12];
+const START: [number, number] = [11, 14];
+/** The floor plan: the hall, the rooms (3×3) and the short passages joining them. */
+const FLOOR = (() => {
+  const f = new Uint8Array(CAMP_W * CAMP_H);
+  const dig = (x0: number, y0: number, x1: number, y1: number) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) f[y * CAMP_W + x] = 1; };
+  dig(HUB.x0, HUB.y0, HUB.x1, HUB.y1);
+  for (const r of ROOMS) {
+    dig(r.cx - 1, r.cy - 1, r.cx + 1, r.cy + 1);
+    if (r.side === "n") dig(r.cx, r.cy + 2, r.cx, HUB.y0 - 1);
+    if (r.side === "s") dig(r.cx, HUB.y1 + 1, r.cx, r.cy - 2);
+    if (r.side === "w") dig(r.cx + 2, r.cy, HUB.x0 - 1, r.cy);
+    if (r.side === "e") dig(HUB.x1 + 1, r.cy, r.cx - 2, r.cy);
+  }
+  return f;
+})();
+/** Torches on the hall's back wall and in each room. */
+const TORCHES: [number, number][] = [[8, 6], [14, 6], ...ROOMS.filter(r => r.side !== "n").map(r => [r.cx - 1, r.cy - 2] as [number, number]), ...ROOMS.filter(r => r.side === "n").map(r => [r.cx + 1, r.cy - 2] as [number, number])];
 
 export interface CampHooks { open: (id: string) => void; origin: () => string; locked: (id: string) => boolean; sfx: (k: string) => void }
 let hooks: CampHooks | null = null;
@@ -31,7 +44,7 @@ let timer: number | undefined;
 let raf = 0;
 const STEP_MS = 120;
 
-const isWall = (x: number, y: number) => x <= 0 || y <= 0 || x >= CAMP_W - 1 || y >= CAMP_H - 1;
+const isWall = (x: number, y: number) => x < 0 || y < 0 || x >= CAMP_W || y >= CAMP_H || !FLOOR[y * CAMP_W + x];
 const spotAt = (x: number, y: number) => CAMP_SPOTS.find(s => s.tiles.some(([a, b]) => a === x && b === y));
 const blocked = (x: number, y: number) => isWall(x, y) || !!spotAt(x, y) || (x === FIRE[0] && y === FIRE[1]);
 const hash = (x: number, y: number, k = 0) => { let n = (x * 374761393 + y * 668265263 + k * 2246822519) | 0; n = (n ^ (n >>> 13)) * 1274126177; return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
@@ -57,20 +70,17 @@ function route(gx: number, gy: number): [number, number][] | null {
   return out;
 }
 
-/** On a wide screen the Camp is laid on its side (the far wall runs down the left), so it fills the screen. */
-let wide = false;
-const COLS = () => (wide ? CAMP_H : CAMP_W), ROWS = () => (wide ? CAMP_W : CAMP_H);
-/** A Camp tile (x, y) to its column and row on screen, and back. */
-const toScreen = (x: number, y: number): [number, number] => (wide ? [y, x] : [x, y]);
-const fromScreen = (c: number, r: number): [number, number] => (wide ? [r, c] : [c, r]);
+/** The camera follows you (the Camp is bigger than the screen). */
+let camX = START[0], camY = START[1];
 function layout(cv: HTMLCanvasElement) {
   const W = cv.clientWidth, H = cv.clientHeight;
-  wide = W > H * 1.05;
-  const ts = Math.floor(Math.min(W / COLS(), H / ROWS()));
-  return { W, H, ts, ox: Math.floor((W - ts * COLS()) / 2), oy: Math.floor((H - ts * ROWS()) / 2) };
+  const ts = Math.round(Math.max(40, Math.min(72, Math.min(W, H) / 9)));
+  const fit = (view: number, n: number, c: number) => (n * ts <= view ? Math.floor((view - n * ts) / 2) : Math.round(Math.min(0, Math.max(view - n * ts, view / 2 - (c + 0.5) * ts))));
+  return { W, H, ts, ox: fit(W, CAMP_W, camX), oy: fit(H, CAMP_H, camY) };
 }
 /** Where a Camp tile's top-left corner is drawn. */
-const at = (x: number, y: number, ts: number, ox: number, oy: number): [number, number] => { const [c, r] = toScreen(x, y); return [ox + c * ts, oy + r * ts]; };
+const at = (x: number, y: number, ts: number, ox: number, oy: number): [number, number] => [ox + x * ts, oy + y * ts];
+const toScreen = (x: number, y: number): [number, number] => [x, y];
 
 function drawFire(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number, now: number) {
   const fl = 0.85 + 0.15 * Math.sin(now / 80) * Math.sin(now / 31);
@@ -105,7 +115,24 @@ function drawSpot(ctx: CanvasRenderingContext2D, s: CampSpot, ts: number, ox: nu
       break;
     }
     case "quests": shadow(0.3); drawSprite(ctx, "wall_banner_yellow", cx, by, sc); ctx.fillStyle = "#4a2e16"; ctx.fillRect(cx - ts * 0.04, cy, ts * 0.08, ts * 0.45); break;
-    case "hall": drawSprite(ctx, "doors_leaf_closed", cx, by + ts * 0.06, ts / 32); break;
+    case "hall": shadow(); drawSprite(ctx, "chest_gold", cx, by, sc); drawSprite(ctx, "wall_banner_red", cx, sy0 - ts * 0.05, sc); break;
+    case "trophies": {
+      // A skull on a stand, and a glint.
+      ctx.fillStyle = "#4a2e16"; ctx.fillRect(cx - ts * 0.22, cy + ts * 0.05, ts * 0.44, ts * 0.38); ctx.fillStyle = "#6a4424"; ctx.fillRect(cx - ts * 0.28, cy + ts * 0.02, ts * 0.56, ts * 0.08);
+      drawSprite(ctx, "skull", cx, cy + ts * 0.06, sc);
+      const tw = 0.5 + 0.5 * Math.sin(now / 500); ctx.fillStyle = `rgba(255,235,160,${tw})`; ctx.beginPath(); ctx.arc(cx + ts * 0.2, cy - ts * 0.25, ts * 0.04, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+    case "bestiary": {
+      // An open book on a lectern.
+      shadow(0.3);
+      ctx.fillStyle = "#3e2712"; ctx.fillRect(cx - ts * 0.05, cy, ts * 0.1, ts * 0.42);
+      ctx.fillStyle = "#5a3a1e"; ctx.beginPath(); ctx.moveTo(cx - ts * 0.34, cy - ts * 0.02); ctx.lineTo(cx + ts * 0.34, cy - ts * 0.02); ctx.lineTo(cx + ts * 0.28, cy + ts * 0.1); ctx.lineTo(cx - ts * 0.28, cy + ts * 0.1); ctx.fill();
+      ctx.fillStyle = "#ecdfc2"; ctx.fillRect(cx - ts * 0.3, cy - ts * 0.2, ts * 0.29, ts * 0.2); ctx.fillRect(cx + ts * 0.01, cy - ts * 0.2, ts * 0.29, ts * 0.2);
+      ctx.strokeStyle = "rgba(90,60,30,.6)"; ctx.lineWidth = 1;
+      for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(cx - ts * 0.26, cy - ts * (0.15 - 0.05 * k)); ctx.lineTo(cx - ts * 0.05, cy - ts * (0.15 - 0.05 * k)); ctx.moveTo(cx + ts * 0.05, cy - ts * (0.15 - 0.05 * k)); ctx.lineTo(cx + ts * 0.26, cy - ts * (0.15 - 0.05 * k)); ctx.stroke(); }
+      break;
+    }
     case "skills": shadow(); drawSprite(ctx, "lizard_f", cx, by, sc); break;
     case "knowledge": shadow(); drawSprite(ctx, "wizzard_f", cx, by, sc); break;
     case "garden":
@@ -170,29 +197,36 @@ export function drawCamp() {
   if (cv.width !== Math.round(cv.clientWidth * dpr) || cv.height !== Math.round(cv.clientHeight * dpr)) { cv.width = Math.round(cv.clientWidth * dpr); cv.height = Math.round(cv.clientHeight * dpr); }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = false;
+  // The camera eases after you as you walk.
+  {
+    const k = glide ? Math.min(1, (performance.now() - glide.t0) / STEP_MS) : 1;
+    camX = glide ? glide.fx + (pos[0] - glide.fx) * k : pos[0];
+    camY = glide ? glide.fy + (pos[1] - glide.fy) * k : pos[1];
+  }
   const { W, H, ts, ox, oy } = layout(cv);
   const now = performance.now();
   ctx.fillStyle = "#0b0806"; ctx.fillRect(0, 0, W, H);
-  // Floor and walls, cell by cell on screen (the brick face is the wall along the top of the screen).
-  const wallAt = (c: number, r: number) => c < 0 || r < 0 || c >= COLS() || r >= ROWS() || isWall(...fromScreen(c, r));
-  for (let r = 0; r < ROWS(); r++) for (let c = 0; c < COLS(); c++) {
-    const sx = ox + c * ts, sy = oy + r * ts;
-    if (!wallAt(c, r)) { drawTile(ctx, hash(c, r, 7) < 0.6 ? "floor_1" : `floor_${2 + Math.floor(hash(c, r, 8) * 7)}`, sx, sy, ts); continue; }
-    if (!wallAt(c, r + 1)) drawTile(ctx, "wall_mid", sx, sy, ts);
+  // Floor and walls (a brick face where the floor runs up to a wall from below; elsewhere the dark top of the wall).
+  const x0 = Math.max(0, Math.floor(-ox / ts) - 1), x1 = Math.min(CAMP_W - 1, Math.ceil((W - ox) / ts) + 1);
+  const y0 = Math.max(0, Math.floor(-oy / ts) - 1), y1 = Math.min(CAMP_H - 1, Math.ceil((H - oy) / ts) + 1);
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const sx = ox + x * ts, sy = oy + y * ts;
+    if (!isWall(x, y)) { drawTile(ctx, hash(x, y, 7) < 0.6 ? "floor_1" : `floor_${2 + Math.floor(hash(x, y, 8) * 7)}`, sx, sy, ts); continue; }
+    if (!isWall(x, y + 1)) drawTile(ctx, "wall_mid", sx, sy, ts);
     else { ctx.fillStyle = "#2b221b"; ctx.fillRect(sx, sy, ts + 0.5, ts + 0.5); ctx.fillStyle = "#9a8670"; const e = Math.max(2, ts / 10);
-      if (!wallAt(c + 1, r)) ctx.fillRect(sx + ts - e, sy, e, ts); if (!wallAt(c - 1, r)) ctx.fillRect(sx, sy, e, ts); if (!wallAt(c, r - 1)) ctx.fillRect(sx, sy, ts, e); }
+      if (!isWall(x + 1, y)) ctx.fillRect(sx + ts - e, sy, e, ts); if (!isWall(x - 1, y)) ctx.fillRect(sx, sy, e, ts); if (!isWall(x, y - 1)) ctx.fillRect(sx, sy, ts, e); }
   }
   // A soft gloom toward the edges, firelight in the middle.
   const [fsx, fsy] = at(FIRE[0], FIRE[1], ts, ox, oy);
-  const vg = ctx.createRadialGradient(fsx + ts / 2, fsy + ts / 2, ts * 2, fsx + ts / 2, fsy + ts / 2, ts * 9);
-  vg.addColorStop(0, "rgba(10,6,3,0)"); vg.addColorStop(1, "rgba(10,6,3,.62)");
-  ctx.fillStyle = vg; ctx.fillRect(ox, oy, ts * COLS(), ts * ROWS());
-  // Wall torches, on the brick face along the top.
-  for (const tx of wide ? [3, 7, 11] : [2, 6]) {
-    const cx = ox + (tx + 0.5) * ts, cy = oy + 0.78 * ts, fl = 0.85 + 0.15 * Math.sin(now / 90 + tx);
-    ctx.save(); ctx.globalCompositeOperation = "lighter"; const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, ts * 2.2 * fl);
+  // Wall torches: a warm pool of light each.
+  for (const [tx, ty] of TORCHES) {
+    const [qx, qy] = at(tx, ty, ts, ox, oy);
+    const cx = qx + 0.5 * ts, cy = qy + 0.78 * ts, fl = 0.85 + 0.15 * Math.sin(now / 90 + tx + ty);
+    if (cx < -3 * ts || cy < -3 * ts || cx > W + 3 * ts || cy > H + 3 * ts) continue;
+    ctx.save(); ctx.globalCompositeOperation = "lighter"; const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, ts * 2.4 * fl);
     g.addColorStop(0, "rgba(255,150,60,.3)"); g.addColorStop(1, "rgba(255,110,30,0)"); ctx.fillStyle = g; ctx.fillRect(cx - ts * 2.5, cy - ts * 2.5, ts * 5, ts * 5); ctx.restore();
-    ctx.fillStyle = "#ffc850"; ctx.beginPath(); ctx.ellipse(cx, cy - ts * 0.08, ts * 0.08, ts * 0.17 * fl, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#2a1a0c"; ctx.fillRect(cx - ts * 0.07, cy - ts * 0.02, ts * 0.14, ts * 0.2);
+    ctx.fillStyle = "#ffc850"; ctx.beginPath(); ctx.ellipse(cx, cy - ts * 0.1, ts * 0.08, ts * 0.17 * fl, 0, 0, Math.PI * 2); ctx.fill();
   }
   drawFire(ctx, fsx + ts / 2, fsy + ts / 2, ts, now);
   for (const s of CAMP_SPOTS) { s.locked = hooks.locked(s.id); drawSpot(ctx, s, ts, ox, oy, now); }
@@ -273,8 +307,8 @@ export function mountCampMap(h: CampHooks) {
     const r = cv.getBoundingClientRect();
     const { ts, ox, oy } = layout(cv);
     const c = Math.floor((ev.clientX - r.left - ox) / ts), rr = Math.floor((ev.clientY - r.top - oy) / ts);
-    if (c < 0 || rr < 0 || c >= COLS() || rr >= ROWS()) return;
-    goTo(...fromScreen(c, rr));
+    if (c < 0 || rr < 0 || c >= CAMP_W || rr >= CAMP_H) return;
+    goTo(c, rr);
   };
   if (!ticking) {
     ticking = true;
@@ -284,4 +318,4 @@ export function mountCampMap(h: CampHooks) {
   }
 }
 /** Back to the middle of the Camp (a fresh visit). */
-export function resetCampWalk() { pos = [...START]; path = []; target = null; }
+export function resetCampWalk() { pos = [...START]; camX = START[0]; camY = START[1]; path = []; target = null; }

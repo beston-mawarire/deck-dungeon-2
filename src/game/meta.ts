@@ -32,6 +32,8 @@ export interface Meta {
   tree?: Record<string, import("./longroad").ClassTree>;
   /** Weapon mastery XP, by weapon family (shared by every class). */
   weaponXp?: Partial<Record<string, number>>;
+  /** The Bestiary: every kind of foe beaten in the Crawl, how many times, and the most HP and Power seen on it. */
+  bestiary?: Record<string, { kills: number; hp: number; power: number; family?: string; boss?: boolean }>;
   /** Totems held, and the one set at the dungeon door for the next run. */
   totems?: Partial<Record<string, number>>;
   totemSet?: string;
@@ -258,4 +260,9 @@ export function bankLongRoad(m: Meta, run: Run) {
   if (treeOpen(m, run.hero.origin)) treeOf(m, run.hero.origin).points += treePointsFor(p["layersWon"] ?? 0, p["l1depth"] ?? 0);
   for (const fam of MASTERY_FAMILIES) if (p[`wmx_${fam}`]) (m.weaponXp ??= {})[fam] = (m.weaponXp[fam] ?? 0) + p[`wmx_${fam}`];
   for (const t of TOTEMS) if (p[`totf_${t.id}`]) (m.totems ??= {})[t.id] = (m.totems[t.id] ?? 0) + p[`totf_${t.id}`];
+  // The Bestiary: what this run beat.
+  for (const [name, k] of Object.entries(run.kills ?? {})) {
+    const e = ((m.bestiary ??= {})[name] ??= { kills: 0, hp: 0, power: 0 });
+    e.kills += k.n; e.hp = Math.max(e.hp, k.hp); e.power = Math.max(e.power, k.power); e.family = k.family ?? e.family; e.boss = e.boss || k.boss || undefined;
+  }
 }

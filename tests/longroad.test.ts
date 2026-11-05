@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
 import { applyHall } from "../src/game/camp";
-import { passiveTree, spendNode, TREE_LAYERS, treeOf, treePointsFor, wmLevel } from "../src/game/longroad";
+import { nodeBlock, passiveTree, rankText, spendNode, TREE_LAYERS, treeOf, treePointsFor, wmLevel } from "../src/game/longroad";
 import { bankLongRoad, type Meta } from "../src/game/meta";
 import { familyOpenCount } from "../src/game/loot";
 import { newRun, startCrawl } from "../src/game/run";
@@ -10,33 +10,42 @@ beforeAll(() => loadLibrary());
 const meta = () => ({ renown: 0, runs: 0, wins: 0, bestFloor: 0 }) as unknown as Meta;
 
 describe("the passive tree", () => {
-  it("holds every old talent, once", () => {
-    const ids = passiveTree().flatMap(b => b.tiers.flat());
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(ids.length).toBeGreaterThan(80);
+  it("holds every old talent, once, with ranked talents as I/II/III chains", () => {
+    const nodes = passiveTree().flatMap(b => b.nodes);
+    expect(new Set(nodes.map(n => n.key)).size).toBe(nodes.length);
+    expect(new Set(nodes.map(n => n.talent)).size).toBeGreaterThan(80);
+    const two = nodes.find(n => n.level === 2)!;
+    const one = nodes.find(n => n.key === two.prereq)!;
+    expect(one.tier).toBeLessThanOrEqual(two.tier);
+    expect(passiveTree()[0].nodes.filter(n => n.tier === 0).length).toBe(5);
   });
-  it("stays shut until the class has beaten layer 5, and tiers open as you spend", () => {
+  it("stays shut until the class has beaten layer 5; rows open as you spend; II needs I", () => {
     const m = meta();
     treeOf(m, "warrior").points = 10;
     const b = passiveTree()[0];
-    expect(spendNode(m, "warrior", b.tiers[0][0])).toMatch(/opens/);
+    const row = (t: number) => b.nodes.filter(n => n.tier === t);
+    expect(spendNode(m, "warrior", row(0)[0].key)).toMatch(/opens/);
     m.layersBeaten = { warrior: TREE_LAYERS };
-    expect(spendNode(m, "warrior", b.tiers[1][0])).toMatch(/first/);
-    expect(spendNode(m, "warrior", b.tiers[0][0])).toBeNull();
-    expect(spendNode(m, "warrior", b.tiers[0][1])).toBeNull();
-    expect(spendNode(m, "warrior", b.tiers[1][0])).toBeNull();
+    expect(spendNode(m, "warrior", row(1)[0].key)).toMatch(/first/);
+    expect(spendNode(m, "warrior", row(0)[0].key)).toBeNull();
+    expect(spendNode(m, "warrior", row(0)[1].key)).toBeNull();
+    expect(spendNode(m, "warrior", row(1)[0].key)).toBeNull();
+    const two = b.nodes.find(n => n.level === 2 && !treeOf(m, "warrior").spent[n.key] && !treeOf(m, "warrior").spent[n.prereq!])!;
+    expect(nodeBlock(m, "warrior", two.key)).toMatch(/first|Spend/);
   });
-  it("points: 2 a layer, or 1 for halfway through the first", () => {
-    expect(treePointsFor(2, 0)).toBe(4);
-    expect(treePointsFor(0, 3)).toBe(1);
-    expect(treePointsFor(0, 2)).toBe(0);
+  it("one point for each layer beaten", () => {
+    expect(treePointsFor(2)).toBe(2);
+    expect(treePointsFor(0)).toBe(0);
   });
-  it("spent nodes come along as talents", () => {
+  it("spent nodes come along as talents, one rank each", () => {
     const m = meta(); m.layersBeaten = { warrior: 5 };
-    const id = passiveTree()[0].tiers[0][0];
-    treeOf(m, "warrior").spent[id] = 1;
+    const n = passiveTree()[0].nodes[0];
+    treeOf(m, "warrior").spent[n.key] = 1;
     const r = newRun("warrior", 3); startCrawl(r); applyHall(m, r);
-    expect(r.hero.talents[id]).toBe(1);
+    expect(r.hero.talents[n.talent]).toBe(1);
+  });
+  it("a rank's text shows only its own numbers", () => {
+    expect(rankText("+1 / +2 / +3 Damage", 2)).toBe("+2 Damage");
   });
 });
 

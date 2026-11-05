@@ -30,11 +30,12 @@ import {
 import { fortunePips } from "../game/loot";
 import { LAYER_FLOORS } from "../game/grid";
 import { isThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
-import { MASTERY_FAMILIES, nodeRanks, passiveTree, resetTree, spendNode, TIER_STEP, tierOpen, TOTEMS, TREE_LAYERS, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
+import { branchSpent, MASTERY_FAMILIES, nodeBlock, nodeRanks, NUMERAL, passiveTree, rankText, resetTree, spendNode, TIER_WIDTH, tierOpen, TOTEMS, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { mountCampMap, resetCampWalk } from "./campmap";
+import { ELITE_ONLY, MONSTERS } from "../data/monsters";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
 import { spendAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
@@ -804,6 +805,7 @@ const CAMP_TABS: { id: CampTab; icon: string; name: string }[] = [
   { id: "expedition", icon: "🗺️", name: "Expedition" }, { id: "quests", icon: "📋", name: "Quest Board" }, { id: "hall", icon: "🏛️", name: "Hall" },
   { id: "skills", icon: "✨", name: "Skills" }, { id: "garden", icon: "🌱", name: "Garden" }, { id: "brewery", icon: "⚗️", name: "Brewery" },
   { id: "knowledge", icon: "📚", name: "Knowledge" }, { id: "tree", icon: "🌳", name: "Passive Tree" }, { id: "weapons", icon: "⚔️", name: "Weapon Mastery" },
+  { id: "trophies", icon: "🏆", name: "Trophy Room" }, { id: "bestiary", icon: "📖", name: "Bestiary" },
   { id: "abyss", icon: "🕳️", name: "The Abyss" }
 ];
 
@@ -880,22 +882,33 @@ function campBody(o: OriginId, tab: CampTab): string {
         <div class="brew-rolls">${brew.rolls.map(r => `<span class="die-mini">${r}</span>`).join("")}</div></div>
       <div class="brew-acts"><button class="hu-buy" data-stir>🥄 Stir</button><button class="hu-buy" data-bottle>🍶 Bottle it</button></div>`;
   }
-  if (tab === "tree") {
-    const open = treeOpen(meta, o);
-    const t = treeOf(meta, o);
-    const tal = (id: string) => getItem(id);
-    // Each branch: tiers of nodes stacked from its root, joined by links; a node lights up as it's filled.
-    const branches = passiveTree().map(b => `<div class="tree-branch"><div class="tb-head">${b.icon} <b>${esc(b.name)}</b><span class="sub">${b.tiers.flat().reduce((a, id) => a + (t.spent[id] ?? 0), 0)} spent</span></div>
-      <div class="tb-tiers">${b.tiers.map((tier, ti) => { const tOpen = open && tierOpen(t, b, ti); return `${ti ? `<div class="tb-link ${tOpen ? "lit" : ""}">${!tOpen && open ? `<span class="tb-need">${ti * TIER_STEP} in ${esc(b.name)}</span>` : ""}</div>` : ""}<div class="tb-tier ${tOpen ? "" : "shut"}">${tier.map(id => {
-        const d = tal(id), n = t.spent[id] ?? 0, max = nodeRanks(d);
-        return `<button class="tnode ${n ? "has" : ""} ${n >= max ? "full" : ""} ${tOpen ? "" : "shut"}" data-nodeinfo="${id}" aria-label="${esc(d.name)}"><span class="tn-orb">${esc(initials(d.name))}<i class="tn-pips">${Array.from({ length: max }, (_, k) => `<em class="${k < n ? "on" : ""}"></em>`).join("")}</i></span><span class="tn-name">${esc(d.name)}</span></button>`;
-      }).join("")}</div>`; }).join("")}</div></div>`).join("");
-    const won = meta.layersBeaten?.[o] ?? 0;
-    return `<p>One great tree, the same for every hero: the old talents, grown into branches. Each class puts its own points into it, and they come along on every run.</p>
-      ${open ? `<div class="hall-store"><span>🌳 <b>${t.points}</b> point${t.points === 1 ? "" : "s"} to spend</span>${Object.keys(t.spent).length ? `<button class="small" data-treereset>Take every point back</button>` : ""}</div>
-        <p class="sub">Every run earns the ${og.name} 2 points for each layer beaten, or 1 for getting halfway through the first layer before falling.</p>`
-        : `<div class="panel locked-tool"><p><b>🔒 Not yet.</b> The ${og.name}'s tree opens once it has beaten layer ${TREE_LAYERS}.</p><p class="sub">Best so far: ${won} layer${won === 1 ? "" : "s"}.</p></div>`}
-      <div class="tree ${open ? "" : "locked"}">${branches}</div>`;
+  if (tab === "tree") return "";
+  if (tab === "bestiary") {
+    const seen = meta.bestiary ?? {};
+    const foes = [...MONSTERS.map(m => ({ name: m.name, family: m.family, traits: m.traits })), ...ELITE_ONLY.map(m => ({ name: m.name, family: m.family, traits: m.traits }))];
+    const bosses = Object.entries(seen).filter(([, e]) => e.boss).map(([name, e]) => ({ name, family: e.family ?? "", traits: [] as string[] }));
+    const card = (f: { name: string; family: string; traits: string[] }) => {
+      const e = seen[f.name];
+      const sk = foeSprite(f.name, f.family, !!e?.boss);
+      if (!e) return `<div class="beast unknown"><span class="beast-fig">${sk && hasSprite(sk) ? spriteHtml(sk, 3, "beast-spr") : "❔"}</span><b>???</b><span class="sub">Not yet beaten.</span></div>`;
+      const tr = f.traits.map(id => { try { return getItem(id).name; } catch { return ""; } }).filter(Boolean).join(", ");
+      return `<div class="beast"><span class="beast-fig">${sk && hasSprite(sk) ? spriteHtml(sk, 3, "beast-spr") : "👾"}</span><b>${esc(f.name)}</b><span class="sub">${esc(f.family)}${e.boss ? " · Boss" : ""}</span>
+        <span class="beast-stats">Beaten ${e.kills}× · up to ${big(e.hp)} HP · Power ${big(e.power)}</span>${tr ? `<span class="beast-tr">${esc(tr)}</span>` : ""}</div>`;
+    };
+    const n = foes.filter(f => seen[f.name]).length;
+    return `<p>Every foe you've beaten in the dungeon, and what it was like at its toughest. ${n} of ${foes.length} kinds so far.</p>
+      <div class="beasts">${foes.map(card).join("")}${bosses.map(card).join("")}</div>`;
+  }
+  if (tab === "trophies") {
+    const seen = meta.bestiary ?? {};
+    const TIERS: [number, string, string][] = [[50, "🥇", "gold"], [25, "🥈", "silver"], [10, "🥉", "bronze"]];
+    const won = Object.entries(seen).map(([name, e]) => {
+      if (e.boss) return { name, icon: "🏆", tier: "boss", note: `Beaten ${e.kills}×`, sk: foeSprite(name, e.family, true) };
+      const t = TIERS.find(([k]) => e.kills >= k);
+      return t ? { name, icon: t[1], tier: t[2], note: `${e.kills} beaten`, sk: foeSprite(name, e.family) } : null;
+    }).filter((x): x is NonNullable<typeof x> => !!x);
+    return `<p>Beat a kind of foe 10 times and its trophy goes on the wall: bronze at 10, silver at 25, gold at 50. Every guardian you bring down gets one of its own.</p>
+      ${won.length ? `<div class="trophies">${won.map(w => `<div class="trophy ${w.tier}"><span class="tr-plaque">${w.sk && hasSprite(w.sk) ? spriteHtml(w.sk, 3, "beast-spr") : w.icon}</span><b>${w.icon} ${esc(w.name)}</b><span class="sub">${esc(w.note)}</span></div>`).join("")}</div>` : `<div class="panel"><p class="sub">The walls are bare. Beat a kind of foe 10 times, or a layer's guardian, to hang your first trophy.</p></div>`}`;
   }
   if (tab === "weapons") {
     return `<p>Every weapon family learns from the fights you win with it, whoever holds it. The more you master a family, the more of its weapons turn up in your loot: a few at first, all of them at mastery ${WM_MAX}.</p>
@@ -940,21 +953,58 @@ const initials = (name: string) => name.replace(/[^A-Za-z ]/g, "").split(/\s+/).
 /** The node open in its popup (the Passive Tree). */
 let treeNode: string | null = null;
 function treeNodePopup(o: OriginId) {
-  const id = treeNode!;
-  const d = getItem(id), t = treeOf(meta, o), n = t.spent[id] ?? 0, max = nodeRanks(d);
-  const b = passiveTree().find(br => br.tiers.some(ti => ti.includes(id)))!;
-  const tier = b.tiers.findIndex(ti => ti.includes(id));
-  const open = treeOpen(meta, o), tOpen = open && tierOpen(t, b, tier);
-  const why = !open ? `The ${ORIGINS[o].name}'s tree opens once it has beaten layer ${TREE_LAYERS}.` : !tOpen ? `Spend ${tier * TIER_STEP} points lower in ${b.name} first.` : n >= max ? "This node is full." : t.points <= 0 ? "No points to spend." : "";
-  return `<div class="overlay popup-wrap"><div class="popup tree-pop">
+  const key = treeNode!;
+  const n = treeNodeOf(key)!;
+  const d = getItem(n.talent), t = treeOf(meta, o), taken = !!t.spent[key];
+  const b = passiveTree().find(br => br.id === n.branch)!;
+  const why = nodeBlock(meta, o, key);
+  const ranks = nodeRanks(d);
+  return `<div class="overlay popup-wrap tree-pop-wrap"><div class="popup tree-pop">
     <button class="small closex closebtn" data-closenode aria-label="Close">✕</button>
-    <div class="tp-orb ${n ? "has" : ""}">${esc(initials(d.name))}</div>
-    <h2 class="center">${esc(d.name)}</h2>
-    <p class="center sub">${b.icon} ${esc(b.name)} · tier ${tier + 1} · ${n}/${max}</p>
-    <div class="panel"><p>${esc(d.text)}</p>${max > 1 ? `<p class="sub">Each point is a rank: ${max} in all.</p>` : ""}</div>
-    ${why ? `<p class="sub center">${esc(why)}</p>` : ""}
-    <div class="row" style="justify-content:center;margin-top:10px"><button class="primary" data-node="${id}" ${why ? "disabled" : ""}>＋ Add a point${open ? ` (${t.points} left)` : ""}</button><button data-closenode>Close</button></div>
+    <div class="tp-orb ${taken ? "has" : ""}">${esc(initials(d.name))}${ranks > 1 ? `<i>${NUMERAL[n.level]}</i>` : ""}</div>
+    <h2 class="center">${esc(d.name)}${ranks > 1 ? ` ${NUMERAL[n.level]}` : ""}</h2>
+    <p class="center sub">${b.icon} ${esc(b.name)} · row ${n.tier + 1}${taken ? " · taken" : ""}</p>
+    <div class="panel"><p>${esc(rankText(d.text, n.level))}</p>${ranks > 1 ? `<p class="sub">${n.level < ranks ? `Its next rank waits deeper in the tree.` : "Its strongest rank."}${n.level > 1 ? ` Needs ${esc(d.name)} ${NUMERAL[n.level - 1]}.` : ""}</p>` : ""}</div>
+    ${why && !taken ? `<p class="sub center">${esc(why)}</p>` : ""}
+    <div class="row plank-row" style="justify-content:center;margin-top:10px">${taken ? "" : `<button class="plank-btn" data-node="${key}" ${why ? "disabled" : ""}>＋ Add a point${treeOpen(meta, o) ? ` (${t.points} left)` : ""}</button>`}<button class="plank-btn" data-closenode>Close</button></div>
   </div></div>`;
+}
+
+/** The Passive Tree's room: the whole tree under a night sky, scrolling both ways. Branches side by side; each row
+ *  opens as you spend in its branch; a node's next rank hangs below it, linked. */
+const TREE_COL = 84, TREE_ROW = 104, TREE_GAP = 64, TREE_HEAD = 74, TREE_PAD = 40;
+function treeScreen(o: OriginId) {
+  const open = treeOpen(meta, o), t = treeOf(meta, o);
+  const branches = passiveTree();
+  const bw = TIER_WIDTH * TREE_COL;
+  const W = TREE_PAD * 2 + branches.length * bw + (branches.length - 1) * TREE_GAP;
+  const H = TREE_PAD + TREE_HEAD + Math.max(...branches.map(b => b.tiers)) * TREE_ROW + TREE_PAD;
+  const pos = (bi: number, tier: number, col: number) => ({ x: TREE_PAD + bi * (bw + TREE_GAP) + col * TREE_COL + TREE_COL / 2, y: TREE_PAD + TREE_HEAD + tier * TREE_ROW + 34 });
+  const lines: string[] = [], nodes: string[] = [], heads: string[] = [];
+  branches.forEach((b, bi) => {
+    const x0 = TREE_PAD + bi * (bw + TREE_GAP);
+    heads.push(`<div class="ts-head" style="left:${x0}px;top:${TREE_PAD}px;width:${bw}px">${b.icon} <b>${esc(b.name)}</b><span>${branchSpent(t, b)} spent</span></div>`);
+    const at = new Map(b.nodes.map(n => [n.key, n]));
+    for (const n of b.nodes) {
+      const p = pos(bi, n.tier, n.col);
+      // A chain link to the node's lower rank; otherwise a faint thread up to the row above.
+      const up = n.prereq ? at.get(n.prereq) : b.nodes.find(m => m.tier === n.tier - 1 && m.col === n.col);
+      if (up) { const q = pos(bi, up.tier, up.col); lines.push(`<line x1="${q.x}" y1="${q.y}" x2="${p.x}" y2="${p.y}" class="${n.prereq ? "rank" : "thread"} ${t.spent[n.key] && t.spent[up.key] ? "lit" : ""}"/>`); }
+      const d = getItem(n.talent), taken = !!t.spent[n.key];
+      const can = open && !nodeBlock(meta, o, n.key);
+      const shut = !open || !tierOpen(t, b, n.tier);
+      nodes.push(`<button class="tnode ${taken ? "has full" : ""} ${can ? "can" : ""} ${shut ? "shut" : ""}" style="left:${p.x - TREE_COL / 2}px;top:${p.y - 30}px;width:${TREE_COL}px" data-nodeinfo="${n.key}" aria-label="${esc(d.name)}"><span class="tn-orb">${esc(initials(d.name))}${nodeRanks(d) > 1 ? `<i class="tn-num">${NUMERAL[n.level]}</i>` : ""}</span><span class="tn-name">${esc(d.name)}</span></button>`);
+    }
+  });
+  const won = meta.layersBeaten?.[o] ?? 0;
+  return `<div class="tree-screen">
+    <div class="ts-bar"><b>🌳 The Passive Tree</b><span class="ts-pts">${open ? `<b>${t.points}</b> point${t.points === 1 ? "" : "s"} to spend · 1 for every layer beaten` : `🔒 Opens once the ${esc(ORIGINS[o].name)} has beaten layer ${TREE_LAYERS} (best so far: ${won})`}</span>
+      ${open && Object.keys(t.spent).length ? `<button class="plank-btn small" data-treereset>Take every point back</button>` : ""}<button class="plank-btn small" data-closeroom>Back to the Camp</button></div>
+    <div class="ts-scroll"><div class="ts-sky" style="width:${W}px;height:${H}px">
+      <svg class="ts-links" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines.join("")}</svg>
+      ${heads.join("")}${nodes.join("")}
+    </div></div>
+  </div>`;
 }
 
 function campScreen(o: OriginId) {
@@ -969,7 +1019,7 @@ function campScreen(o: OriginId) {
     ${note && !room ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
     <div class="camp-map"><canvas id="campcv"></canvas></div>
   </div></div>
-  ${room ? `<div class="cb-screen grit-screen camp-room"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${room.icon} ${esc(room.name)}</div></div>
+  ${room?.id === "tree" ? treeScreen(o) : room ? `<div class="cb-screen grit-screen camp-room"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${room.icon} ${esc(room.name)}</div></div>
     ${note ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
     <div class="grit-body camp-room-body">${campBody(o, room.id)}</div>
     <button class="mer-leave" data-closeroom>Back to the Camp</button></div></div>` : ""}`;
@@ -984,6 +1034,7 @@ function crawlAct(room: string, r?: Run) {
   if (room === "locked") return (r?.hero.f.persist["skelKeys"] ?? 0) > 0 ? "🗝️ Unlock" : "🔒 Try the door";
   if (room === "crack") return "🧱 Push on it";
   if (room === "oath") return "🩸 Approach the stone";
+  if (room === "event") return "🚪 Enter the strange room?";
   if (room === "secret") return "🧰 Open chest";
   if (["wooden", "iron", "crimson_vault", "bosschest"].includes(room)) return "🧰 Open chest";
   if (AUTO_ROOMS.includes(room) || ["vault", "unique", "goblin", "nemesis", "doppelganger", "crimson_elite"].includes(room)) return "⚔️ Fight";
@@ -2276,7 +2327,7 @@ function masteryPanel(o: OriginId) {
 let kitPick: KitSlot | null = null;
 /** The Camp: the hero you've brought there, the tab open, and the contract taken at its Quest Board. */
 let camp: OriginId | null = null;
-type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "tree" | "weapons" | "abyss";
+type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "tree" | "weapons" | "abyss" | "trophies" | "bestiary";
 let campTab: CampTab = "expedition";
 let campOffers: Bounty[] | null = null;
 let campQuest: number | null = null;
@@ -2352,11 +2403,10 @@ function originPopup(o: OriginId) {
     <p class="sub">Starts with ${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p>
     ${masteryPanel(o)}
     ${gemPanel(o)}
-    ${heatPanel()}
     <!--crawl-panel-removed--><div hidden>
       <p class="sub">Walk the dungeon yourself. Each layer is five floors to explore and a sixth where its boss waits: find the trapdoor on each floor to go down (there's no way back up). Treasures sit in little rooms of their own, most of them guarded, and foes block the halls. Every foe is close to Elite strength, and there's no Quick Battle.</p></div>
     ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
-    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" data-tocamp>🏕️ To the Camp</button><button data-closeorigin>Back</button></div>
+    <div class="row plank-row" style="justify-content:center;margin-top:12px"><button class="plank-btn" data-tocamp>🏕️ To the Camp</button><button class="plank-btn" data-closeorigin>Back</button></div>
   </div></div>`;
 }
 
@@ -2648,14 +2698,16 @@ function render2() {
   }
   // The Crawl: finds and encounters pop up over the map; every other scene sits in the dungeon's stone frame.
   const POPS = ["loot", "pick", "event", "confirm", "rest", "tribute"];
-  const crawlPop = !!r.gridMode && !!r.grid && POPS.includes(s.t);
+  // Something Strange: its event plays in a dark room of its own, not over the map.
+  const strange = s.t === "event" && !!s.strange && !!r.gridMode;
+  const crawlPop = !!r.gridMode && !!r.grid && POPS.includes(s.t) && !strange;
   const crawlView = (s.t === "map" || s.t === "resplendent" || crawlPop) && !!r.gridMode && !!r.grid;
   const FRAMED: Record<string, string> = { forge: "Forge", offering: "Offering Altar", masterwork: "Masterwork", jeweller: "Jeweller", alchemist: "Alchemist", smith: "Blacksmith", sanctum: "Dragon Sanctum", bounty: "Bounty Board", talent: "Level Up", cleared: "Layer Cleared", over: r.scene.t === "over" && r.scene.won ? "Victory" : "Fallen" };
   const crawlFrame = !!r.gridMode && !!FRAMED[s.t];
   const crawlFight = s.t === "combat" && !!r.gridMode;
   const crawlShop = s.t === "shop" && !!r.gridMode;
   document.body.classList.toggle("crawl-on", crawlView || crawlFight || crawlShop || crawlFrame);
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${strange ? `<div class="strange-screen"><div class="strange-room"></div><div class="crawl-pop-wrap strange-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div></div>` : crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}`;
   bind();
   // Bookmarks that scroll sideways: keep the open one in view.
   document.querySelectorAll<HTMLElement>(".bm-tabs > .on, .mer-tabs > .on").forEach(el => { const p = el.parentElement!; if (p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, el.offsetLeft - 24); });

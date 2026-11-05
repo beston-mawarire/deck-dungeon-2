@@ -9,6 +9,14 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.84.0
+- Something Strange is an open door now. Tap it and choose "Enter the strange room?": what's inside plays out in a dark room of its own.
+- The class popup no longer shows Heat, and its buttons are studded wooden planks.
+- The Camp's options each have a little room of their own, off a firelit hall, and the view follows you as you walk.
+- Two new Camp rooms: the Bestiary (every foe you've beaten, how often and how tough) and the Trophy Room (a trophy for each kind of foe beaten 10, 25 or 50 times, and one for every layer guardian).
+- The Passive Tree fills the screen under a night sky and scrolls every way. Each branch starts five nodes wide. Ranked talents are now chains: the first rank is small, and II and III hang below it, each needing the one before.
+- Beating a layer earns 1 tree point.
+
 ## 1.83.0
 - The Camp is a place you walk now: a firelit cavern drawn from the tileset. Tap a spot and your hero walks over to it: the Way Down, the Quest Board, the Hall's door, the Skills trainer, the Knowledge scholar, the Garden's plots, the Brewery's cauldron, the Passive Tree, the Weapon Mastery rack and the Abyss. Each opens as its own page over the Camp. On wide screens the Camp lies on its side to fill the screen.
 

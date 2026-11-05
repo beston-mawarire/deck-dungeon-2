@@ -1,6 +1,6 @@
 // The Camp's stores and the Hall: Crown Shards (from the bosses of each layer) and Camp materials (from the foes of
 // each family), kept between runs, even when a run ends in death. The Hall spends them on lasting upgrades.
-import { MASTERY_FAMILIES, treeOf, treeOpen, wmLevel } from "./longroad";
+import { MASTERY_FAMILIES, treeOpen, treeTalents, wmLevel } from "./longroad";
 import type { Meta } from "./meta";
 import type { Run } from "./run";
 import { recompute } from "./hero";
@@ -76,7 +76,7 @@ export function applyHall(m: Meta, run: Run) {
   // How far this class has got before: some of its loot only turns up once it has beaten a layer.
   h.f.persist["classLayers"] = m.layersBeaten?.[h.origin] ?? 0;
   // The passive tree (once open): its nodes come along as talents.
-  if (treeOpen(m, h.origin)) for (const [id, n] of Object.entries(treeOf(m, h.origin).spent)) if (n > 0) h.talents[id] = n;
+  if (treeOpen(m, h.origin)) for (const [id, n] of Object.entries(treeTalents(m, h.origin))) h.talents[id] = n;
   // Weapon mastery: each family's level rides along.
   for (const fam of MASTERY_FAMILIES) { const lv = wmLevel(m.weaponXp?.[fam] ?? 0); if (lv) h.f.persist[`wm_${fam}`] = lv; }
   // A totem set at the door is used up as you go in.

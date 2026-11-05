@@ -154,7 +154,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   fallen_adventurer: { name: "A Fallen Adventurer", icon: "⚰️", text: "Someone who got this far and no further. Their pack is still full." },
   starving_pilgrim: { name: "Starving Pilgrim", icon: "🧎", text: "A thin traveller with an outstretched hand." },
   bounty: { name: "Bounty Board", icon: "📋", text: "Notices nailed to a post. Work for hire." },
-  event: { name: "Something Strange", icon: "❔", text: "A meeting, a find, a gamble." },
+  event: { name: "Something Strange", icon: "🚪", text: "A door stands open onto a room you can't see into. A meeting, a find, a gamble." },
   boss: { name: "Boss", icon: "👑", text: "The guardian of this floor." },
   nemesis: { name: "Your Nemesis", icon: "😈", text: "It killed you last time. It remembers you. There's a bounty on its head." },
   unique: { name: "A Strange Presence", icon: "✴️", text: "Someone — something — with a name. Dangerous, once per run, and carrying something rare." },
@@ -191,7 +191,7 @@ export type Scene =
   | { t: "masterwork"; pending?: { uid: number; line: string; options: Record<string, number>[] } }
   | { t: "rest"; done: boolean }
   | { t: "confirm"; room: RoomType }
-  | { t: "event"; ev: GameEvent; result: string | null; found: GearItem[]; note?: string }
+  | { t: "event"; ev: GameEvent; result: string | null; found: GearItem[]; note?: string; /** Met behind a strange door (the Crawl): it plays in a room of its own. */ strange?: boolean }
   | { t: "smith"; uses: number }
   /** The Dragon Sanctum: unify with your Dragon Heart. */
   | { t: "sanctum"; done?: boolean }
@@ -206,6 +206,8 @@ export type Scene =
   | { t: "over"; won: boolean };
 
 export interface Run {
+  /** The Crawl: foes beaten this run, by name (for the Camp's Bestiary and Trophy Room). */
+  kills?: Record<string, { n: number; hp: number; power: number; family?: string; boss?: boolean }>;
   mode: Mode;
   seed: number;
   rng: () => number;
@@ -1132,7 +1134,10 @@ function enterRoom(run: Run, room: RoomType) {
       // Unique encounters (the dragon, the mirror pool) happen at most once per run.
       const pool = EVENTS.filter(e => !OWN_PATH_EVENTS.includes(e.id) && eventOpen(run, e));
       const ev = pickW(run.rng, Object.fromEntries(pool.map(e => [e.id, e.weight ?? 1])) as Record<string, number>);
-      return startEvent(run, pool.find(e => e.id === ev)!);
+      startEvent(run, pool.find(e => e.id === ev)!);
+      // The Crawl: what's behind the door plays out in a room of its own.
+      if (run.gridMode && run.scene.t === "event") run.scene.strange = true;
+      return;
     }
     case "doppelganger": return fight(run, "elite", "doppel");
     case "alchemist": case "blacksmith": case "gambling_den": case "fortune_teller": case "mirror_pool": case "card_sharp": case "sacred_spring": case "fallen_adventurer": case "starving_pilgrim":
@@ -1564,6 +1569,11 @@ function afterFight(run: Run) {
   gainXp(run, Math.round(xp * (abyssMod(run, "thick_hides") ? 1.5 : 1)));
   // In the Crawl, foes only give XP (bosses still pay out, in their treasure room).
   const crawlFoe = run.gridMode && rank !== "boss" && (!then || then === "transformed" || then === "resplendent");
+  // The Bestiary: every kind of foe beaten in the Crawl (and the toughest one of each seen).
+  if (run.gridMode) {
+    const e = b.enemy, k = ((run.kills ??= {})[e.name] ??= { n: 0, hp: 0, power: 0 });
+    k.n++; k.hp = Math.max(k.hp, e.maxHp); k.power = Math.max(k.power, e.damage); k.family = e.family; if (rank === "boss") k.boss = true;
+  }
   // Weapon mastery: every win in the Crawl teaches the weapon in your main hand.
   if (run.gridMode && h.equip.main) {
     const fam = classify(effectiveBase(h.equip.main)).family;
