@@ -32,7 +32,7 @@ import { LAYER_FLOORS } from "../game/grid";
 import { isThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, FAVOURED } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
-import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, THING_SPRITE } from "./sprites";
+import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
 import { spendAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
@@ -443,7 +443,8 @@ function titleScreen() {
         ${backupPanel()}`;
     return `${head}${tabs}${infoRow}${cont}${body}<p class="version">${VERSION}</p>`;
   }
-  return tavernScreen(head, infoRow, cont);
+  void head;
+  return tavernScreen(infoRow, cont);
   return `${head}${tabs}${infoRow}
   ${cont}
   <div class="campaign-hero">
@@ -458,7 +459,7 @@ function titleScreen() {
 
 /** The Tavern: where your heroes sit after you press Play. Pick one at its table, then walk out to the Camp.
  *  Locked heroes sit in the shadows, with how to bring them in. */
-function tavernScreen(head: string, infoRow: string, cont: string) {
+function tavernScreen(infoRow: string, cont: string) {
   const seat = (o: OriginId) => {
     const og = ORIGINS[o];
     const open = classOpen(meta, o);
@@ -475,9 +476,10 @@ function tavernScreen(head: string, infoRow: string, cont: string) {
   };
   const order: OriginId[] = ["warrior", "mage", "cleric", "rogue"];
   return `<div class="tavern">
-    ${head}${infoRow}${cont}
+    <div class="tav-top"><button class="small" data-home aria-label="Back to title">←</button><span class="grow"></span><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>
+    <div class="mer-sign tav-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">The Tavern</div></div>
+    ${infoRow}${cont}
     <div class="tav-room">
-      <div class="mer-sign tav-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">The Tavern</div></div>
       <div class="tav-bar"><span class="tav-keep">${hasSprite("dwarf_m") ? spriteHtml("dwarf_m", 4) : "🍺"}</span><span class="tav-bottles">🍾 🍷 🍺</span></div>
       <p class="tav-say">“Pull up a chair. Who's going down tonight?”</p>
       <div class="tav-seats">${order.map(seat).join("")}</div>
@@ -980,7 +982,7 @@ function crawlScreen(r: Run, msg: string[], bad: boolean) {
     const info = thingInfo(r, room);
     const th = m.things[sel];
     const sk = th.foe ? foeSprite(th.foe, undefined, false) : THING_SPRITE[room];
-    const ic = sk && hasSprite(sk) ? spriteHtml(sk, 3, "pick-spr") : info.icon;
+    const ic = sk && hasSprite(sk) ? spriteHtml(sk, (spriteSize(sk)?.h ?? 16) > 24 ? 2 : 3, "pick-spr") : th.room === "rest" ? "🔥" : info.icon;
     return `<div class="cz cz-pick ${roomClass(room)}"><button class="cz-x" data-gunsel aria-label="Close">✕</button><div class="cz-pick-head"><span class="ic">${ic}</span><span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span></span></div>
       <button class="primary cz-act" data-gwalk="${sel}">${crawlAct(room, r)}</button></div>`;
   })();

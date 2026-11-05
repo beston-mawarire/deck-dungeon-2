@@ -2044,3 +2044,24 @@ body.crawl-on { overflow: hidden; }
 /* The Tavern grows on big screens. */
 @media (min-width: 1000px) and (min-height: 760px) { .tav-room { zoom: 1.25; } }
 @media (min-width: 1400px) and (min-height: 900px) { .tav-room { zoom: 1.45; } }
+
+/* The Tavern's sign hangs from the very top of the screen. */
+.tavern { overflow-x: hidden; }
+.tavern { padding-top: 0 !important; }
+.tav-top { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 12px; right: 12px; display: flex; z-index: 2; pointer-events: none; }
+.tav-top button { pointer-events: auto; }
+.tav-sign { display: table; margin: 0 auto; padding-top: max(56px, calc(env(safe-area-inset-top) + 46px)) !important; }
+.tav-sign .chain { top: 0; height: calc(100% - 20px); }
+.tavern > .info-row { max-width: 980px; margin: 14px auto 0; }
+
+/* Continue: a plank of dark wood, iron studs at each end, centred in its row. */
+button.continue { display: block; width: auto !important; min-width: min(420px, 100%); max-width: min(640px, 100%); margin: 14px auto 6px !important; position: relative; padding: 13px 44px !important;
+  font-weight: 800; letter-spacing: .02em; color: #f6e8c8 !important; text-shadow: 0 1px 0 rgba(0,0,0,.7);
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 2px, transparent 2px 8px), linear-gradient(180deg, #7e5530, #5f3d20 55%, #4a2e17) !important;
+  border: 2px solid #24160a !important; border-radius: 6px !important; box-shadow: inset 0 1px 0 rgba(255,220,160,.22), inset 0 -3px 0 rgba(0,0,0,.35), 0 4px 0 #120a04, 0 8px 14px rgba(0,0,0,.5) !important; }
+button.continue::before, button.continue::after { content: ""; position: absolute; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #b8aea2, #4a433c 70%); box-shadow: 0 1px 1px #000, inset 0 -1px 0 rgba(0,0,0,.4); }
+button.continue::before { left: 14px; } button.continue::after { right: 14px; }
+button.continue:active { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255,220,160,.18), 0 2px 0 #120a04 !important; }
+@media (min-width: 1000px) and (min-height: 760px) { .tav-sign, .tavern > .info-row, .tavern > button.continue { zoom: 1.25; } }
+@media (min-width: 1400px) and (min-height: 900px) { .tav-sign, .tavern > .info-row, .tavern > button.continue { zoom: 1.4; } }

@@ -30,6 +30,8 @@ export function crawlTarget(run: Run, rushAfter = 2): [number, number][] {
     if (t.room === "shop" && t.stock) return;
     const p = pathTo(m, t.x, t.y) ?? pathTo(m, t.x, t.y, true);
     if (!p) return;
+    // Never walk through a Merchant to get somewhere (it sends you straight back).
+    if (p.slice(0, -1).some(([x, y]) => m.things.some(o => !o.done && o.room === "shop" && o.x === x && o.y === y))) return;
     let cost = p.length;
     // Guards are fought for what they guard; foes you can walk round only when healthy.
     if (FIGHTS.includes(t.room)) cost += hp < 0.5 ? 30 : t.guard ? 3 : hp > 0.8 ? 6 : 25;

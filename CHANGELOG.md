@@ -9,6 +9,11 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.81.1
+- The landmarks wear the tileset now: people where someone's there (the Alchemist, the Blacksmith, the Card Sharp, the Fortune Teller and more), fountains for the blood altars and springs, a column for the Cursed Shrine, a crackling campfire, and so on.
+- Chests hold one item and nothing else: no more extra finds tucked inside.
+- The Tavern's sign hangs from the top of the screen, and Continue is a studded wooden plank, centred.
+
 ## 1.81.0
 - The Tavern: Play now leads to a tavern where your heroes sit at their tables. Pick one, then go on to the Camp.
 - Classes unlock: the Warrior and the Mage are there from the start. Beat the first layer's boss as the Mage and the Cleric joins; beat it as the Warrior and the Rogue does. Locked heroes sit in the shadows with how to bring them in.

@@ -1,7 +1,7 @@
 // The Crawl (prototype): the floor drawn full-screen on a canvas, the camera on the player, point-and-click walking.
 import { idx, inSight, isFloor, isSeenTile, LAYER_FLOORS, layerOf, pathToward, SIGHT, thingAt, type FloorMap } from "../game/grid";
 import { gridSelect, gridStep, type Run } from "../game/run";
-import { atlas, CLASS_SPRITE, drawSprite, drawTile, foeSprite, hasSprite, THING_SPRITE } from "./sprites";
+import { atlas, CLASS_SPRITE, drawSprite, drawTile, foeSprite, hasSprite, spriteSize, THING_SPRITE } from "./sprites";
 
 const STEP_MS = 130;
 
@@ -250,9 +250,12 @@ export function drawCrawl() {
     else {
       // A sprite where we have one (the foe itself, a chest, the Merchant); an emoji otherwise.
       const sk = t.foe ? foeSprite(t.foe, undefined, false) : t.opened && THING_SPRITE[t.room] ? `${THING_SPRITE[t.room]}_open` : THING_SPRITE[t.room];
-      const scale = ts / 16;
       const big = sk && ["ogre", "big_demon", "big_zombie"].includes(sk);
-      if (!sk || !hasSprite(sk) || !drawSprite(ctx, sk, cx, cy + ts * 0.42, big ? scale * 0.7 : scale)) {
+      // Tall props (a column, a fountain) are shrunk to stand about a tile and a half high.
+      const sz = sk ? spriteSize(sk) : null;
+      const scale = sz && sz.h > 24 && !big ? Math.min(ts / 16, (ts * 1.45) / sz.h) : ts / 16;
+      if (t.room === "rest") drawCampfire(ctx, cx, cy, ts, now);
+      else if (!sk || !hasSprite(sk) || !drawSprite(ctx, sk, cx, cy + ts * 0.42, big ? scale * 0.7 : scale)) {
         ctx.fillStyle = "#fff"; ctx.font = emoji(ts * 0.62); ctx.fillText(h.icon(t.room), cx, cy + ts * 0.02);
       }
       // Elites and Champions wear a ring of menace.
@@ -355,6 +358,24 @@ function drawPool(ctx: CanvasRenderingContext2D, kind: "lava" | "sludge", x: num
     ctx.fillRect(sx - ts * 0.2, sy - ts * 0.2, ts * 1.4, ts * 1.4);
     ctx.restore();
   }
+}
+
+/** A campfire: a ring of stones, crossed logs and a flickering flame. */
+function drawCampfire(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number, now: number) {
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const fl = 0.85 + 0.15 * Math.sin(now / 80) * Math.sin(now / 31);
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, ts * 1.4 * fl);
+  g.addColorStop(0, "rgba(255,150,60,.35)"); g.addColorStop(1, "rgba(255,110,30,0)");
+  ctx.fillStyle = g; ctx.fillRect(cx - ts * 1.5, cy - ts * 1.5, ts * 3, ts * 3);
+  ctx.restore();
+  for (let k = 0; k < 7; k++) { const a = (k / 7) * Math.PI * 2; ctx.fillStyle = k % 2 ? "#6a5a4a" : "#544638"; ctx.beginPath(); ctx.ellipse(cx + Math.cos(a) * ts * 0.3, cy + ts * 0.18 + Math.sin(a) * ts * 0.12, ts * 0.08, ts * 0.06, 0, 0, Math.PI * 2); ctx.fill(); }
+  ctx.strokeStyle = "#5a3418"; ctx.lineWidth = ts * 0.09; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(cx - ts * 0.22, cy + ts * 0.24); ctx.lineTo(cx + ts * 0.22, cy + ts * 0.08); ctx.moveTo(cx + ts * 0.22, cy + ts * 0.24); ctx.lineTo(cx - ts * 0.22, cy + ts * 0.08); ctx.stroke();
+  const fh = ts * 0.5 * fl;
+  const fg = ctx.createRadialGradient(cx, cy - fh * 0.1, 0, cx, cy - fh * 0.1, fh);
+  fg.addColorStop(0, "#fff4c0"); fg.addColorStop(0.35, "#ffc850"); fg.addColorStop(0.7, "#ff7a20"); fg.addColorStop(1, "rgba(255,80,10,0)");
+  ctx.fillStyle = fg; ctx.beginPath(); ctx.ellipse(cx, cy - fh * 0.15, ts * 0.17, fh * 0.65, 0, 0, Math.PI * 2); ctx.fill();
 }
 
 /** Hairline cracks on a wall that gives a little when you push it. */

@@ -1073,15 +1073,15 @@ function enterRoom(run: Run, room: RoomType) {
       return fight(run, "boss", "crimson");
     case "wooden": {
       setGenLuck(genLuck(run));
-      const sg = rollSigilDrop(run, 0.06, 0.1);
+      // The Crawl: a chest holds one item and nothing else.
+      const sg = run.gridMode ? null : rollSigilDrop(run, 0.06, 0.1);
       const woodOdds = useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden;
-      if (run.gridMode && run.rng() < 0.15) { const t = randomThrow(run); if (gainThrow(run, t)) run.message = `Also inside: ${THROW_INFO[t].icon} a ${THROW_INFO[t].name}.`; }
-      run.scene = { t: "loot", title: "Wooden Chest", items: [dropItem(run, woodOdds)], gold: run.gridMode ? 0 : (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
+      run.scene = { t: "loot", title: "Wooden Chest", items: [dropItem(run, woodOdds)], gold: run.gridMode ? 0 : (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: !run.gridMode && run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
       return;
     }
     case "iron": {
       setGenLuck(genLuck(run));
-      const sg = rollSigilDrop(run, 0.12, 0.15);
+      const sg = run.gridMode ? null : rollSigilDrop(run, 0.12, 0.15);
       const key = (h.relics["skeleton_key"] ?? 0) > 0;
       if (!key && run.rng() < 1 / 6) {
         run.message = "The chest bites! It's a Mimic.";
@@ -1090,7 +1090,6 @@ function enterRoom(run: Run, room: RoomType) {
         // On a Crawl layer's first floor, a smaller one.
         return fight(run, run.gridMode && run.grid?.depth === 1 ? "normal" : "elite", "mimic");
       }
-      if (run.gridMode && run.rng() < 0.08) { campGain(run, null, 0, 0, 1); run.message = "Among the coins' dust: 📜 a Scroll of Knowledge, for the Camp."; }
       const ironOdds = useClover(run) ? luckyOdds(tables(run).iron) : tables(run).iron;
       const items = [dropItem(run, ironOdds)];
       if (key && !run.gridMode) items.push(dropItem(run, ironOdds));
