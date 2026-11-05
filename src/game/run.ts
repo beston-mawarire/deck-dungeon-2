@@ -26,6 +26,8 @@ import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type
 import { affixById, rescaleAffixes } from "./affixpool";
 import { MATS, matOfFamily, PLANTS, type Mat, type Plant } from "./camp";
 import { ATTR_PER_LEVEL } from "../data/attributes";
+import { MASTERY_FAMILIES, TOTEM_DROP, TOTEM_LAYER, TOTEMS, WM_XP } from "./longroad";
+import { classify } from "./families";
 import { openedAt, type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, type Hazard, idx, isFloor, isSeenTile, LAYER_FLOORS, layerOf, look, POOL_STEPS, SPIKE_DMG, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
@@ -970,6 +972,7 @@ export function descend(run: Run) {
     return;
   }
   run.grid = makeGrid(run, m.depth + 1, m.explored);
+  if (run.floor === 1) run.hero.f.persist["l1depth"] = Math.max(run.hero.f.persist["l1depth"] ?? 0, m.depth + 1);
   // Still burning from the floor above: it carries on down.
   if (m.burn) { run.grid.burn = m.burn; run.grid.burnKind = m.burnKind; }
   run.message = `🕳️ You drop through the trapdoor to floor ${m.depth + 1}. There's no climbing back up.`;
@@ -1558,6 +1561,11 @@ function afterFight(run: Run) {
   gainXp(run, Math.round(xp * (abyssMod(run, "thick_hides") ? 1.5 : 1)));
   // In the Crawl, foes only give XP (bosses still pay out, in their treasure room).
   const crawlFoe = run.gridMode && rank !== "boss" && (!then || then === "transformed" || then === "resplendent");
+  // Weapon mastery: every win in the Crawl teaches the weapon in your main hand.
+  if (run.gridMode && h.equip.main) {
+    const fam = classify(effectiveBase(h.equip.main)).family;
+    if ((MASTERY_FAMILIES as string[]).includes(fam)) h.f.persist[`wmx_${fam}`] = (h.f.persist[`wmx_${fam}`] ?? 0) + (WM_XP[rank] ?? 1);
+  }
   const gold = crawlFoe ? 0 : { normal: 4 + 2 * run.floor, elite: 10 + 3 * run.floor, champion: 20 + 4 * run.floor, crimson: 30 + 6 * run.floor, boss: (b.enemy.crimson ? 50 : 30) + 10 * run.floor }[rank] * (abyssMod(run, "golden_depths") ? 2 : 1) + relicBonus(h.relics, "gold");
   const items: GearItem[] = [];
   let scrolls = 0;
@@ -1726,6 +1734,12 @@ function afterFight(run: Run) {
       const bm = matOfFamily(b.enemy.family);
       if (bm) campGain(run, bm, 3);
       run.message = `👑 +${crowns} Crown Shard${crowns === 1 ? "" : "s"} · 📜 a Scroll of Knowledge${bm ? ` · +3 ${MATS[bm].icon} ${MATS[bm].name}` : ""}. ${run.message}`;
+      // Totems: from the third layer down, a guardian sometimes leaves one (for the Camp, to set before a run).
+      if (run.floor >= TOTEM_LAYER && run.rng() < TOTEM_DROP) {
+        const tt = TOTEMS[Math.floor(run.rng() * TOTEMS.length)];
+        h.f.persist[`totf_${tt.id}`] = (h.f.persist[`totf_${tt.id}`] ?? 0) + 1;
+        run.message = `${tt.icon} ${tt.name}! It goes back to the Camp with you. ${run.message}`;
+      }
       // Layers this class has beaten (it unlocks other classes, and more of this class's loot).
       if (run.mode !== "abyss") {
         const was = h.f.persist["layersWon"] ?? 0;

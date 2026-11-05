@@ -1,5 +1,6 @@
 // Between runs: Renown (earned from every run), unlock tiers that add items to the loot pools,
 // and the Codex of everything you've found. Stored in the browser (localStorage), per player.
+import { MASTERY_FAMILIES, TOTEMS, treeOf, treeOpen, treePointsFor } from "./longroad";
 import { trackMarks, type Run } from "./run";
 import { EQUIP_SLOTS, itemName } from "./hero";
 import { ACHIEVEMENTS, heatOf, HEAT_RENOWN, type Kit, masteryFor, masteryLevel, MASTERY_MAX } from "./progress";
@@ -27,6 +28,13 @@ export interface Meta {
   camp?: import("./camp").CampStore;
   /** The Crawl: how many layers each class has beaten (its best run). Opens other classes and more of its loot. */
   layersBeaten?: Partial<Record<string, number>>;
+  /** The passive tree, per class: points to spend and where they've gone. */
+  tree?: Record<string, import("./longroad").ClassTree>;
+  /** Weapon mastery XP, by weapon family (shared by every class). */
+  weaponXp?: Partial<Record<string, number>>;
+  /** Totems held, and the one set at the dungeon door for the next run. */
+  totems?: Partial<Record<string, number>>;
+  totemSet?: string;
   /** The ability each class takes into its runs (from the Camp's Skills). */
   skillPick?: Record<string, string>;
   /** Campaign runs in a row that ended without a Legendary (four, and the next run's first boss offers one). */
@@ -202,6 +210,7 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
   if (run.mode === "abyss") m.abyssBest = Math.max(m.abyssBest ?? 0, Math.min(run.floor, 10));
   const won = run.hero.f.persist["layersWon"] ?? 0;
   if (run.gridMode && won) (m.layersBeaten ??= {})[run.hero.origin] = Math.max(m.layersBeaten[run.hero.origin] ?? 0, won);
+  if (run.gridMode && !alreadyEarned) bankLongRoad(m, run);
   else m.bestFloor = Math.max(m.bestFloor, run.floor);
   bankRuin(m, run);
   m.found = [...new Set([...m.found, ...run.found])];
@@ -240,3 +249,13 @@ export const CLASS_UNLOCK: Record<string, { by: string; text: string } | null> =
   rogue: { by: "warrior", text: "Beat the first layer's boss as the Warrior." }
 };
 export const classOpen = (m: Meta, origin: string) => { const u = CLASS_UNLOCK[origin]; return !u || (m.layersBeaten?.[u.by] ?? 0) >= 1; };
+
+
+/** The Crawl's long road, banked when a run ends: passive tree points (once the class's tree is open), weapon
+ *  mastery XP, and any totems found. */
+export function bankLongRoad(m: Meta, run: Run) {
+  const p = run.hero.f.persist;
+  if (treeOpen(m, run.hero.origin)) treeOf(m, run.hero.origin).points += treePointsFor(p["layersWon"] ?? 0, p["l1depth"] ?? 0);
+  for (const fam of MASTERY_FAMILIES) if (p[`wmx_${fam}`]) (m.weaponXp ??= {})[fam] = (m.weaponXp[fam] ?? 0) + p[`wmx_${fam}`];
+  for (const t of TOTEMS) if (p[`totf_${t.id}`]) (m.totems ??= {})[t.id] = (m.totems[t.id] ?? 0) + p[`totf_${t.id}`];
+}

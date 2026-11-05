@@ -30,6 +30,7 @@ import {
 import { fortunePips } from "../game/loot";
 import { LAYER_FLOORS } from "../game/grid";
 import { isThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
+import { MASTERY_FAMILIES, nodeRanks, passiveTree, resetTree, spendNode, TIER_STEP, tierOpen, TOTEMS, TREE_LAYERS, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmMilestones, wmNext } from "../game/longroad";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, FAVOURED } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
@@ -800,7 +801,8 @@ function merchantScreen(r: Run, msg: string[], bad: boolean) {
 const CAMP_TABS: { id: CampTab; icon: string; name: string }[] = [
   { id: "expedition", icon: "🗺️", name: "Expedition" }, { id: "quests", icon: "📋", name: "Quest Board" }, { id: "hall", icon: "🏛️", name: "Hall" },
   { id: "skills", icon: "✨", name: "Skills" }, { id: "garden", icon: "🌱", name: "Garden" }, { id: "brewery", icon: "⚗️", name: "Brewery" },
-  { id: "knowledge", icon: "📚", name: "Knowledge" }, { id: "abyss", icon: "🕳️", name: "The Abyss" }
+  { id: "knowledge", icon: "📚", name: "Knowledge" }, { id: "tree", icon: "🌳", name: "Passive Tree" }, { id: "weapons", icon: "⚔️", name: "Weapon Mastery" },
+  { id: "abyss", icon: "🕳️", name: "The Abyss" }
 ];
 
 /** One Camp option's content (it sits inside that option's archway). */
@@ -811,6 +813,11 @@ function campBody(o: OriginId, tab: CampTab): string {
       <p class="sub">You go in with ${og.hp} HP, your class's kit, 20 Gold and nothing to drink.</p>
       ${campQuest !== null && campOffers?.[campQuest] ? `<p class="camp-quest-note">📋 Contract: ${esc(bountyText(campOffers[campQuest], o))}</p>` : `<p class="sub">No contract taken. The Quest Board has work, if you want it.</p>`}
       ${liveSave() ? `<p class="sub warn">Setting out replaces your saved run.</p>` : ""}
+      ${(() => {
+        const held = TOTEMS.filter(t => (meta.totems?.[t.id] ?? 0) > 0);
+        if (!held.length) return "";
+        return `<div class="totem-row"><p class="sub">Set a totem at the door (it's used up as you go in):</p><div class="mer-list">${held.map(t => `<button class="mer-chip ${meta.totemSet === t.id ? "on" : ""}" data-totem="${t.id}" title="${esc(t.text)}"><b>${t.icon} ${esc(t.name)}</b><span>×${meta.totems![t.id]} · ${esc(t.text)}</span></button>`).join("")}</div></div>`;
+      })()}
       <button class="primary camp-go" data-descend>⬇️ Descend</button>
       ${masteryPanel(o)}${gemPanel(o)}${heatPanel()}`;
   }
@@ -871,9 +878,34 @@ function campBody(o: OriginId, tab: CampTab): string {
         <div class="brew-rolls">${brew.rolls.map(r => `<span class="die-mini">${r}</span>`).join("")}</div></div>
       <div class="brew-acts"><button class="hu-buy" data-stir>🥄 Stir</button><button class="hu-buy" data-bottle>🍶 Bottle it</button></div>`;
   }
+  if (tab === "tree") {
+    const open = treeOpen(meta, o);
+    const t = treeOf(meta, o);
+    const tal = (id: string) => getItem(id);
+    const branches = passiveTree().map(b => `<div class="tree-branch"><div class="tb-head">${b.icon} <b>${esc(b.name)}</b></div>
+      ${b.tiers.map((tier, ti) => { const tOpen = open && tierOpen(t, b, ti); return `<div class="tb-tier ${tOpen ? "" : "shut"}">${tier.map(id => {
+        const d = tal(id), n = t.spent[id] ?? 0, max = nodeRanks(d);
+        return `<button class="tree-node ${n ? "has" : ""} ${n >= max ? "full" : ""}" data-node="${id}" ${open && tOpen && t.points > 0 && n < max ? "" : "disabled"} title="${esc(d.text)}"><b>${esc(d.name)}</b><span>${esc(d.text)}</span><i>${n}/${max}</i></button>`;
+      }).join("")}${ti > 0 && !tOpen && open ? `<span class="tb-need">${ti * TIER_STEP} points in ${esc(b.name)}</span>` : ""}</div>`; }).join("")}</div>`).join("");
+    const won = meta.layersBeaten?.[o] ?? 0;
+    return `<p>One great tree, the same for every hero: the old talents, grown into branches. Each class puts its own points into it, and they come along on every run.</p>
+      ${open ? `<div class="hall-store"><span>🌳 <b>${t.points}</b> point${t.points === 1 ? "" : "s"} to spend</span>${Object.keys(t.spent).length ? `<button class="small" data-treereset>Take every point back</button>` : ""}</div>
+        <p class="sub">Every run earns the ${og.name} 2 points for each layer beaten, or 1 for getting halfway through the first layer before falling.</p>`
+        : `<div class="panel locked-tool"><p><b>🔒 Not yet.</b> The ${og.name}'s tree opens once it has beaten layer ${TREE_LAYERS}.</p><p class="sub">Best so far: ${won} layer${won === 1 ? "" : "s"}.</p></div>`}
+      <div class="tree ${open ? "" : "locked"}">${branches}</div>`;
+  }
+  if (tab === "weapons") {
+    return `<p>Every weapon family learns from the fights you win with it, whoever holds it. Each level adds a little damage with that family, and levels 5 and 10 give it something more.</p>
+      <div class="hall-list">${MASTERY_FAMILIES.map(fam => {
+        const xp = meta.weaponXp?.[fam] ?? 0, lv = wmLevel(xp), next = wmNext(lv), prev = lv ? wmNext(lv - 1) : 0;
+        const pct = lv >= WM_MAX ? 100 : Math.round(((xp - prev) / Math.max(1, next - prev)) * 100);
+        const pk = WM_PERK[fam];
+        return `<div class="hall-up ${lv >= WM_MAX ? "done" : ""}"><span class="hu-ic">${lv}</span><span class="hu-txt"><b>${esc(pk.name)}</b><span>+${2 * lv}% damage · at 5 and 10: ${esc(pk.perk)}${wmMilestones(lv) ? ` (×${wmMilestones(lv)})` : ""}</span><span class="wm-bar"><i style="width:${pct}%"></i></span></span></div>`;
+      }).join("")}</div>`;
+  }
   if (tab === "knowledge") {
     const c = campOf(meta);
-    return `<p>Scrolls of Knowledge carried up from below are studied here. Every boss's hoard holds one; Champions and iron chests sometimes do too. What you learn stays with every hero, for good.</p>
+    return `<p>Scrolls of Knowledge carried up from below are studied here. Every boss's hoard holds one; Champions sometimes do too. What you learn stays with every hero, for good.</p>
       <div class="hall-store"><span>📜 <b>${c.scrolls ?? 0}</b> Scroll${(c.scrolls ?? 0) === 1 ? "" : "s"} of Knowledge</span></div>
       <div class="hall-list">${INSIGHTS.map(k => {
         const known = !!c.insights?.[k.id];
@@ -2247,7 +2279,7 @@ function masteryPanel(o: OriginId) {
 let kitPick: KitSlot | null = null;
 /** The Camp: the hero you've brought there, the tab open, and the contract taken at its Quest Board. */
 let camp: OriginId | null = null;
-type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "abyss";
+type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "tree" | "weapons" | "abyss";
 let campTab: CampTab = "expedition";
 let campOffers: Bounty[] | null = null;
 let campQuest: number | null = null;
@@ -2970,6 +3002,9 @@ function bind() {
     on("[data-stir]", () => { if (!brew) return; stir(meta, brew); sfx(brew.done ? "miss" : "roll"); if (brew.done) saveMeta(meta); });
     on("[data-bottle]", () => { if (!brew) return; bottle(meta, brew); saveMeta(meta); sfx(brew.made ? "chest" : "miss"); });
     on("[data-skillpick]", el => { if (!camp) return; meta.skillPick = { ...(meta.skillPick ?? {}), [camp]: el.dataset.skillpick! }; saveMeta(meta); sfx("status"); });
+    on("[data-node]", el => { if (!camp) return; const err = spendNode(meta, camp, el.dataset.node!); if (err) say(err); else { saveMeta(meta); sfx("equip"); } });
+    on("[data-treereset]", () => { if (!camp) return; resetTree(meta, camp); saveMeta(meta); });
+    on("[data-totem]", el => { const id = el.dataset.totem!; meta.totemSet = meta.totemSet === id ? undefined : id; saveMeta(meta); });
     on("[data-hallbuy]", el => { const err = buyHall(meta, el.dataset.hallbuy!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });
     on("[data-cquest]", el => { const i = Number(el.dataset.cquest); campQuest = i < 0 || campQuest === i ? null : i; });
     on("[data-campabyss]", () => { pendingOrigin = camp; startAbyss(); });

@@ -9,6 +9,11 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.82.0
+- The Passive Tree, a new Camp room: one great tree for every hero, the old talents grown into seven branches (Might, Bulwark, Grace, Affliction, Arcana, Devotion and Fortune), in tiers that open as you spend. A class's tree opens once it has beaten layer 5; from then on every run earns it points (2 for each layer beaten, or 1 for getting halfway through the first layer). Points can be taken back for free.
+- Weapon Mastery, a new Camp room: every weapon family learns from the fights won with it. Each level adds 2% damage with that family, and levels 5 and 10 add its own perk.
+- Totems: from the third layer down, a layer's guardian sometimes leaves one. Set it at the dungeon door before a run to lean the loot toward its kind (the Giant, Spellcraft, the Shadow, Embers, Venom, the Dawn, the Bulwark). It's used up as you go in.
+
 ## 1.81.1
 - The landmarks wear the tileset now: people where someone's there (the Alchemist, the Blacksmith, the Card Sharp, the Fortune Teller and more), fountains for the blood altars and springs, a column for the Cursed Shrine, a crackling campfire, and so on.
 - Chests hold one item and nothing else: no more extra finds tucked inside.

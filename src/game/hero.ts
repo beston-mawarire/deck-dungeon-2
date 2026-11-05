@@ -1,4 +1,5 @@
 // The hero: origin, equipped gear, backpack, relics, talents, curses — and turning all of that into a Fighter.
+import { wmMilestones } from "./longroad";
 import { POTION_SLOTS } from "../data/potions";
 import { MANA_POTION_SLOTS } from "../data/classgear";
 import { classify, familyLine, isHeavy } from "./families";
@@ -339,6 +340,23 @@ export function recompute(h: Hero) {
   f.heavyGear = EQUIP_SLOTS.some(sl => { const it = h.equip[sl]; return !!it && isHeavy(effectiveBase(it)); });
   const armMain = h.equip.main, armOff = h.equip.off;
   f.arms = { main: kindOf(armMain), off: kindOf(armOff), twoHanded: !!armMain && !!effectiveBase(armMain).twoHanded };
+  // Weapon mastery (the Crawl): +2% damage a level with the family in your main hand, and its perk at levels 5 and 10.
+  if (h.equip.main) {
+    const fam = classify(effectiveBase(h.equip.main)).family;
+    const lv = f.persist[`wm_${fam}`] ?? 0;
+    if (lv) {
+      s.dmgDealt = (s.dmgDealt ?? 0) + 2 * lv;
+      const k = wmMilestones(lv);
+      if (k) {
+        if (fam === "knife" || fam === "ranged") s.critChance += 4 * k;
+        else if (fam === "shortblade") s.dodge += 4 * k;
+        else if (fam === "greatblade") s.damage += k;
+        else if (fam === "blunt" || fam === "breaker") s.bash += 4 * k;
+        else if (fam === "polearm") s.armor += k;
+        else if (fam === "arcane") s.dotAmp = (s.dotAmp ?? 0) + 10 * k;
+      }
+    }
+  }
   s.maxHp += 3 * (h.level - 1); // every level-up: +3 Max HP
   s.maxHp -= f.persist["maxHpLoss"] ?? 0;
   s.maxHp += f.persist["hallHp"] ?? 0;
