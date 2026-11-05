@@ -354,12 +354,11 @@ describe("forge: offering, combine, transmute", () => {
     expect(lost).toBeGreaterThan(3);
   });
 
-  it("the Transmuter turns a Common into an unrevealed Legendary for 4 Starmetal; scrapping a Legendary gives Starmetal", async () => {
+  it("transmuting turns a Common into an unrevealed Legendary for 4 Starmetal; scrapping a Legendary gives Starmetal", async () => {
     const { forgeTransmute } = await import("../src/game/run");
     const run = newRun("warrior", 23);
     const sword = run.hero.equip.main!;
-    expect(forgeTransmute(run, sword.uid)).toBe("You need the Transmuter's Crucible.");
-    run.hero.crucible = true;
+    // No artefact needed any more (it's done at a Masterwork).
     run.hero.starmetal = 3;
     expect(forgeTransmute(run, sword.uid)).toBe("Needs 4 Starmetal.");
     run.hero.starmetal = 4;

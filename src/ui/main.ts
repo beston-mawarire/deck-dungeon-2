@@ -114,7 +114,7 @@ let talentSub: "talents" | "curses" = "talents";
 let spoilsSub: "relics" | "artefacts" = "relics";
 let gearSub: "equipped" | "backpack" | "sigils" | "scrolls" = "equipped";
 /** The Masterwork screen: its tab, the scroll picked to Empower with, and the scroll lines kept. */
-let mwTab: "rework" | "extract" | "empower" | "refine" = "rework";
+let mwTab: "rework" | "extract" | "empower" | "refine" | "transmute" = "rework";
 let mwScroll: number | null = null;
 let mwKeep = new Set<string>();
 let statsSub: "attributes" | "statuses" = "attributes";
@@ -1189,10 +1189,13 @@ let combineSel: number[] = [];
 
 /** Odds in words (no numbers shown to players). p is a 0–100 share of non-failing outcomes. */
 const oddsWord = (p: number) => p >= 50 ? "likely" : p >= 25 ? "possible" : p >= 8 ? "unlikely" : "a slim chance";
-function forgeScene(r: Run) {
+function forgeScene(r: Run, altar = false) {
   const h = r.hero;
   const fusions = availableFusions(r);
-  const tabs = [["upgrade", "Upgrade"], ["scrap", "Scrap"], ["offer", "Offering"], ["transmute", h.crucible ? "Transmute" : "🔒 Transmute"], ...(r.gridMode ? [["reveal", "📜 Reveal"]] : [])];
+  // An Offering Altar shows only its offering; the Forge upgrades, scraps and reveals.
+  if (altar) forgeTab = "offer";
+  else if (forgeTab === "offer" || forgeTab === "transmute") forgeTab = "upgrade";
+  const tabs = [["upgrade", "⚒️ Upgrade"], ["scrap", "⚙️ Scrap"], ...(r.gridMode ? [["reveal", "📜 Reveal"]] : [])];
   const eq = EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x);
   const exists = (u: number) => !!findItem(h, u);
   for (const u of [...offerSel]) if (!exists(u)) offerSel.delete(u);
@@ -1217,7 +1220,7 @@ function forgeScene(r: Run) {
       <button class="primary camp-go" data-revealgo ${sel && h.scrolls ? "" : "disabled"}>✨ Reveal</button>
       <div class="mer-list">${hidden.length ? hidden.map(it => `<button class="mer-chip ${revealSel === it.uid ? "on" : ""}" data-revealpick="${it.uid}"><b style="color:${RARITY_INK[it.rarity]}">${esc(itemName(it))}</b><span>${equippedSlot(r, it) || "Backpack"}</span></button>`).join("") : `<span class="mer-none">No hidden Legendaries.</span>`}</div>`;
   } else if (forgeTab === "upgrade") {
-    body = `<p class="sub">Upgrading raises an item's level (more damage, stronger lines). To rework a line, find a Masterwork.</p>
+    body = `<p class="sub">Upgrading raises an item's level (more damage, stronger lines).</p>
     ${sides(() => true, it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>`, false, slotOf(it)))}`;
   } else if (forgeTab === "scrap") {
     const star: Partial<Record<string, number>> = { legendary: 2, crimson: 4, epic_crimson: 10, legendary_crimson: 25 };
@@ -1226,7 +1229,8 @@ function forgeScene(r: Run) {
   } else if (forgeTab === "offer") {
     const chosen = allGear(r).filter(i => offerSel.has(i.uid));
     const odds = offeringOdds(offeringValue(chosen));
-    body = `<p class="sub">Sacrifice two or more items for one new item. Pick from your equipped gear, your bag, or both. More items and rarer items mean better odds — but sometimes the Forge takes everything and gives nothing.</p>
+    if (r.scene.t === "offering" && r.scene.used) return `<p class="sub center">The altar has taken its offering. The candles around it gutter out.</p><div class="row" style="margin-top:12px;justify-content:center"><button class="primary" data-leave>Leave</button></div>`;
+    body = `<p class="sub">Lay two or more items on the altar for one new item. Pick from your equipped gear, your bag, or both. More items and rarer items mean better odds — but sometimes the altar takes everything and gives nothing. It takes one offering only.</p>
       <div class="panel forge-pick">${chosen.length ? `<div>Offering: ${chosen.map(i => `<b>${esc(itemName(i))}</b>`).join(", ")}</div>` : `<div class="sub">Nothing picked yet.</div>`}
         ${chosen.length >= 2 ? `<div style="margin-top:6px">What the Forge might give: ${(["common", "uncommon", "rare", "epic", "legendary"] as const).filter(x => odds[x]).map(x => `<span class="chip odds-${x}">${x[0].toUpperCase() + x.slice(1)} · ${oddsWord(odds[x] ?? 0)}</span>`).join(" ")}</div>` : ""}
         <div class="row" style="margin-top:8px"><button class="primary" data-offer ${chosen.length >= 2 ? "" : "disabled"}>Sacrifice ${chosen.length} item${chosen.length === 1 ? "" : "s"}</button></div></div>
@@ -1249,10 +1253,12 @@ function forgeScene(r: Run) {
     body = `<p class="sub">The Transmuter's Crucible turns a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} ✴️ Starmetal (you have ${h.starmetal}). It arrives unrevealed.</p>
       ${sides(i => i.rarity === "common", it => itemCard(it, `<button class="small primary" data-transmute="${it.uid}" ${h.starmetal >= TRANSMUTE_COST ? "" : "disabled"}>Transmute · ${TRANSMUTE_COST} ✴️</button>`, false, slotOf(it)), () => false, "No Common items here.")}`;
   }
+  if (altar) return `<h2>Offering Altar</h2><div class="forge-body bm-page">${body}</div>
+  <div class="row" style="margin-top:12px"><button class="primary" data-leave>Leave</button></div>`;
   return `<h2>Forge</h2><p class="sub">⚙️ ${h.scrap} Scrap${h.starmetal ? ` · ✴️ ${h.starmetal} Starmetal` : ""}</p>
   ${fusions.length ? `<p class="sub fusable-hint">🔗 Two of your relics could be fused. The Forge can't do it — look for a Jeweller.</p>` : ""}
-  <div class="row" style="margin:8px 0">${tabs.map(([k, l]) => `<button class="small ${forgeTab === k ? "primary" : ""}" data-forgetab="${k}">${l}</button>`).join("")}</div>
-  <div class="forge-body">${body}</div>
+  <div class="bm-tabs">${tabs.map(([k, l]) => `<button class="${forgeTab === k ? "on" : ""}" data-forgetab="${k}">${l}</button>`).join("")}</div>
+  <div class="forge-body bm-page">${body}</div>
   <div class="row" style="margin-top:12px"><button class="primary" data-leave>Leave</button></div>`;
 }
 
@@ -1288,8 +1294,8 @@ function masterworkScene(r: Run) {
       ${sc.pending.options.map((o, i) => { const [id, n] = Object.entries(o)[0]; return `<div class="row"><span class="grow">– ${esc(lineText(id, n))}</span><button class="small primary" data-mwpick="${i}">Take this</button></div>`; }).join("")}
       <div class="row" style="margin-top:8px"><button class="small" data-mwkeep>Keep the old line</button></div></div>`;
   }
-  const tabs = ([["rework", "⚒️ Rework"], ["extract", "📜 Extract"], ["empower", "✨ Empower"], ["refine", "💎 Refine"]] as const)
-    .map(([k, l]) => `<button class="small ${mwTab === k ? "primary" : ""}" data-mwtab="${k}">${l}</button>`).join("");
+  const tabs = ([["rework", "⚒️ Rework"], ["extract", "📜 Extract"], ["empower", "✨ Empower"], ["refine", "💎 Refine"], ["transmute", "⚗️ Transmute"]] as const)
+    .map(([k, l]) => `<button class="${mwTab === k ? "on" : ""}" data-mwtab="${k}">${l}</button>`).join("");
   const eq = EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x);
   const all = [...eq, ...h.backpack];
   const slotOf = (it: GearItem) => equippedSlot(r, it);
@@ -1308,12 +1314,15 @@ function masterworkScene(r: Run) {
     body = `<p class="sub">Put a scroll's lines onto a Common item of the same family. A plain Common holds 1 line; each Refine dot adds one. Empowered items are bound: they can never be extracted.</p>
       ${scrollsHtml(h, true)}
       ${s ? `<h3>Onto which ${esc(FAMILY_NAME[s.family])} item?</h3>${list(all.filter(it => canEmpowerTarget(it) && baseOf(it.base).kind === s.kind && classify(baseOf(it.base)).family === s.family), it => { const why = empowerBlock(it, s, [...mwKeep]); return `<button class="small ${why ? "" : "primary"}" data-mwempower="${it.uid}" ${why ? `disabled title="${esc(why)}"` : ""}>✨ Empower</button>${why ? `<span class="sub"> ${esc(why)}</span>` : ""}`; }, `You have no Common ${FAMILY_NAME[s.family]} items.`)}` : ""}`;
+  } else if (mwTab === "transmute") {
+    body = `<p class="sub">Turn a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} ✴️ Starmetal (you have ${h.starmetal}). It arrives unrevealed.</p>
+      ${list(all.filter(i => i.rarity === "common"), it => `<button class="small primary" data-transmute="${it.uid}" ${h.starmetal >= TRANSMUTE_COST ? "" : "disabled"}>Transmute · ${TRANSMUTE_COST} ✴️</button>`, "You have no Common items.")}`;
   } else {
     body = `<p class="sub">Refine a Common so it can hold more lines: 2 at •, 3 at ••, 4 at •••. Legendaries can't be refined.</p>
       ${list(all.filter(canEmpowerTarget), it => { const done = (it.refine ?? 0) >= MAX_REFINE; const c = refineCost(it, shopMult(r)); const why = done ? "Fully refined." : refineBlock(h, it, shopMult(r));
         return `<button class="small ${why ? "" : "primary"}" data-mwrefine="${it.uid}" ${why ? `disabled title="${esc(why)}"` : ""}>${done ? "Fully refined" : `💎 Refine to ${"•".repeat((it.refine ?? 0) + 1)} · ${costText(c)}`}</button>`; }, "You have no Common items.")}`;
   }
-  return `${head}<div class="mw-tabs">${tabs}</div><div class="forge-body">${body}</div>
+  return `${head}<div class="mw-tabs bm-tabs">${tabs}</div><div class="forge-body bm-page">${body}</div>
   <div class="row" style="margin-top:12px"><button class="primary" data-leave>Leave</button></div>`;
 }
 
@@ -1709,7 +1718,7 @@ function bag(r: Run, bodyOnly = false) {
     `<div class="art-tile ${filled ? "filled" : "empty-slot"}" title="${esc(tip)}"><div class="art-ic">${icon}</div><div class="nm">${name}</div><p>${text}</p></div>`;
   const artefactsHtml = `<div class="art-group"><div class="art-grid">${
     h.crucible
-      ? artTile(true, "⚗️", "Transmuter's Crucible", "At a Forge: Common → Legendary", `At any Forge (Transmute tab): turn a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} Starmetal.`)
+      ? artTile(true, "⚗️", "Transmuter's Crucible", "At a Forge: Common → Legendary", `Once the key to transmuting. Now any Masterwork can turn a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} Starmetal.`)
       : artTile(false, "⚗️", "Empty", "Beat the fifth boss…", "A strange tool kept by the Campaign's fifth boss. With it, a Forge can do something remarkable…")
   }${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}</div>
     <div class="stile extra-tile star-tile" style="margin-top:10px"><span>✴️</span><span><b>${h.starmetal}</b> Starmetal<span class="sub">${h.crucible ? "Feeds the Crucible at the Forge. Jewellers want it too." : "A rare metal from the finest gear. Scrap Legendaries and Crimson gear for it."}</span></span></div></div>`;
@@ -1813,7 +1822,7 @@ function crawlBag(r: Run) {
   return `<div class="cb-screen inv-screen"><div class="mer-inner inv-inner">
     ${top}
     <div class="inv-body">${body}</div>
-    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}">${label}</button>`).join("")}</div>
+    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}"><i>${label.split(" ")[0]}</i><span>${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
   </div></div>`;
 }
 
@@ -1961,7 +1970,7 @@ function helpGlossary() {
     row("✴️", "A Strange Presence", "A named, unique foe — once per run — that always drops an Epic or better"),
     row("💰", "Thieves", "Kill them within 5 rounds or they escape with 30% of your Gold; kill them and you get 60% on top"),
     row("🕯️", "Curses", "Lasting penalties from shrines, idols and cursing foes. Only something holy can lift them"),
-    row("🔨", "Forge", "Upgrade gear with Scrap; sacrifice items in an Offering; transmute with the Crucible"),
+    row("🔨", "Forge", "Upgrade gear with Scrap, break it down, and reveal Legendaries"),
     row("⚒️", "Masterwork", "From floor 2. Rework one line of an item; Extract an item's lines into a Scroll of Power (the item turns Common); Empower a Common of the same family with a scroll; Refine a Common so it holds more lines (up to 4). Materials: Scrap, 💠 Azure dust (scrap Rares), 🔶 Orilium (scrap Epics) and ✴️ Starmetal"),
     row("🩸", "Sanguine Altar", "Pay a share of your Max HP for Gold, Max HP, upgrades, gear or a fresh start from curses; the bigger the price, the better the gift"),
     row("⛲", "Cleansing", "Only while you carry a curse: the Well of Cleansing or a Holy Tribute, a way to lift your curses for a price"),
@@ -2516,7 +2525,7 @@ function render2() {
   if (s.t === "over") saveRun(r, banked);
   const body =
     s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r)
-    : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r) : s.t === "masterwork" ? masterworkScene(r)
+    : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r) : s.t === "offering" ? forgeScene(r, true) : s.t === "masterwork" ? masterworkScene(r)
     : s.t === "cleared" ? clearedScene(r)
     : s.t === "smith" ? smithScene(r)
     : s.t === "alchemist" ? alchemistScene(r)
@@ -2549,13 +2558,15 @@ function render2() {
   const POPS = ["loot", "pick", "event", "confirm", "rest", "tribute"];
   const crawlPop = !!r.gridMode && !!r.grid && POPS.includes(s.t);
   const crawlView = (s.t === "map" || s.t === "resplendent" || crawlPop) && !!r.gridMode && !!r.grid;
-  const FRAMED: Record<string, string> = { forge: "Forge", masterwork: "Masterwork", jeweller: "Jeweller", alchemist: "Alchemist", smith: "Blacksmith", sanctum: "Dragon Sanctum", bounty: "Bounty Board", talent: "Level Up", cleared: "Layer Cleared", over: r.scene.t === "over" && r.scene.won ? "Victory" : "Fallen" };
+  const FRAMED: Record<string, string> = { forge: "Forge", offering: "Offering Altar", masterwork: "Masterwork", jeweller: "Jeweller", alchemist: "Alchemist", smith: "Blacksmith", sanctum: "Dragon Sanctum", bounty: "Bounty Board", talent: "Level Up", cleared: "Layer Cleared", over: r.scene.t === "over" && r.scene.won ? "Victory" : "Fallen" };
   const crawlFrame = !!r.gridMode && !!FRAMED[s.t];
   const crawlFight = s.t === "combat" && !!r.gridMode;
   const crawlShop = s.t === "shop" && !!r.gridMode;
   document.body.classList.toggle("crawl-on", crawlView || crawlFight || crawlShop || crawlFrame);
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}`;
   bind();
+  // Bookmarks that scroll sideways: keep the open one in view.
+  document.querySelectorAll<HTMLElement>(".bm-tabs > .on, .mer-tabs > .on").forEach(el => { const p = el.parentElement!; if (p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, el.offsetLeft - 24); });
   if (crawlView) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => thingInfo(r, room).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never), hurt: () => { const el = document.querySelector(".cz-tl"); if (el) el.innerHTML = czBars(r); } }); }
   else stopWalk();
 }
@@ -3069,7 +3080,7 @@ function bind() {
   on("[data-askyes]", () => { const a = forgeAsk; forgeAsk = null; if (a?.kind === "offer") doOffer(); else if (a) doScrap(a.uid); });
   on("[data-askno]", () => { forgeAsk = null; });
   on("[data-combine]", el => { const [a, b] = el.dataset.combine!.split(",").map(Number); combineSel = []; const out = forgeCombine(r, a, b); if (typeof out === "string") say(out); else { say(`Combined into ${itemName(out)} (${out.rarity}, lv ${out.level})`, false); if (RANK[out.rarity]) { celebrated.add(out.uid); celebrate(out.rarity, out.rarity === "epic" ? "EPIC FORGED" : undefined); } else sfx("chest"); } });
-  on("[data-transmute]", el => { const out = forgeTransmute(r, Number(el.dataset.transmute)); if (typeof out === "string") say(out); else { say("The Crucible roars. A Legendary takes shape…", false); celebrate("legendary", "TRANSMUTED"); } });
+  on("[data-transmute]", el => { const out = forgeTransmute(r, Number(el.dataset.transmute)); if (typeof out === "string") say(out); else { say("The anvil rings out. A Legendary takes shape…", false); celebrate("legendary", "TRANSMUTED"); } });
   on("[data-fuse]", el => { const err = fuse(r, el.dataset.fuse!); say(err ?? `Fused: ${getItem(el.dataset.fuse!).name}!`, !!err); if (!err) sfx("legendary"); });
   on("[data-rest]", () => say(rest(r, "heal")));
   on("[data-risk]", el => confirmRisk(r, el.dataset.risk === "yes"));

@@ -9,6 +9,12 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.78.1
+- Tabs everywhere are bookmarks now, standing up from the parchment page they open (the inventory's hang from the bottom).
+- Popups (chests, events and the like), the inventory's item details and the Merchant's are torn pages.
+- The Forge keeps Upgrade, Scrap and Reveal. Offerings moved to a new landmark, the Offering Altar (one offering each). Transmuting moved to the Masterwork, and no longer needs the Crucible.
+- At most four hazards on a floor, and about a third of floors have none.
+
 ## 1.78.0
 - Floors with teeth: spike traps (2 HP each time you step on one) and pools of sludge or lava (you burn for 1 HP a step for the next 4 steps), often right across a hallway you need. Walks go around them when there's a way. They never quite kill you.
 - Blood Oaths: a standing stone that takes Max HP for good in return for a Rare or an Epic item.

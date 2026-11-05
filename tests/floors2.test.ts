@@ -107,3 +107,16 @@ describe("floors with teeth", () => {
     expect(sc.items?.[0].rarity).toBe("epic");
   });
 });
+
+describe("how many hazards", () => {
+  it("never more than four on a floor, and some floors have none", () => {
+    let none = 0;
+    for (let seed = 1; seed <= 150; seed++) {
+      const r = crawl(seed * 7, 1 + (seed % 5), 2 + (seed % 4));
+      const n = Object.keys(r.grid!.haz ?? {}).length;
+      expect(n).toBeLessThanOrEqual(4);
+      if (!n) none++;
+    }
+    expect(none).toBeGreaterThan(20);
+  });
+});

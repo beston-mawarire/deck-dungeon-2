@@ -1842,3 +1842,73 @@ body.crawl-on { overflow: hidden; }
 /* The minimap, top right, with the layer and floor beneath it. */
 .cz-mini { position: static; display: block; cursor: default; width: 104px; height: 104px; background: rgba(10, 7, 4, .72); border: 2px solid #5a4330; border-radius: 6px; image-rendering: pixelated; box-shadow: 0 2px 8px rgba(0, 0, 0, .5); margin-bottom: 4px; }
 @media (min-width: 900px) { .cz-mini { width: 140px; height: 140px; } }
+
+/* ---------- Torn pages: the popups (chests, events and the like), the inventory's item details and the Merchant's. ---------- */
+.crawl-pop, .inv-detail, .mer-panel.mer-detail { position: relative; isolation: isolate; background: none !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; color: #3a2614;
+  filter: drop-shadow(0 10px 16px rgba(0,0,0,.55)); --torn: polygon(0.0% 2.3px, 3.6% 1.1px, 7.1% 4.6px, 10.7% 0.5px, 14.3% 3.8px, 17.9% 2.6px, 21.4% 0.4px, 25.0% 3.6px, 28.6% 0.3px, 32.1% 3.0px, 35.7% 0.5px, 39.3% 0.6px, 42.9% 3.0px, 46.4% 5.8px, 50.0% 0.9px, 53.6% 1.6px, 57.1% 4.4px, 60.7% 6.6px, 64.3% 4.0px, 67.9% 2.8px, 71.4% 6.8px, 75.0% 0.3px, 78.6% 6.0px, 82.1% 2.0px, 85.7% 1.0px, 89.3% 0.8px, 92.9% 2.2px, 96.4% 5.7px, 100.0% 1.3px, calc(100% - 1.7px) 10%, calc(100% - 1.9px) 20%, calc(100% - 1.1px) 30%, calc(100% - 1.6px) 40%, calc(100% - 0.2px) 50%, calc(100% - 0.2px) 60%, calc(100% - 0.6px) 70%, calc(100% - 2.0px) 80%, calc(100% - 1.3px) 90%, 100.0% calc(100% - 2.2px), 96.4% calc(100% - 4.1px), 92.9% calc(100% - 3.2px), 89.3% calc(100% - 2.1px), 85.7% calc(100% - 5.6px), 82.1% calc(100% - 4.9px), 78.6% calc(100% - 1.7px), 75.0% calc(100% - 4.0px), 71.4% calc(100% - 3.7px), 67.9% calc(100% - 6.1px), 64.3% calc(100% - 5.1px), 60.7% calc(100% - 2.0px), 57.1% calc(100% - 6.9px), 53.6% calc(100% - 0.8px), 50.0% calc(100% - 2.9px), 46.4% calc(100% - 5.3px), 42.9% calc(100% - 1.1px), 39.3% calc(100% - 3.4px), 35.7% calc(100% - 0.3px), 32.1% calc(100% - 4.7px), 28.6% calc(100% - 5.4px), 25.0% calc(100% - 4.0px), 21.4% calc(100% - 6.1px), 17.9% calc(100% - 2.2px), 14.3% calc(100% - 4.9px), 10.7% calc(100% - 4.2px), 7.1% calc(100% - 4.1px), 3.6% calc(100% - 3.2px), 0.0% calc(100% - 5.9px), 2.8px 90%, 1.4px 80%, 2.0px 70%, 0.2px 60%, 2.1px 50%, 1.9px 40%, 3.0px 30%, 2.5px 20%, 0.9px 10%); }
+.crawl-pop { padding: 22px 18px; overflow: hidden auto; }
+.crawl-pop::before, .inv-detail::before, .mer-panel.mer-detail::before { content: ""; position: absolute; inset: 0; z-index: -2; background: #4a2c14; clip-path: var(--torn); }
+.crawl-pop::after, .inv-detail::after, .mer-panel.mer-detail::after { content: ""; position: absolute; inset: 3px; z-index: -1; clip-path: var(--torn);
+  background: radial-gradient(ellipse at 20% 15%, rgba(255,250,235,.55), transparent 55%), radial-gradient(ellipse at 85% 90%, rgba(120,80,35,.22), transparent 60%),
+    radial-gradient(circle at 70% 30%, rgba(140,95,45,.10) 0 2px, transparent 3px) 0 0 / 23px 19px, linear-gradient(175deg, #ecdfc2, #ddc9a2 70%, #cfb88c); }
+.crawl-pop h2, .crawl-pop .ev-title, .crawl-pop h3 { color: #4a2a10 !important; text-shadow: none; }
+:is(.crawl-pop, .inv-detail, .mer-detail) .sub, :is(.crawl-pop, .inv-detail, .mer-detail) p { color: #5a3e22; }
+.crawl-pop .toast { background: rgba(120,80,35,.12) !important; color: #3a2614 !important; border: 1px solid #a8875a !important; box-shadow: none; }
+.crawl-pop .toast.err { color: #8a1f1f !important; border-color: #b0605a !important; }
+.crawl-pop .panel { background: rgba(120,80,35,.10) !important; border: 1px solid #b39a6e !important; color: #3a2614 !important; box-shadow: none; }
+.crawl-pop .panel * { color: inherit; }
+/* On a torn page an item is written on the page itself: no scroll of its own. */
+:is(.crawl-pop, .inv-detail, .mer-detail) .item { background: none !important; box-shadow: none !important; padding: 6px 4px !important; border-bottom: 1px dashed #b39a6e !important; border-radius: 0 !important; }
+:is(.crawl-pop, .inv-detail, .mer-detail) .item:last-child { border-bottom: 0 !important; }
+:is(.crawl-pop, .inv-detail, .mer-detail) .item::before, :is(.crawl-pop, .inv-detail, .mer-detail) .item::after { display: none !important; }
+.inv-detail { padding: 16px 14px !important; }
+.mer-panel.mer-detail { padding: 18px 14px !important; }
+.inv-empty, .mer-empty, .mer-thing p { color: #5a3e22 !important; }
+.mer-thing b { color: #3a2614 !important; }
+.inv-empty span, .mer-empty span { opacity: .7; }
+
+/* ---------- Bookmarks and pages: every set of tabs is a row of bookmarks standing up from the page it opens. ---------- */
+.bm-tabs, .mer-tabs, .forge-sides { display: flex !important; gap: 4px; align-items: flex-end; flex-wrap: wrap; padding: 0 10px !important; margin: 10px 0 0 !important; position: relative; z-index: 1; }
+.bm-tabs > button, .mer-tabs > button, .forge-sides > .forge-side { min-height: 0; padding: 8px 14px 10px; margin: 0 0 -1px; font-size: .92rem; font-weight: 700; letter-spacing: .01em; cursor: pointer;
+  color: #5a3c1e; background: linear-gradient(180deg, #cdb88f, #b59d72); border: 1px solid #5e3f20; border-bottom: 0; border-radius: 9px 9px 0 0; box-shadow: inset 0 1px 0 rgba(255,250,230,.45); transform: translateY(3px); transition: transform .12s; }
+.bm-tabs > button:hover, .mer-tabs > button:hover { transform: translateY(1px); }
+.bm-tabs > button.on, .mer-tabs > button.on, .forge-sides > .forge-side.active { color: #2a1a0c; background: linear-gradient(180deg, #f3e9d0, #eadcbd); transform: none; padding-top: 10px; z-index: 2; }
+.bm-page, .mer-inv .mer-list, .inv-body { position: relative; color: #3a2614; border: 1px solid #5e3f20; border-radius: 4px 10px 10px 10px; box-shadow: inset 0 0 28px rgba(120,80,30,.28), 0 6px 14px rgba(0,0,0,.4);
+  background: radial-gradient(ellipse at 15% 10%, rgba(255,250,235,.5), transparent 50%), linear-gradient(175deg, #efe4c9, #e2d1ab 75%, #d6c197) !important; }
+.bm-page { padding: 12px; margin-top: 0 !important; }
+.bm-page .sub, .bm-page > p { color: #5a3e22 !important; }
+.bm-page .panel { background: rgba(120,80,35,.10) !important; border: 1px solid #b39a6e !important; color: #3a2614 !important; }
+.bm-page .panel .sub, .bm-page .panel div { color: #3a2614; }
+/* Equipped / Backpack within a page: smaller bookmarks, and no page inside the page. */
+.forge-sides > .forge-side { flex: 1; font-size: .85rem; padding: 6px 10px 8px; }
+.forge-side-body { background: rgba(120,80,35,.08) !important; border: 1px solid #b39a6e !important; border-radius: 0 6px 6px 6px !important; }
+.forge-side .side-n { background: #7a4e1e; color: #f6eddb; }
+.mer-inv { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+.mer-inv .mer-list { padding: 10px; border-radius: 4px 10px 10px 10px; }
+.mer-inv .mer-none, .inv-body .mer-none { color: #6a4c2c; }
+/* The inventory: its page sits above the bookmarks, which hang from the bottom. */
+.inv-body { border-radius: 10px 10px 10px 4px; padding: 10px; }
+.inv-tabs { align-items: flex-start !important; margin: 0 !important; }
+.inv-tabs > button { border-radius: 0 0 9px 9px !important; border-top: 0 !important; border-bottom: 1px solid #5e3f20 !important; margin: -1px 0 0 !important; transform: translateY(-3px); padding: 10px 14px 8px; }
+.inv-tabs > button.on { transform: none; padding-bottom: 10px; }
+.inv-body .inv-slot { background: rgba(120,80,35,.10); border: 1px solid #b39a6e; color: #3a2614; }
+.inv-body .inv-slot span { color: #7a5c3a; }
+.inv-body .inv-slot b { color: #3a2614; }
+.inv-body .inv-slot.empty b { color: #9a805c; }
+.inv-body .inv-slot.on { background: rgba(255,250,235,.55); border-color: #7a4e1e; box-shadow: 0 0 0 2px rgba(122,78,30,.35); }
+.inv-body .inv-slot.r-uncommon b { color: #2a7a3e; } .inv-body .inv-slot.r-rare b { color: #1f5fae; } .inv-body .inv-slot.r-epic b { color: #7a35b8; } .inv-body .inv-slot.r-legendary b { color: #c25e0c; }
+.inv-body .inv-slot:is(.r-crimson, .r-epic_crimson, .r-legendary_crimson) b { color: #b01c30; }
+.inv-body .inv-pack { background: rgba(120,80,35,.08) !important; border: 1px solid #b39a6e !important; }
+.inv-body .inv-pack .mer-label { color: #6a4c2c; }
+.inv-body .sub { color: #5a3e22; }
+/* Bookmarks stay on one row (it scrolls sideways if there are many). */
+.bm-tabs, .mer-tabs { flex-wrap: nowrap !important; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding-top: 4px !important; }
+.bm-tabs::-webkit-scrollbar, .mer-tabs::-webkit-scrollbar { display: none; }
+.bm-tabs > button, .mer-tabs > button { flex: 0 0 auto; white-space: nowrap; font-size: clamp(.74rem, 3.1vw, .92rem); padding: 7px 10px 9px; }
+.inv-tabs { overflow: visible; flex-wrap: nowrap !important; gap: 3px; padding-right: 92px !important; }
+.inv-tabs > button { flex: 1 1 0; min-width: 0; padding: 9px 4px 7px; text-align: center; }
+/* Choices on a torn page: dark plaques with their hint in light ink. */
+.crawl-pop button.room .sub, .crawl-pop button .sub { color: #d8c39c !important; }
+.inv-tabs > button { display: flex; flex-direction: column; align-items: center; gap: 1px; line-height: 1.1; }
+.inv-tabs > button i { font-style: normal; font-size: 1.05rem; }
+.inv-tabs > button span { font-size: .78rem; }

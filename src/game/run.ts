@@ -120,7 +120,7 @@ export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
 const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
 
-export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller" | "masterwork" | "oath" | "secret";
+export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller" | "masterwork" | "oath" | "secret" | "offering";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -158,6 +158,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   crimson_elite: { name: "Crimson Elite", icon: "🩸", text: "Rarer and deadlier than a Champion. Great loot, and often a Crimson Key." },
   goblin: { name: "Treasure Goblin", icon: "💰", text: "A Treasure Goblin, stuffed with loot! Kill it within 3 rounds before it escapes, and everything it carries is yours." },
   oath: { name: "Blood Oath", icon: "🩸", text: "A stone that wants a promise in blood. Give up Max HP for good, and take an item." },
+  offering: { name: "Offering Altar", icon: "⚱️", text: "An altar that takes what you lay on it. Give it two or more items and it may give one back, better. Or nothing at all." },
   secret: { name: "Secret Chest", icon: "💎", text: "Hidden away behind a locked door: rare materials, a great deal of Gold, or very good loot." },
   crimson_vault: { name: "Crimson Vault", icon: "🗝️", text: "Spend a Crimson Key: fight a Crimson boss for a Crimson item. Die here and your run is over." }
 };
@@ -181,6 +182,8 @@ export type Scene =
   | { t: "talent"; options: string[] }
   | { t: "shop"; stock: ShopEntry[]; /** One item may be sold per Merchant visit. */ soldItem?: string; /** % markup from the Gold you carried when this stock was priced. */ markup?: number }
   | { t: "forge" }
+  /** An Offering Altar (the Crawl): sacrifice items for one new one, once. */
+  | { t: "offering"; used?: boolean }
   /** The Masterwork; while a Rework's two options wait for a pick, they're held here. */
   | { t: "masterwork"; pending?: { uid: number; line: string; options: Record<string, number>[] } }
   | { t: "rest"; done: boolean }
@@ -627,6 +630,7 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   const marks = Object.fromEntries(LANDMARKS.map(k => [k, lw[k] ?? 0]).filter(([, v]) => (v as number) > 0)) as Partial<Record<RoomType, number>>;
   // Blood Oaths: a Crawl landmark of their own.
   marks.oath = OATH_WEIGHT;
+  marks.offering = OFFERING_WEIGHT;
   for (let n = floorLandmarks(rng()); n > 0 && Object.keys(marks).length; n--) { const room = pickW(rng, marks); delete marks[room]; pois.push(room); }
   for (let n = 1 + (rng() < 0.4 ? 1 : 0); n > 0; n--) pois.push(chest());
   pois.sort(() => rng() - 0.5);
@@ -692,6 +696,8 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
 
 /** Blood Oaths turn up about as often as the other landmarks; secret rooms (from a layer's second floor) and hidden nooks now and then. */
 export const OATH_WEIGHT = 6;
+/** Offering Altars (the Forge's old Offering, now a landmark of its own). */
+export const OFFERING_WEIGHT = 5;
 export const SECRET_ROOM_CHANCE = 0.4;
 export const HIDDEN_NOOK_CHANCE = 0.3;
 /** Crawl Elites very rarely carry a Skeleton Key. */
@@ -711,14 +717,18 @@ export function layerFoes(run: Run) {
   const pool = MONSTERS.filter(mo => names.includes(mo.name));
   return pool.length ? pool : MONSTERS;
 }
+/** Hazard tiles: at most four on a floor, and about a third of floors have none. */
+export const MAX_HAZARDS = 4;
+export const HAZARD_FREE = 0.3;
 /** Which pools each layer has (spikes are everywhere): sludge in the sewers, lava deeper down. */
 const LAYER_POOLS: Hazard[][] = [["sludge"], ["sludge"], ["lava"], ["sludge", "lava"], ["lava", "sludge"]];
 
 /** Hazards: spike traps and pools, often right across a hallway you have to take. */
 function placeHazards(run: Run, m: FloorMap, rng: () => number, depth: number, s: { x: number; y: number }, taken: Set<number>, pockets: Set<number>, inHall: (i: number) => boolean) {
   const L = run.mode === "abyss" ? 4 : layerOf(run.floor);
-  // The very first floor is gentle.
+  // The very first floor is gentle, and some floors have no hazards at all.
   if (L === 0 && depth <= 1) return;
+  if (rng() < HAZARD_FREE) return;
   const haz: Record<number, Hazard> = {};
   const startI = idx(m, s.x, s.y);
   const all = reachable(m, s.x, s.y, new Set());
@@ -755,7 +765,10 @@ function placeHazards(run: Run, m: FloorMap, rng: () => number, depth: number, s
       for (const i of cells) haz[i] = kind;
     }
   }
-  if (Object.keys(haz).length) m.haz = haz;
+  // Never more than a handful on one floor.
+  const keys = Object.keys(haz);
+  while (keys.length > MAX_HAZARDS) delete haz[+keys.splice(Math.floor(rng() * keys.length), 1)[0]];
+  if (keys.length) m.haz = haz;
 }
 
 /** What a step costs on hazards: spikes bite each time, and a pool keeps burning for the next few steps. Never quite kills you. */
@@ -1096,6 +1109,7 @@ function enterRoom(run: Run, room: RoomType) {
       return;
     }
     case "sanctum": run.scene = { t: "sanctum" }; return;
+    case "offering": run.scene = { t: "offering" }; return;
     case "oath": run.scene = { t: "event", ev: EVENTS.find(e => e.id === "blood_oath")!, result: null, found: [] }; return;
     case "secret": return openSecret(run);
     case "crossroads":
@@ -1594,7 +1608,7 @@ function afterFight(run: Run) {
   if (rank === "boss") {
     relic = randomRelic(run, 2);
     // The Transmuter's Crucible: yours once you've beaten the Campaign's fifth boss.
-    if (!h.crucible && run.mode !== "abyss" && run.floor >= FLOORS && !b.enemy.crimson) {
+    if (!h.crucible && !run.gridMode && run.mode !== "abyss" && run.floor >= FLOORS && !b.enemy.crimson) {
       h.crucible = true;
       crucibleFound = true;
       run.popup = { icon: "⚗️", title: "The Transmuter's Crucible", text: "Among the Hollow King's things: a crucible that hums when you hold it. At any Forge, it turns a Common item and 4 Starmetal into a Legendary of the same kind." };
@@ -2161,11 +2175,12 @@ export function forgeOffer(run: Run, uids: number[]): GearItem | string {
   const h = run.hero;
   const items = uids.map(u => findItem(h, u)?.item).filter((x): x is GearItem => !!x);
   if (items.length < 2) return "Offer at least two items.";
+  if (run.scene.t === "offering") { if (run.scene.used) return "The altar has taken its offering."; run.scene.used = true; }
   for (const it of items) removeGear(h, it.uid);
   // The Forge doesn't always answer: sometimes the offering is simply lost.
   if (run.rng() * 100 < OFFERING_FAIL) {
     recompute(h);
-    return "The Forge swallows your offering… and gives nothing back.";
+    return "The altar swallows your offering… and gives nothing back.";
   }
   const rarity = rollRarity(run.rng, offeringOdds(offeringValue(items)));
   const out = rollItem(h, rarity, Math.max(depth(run), ...items.map(i => i.level)), run.rng);
@@ -2229,7 +2244,6 @@ export const TRANSMUTE_COST = 4;
 /** With the Transmuter's Crucible: a Common item + 4 Starmetal becomes an (unrevealed) Legendary of the same kind. */
 export function forgeTransmute(run: Run, uid: number): GearItem | string {
   const h = run.hero;
-  if (!h.crucible) return "You need the Transmuter's Crucible.";
   const found = findItem(h, uid);
   if (!found || found.item.rarity !== "common") return "Only Common items can be transmuted.";
   if (h.starmetal < TRANSMUTE_COST) return `Needs ${TRANSMUTE_COST} Starmetal.`;
