@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.83.0
+- The Camp is a place you walk now: a firelit cavern drawn from the tileset. Tap a spot and your hero walks over to it: the Way Down, the Quest Board, the Hall's door, the Skills trainer, the Knowledge scholar, the Garden's plots, the Brewery's cauldron, the Passive Tree, the Weapon Mastery rack and the Abyss. Each opens as its own page over the Camp. On wide screens the Camp lies on its side to fill the screen.
+
 ## 1.82.1
 - Attributes reworked. Strength: Max HP and Bash. Agility: Dodge, Crit chance and crit damage. Intellect: status damage, reaction damage, and harder hits with staves and wands. Faith: reactions and statuses hurt you less, and altars that lift curses turn up more often. Vitality: all healing goes further, and Regen heals more. Fortune: unchanged.
 - Each class has a base attribute (Warrior Strength, Mage Intellect, Rogue Agility, Cleric Faith): every point in it also adds +1 base Damage.

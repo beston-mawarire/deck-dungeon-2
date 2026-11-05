@@ -34,6 +34,7 @@ import { MASTERY_FAMILIES, nodeRanks, passiveTree, resetTree, spendNode, TIER_ST
 import { familyOpenCount } from "../game/loot";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
+import { mountCampMap, resetCampWalk } from "./campmap";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
 import { spendAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
@@ -854,7 +855,7 @@ function campBody(o: OriginId, tab: CampTab): string {
   if (tab === "garden") {
     const c = campOf(meta), plots = gardenPlots(meta);
     const seeds = (Object.keys(PLANTS) as Plant[]).map(k => `<button class="garden-seed ${sowing === k ? "on" : ""}" data-sow="${k}" ${(c.seeds?.[k] ?? 0) ? "" : "disabled"}>${PLANTS[k].seedIcon} <b>${c.seeds?.[k] ?? 0}</b> ${esc(PLANTS[k].seed)}<span>${PLANTS[k].runs} run${PLANTS[k].runs === 1 ? "" : "s"} to grow</span></button>`).join("");
-    return `<p>Seeds turn up in urns and chests below. Sow them here: they grow while you're down in the dungeon, a run or two, and give two or three herbs for the Brewery.</p>
+    return `<p>Champions sometimes carry seeds. Sow them here: they grow while you're down in the dungeon, a run or two, and give two or three herbs for the Brewery.</p>
       <div class="garden-seeds">${seeds}</div>
       ${sowing ? `<p class="sub center">Now tap an empty plot to sow your ${esc(PLANTS[sowing].seed)}.</p>` : ""}
       <div class="garden-plots">${plots.map((p, i) => !p
@@ -932,6 +933,8 @@ function campBody(o: OriginId, tab: CampTab): string {
 }
 
 /** The Camp: where you get ready between runs. Each option is an archway that fills the screen; slide (or tap the glowing arrows) to the next. */
+/** The Camp spot open right now (its page over the map), if any. */
+let campRoom: CampTab | null = null;
 /** Two letters for a tree node's orb. */
 const initials = (name: string) => name.replace(/[^A-Za-z ]/g, "").split(/\s+/).filter(w => w.length > 2).slice(0, 2).map(w => w[0].toUpperCase()).join("") || name.slice(0, 2).toUpperCase();
 /** The node open in its popup (the Passive Tree). */
@@ -956,53 +959,20 @@ function treeNodePopup(o: OriginId) {
 
 function campScreen(o: OriginId) {
   const og = ORIGINS[o];
-  const slides = CAMP_TABS.map(t => {
-    const locked = t.id === "abyss" && !abyssUnlocked(meta);
-    return `<section class="camp-slide" data-slide="${t.id}" aria-label="${esc(t.name)}">
-      <div class="camp-gate">
-        <div class="cb-torch l"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
-        <div class="cb-torch r"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
-        <div class="gate-arch">
-          <div class="gate-key"><span>${locked ? "🔒" : t.icon}</span><b>${t.name}</b></div>
-          <div class="gate-dark"><div class="gate-content">${campBody(o, t.id)}</div></div>
-        </div>
-      </div>
-    </section>`;
-  }).join("");
-  const at = Math.max(0, CAMP_TABS.findIndex(t => t.id === campTab));
-  return `<div class="cb-screen camp-screen"><div class="camp-inner">
+  // The Camp is a place you walk: tap a spot to walk to it and open it. (campTab remembers the last spot opened.)
+  void campTab;
+  const room = campRoom ? CAMP_TABS.find(t => t.id === campRoom) : undefined;
+  return `<div class="cb-screen camp-screen camp-walk"><div class="camp-inner">
     <div class="camp-top"><button class="camp-back" data-campback aria-label="Back">←</button>
       <div class="mer-sign camp-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">The Camp</div></div>
       <button class="camp-hero" data-campback title="Change hero"><span>${ORIGIN_ICON[o]}</span><b>${esc(og.name)}</b></button></div>
+    ${note && !room ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
+    <div class="camp-map"><canvas id="campcv"></canvas></div>
+  </div></div>
+  ${room ? `<div class="cb-screen grit-screen camp-room"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${room.icon} ${esc(room.name)}</div></div>
     ${note ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
-    <div class="camp-stage">
-      <div class="camp-carousel" data-campstart="${at}">${slides}</div>
-      <button class="camp-arrow l" data-campstep="-1" aria-label="Previous">‹</button>
-      <button class="camp-arrow r" data-campstep="1" aria-label="Next">›</button>
-    </div>
-    <div class="camp-dots">${CAMP_TABS.map((t, i) => `<button class="${i === at ? "on" : ""}" data-campgo="${i}" aria-label="${esc(t.name)}"></button>`).join("")}</div>
-  </div></div>`;
-}
-
-/** After each render: put the carousel back on the open option, and keep the arrows and dots in step as you slide. */
-function mountCamp() {
-  const car = app.querySelector<HTMLElement>(".camp-carousel");
-  if (!car) return;
-  const n = CAMP_TABS.length;
-  const at = Number(car.dataset.campstart ?? 0);
-  car.scrollLeft = at * car.clientWidth;
-  const sync = () => {
-    const i = Math.max(0, Math.min(n - 1, Math.round(car.scrollLeft / Math.max(1, car.clientWidth))));
-    campTab = CAMP_TABS[i].id;
-    app.querySelector(".camp-arrow.l")?.classList.toggle("hide", i === 0);
-    app.querySelector(".camp-arrow.r")?.classList.toggle("hide", i === n - 1);
-    app.querySelectorAll(".camp-dots button").forEach((d, k) => d.classList.toggle("on", k === i));
-  };
-  sync();
-  car.onscroll = () => sync();
-  const go = (i: number) => car.scrollTo({ left: Math.max(0, Math.min(n - 1, i)) * car.clientWidth, behavior: "smooth" });
-  app.querySelectorAll<HTMLElement>("[data-campstep]").forEach(b => (b.onclick = ev => { ev.stopPropagation(); go(Math.round(car.scrollLeft / car.clientWidth) + Number(b.dataset.campstep)); sfx("click"); }));
-  app.querySelectorAll<HTMLElement>("[data-campgo]").forEach(b => (b.onclick = ev => { ev.stopPropagation(); go(Number(b.dataset.campgo)); sfx("click"); }));
+    <div class="grit-body camp-room-body">${campBody(o, room.id)}</div>
+    <button class="mer-leave" data-closeroom>Back to the Camp</button></div></div>` : ""}`;
 }
 
 /** Camp contracts run over a whole layer, so they get longer than a board found below. */
@@ -2609,7 +2579,7 @@ function render2() {
   if (!run) {
     app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${treeNode ? treeNodePopup(camp) : ""}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
-    if (camp) mountCamp();
+    if (camp) mountCampMap({ open: id => { campRoom = id as CampTab; campTab = id as CampTab; render(); }, origin: () => camp ?? "warrior", locked: id => id === "abyss" && !abyssUnlocked(meta), sfx: k => sfx(k as never) });
     return;
   }
   const r = run;
@@ -3015,7 +2985,8 @@ function bind() {
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode;
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
-    on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; campTab = "expedition"; campOffers = null; campQuest = null; });
+    on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; campTab = "expedition"; campRoom = null; resetCampWalk(); campOffers = null; campQuest = null; });
+    on("[data-closeroom]", () => { campRoom = null; });
     on("[data-campback]", () => { camp = null; kitPick = null; });
     on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; plateArmed = false; });
     on("[data-learn]", el => { const err = learn(meta, el.dataset.learn!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });

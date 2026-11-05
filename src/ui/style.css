@@ -2126,3 +2126,13 @@ button.continue:active { transform: translateY(2px); box-shadow: inset 0 1px 0 r
 .tree-pop .tp-orb { width: 72px; height: 72px; margin: 4px auto 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 800 1.3rem/1 Georgia, serif; color: #a8916c;
   background: radial-gradient(circle at 40% 35%, #3a2a1c, #150d07 75%); border: 3px solid #5a4028; }
 .tree-pop .tp-orb.has { color: #ffe2a0; border-color: #c49a5a; box-shadow: 0 0 14px rgba(226,184,102,.45); }
+
+/* ---------- The walkable Camp ---------- */
+.camp-walk .camp-inner { display: flex; flex-direction: column; height: 100%; }
+.camp-map { position: relative; flex: 1; min-height: 0; margin-top: 4px; }
+.camp-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; touch-action: manipulation; }
+.camp-room { z-index: 30; }
+.camp-room .grit-body { padding-bottom: 6px; }
+.camp-room-body { color: #ead7b3; }
+.camp-room-body > p { margin: 6px 4px; }
+.camp-room .mer-leave { align-self: center; }
