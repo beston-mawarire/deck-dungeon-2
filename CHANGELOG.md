@@ -9,6 +9,14 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.77.1
+- **A new inventory for the Crawl,** a full page in the dungeon's colours:
+  - **Top:** your stats (HP, Damage, Armor, Dodge, Crit, level), your Gold, materials and potions, and any curses.
+  - **Middle:** your hero in the middle, with your equipped gear (names only) to its left.
+  - **Detail block:** it stays empty until you tap an item, then shows its full details with Equip or Take it off.
+  - **Backpack:** your backpack runs along the bottom as a row of names.
+  - **Tabs:** Stats, Spoils, Aspects and Extras are still there as tabs.
+
 ## 1.77.0
 - **Real art:** the Crawl's map and fights now use 0x72's 16×16 DungeonTileset II (CC0). It brings stone floors and brick walls (warmed toward brown), animated heroes and monsters, chests and the Merchant.
   - Every foe on the map is the monster you'll fight.

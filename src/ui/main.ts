@@ -1626,7 +1626,7 @@ function talismanHtml(r: Run, inCombat: boolean) {
     ${bag.length ? bag.map(sg => card(sg, `<button class="small primary" data-sigon="${sg.uid}">Wear</button><button class="small take-scrap" data-sigscrap="${sg.uid}">Scrap</button>`)).join("") : `<p class="sub">No sigils yet. Elites, Champions, bosses and chests sometimes carry them.</p>`}`;
 }
 
-function bag(r: Run) {
+function bag(r: Run, bodyOnly = false) {
   const h = r.hero;
   const inCombat = r.scene.t === "combat";
   const slotName: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket 1", trinket2: "Trinket 2", trinket3: "Trinket 3 ★" };
@@ -1746,12 +1746,54 @@ function bag(r: Run) {
       ${talentSub === "talents" ? list(h.talents, "talent-line")
         : `${nCurses ? list(h.curses, "curse-line") : `<p class="sub">You carry no curses. Shrines, cursing foes and dark magic can lay them on you, and only something holy can lift them.</p>`}`}`
     : extras;
+  if (bodyOnly) return body;
   return `<div class="overlay bag-overlay ${legendSet ? "legend-set" : ""}"><div class="inner">
     ${legendSet ? `<div class="legend-banner">★ Every piece you wear is a Legend ★</div>` : ""}
     <div class="row"><h1 class="grow">Inventory <span class="bag-class">· ${ORIGIN_ICON[h.origin]} ${esc(ORIGINS[h.origin].name)} · Lv ${h.level}</span></h1><button class="closebtn" data-closebag>✕ Close</button></div>
     <div class="bag-tabs" role="tablist">${tabs.map(([id, label, badge]) => `<button class="bag-tab ${bagTab === id ? "active" : ""}" data-bagtab="${id}" role="tab" aria-selected="${bagTab === id}"><span class="bt-ic">${label.split(" ")[0]}${badge}${fresh.has(id) ? `<b class="newdot" title="Something new"></b>` : ""}</span><span class="bt-lb">${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
     <div class="bag-body">${body}</div>
     <p class="version">${VERSION}</p>
+  </div></div>`;
+}
+
+/** The Crawl's inventory: a full page in the dungeon's colours. Stats along the top; your hero in the middle, your equipped
+ *  gear (names only) to the left, the tapped item's full details to the right; your backpack below. */
+let invPick: { k: "eq"; slot: EquipSlot } | { k: "bp"; uid: number } | null = null;
+const SLOT_SHORT: Record<EquipSlot, string> = { main: "Main hand", off: "Off-hand", armour: "Armour", trinket1: "Trinket", trinket2: "Trinket", trinket3: "Trinket ★" };
+function crawlBag(r: Run) {
+  const h = r.hero, f = h.f;
+  const inCombat = r.scene.t === "combat";
+  const legendSet = false;
+  void legendSet;
+  const curses = Object.entries(h.curses).map(([id, n]) => `<span class="inv-curse" title="${esc(getItem(id).text)}">🕯️ ${esc(getItem(id).name)}${n > 1 ? ` ×${n}` : ""}</span>`).join("");
+  const top = `<div class="inv-top">
+      <div class="inv-stats"><span>❤️ <b>${Math.max(0, f.hp)}</b>/${f.maxHp}</span><span>⚔️ <b>${f.damage}</b>${f.offDamage !== undefined ? `+${f.offDamage}` : ""}</span><span>🛡️ <b>${armorOf(f)}</b></span><span>💨 <b>${Math.round(f.dodge ?? 0)}%</b></span><span>🎯 <b>${Math.round(f.critChance ?? 0)}%</b></span><span>Lv <b>${h.level}</b></span></div>
+      <div class="inv-stats"><span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span>${h.azure ? `<span>💠 <b>${h.azure}</b></span>` : ""}${h.orilium ? `<span>🔶 <b>${h.orilium}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}<span>🧪 <b>${h.potions}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}<span>📜 <b>${h.scrolls}</b></span></div>
+      ${curses ? `<div class="inv-curses">${curses}</div>` : ""}
+    </div>`;
+  const tabs: [BagTab, string][] = [["gear", "⚔️ Gear"], ["stats", "📊 Stats"], ["relics", "💎 Spoils"], ["talents", "🧿 Aspects"], ["extras", "✨ Extras"]];
+  let body = "";
+  if (bagTab === "gear") {
+    const picked = invPick?.k === "eq" ? h.equip[invPick.slot] : invPick?.k === "bp" ? h.backpack.find(i => i.uid === (invPick as { uid: number }).uid) : undefined;
+    const slots = openSlots(h).map(sl => { const it = h.equip[sl]; const on = invPick?.k === "eq" && invPick.slot === sl;
+      return `<button class="inv-slot ${it ? `r-${it.rarity}` : "empty"} ${on ? "on" : ""}" data-invpick="eq:${sl}"><span>${SLOT_SHORT[sl]}</span><b>${it ? esc(itemName(it)) : "Empty"}</b></button>`; }).join("");
+    const detail = !picked ? `<div class="inv-empty"><span>🔍</span><p>Tap an item to see it here.</p></div>`
+      : invPick?.k === "eq" ? itemCard(picked, inCombat ? "" : `<button class="small" data-unequip="${(invPick as { slot: EquipSlot }).slot}">Take it off</button>${revealBtn(r, picked)}`)
+      : itemCard(picked, inCombat ? "" : `${slotsFor(picked, h).map(sl => `<button class="small primary" data-equip="${picked.uid}" data-slot="${sl}">Equip${slotsFor(picked, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, picked)}`, !inCombat);
+    const pack = h.backpack.map(it => `<button class="mer-chip ${invPick?.k === "bp" && invPick.uid === it.uid ? "on" : ""}" data-invpick="bp:${it.uid}"><b style="color:${RARITY_INK[it.rarity] ?? "#e9d6b0"}">${esc(itemName(it))}</b><span>${esc(itemRarity(it))}${it.reqLevel && h.level < it.reqLevel ? ` · 🔒 Lv ${it.reqLevel}` : ""}</span></button>`).join("");
+    const hk = CLASS_SPRITE[h.origin];
+    body = `${inCombat ? `<p class="sub center">You can look, but you can't change gear mid-fight.</p>` : ""}
+      <div class="inv-main">
+        <div class="inv-slots">${slots}</div>
+        <div class="inv-hero">${hk && hasSprite(hk) ? spriteHtml(hk, 6) : `<span class="inv-emoji">${ORIGIN_ICON[h.origin]}</span>`}<b>${esc(ORIGINS[h.origin].name)}</b></div>
+        <div class="inv-detail">${detail}</div>
+      </div>
+      <div class="mer-panel inv-pack"><div class="mer-label">Backpack ${h.backpack.length}/${packSize(h)}</div><div class="mer-list">${pack || `<span class="mer-none">Empty.</span>`}</div></div>`;
+  } else body = `<div class="inv-other">${bag(r, true)}</div>`;
+  return `<div class="cb-screen inv-screen"><div class="mer-inner inv-inner">
+    ${top}
+    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}">${label}</button>`).join("")}</div>
+    <div class="inv-body">${body}</div>
   </div></div>`;
 }
 
@@ -2485,7 +2527,7 @@ function render2() {
   const crawlFight = s.t === "combat" && !!r.gridMode;
   const crawlShop = s.t === "shop" && !!r.gridMode;
   document.body.classList.toggle("crawl-on", crawlView || crawlFight || crawlShop);
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, msg, noteBad && !!note) : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? bag(r) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, msg, noteBad && !!note) : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
   bind();
   if (s.t === "map" && r.gridMode) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => thingInfo(r, room).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never) }); }
   else stopWalk();
@@ -2939,6 +2981,7 @@ function bind() {
   on("[data-gwalk]", el => { walkToThing(Number(el.dataset.gwalk)); });
   on("[data-gunsel]", () => { if (r.grid) r.grid.sel = undefined; });
   on("[data-potdrawer]", () => { potDrawer = !potDrawer; });
+  on("[data-invpick]", el => { const [k, v] = el.dataset.invpick!.split(":"); invPick = k === "eq" ? { k: "eq", slot: v as EquipSlot } : { k: "bp", uid: Number(v) }; });
   on("[data-mpick]", el => { const [k, v] = el.dataset.mpick!.split(":"); merPick = k === "s" ? { k: "stock", i: Number(v) } : { k: "own", uid: Number(v) }; sellArmed = null; });
   on("[data-minv]", el => { merInv = el.dataset.minv as typeof merInv; merPick = merPick?.k === "own" ? null : merPick; sellArmed = null; });
   on("[data-potnote]", el => { say(el.dataset.potnote!, false); });
@@ -3004,8 +3047,8 @@ function bind() {
   on("[data-event]", el => chooseEvent(r, Number(el.dataset.event)));
   on("[data-newrun]", () => { clearSave(); camp = r.mode === "campaign" || r.mode === "endless" ? r.hero.origin : null; campTab = "expedition"; campOffers = null; campQuest = null; view = "title"; run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
   on("[data-endless]", () => { if (run) { run.submitted = false; run.lbDone = false; run.endRecord = undefined; } lbResult = null; continueEndless(r); recorded = null; });
-  on("[data-unequip]", el => say(unequip(r.hero, el.dataset.unequip as EquipSlot)));
-  on("[data-equip]", el => { const it = r.hero.backpack.find(i => i.uid === Number(el.dataset.equip)); if (it) say(equipItem(r.hero, it, el.dataset.slot as EquipSlot)); });
+  on("[data-unequip]", el => { const sl = el.dataset.unequip as EquipSlot, uid = r.hero.equip[sl]?.uid; const err = unequip(r.hero, sl); say(err); if (!err && uid !== undefined) { invPick = { k: "bp", uid }; sfx("equip"); } });
+  on("[data-equip]", el => { const uid = Number(el.dataset.equip); const it = r.hero.backpack.find(i => i.uid === uid); if (!it) return; const err = equipItem(r.hero, it, el.dataset.slot as EquipSlot); say(err); if (!err) { const sl = EQUIP_SLOTS.find(k => r.hero.equip[k]?.uid === uid); if (sl) invPick = { k: "eq", slot: sl }; sfx("equip"); } });
   on("[data-forgescrap]", el => { const u = Number(el.dataset.forgescrap); if (worn(u)) forgeAsk = { kind: "scrap", uid: u }; else doScrap(u); });
   on("[data-salvage]", el => { const before = materials(r.hero); const n = salvage(r.hero, Number(el.dataset.salvage)); say(`+${n} Scrap${salvageNote(before, r.hero)}`, false); });
   on("[data-reveal]", el => { const err = reveal(r.hero, Number(el.dataset.reveal)); say(err ?? "The Legendary reveals its true power!", !!err); if (!err) celebrate("legendary", "REVEALED"); });
