@@ -83,10 +83,13 @@ function drawWall(ctx: CanvasRenderingContext2D, m: FloorMap, x: number, y: numb
     const floorAt = (dx: number, dy: number) => isFloor(m, x + dx, y + dy);
     if (floorAt(0, 1)) { drawTile(ctx, hash(x, y, 3) < 0.08 ? "wall_hole_1" : "wall_mid", sx, sy, ts); }
     else {
-      ctx.fillStyle = "#21160f";
+      // The top of the wall: dark stone with a pale rim where it meets the floor, so the edge reads clearly.
+      ctx.fillStyle = "#2b221b";
       ctx.fillRect(sx, sy, ts + 0.5, ts + 0.5);
+      ctx.fillStyle = "rgba(255,240,210,.05)";
+      if (hash(x, y, 4) < 0.5) ctx.fillRect(sx + ts * 0.1, sy + ts * 0.15, ts * 0.5, ts * 0.06);
       // A rim of stone where it meets the floor on a side or above.
-      ctx.fillStyle = "#5a4330";
+      ctx.fillStyle = "#9a8670";
       const e = Math.max(2, ts / 10);
       if (floorAt(-1, 0)) ctx.fillRect(sx, sy, e, ts + 0.5);
       if (floorAt(1, 0)) ctx.fillRect(sx + ts - e, sy, e, ts + 0.5);
@@ -227,7 +230,7 @@ export function drawCrawl() {
   ctx.textBaseline = "middle";
   const emoji = (px: number) => `${Math.round(px)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif`;
   m.things.forEach((t, k) => {
-    if (t.done || !isSeenTile(m, t.x, t.y)) return;
+    if ((t.done && !t.opened) || !isSeenTile(m, t.x, t.y)) return;
     const cx = ox + (t.x + 0.5) * ts, cy = oy + (t.y + 0.5) * ts;
     if (cx < -ts || cy < -ts || cx > W + ts || cy > H + ts) return;
     // A cracked wall looks like wall, with a few cracks if you look closely; a locked door is a door.
@@ -246,7 +249,7 @@ export function drawCrawl() {
     if (t.room === "trapdoor") drawTrapdoor(ctx, cx, cy, ts, m.depth === LAYER_FLOORS - 1);
     else {
       // A sprite where we have one (the foe itself, a chest, the Merchant); an emoji otherwise.
-      const sk = t.foe ? foeSprite(t.foe, undefined, false) : THING_SPRITE[t.room];
+      const sk = t.foe ? foeSprite(t.foe, undefined, false) : t.opened && THING_SPRITE[t.room] ? `${THING_SPRITE[t.room]}_open` : THING_SPRITE[t.room];
       const scale = ts / 16;
       const big = sk && ["ogre", "big_demon", "big_zombie"].includes(sk);
       if (!sk || !hasSprite(sk) || !drawSprite(ctx, sk, cx, cy + ts * 0.42, big ? scale * 0.7 : scale)) {

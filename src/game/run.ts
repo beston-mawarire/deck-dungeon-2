@@ -26,7 +26,7 @@ import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type
 import { affixById, rescaleAffixes } from "./affixpool";
 import { MATS, matOfFamily, PLANTS, type Mat, type Plant } from "./camp";
 import { ATTR_PER_LEVEL } from "../data/attributes";
-import { type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, type Hazard, idx, isFloor, isSeenTile, LAYER_FLOORS, layerOf, look, POOL_STEPS, SPIKE_DMG, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
+import { openedAt, type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, type Hazard, idx, isFloor, isSeenTile, LAYER_FLOORS, layerOf, look, POOL_STEPS, SPIKE_DMG, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -846,6 +846,7 @@ export function gridStep(run: Run, x: number, y: number): { ok: true; entered: b
   const m = run.grid;
   if (!m || run.scene.t !== "map") return { ok: false, why: "" };
   if (Math.abs(x - m.px) + Math.abs(y - m.py) !== 1 || !isFloor(m, x, y)) return { ok: false, why: "You can't go that way." };
+  if (openedAt(m, x, y)) return { ok: false, why: "" };
   const t = thingAt(m, x, y);
   // A locked door: a Skeleton Key opens it; without one, you stay where you are.
   if (t >= 0 && m.things[t].room === "locked") {
@@ -878,6 +879,9 @@ function gridMeet(run: Run, t: number, seen: number[]): { ok: true; entered: boo
   if (m.things[t].room === "urn") { smashUrn(run, t); m.px = m.bx!; m.py = m.by!; return { ok: true, entered: false, seen }; }
   if (m.things[t].room === "bosschest") {
     m.things[t].done = true;
+    m.things[t].opened = true;
+    // You stay where you stood: the chest's still there, open.
+    if (m.bx !== undefined && m.by !== undefined) { m.px = m.bx; m.py = m.by; }
     if (run.bossChest) { run.scene = run.bossChest; run.bossChest = undefined; }
     return { ok: true, entered: true, seen };
   }
@@ -918,6 +922,9 @@ export function seedDrop(run: Run): Plant {
   return pl;
 }
 
+/** How often a Champion carries a seed for the Garden. */
+export const CHAMPION_SEED = 0.2;
+
 /** Urns: mostly a few coins, now and then a Mana Potion, very rarely a Healing Potion. Smashed, they're gone. */
 export const URN_MANA = 0.03, URN_HEAL = 0.01;
 export function smashUrn(run: Run, t: number) {
@@ -927,7 +934,6 @@ export function smashUrn(run: Run, t: number) {
   if (x < URN_HEAL && h.potions < potionCap(h)) { gainPotions(h, 1); run.message = "🏺 The urn shatters. A Healing Potion rolls out! 🧪"; return; }
   if (x < URN_HEAL + URN_MANA && gainManaPotions(h, 1)) { run.message = "🏺 The urn shatters. A Mana Potion! 🔷"; return; }
   if (x < 0.07) { const t = randomThrow(run); if (gainThrow(run, t)) { run.message = `🏺 The urn shatters. Inside: ${THROW_INFO[t].icon} a ${THROW_INFO[t].name}!`; return; } }
-  if (x < 0.13) { const pl = seedDrop(run); run.message = `🏺 The urn shatters. A seed inside: ${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}, for the Camp's Garden.`; return; }
   if (x < 0.68) { const g = 1 + Math.floor(run.rng() * (2 + run.floor)); h.f.gold += g; run.message = `🏺 The urn shatters: ${g} Gold.`; return; }
   run.message = "🏺 The urn shatters. Nothing but dust.";
 }
@@ -967,6 +973,9 @@ export function descend(run: Run) {
   run.message = `🕳️ You drop through the trapdoor to floor ${m.depth + 1}. There's no climbing back up.`;
 }
 
+/** Chests: once opened they stay on the map, empty. */
+export const CHEST_ROOMS = ["wooden", "iron", "vault", "secret", "crimson_vault", "bosschest"];
+
 /** The thing you stepped onto is met (called as its room opens). */
 function gridArrive(run: Run) {
   const m = run.grid;
@@ -977,6 +986,8 @@ function gridArrive(run: Run) {
   // A Merchant stays where it is (you step back off its tile); everything else is used up.
   if (t.room === "shop") { if (m.bx !== undefined && m.by !== undefined) { m.px = m.bx; m.py = m.by; } return; }
   t.done = true;
+  // Chests stay where they were, open; you step back off them.
+  if (CHEST_ROOMS.includes(t.room)) { t.opened = true; if (m.bx !== undefined && m.by !== undefined) { m.px = m.bx; m.py = m.by; } }
   if (t.room !== "boss") m.explored++;
 }
 
@@ -1062,8 +1073,7 @@ function enterRoom(run: Run, room: RoomType) {
       setGenLuck(genLuck(run));
       const sg = rollSigilDrop(run, 0.06, 0.1);
       const woodOdds = useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden;
-      if (run.gridMode && run.rng() < 0.3) { const pl = seedDrop(run); run.message = `Tucked in the chest: ${PLANTS[pl].seedIcon} a ${PLANTS[pl].seed}, for the Camp's Garden.`; }
-      else if (run.gridMode && run.rng() < 0.15) { const t = randomThrow(run); if (gainThrow(run, t)) run.message = `Tucked in the chest: ${THROW_INFO[t].icon} a ${THROW_INFO[t].name}.`; }
+      if (run.gridMode && run.rng() < 0.15) { const t = randomThrow(run); if (gainThrow(run, t)) run.message = `Also inside: ${THROW_INFO[t].icon} a ${THROW_INFO[t].name}.`; }
       run.scene = { t: "loot", title: "Wooden Chest", items: [dropItem(run, woodOdds)], gold: run.gridMode ? 0 : (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
       return;
     }
@@ -1073,6 +1083,8 @@ function enterRoom(run: Run, room: RoomType) {
       const key = (h.relics["skeleton_key"] ?? 0) > 0;
       if (!key && run.rng() < 1 / 6) {
         run.message = "The chest bites! It's a Mimic.";
+        // A Mimic isn't a chest: once it's dealt with, nothing stays behind.
+        if (run.gridMode && run.grid?.last !== undefined) run.grid.things[run.grid.last].opened = undefined;
         // On a Crawl layer's first floor, a smaller one.
         return fight(run, run.gridMode && run.grid?.depth === 1 ? "normal" : "elite", "mimic");
       }
@@ -1730,6 +1742,8 @@ function afterFight(run: Run) {
     if (cm && cn) { campGain(run, cm, cn); mats += `${mats ? " · " : ""}+${cn} ${MATS[cm].icon} ${MATS[cm].name}`; }
     // Scrolls of Knowledge, for the Camp's Knowledge Table: Champions sometimes carry one.
     if (rank === "champion" && run.rng() < 0.25) { campGain(run, null, 0, 0, 1); mats += `${mats ? " · " : ""}+1 📜 Scroll of Knowledge`; }
+    // Seeds for the Camp's Garden: only Champions carry them, and not often.
+    if (rank === "champion" && run.rng() < CHAMPION_SEED) { const pl = seedDrop(run); mats += `${mats ? " · " : ""}${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}`; }
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (relic) offerRelic(run, relic, rank === "elite" && !then ? 0.25 : 0.5, rank === "elite" && !then ? 1 : 2);

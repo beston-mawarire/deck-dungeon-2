@@ -37,6 +37,8 @@ export interface MapThing {
   rerolls?: number;
   /** A foe that stands in the way of something (the trapdoor, a chest, a landmark): you must fight it to get past. */
   guard?: boolean;
+  /** A chest that's been opened: it stays where it was (empty), and you can't walk through it. */
+  opened?: boolean;
 }
 
 export interface FloorMap {
@@ -86,6 +88,8 @@ export const idx = (m: { w: number }, x: number, y: number) => y * m.w + x;
 export const inside = (m: { w: number; h: number }, x: number, y: number) => x >= 0 && y >= 0 && x < m.w && y < m.h;
 export const isFloor = (m: FloorMap, x: number, y: number) => inside(m, x, y) && m.tiles[idx(m, x, y)] === 1;
 export const thingAt = (m: FloorMap, x: number, y: number) => m.things.findIndex(t => t.x === x && t.y === y && !t.done);
+/** An opened chest stands here (it blocks the way). */
+export const openedAt = (m: FloorMap, x: number, y: number) => m.things.some(t => t.opened && t.x === x && t.y === y);
 export const isSeenTile = (m: FloorMap, x: number, y: number) => inside(m, x, y) && m.seen[idx(m, x, y)] === 1;
 
 const center = (r: Rect) => ({ x: r.x + Math.floor(r.w / 2), y: r.y + Math.floor(r.h / 2) });
@@ -296,6 +300,9 @@ function pathVia(m: FloorMap, x: number, y: number, through: boolean, safe: bool
   prev[start] = -1;
   const q = [start];
   const blocked = through ? new Set<number>() : new Set(m.things.filter(t => !t.done).map(t => idx(m, t.x, t.y)));
+  // Opened chests are always in the way.
+  const solid = new Set(m.things.filter(t => t.opened).map(t => idx(m, t.x, t.y)));
+  if (solid.has(goal)) return null;
   for (let k = 0; k < q.length; k++) {
     const i = q[k];
     if (i === goal) break;
@@ -304,7 +311,7 @@ function pathVia(m: FloorMap, x: number, y: number, through: boolean, safe: bool
       const nx = cx + dx, ny = cy + dy;
       if (!isFloor(m, nx, ny) || !isSeenTile(m, nx, ny)) continue;
       const j = idx(m, nx, ny);
-      if (prev[j] !== -2 || (blocked.has(j) && j !== goal) || (safe && j !== goal && m.haz?.[j])) continue;
+      if (prev[j] !== -2 || solid.has(j) || (blocked.has(j) && j !== goal) || (safe && j !== goal && m.haz?.[j])) continue;
       prev[j] = i;
       q.push(j);
     }
@@ -320,7 +327,7 @@ export function pathToward(m: FloorMap, x: number, y: number): [number, number][
   // Around anything in the way if you can; otherwise straight at it (the walk stops in front of whatever blocks it).
   const direct = pathTo(m, x, y) ?? pathTo(m, x, y, true);
   if (direct) return direct;
-  const blocked = new Set(m.things.filter(t => !t.done).map(t => idx(m, t.x, t.y)));
+  const blocked = new Set(m.things.filter(t => !t.done || t.opened).map(t => idx(m, t.x, t.y)));
   const seenFloor = { w: m.w, h: m.h, tiles: m.tiles.map((t, i) => (t === 1 && m.seen[i] && !blocked.has(i) ? 1 : 0)) as Tile[] };
   const d = walkDistances(seenFloor, m.px, m.py);
   const edge = (i: number) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const x = (i % m.w) + dx, y = Math.floor(i / m.w) + dy; return inside(m, x, y) && !m.seen[idx(m, x, y)]; });

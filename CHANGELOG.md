@@ -9,6 +9,14 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.80.1
+- Chests are the tileset's chests in every popup, in their own metals: wood, iron, gold for Vaults, violet for secret chests, red for a boss's hoard. Opened chests stay where they were, open and empty.
+- A chest's popup shows the chest and its name in a frame.
+- Seeds for the Garden now come only from Champions, and not often (no more seeds in chests or urns).
+- Buttons on popups, events, the Merchant and the framed screens are dark wood and old bronze.
+- Walls are paler stone with a lighter rim, so they read apart from the floor.
+- Pages and popups grow on bigger screens. The Attributes tab reads "Attr" on phones.
+
 ## 1.80.0
 - Attributes replace talents in the Crawl: Strength, Agility, Intellect, Faith, Vitality and Fortune. Each level-up gives 2 points, spent in the inventory's new Attributes tab, where every attribute shows what it gives now and what the next point adds. Your class's favoured attributes are half as strong again.
 - More things to throw: Fire Flasks, Frost Flasks, Throwing Knives, Holy Water and Weighted Nets join the Bomb and the Smoke Bomb.

@@ -32,7 +32,7 @@ import { LAYER_FLOORS } from "../game/grid";
 import { isThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, FAVOURED } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
-import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml } from "./sprites";
+import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, THING_SPRITE } from "./sprites";
 import { spendAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
@@ -947,7 +947,10 @@ function crawlScreen(r: Run, msg: string[], bad: boolean) {
     if (sel === undefined) return "";
     const room = m.things[sel].room;
     const info = thingInfo(r, room);
-    return `<div class="cz cz-pick ${roomClass(room)}"><button class="cz-x" data-gunsel aria-label="Close">✕</button><div class="cz-pick-head"><span class="ic">${info.icon}</span><span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span></span></div>
+    const th = m.things[sel];
+    const sk = th.foe ? foeSprite(th.foe, undefined, false) : THING_SPRITE[room];
+    const ic = sk && hasSprite(sk) ? spriteHtml(sk, 3, "pick-spr") : info.icon;
+    return `<div class="cz cz-pick ${roomClass(room)}"><button class="cz-x" data-gunsel aria-label="Close">✕</button><div class="cz-pick-head"><span class="ic">${ic}</span><span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span></span></div>
       <button class="primary cz-act" data-gwalk="${sel}">${crawlAct(room, r)}</button></div>`;
   })();
   const q = r.bounty;
@@ -1066,6 +1069,14 @@ const takeButtons = (it: GearItem) => lootBtns(it, false);
 /** Sigils found: a slim glowing strip with the reward's own name, not a popup. */
 const sigilFound = (names?: string[]) => (names ?? []).map(n => `<div class="sigil-found"><b>🔮 Sigil found</b><span class="sf-name">${esc(n)}</span><span class="sf-where">In Inventory › Gear › Sigils</span></div>`).join("");
 
+/** A chest popup's heading: the chest itself (from the tileset, open) above its name in a frame. */
+const CHEST_TITLE: [RegExp, string][] = [[/^Wooden Chest/, "chest_wood_open"], [/^Iron Chest/, "chest_iron_open"], [/^Secret Chest/, "chest_arcane_open"], [/hoard/i, "chest_crimson_open"], [/^Guarded Vault|Resplendent/, "chest_gold_open"]];
+function chestHead(title: string): string | null {
+  const hit = CHEST_TITLE.find(([re]) => re.test(title));
+  if (!hit || !hasSprite(hit[1])) return null;
+  return `<div class="chest-head">${spriteHtml(hit[1], 5, "chest-spr")}<h2 class="chest-name">${esc(title.replace(/\s*—\s*choose one$/i, ""))}</h2></div>`;
+}
+
 function lootScene(r: Run) {
   if (r.scene.t !== "loot") return "";
   const s = r.scene;
@@ -1078,7 +1089,7 @@ function lootScene(r: Run) {
   const body = `${key}${extras.length ? `<div class="panel">${extras.map(x => `<p>${esc(x)}</p>`).join("")}</div>` : ""}
     <div class="cards" style="margin-top:10px">${s.items.map(it => itemCard(it, takeButtons(it), true)).join("")}</div>
     <div class="row" style="margin-top:12px"><button class="${s.items.length ? "take-pack take-none" : "primary"}" data-finish>${s.items.length ? "🚫 Take nothing" : "Continue"}${s.then === "resplendent" ? " → open the Resplendent chest" : ""}</button></div>`;
-  return victory ? `<div class="victory"><div class="victory-title">${esc(s.title === "Victory" ? "VICTORY" : s.title.toUpperCase())}</div>${body}</div>` : `<h2>${esc(s.title)}</h2>${body}`;
+  return victory ? `<div class="victory"><div class="victory-title">${esc(s.title === "Victory" ? "VICTORY" : s.title.toUpperCase())}</div>${body}</div>` : `${(r.gridMode && chestHead(s.title)) || `<h2>${esc(s.title)}</h2>`}${body}`;
 }
 
 function pickScene(r: Run) {
@@ -1087,7 +1098,7 @@ function pickScene(r: Run) {
   const ks = s.keepsake ? getItem(s.keepsake) : null;
   const m = /^(.*?)(!?)\s*(?:—\s*)?choose one$/i.exec(s.title);
   const title = `<h2 class="pick-title"><span>${esc(m ? m[1] + m[2] : s.title)}</span>${m ? "<b>Choose one reward</b>" : ""}</h2>`;
-  return `${title}${sigilFound(s.sigils)}
+  return `${(r.gridMode && chestHead(s.title)) || title}${sigilFound(s.sigils)}
     ${ks ? `<div class="item keepsake"><div class="meta">Keepsake · one at a time${r.hero.keepsake ? ` · replaces ${esc(getItem(r.hero.keepsake).name)}` : ""}</div><div class="nm">🕯️ ${esc(ks.name)}</div><p>${esc(ks.text)}.</p><div class="row"><button class="small primary" data-keepsake>Take the Keepsake</button></div><p class="sub">Free: it doesn't count as your pick.</p></div>` : ""}
     ${s.items.length > 1 ? `<div class="toast pick-note">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
     <div class="cards">${s.items.map(it => itemCard(it, s.items.length > 1 ? pickButtons(it) : takeButtons(it), true)).join("")}</div>
@@ -1489,7 +1500,8 @@ function confirmScene(r: Run) {
     return `<h2>${info.icon} ${info.name}</h2><div class="panel crimson-foe"><p>${esc(info.text)}</p><p class="sub">Crimson bosses are far harder than a floor boss. Win and you choose between a Crimson item and two boss finds. Lose and <b>your run is over</b>. You have ${r.hero.crimsonKeys} key${r.hero.crimsonKeys === 1 ? "" : "s"}.</p></div>
     <div class="row" style="margin-top:12px"><button class="primary crimson-btn" data-risk="yes">Turn the key</button><button data-risk="no">Not yet</button></div>`;
   }
-  return `<h2>${info.icon} ${info.name}</h2><div class="panel"><p>${esc(info.text)}</p><p class="sub">A Resplendent chest holds three face-down cards. Pick one; the rest are lost. Any of them could be Legendary.</p></div>
+  const head = r.gridMode && r.scene.room === "vault" ? chestHead(info.name) : null;
+  return `${head ?? `<h2>${info.icon} ${info.name}</h2>`}<div class="panel"><p>${esc(info.text)}</p><p class="sub">A Resplendent chest holds three face-down cards. Pick one; the rest are lost. Any of them could be Legendary.</p></div>
   <div class="row" style="margin-top:12px"><button class="primary" data-risk="yes">Accept the risk</button><button data-risk="no">Walk away</button></div>`;
 }
 
@@ -1839,7 +1851,7 @@ function crawlBag(r: Run) {
   return `<div class="cb-screen inv-screen"><div class="mer-inner inv-inner">
     ${top}
     <div class="inv-body">${body}</div>
-    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}"><i>${label.split(" ")[0]}${id === "attrs" && pts ? `<b class="tab-badge">${pts}</b>` : ""}</i><span>${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
+    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}"><i>${label.split(" ")[0]}${id === "attrs" && pts ? `<b class="tab-badge">${pts}</b>` : ""}</i><span>${id === "attrs" ? `<span class="lb-long">Attributes</span><span class="lb-short">Attr</span>` : label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
   </div></div>`;
 }
 
