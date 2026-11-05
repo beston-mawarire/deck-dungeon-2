@@ -10,7 +10,7 @@ const FIGHTS = ["fight", "elite", "champion", "unique", "nemesis", "goblin", "do
 function frontier(m: FloorMap): [number, number][] {
   const out: [number, number][] = [];
   for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
-    if (!isFloor(m, x, y) || !isSeenTile(m, x, y)) continue;
+    if (!isFloor(m, x, y) || !isSeenTile(m, x, y) || m.things.some(t => !t.done && t.x === x && t.y === y)) continue;
     if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => inside(m, x + dx, y + dy) && !m.seen[idx(m, x + dx, y + dy)])) out.push([x, y]);
   }
   return out;
@@ -23,6 +23,8 @@ export function crawlTarget(run: Run, rushAfter = 2): [number, number][] {
   const options: { p: [number, number][]; cost: number }[] = [];
   m.things.forEach(t => {
     if (t.done || !isSeenTile(m, t.x, t.y) || RISKY.includes(t.room)) return;
+    // A locked door is only worth walking to with a key.
+    if (t.room === "locked" && (run.hero.f.persist["skelKeys"] ?? 0) <= 0) return;
     // A Merchant stays put: one visit is enough for the bot.
     if (t.room === "shop" && t.stock) return;
     const p = pathTo(m, t.x, t.y) ?? pathTo(m, t.x, t.y, true);

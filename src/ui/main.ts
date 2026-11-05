@@ -917,8 +917,12 @@ function mountCamp() {
 const CAMP_QUEST_ROOMS = 3;
 
 /** What the action button on a picked thing says. */
-function crawlAct(room: string) {
+function crawlAct(room: string, r?: Run) {
   if (room === "trapdoor") return "🕳️ Descend";
+  if (room === "locked") return (r?.hero.f.persist["skelKeys"] ?? 0) > 0 ? "🗝️ Unlock" : "🔒 Try the door";
+  if (room === "crack") return "🧱 Push on it";
+  if (room === "oath") return "🩸 Approach the stone";
+  if (room === "secret") return "🧰 Open chest";
   if (["wooden", "iron", "crimson_vault", "bosschest"].includes(room)) return "🧰 Open chest";
   if (AUTO_ROOMS.includes(room) || ["vault", "unique", "goblin", "nemesis", "doppelganger", "crimson_elite"].includes(room)) return "⚔️ Fight";
   return "✋ Interact";
@@ -926,7 +930,9 @@ function crawlAct(room: string) {
 const TRAPDOOR_INFO = { icon: "🕳️", name: "Trapdoor", text: "A way down to the next floor. Once you drop, there's no climbing back up." };
 const URN_INFO = { icon: "🏺", name: "Urn", text: "An old clay urn. Smash it: there might be a coin or two inside." };
 const HOARD_INFO = { icon: "🧰", name: "The boss's hoard", text: "Everything the guardian of this layer was keeping. Open it before you go down." };
-const thingInfo = (r: Run, room: string) => (room === "trapdoor" ? TRAPDOOR_INFO : room === "urn" ? URN_INFO : room === "bosschest" ? HOARD_INFO : roomInfo(r, room as RoomType));
+const LOCKED_INFO = { icon: "🔒", name: "Locked Door", text: "Iron-bound and locked fast. Something is kept behind it. A Skeleton Key would open it." };
+const CRACK_INFO = { icon: "🧱", name: "Cracked Wall", text: "This stretch of wall is cracked, and a draught whistles through. It might give." };
+const thingInfo = (r: Run, room: string) => (room === "trapdoor" ? TRAPDOOR_INFO : room === "urn" ? URN_INFO : room === "bosschest" ? HOARD_INFO : room === "locked" ? LOCKED_INFO : room === "crack" ? CRACK_INFO : roomInfo(r, room as RoomType));
 
 /** The Crawl: the floor fills the screen (drawn by crawl.ts); the HUD sits over it in the corners. */
 function crawlScreen(r: Run, msg: string[], bad: boolean) {
@@ -939,7 +945,7 @@ function crawlScreen(r: Run, msg: string[], bad: boolean) {
     const room = m.things[sel].room;
     const info = thingInfo(r, room);
     return `<div class="cz cz-pick ${roomClass(room)}"><button class="cz-x" data-gunsel aria-label="Close">✕</button><div class="cz-pick-head"><span class="ic">${info.icon}</span><span><b>${esc(info.name)}</b><span class="sub">${esc(info.text)}</span></span></div>
-      <button class="primary cz-act" data-gwalk="${sel}">${crawlAct(room)}</button></div>`;
+      <button class="primary cz-act" data-gwalk="${sel}">${crawlAct(room, r)}</button></div>`;
   })();
   const q = r.bounty;
   const quests = q ? `<button class="cz-quest ${bountyProgress(h, q) >= q.target ? "done" : ""}" data-bounty>📋 <span>${esc(bountyText(q, h.origin))}</span> <b>${Math.min(q.target, bountyProgress(h, q))}/${q.target}</b></button>` : "";
@@ -948,6 +954,7 @@ function crawlScreen(r: Run, msg: string[], bad: boolean) {
     <div class="crawl-vignette"></div>
     <div class="cz cz-tl">${czBars(r)}</div>
     <div class="cz cz-tr">
+      <canvas id="minimap" class="cz-mini" aria-label="Map of what you've explored"></canvas>
       <div class="cz-layer">${layer}</div>
       <div class="cz-floor">${m.depth === 0 ? "Dungeon Entrance" : m.depth === TREASURE_DEPTH ? "The Hoard" : `Floor ${m.depth}`}</div>
       ${quests}
@@ -1791,7 +1798,7 @@ function crawlBag(r: Run) {
       : invPick?.k === "eq" ? itemCard(picked, inCombat ? "" : `<button class="small" data-unequip="${(invPick as { slot: EquipSlot }).slot}">Take it off</button>${revealBtn(r, picked)}`)
       : itemCard(picked, inCombat ? "" : `${slotsFor(picked, h).map(sl => `<button class="small primary" data-equip="${picked.uid}" data-slot="${sl}">Equip${slotsFor(picked, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, picked)}`, !inCombat);
     // Materials and scrolls sit in the backpack too (they take no slot).
-    const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.orilium ?? 0, "🔶 Orilium"], [h.starmetal, "✴️ Starmetal"], [h.scrolls, "📜 Scroll of Revelation"]].filter(([n]) => (n as number) > 0)
+    const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.orilium ?? 0, "🔶 Orilium"], [h.starmetal, "✴️ Starmetal"], [h.scrolls, "📜 Scroll of Revelation"], [h.f.persist["skelKeys"] ?? 0, "🗝️ Skeleton Key"]].filter(([n]) => (n as number) > 0)
       .map(([n, l]) => `<span class="mer-chip mat"><b>${l}</b><span>×${n}</span></span>`).join("");
     const pack = mats + h.backpack.map(it => `<button class="mer-chip ${invPick?.k === "bp" && invPick.uid === it.uid ? "on" : ""}" data-invpick="bp:${it.uid}"><b style="color:${RARITY_INK[it.rarity] ?? "#e9d6b0"}">${esc(itemName(it))}</b><span>${esc(itemRarity(it))}${it.reqLevel && h.level < it.reqLevel ? ` · 🔒 Lv ${it.reqLevel}` : ""}</span></button>`).join("");
     const hk = CLASS_SPRITE[h.origin];
@@ -2549,7 +2556,7 @@ function render2() {
   document.body.classList.toggle("crawl-on", crawlView || crawlFight || crawlShop || crawlFrame);
   app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat({ icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && s.t === "forge" ? forgeAskPopup(r) : ""}`;
   bind();
-  if (crawlView) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => thingInfo(r, room).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never) }); }
+  if (crawlView) { crawlKeys(); mountCrawl(r, { render, say: (t, bad) => say(t, bad), icon: room => thingInfo(r, room).icon, hero: () => ORIGIN_ICON[r.hero.origin], sfx: n => sfx(n as never), hurt: () => { const el = document.querySelector(".cz-tl"); if (el) el.innerHTML = czBars(r); } }); }
   else stopWalk();
 }
 

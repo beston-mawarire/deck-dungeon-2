@@ -1,5 +1,5 @@
 // The Crawl (prototype): the floor drawn full-screen on a canvas, the camera on the player, point-and-click walking.
-import { idx, inSight, isFloor, isSeenTile, LAYER_FLOORS, pathToward, SIGHT, thingAt, type FloorMap } from "../game/grid";
+import { idx, inSight, isFloor, isSeenTile, LAYER_FLOORS, layerOf, pathToward, SIGHT, thingAt, type FloorMap } from "../game/grid";
 import { gridSelect, gridStep, type Run } from "../game/run";
 import { atlas, CLASS_SPRITE, drawSprite, drawTile, foeSprite, hasSprite, THING_SPRITE } from "./sprites";
 
@@ -14,6 +14,8 @@ export interface CrawlHooks {
   /** The player's marker. */
   hero: () => string;
   sfx: (name: string) => void;
+  /** You took damage on the floor (the HP bar needs to catch up). */
+  hurt?: () => void;
 }
 
 let hooks: CrawlHooks | null = null;
@@ -28,6 +30,10 @@ let raf = 0;
 /** The cached stone layer, and what it was drawn for. */
 let layer: HTMLCanvasElement | null = null;
 let layerKey = "";
+/** Damage numbers rising off you (spikes, lava, sludge). */
+let floats: { text: string; color: string; t0: number }[] = [];
+/** Each layer's look: the same stone, washed a different colour (none for the first). */
+const LAYER_TINT: (string | null)[] = [null, "rgba(70,110,50,.42)", "rgba(190,50,25,.55)", "rgba(60,95,135,.45)", "rgba(100,60,140,.45)"];
 
 /** Tile size on screen: close in, about eight tiles across the narrow side. */
 const tileSize = (w: number, h: number) => Math.max(40, Math.min(92, Math.min(w, h) / (Math.min(w, h) > 700 ? 10 : 8)));
@@ -165,16 +171,18 @@ export function drawCrawl() {
     lc.fillStyle = "#0b0806";
     lc.fillRect(0, 0, W, H);
     const hx = Math.ceil(W / ts / 2) + 1, hy = Math.ceil(H / ts / 2) + 1;
-    for (let y = Math.floor(c.y) - hy; y <= Math.ceil(c.y) + hy; y++) for (let x = Math.floor(c.x) - hx; x <= Math.ceil(c.x) + hx; x++) {
-      if (!isSeenTile(m, x, y)) continue;
-      const i = idx(m, x, y);
-      const sx = ox + x * ts, sy = oy + y * ts;
-      if (m.tiles[i] === 1) drawFloor(lc, x, y, sx, sy, ts); else drawWall(lc, m, x, y, sx, sy, ts);
-      // Torchlight: what's in sight is lit, brighter close by; what you only remember sits in the gloom.
-      const d = Math.hypot(x - m.px, y - m.py);
-      lc.fillStyle = lit.has(i) ? `rgba(12,7,3,${Math.min(0.45, (d / (SIGHT + 1)) * 0.45)})` : "rgba(12,7,3,.68)";
-      lc.fillRect(sx, sy, ts + 0.5, ts + 0.5);
-    }
+    const each = (fn: (x: number, y: number, i: number, sx: number, sy: number) => void) => {
+      for (let y = Math.floor(c.y) - hy; y <= Math.ceil(c.y) + hy; y++) for (let x = Math.floor(c.x) - hx; x <= Math.ceil(c.x) + hx; x++) {
+        if (!isSeenTile(m, x, y)) continue;
+        fn(x, y, idx(m, x, y), ox + x * ts, oy + y * ts);
+      }
+    };
+    each((x, y, i, sx, sy) => { if (m.tiles[i] === 1) drawFloor(lc, x, y, sx, sy, ts); else drawWall(lc, m, x, y, sx, sy, ts); if (m.haz?.[i] === "spike") drawTile(lc, "floor_spikes", sx, sy, ts); });
+    // Each layer has its own colour of stone.
+    const tint = r.mode === "abyss" ? LAYER_TINT[4] : LAYER_TINT[layerOf(m.floor)];
+    if (tint) { lc.save(); lc.globalCompositeOperation = "color"; lc.fillStyle = tint; lc.fillRect(0, 0, W, H); lc.restore(); }
+    // Torchlight: what's in sight is lit, brighter close by; what you only remember sits in the gloom.
+    each((x, y, i, sx, sy) => { lc.fillStyle = gloom(m, lit, x, y); lc.fillRect(sx, sy, ts + 0.5, ts + 0.5); });
     if (target) { layerKey = key; ctx.drawImage(target, 0, 0, W, H); }
     else layerKey = "";
   }
@@ -202,6 +210,15 @@ export function drawCrawl() {
     ctx.fillStyle = fg;
     ctx.beginPath(); ctx.ellipse(cx, cy - fh * 0.35, ts * 0.09, fh * 0.75, 0, 0, Math.PI * 2); ctx.fill();
   }
+  // Pools of lava and sludge, bubbling.
+  if (m.haz) for (const k of Object.keys(m.haz)) {
+    const i = +k, kind = m.haz[i], x = i % m.w, y = Math.floor(i / m.w);
+    if (kind === "spike" || !isSeenTile(m, x, y)) continue;
+    const sx = ox + x * ts, sy = oy + y * ts;
+    if (sx < -ts || sy < -ts || sx > W || sy > H) continue;
+    drawPool(ctx, kind, x, y, sx, sy, ts, now);
+    ctx.fillStyle = gloom(m, lit, x, y); ctx.fillRect(sx, sy, ts + 0.5, ts + 0.5);
+  }
   // The planned walk.
   ctx.fillStyle = "rgba(255,214,120,.75)";
   for (const [x, y] of path) { ctx.beginPath(); ctx.arc(ox + (x + 0.5) * ts, oy + (y + 0.5) * ts, ts * 0.08, 0, Math.PI * 2); ctx.fill(); }
@@ -213,6 +230,15 @@ export function drawCrawl() {
     if (t.done || !isSeenTile(m, t.x, t.y)) return;
     const cx = ox + (t.x + 0.5) * ts, cy = oy + (t.y + 0.5) * ts;
     if (cx < -ts || cy < -ts || cx > W + ts || cy > H + ts) return;
+    // A cracked wall looks like wall, with a few cracks if you look closely; a locked door is a door.
+    if (t.room === "crack" || t.room === "locked") {
+      const sx = ox + t.x * ts, sy = oy + t.y * ts;
+      if (t.room === "crack") { drawWall(ctx, m, t.x, t.y, sx, sy, ts); drawCracks(ctx, sx, sy, ts); }
+      else { ctx.fillStyle = "#1b120b"; ctx.fillRect(sx, sy, ts + 0.5, ts + 0.5); if (!drawSprite(ctx, "doors_leaf_closed", cx, sy + ts, ts / 32)) { ctx.font = emoji(ts * 0.62); ctx.fillText("🔒", cx, cy); } }
+      ctx.fillStyle = gloom(m, lit, t.x, t.y); ctx.fillRect(sx, sy, ts + 0.5, ts + 0.5);
+      if (m.sel === k) { ctx.strokeStyle = "#ffd27a"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, ts * 0.47, 0, Math.PI * 2); ctx.stroke(); }
+      return;
+    }
     const on = lit.has(idx(m, t.x, t.y));
     ctx.globalAlpha = on ? 1 : 0.6;
     ctx.fillStyle = "rgba(20,10,4,.45)";
@@ -246,6 +272,96 @@ export function drawCrawl() {
   ctx.globalAlpha = 1;
   const hk = CLASS_SPRITE[r.hero.origin];
   if (!hk || !drawSprite(ctx, hk, pxc, pyc + ts * 0.4, ts / 16)) { ctx.font = emoji(ts * 0.6); ctx.fillText(h.hero(), pxc, pyc + ts * 0.02); }
+  // Still burning (lava) or choking (sludge): a flicker around you, and how many steps it has left.
+  if (m.burn) {
+    const lava = m.burnKind === "lava";
+    const fl = 0.6 + 0.4 * Math.sin(now / 110);
+    ctx.strokeStyle = lava ? `rgba(255,120,30,${fl})` : `rgba(130,200,60,${fl})`; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(pxc, pyc, ts * 0.56, 0, Math.PI * 2); ctx.stroke();
+    ctx.font = `700 ${Math.round(ts * 0.26)}px system-ui, sans-serif`;
+    ctx.fillStyle = lava ? "#ffb070" : "#bfe88a";
+    ctx.strokeStyle = "rgba(0,0,0,.8)"; ctx.lineWidth = 3;
+    const label = `${lava ? "🔥" : "☣️"}${m.burn}`;
+    ctx.strokeText(label, pxc + ts * 0.5, pyc - ts * 0.48); ctx.fillText(label, pxc + ts * 0.5, pyc - ts * 0.48);
+  }
+  drawMinimap(m);
+  floats = floats.filter(f => now - f.t0 < 900);
+  for (const f of floats) {
+    const k = (now - f.t0) / 900;
+    ctx.globalAlpha = 1 - k;
+    ctx.font = `800 ${Math.round(ts * 0.36)}px system-ui, sans-serif`;
+    ctx.strokeStyle = "rgba(0,0,0,.85)"; ctx.lineWidth = 4; ctx.fillStyle = f.color;
+    ctx.strokeText(f.text, pxc, pyc - ts * (0.6 + 0.5 * k)); ctx.fillText(f.text, pxc, pyc - ts * (0.6 + 0.5 * k));
+    ctx.globalAlpha = 1;
+  }
+  if (floats.length && !raf) raf = requestAnimationFrame(frame);
+}
+
+/** The minimap: everything you've seen on this floor, small, with you and the way down on it. */
+function drawMinimap(m: FloorMap) {
+  const cv = document.getElementById("minimap") as HTMLCanvasElement | null;
+  if (!cv) return;
+  const c = 5, W = m.w * c, H = m.h * c;
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const ctx = cv.getContext("2d");
+  if (!ctx) return;
+  ctx.clearRect(0, 0, W, H);
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+    const i = idx(m, x, y);
+    if (!m.seen[i]) continue;
+    const hz = m.haz?.[i];
+    ctx.fillStyle = m.tiles[i] !== 1 ? "#3b2a1c" : hz === "lava" ? "#d0501c" : hz === "sludge" ? "#5f8f2a" : hz === "spike" ? "#9a8a7a" : "#a88a62";
+    ctx.fillRect(x * c, y * c, c, c);
+  }
+  for (const t of m.things) {
+    if (t.done || !m.seen[idx(m, t.x, t.y)]) continue;
+    const col = t.room === "trapdoor" ? (m.depth === LAYER_FLOORS - 1 ? "#ff3a2e" : "#ffd23a") : t.room === "shop" ? "#e8c070" : t.room === "locked" ? "#c08040" : null;
+    if (!col) continue;
+    ctx.fillStyle = col;
+    ctx.fillRect(t.x * c, t.y * c, c, c);
+  }
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(m.px * c - 1, m.py * c - 1, c + 2, c + 2);
+  ctx.fillStyle = "#ffd23a";
+  ctx.fillRect(m.px * c, m.py * c, c, c);
+}
+
+/** How dark a tile sits: lit by your torch (brighter close by), or only remembered. */
+function gloom(m: FloorMap, lit: Set<number>, x: number, y: number) {
+  const d = Math.hypot(x - m.px, y - m.py);
+  return lit.has(idx(m, x, y)) ? `rgba(12,7,3,${Math.min(0.45, (d / (SIGHT + 1)) * 0.45)})` : "rgba(12,7,3,.68)";
+}
+
+/** A pool of lava or sludge: a glowing liquid with slow bubbles. */
+function drawPool(ctx: CanvasRenderingContext2D, kind: "lava" | "sludge", x: number, y: number, sx: number, sy: number, ts: number, now: number) {
+  const lava = kind === "lava";
+  const g = ctx.createRadialGradient(sx + ts / 2, sy + ts / 2, ts * 0.1, sx + ts / 2, sy + ts / 2, ts * 0.75);
+  if (lava) { g.addColorStop(0, "#ffb347"); g.addColorStop(0.5, "#e8521c"); g.addColorStop(1, "#7a1d08"); }
+  else { g.addColorStop(0, "#9ccf4a"); g.addColorStop(0.55, "#5a8a26"); g.addColorStop(1, "#2c4512"); }
+  ctx.fillStyle = g;
+  ctx.fillRect(sx, sy, ts + 0.5, ts + 0.5);
+  for (let k = 0; k < 3; k++) {
+    const ph = ((now / (lava ? 900 : 1400)) + hash(x, y, k + 20)) % 1;
+    const bx = sx + ts * (0.2 + 0.6 * hash(x, y, k + 30)), by = sy + ts * (0.2 + 0.6 * hash(x, y, k + 40));
+    ctx.fillStyle = lava ? `rgba(255,230,140,${0.7 * (1 - ph)})` : `rgba(200,240,120,${0.6 * (1 - ph)})`;
+    ctx.beginPath(); ctx.arc(bx, by, ts * (0.04 + 0.08 * ph), 0, Math.PI * 2); ctx.fill();
+  }
+  if (lava) {
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = `rgba(255,100,30,${0.12 + 0.06 * Math.sin(now / 300 + x)})`;
+    ctx.fillRect(sx - ts * 0.2, sy - ts * 0.2, ts * 1.4, ts * 1.4);
+    ctx.restore();
+  }
+}
+
+/** Hairline cracks on a wall that gives a little when you push it. */
+function drawCracks(ctx: CanvasRenderingContext2D, sx: number, sy: number, ts: number) {
+  ctx.strokeStyle = "rgba(10,6,3,.85)"; ctx.lineWidth = Math.max(1.5, ts / 28);
+  ctx.beginPath();
+  ctx.moveTo(sx + ts * 0.3, sy + ts * 0.15); ctx.lineTo(sx + ts * 0.45, sy + ts * 0.4); ctx.lineTo(sx + ts * 0.38, sy + ts * 0.6); ctx.lineTo(sx + ts * 0.55, sy + ts * 0.85);
+  ctx.moveTo(sx + ts * 0.45, sy + ts * 0.4); ctx.lineTo(sx + ts * 0.7, sy + ts * 0.48);
+  ctx.moveTo(sx + ts * 0.38, sy + ts * 0.6); ctx.lineTo(sx + ts * 0.2, sy + ts * 0.7);
+  ctx.stroke();
 }
 
 function frame() {
@@ -276,6 +392,12 @@ function nextStep() {
   }
   glide = { fx, fy, tx: m.px, ty: m.py, t0: performance.now() };
   h.sfx("step");
+  if (res.hurt) {
+    const kind = m.haz?.[idx(m, m.px, m.py)];
+    floats.push({ text: `−${res.hurt}`, color: kind === "spike" ? "#ff6a5a" : m.burnKind === "sludge" ? "#bfe88a" : "#ffa060", t0: performance.now() });
+    h.sfx("hit");
+    h.hurt?.();
+  }
   if (!raf) raf = requestAnimationFrame(frame);
   // Something new came into view: stop and take a look (unless it's where you were going anyway).
   const end = path[path.length - 1] ?? goal;

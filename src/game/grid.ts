@@ -66,7 +66,21 @@ export interface FloorMap {
   torches?: number[];
   /** The thing picked on the map, waiting for "Go". */
   sel?: number;
+  /** Hazard tiles (tile index → what's there): spike traps, lava pools and sludge pits. */
+  haz?: Record<number, Hazard>;
+  /** Steps left burning (lava) or choking (sludge): 1 HP each. */
+  burn?: number;
+  burnKind?: "lava" | "sludge";
 }
+
+export type Hazard = "spike" | "lava" | "sludge";
+/** What a spike trap costs each time you step on it, and how many steps a pool's burn lasts. */
+export const SPIKE_DMG = 2;
+export const POOL_STEPS = 4;
+export const hazardAt = (m: FloorMap, i: number): Hazard | undefined => m.haz?.[i];
+/** Doors and cracked walls: you can't see past them until they're open. */
+const OPAQUE = ["locked", "crack"];
+const opaqueAt = (m: FloorMap, x: number, y: number) => m.things.some(t => !t.done && t.x === x && t.y === y && OPAQUE.includes(t.room));
 
 export const idx = (m: { w: number }, x: number, y: number) => y * m.w + x;
 export const inside = (m: { w: number; h: number }, x: number, y: number) => x >= 0 && y >= 0 && x < m.w && y < m.h;
@@ -236,7 +250,7 @@ export function lineOfSight(m: FloorMap, ax: number, ay: number, bx: number, by:
   const dx = Math.abs(bx - ax), dy = -Math.abs(by - ay), sx = ax < bx ? 1 : -1, sy = ay < by ? 1 : -1;
   let err = dx + dy;
   while (!(x === bx && y === by)) {
-    if (!(x === ax && y === ay) && !isFloor(m, x, y)) return false;
+    if (!(x === ax && y === ay) && (!isFloor(m, x, y) || opaqueAt(m, x, y))) return false;
     const e2 = 2 * err;
     if (e2 >= dy) { err += dy; x += sx; }
     if (e2 <= dx) { err += dx; y += sy; }
@@ -269,6 +283,11 @@ export function look(m: FloorMap): number[] {
 
 /** The shortest walk over tiles you've seen to (x, y), going around anything still standing (except at the end). Null if there's no way. */
 export function pathTo(m: FloorMap, x: number, y: number, through = false): [number, number][] | null {
+  // Around hazards if there's a way; across them only if there isn't.
+  if (m.haz && Object.keys(m.haz).length) return pathVia(m, x, y, through, true) ?? pathVia(m, x, y, through, false);
+  return pathVia(m, x, y, through, false);
+}
+function pathVia(m: FloorMap, x: number, y: number, through: boolean, safe: boolean): [number, number][] | null {
   if (!isFloor(m, x, y) || !isSeenTile(m, x, y)) return null;
   if (x === m.px && y === m.py) return [];
   const goal = idx(m, x, y);
@@ -285,7 +304,7 @@ export function pathTo(m: FloorMap, x: number, y: number, through = false): [num
       const nx = cx + dx, ny = cy + dy;
       if (!isFloor(m, nx, ny) || !isSeenTile(m, nx, ny)) continue;
       const j = idx(m, nx, ny);
-      if (prev[j] !== -2 || (blocked.has(j) && j !== goal)) continue;
+      if (prev[j] !== -2 || (blocked.has(j) && j !== goal) || (safe && j !== goal && m.haz?.[j])) continue;
       prev[j] = i;
       q.push(j);
     }
@@ -327,6 +346,8 @@ export function pathToward(m: FloorMap, x: number, y: number): [number, number][
   return best < 0 ? null : pathTo(m, best % m.w, Math.floor(best / m.w));
 }
 
+/** Which of the five layer looks (and foe lists) a layer uses: 0–4, going round again past the fifth. */
+export const layerOf = (floor: number) => (Math.max(1, floor) - 1) % 5;
 export const trapdoorThing = (m: FloorMap) => m.things.findIndex(t => t.room === "trapdoor");
 export const dangerOf = (m: FloorMap) => Math.floor(m.explored / DANGER_EVERY);
 export const dangerWord = (d: number) => DANGER_WORDS[Math.min(d, DANGER_WORDS.length - 1)];

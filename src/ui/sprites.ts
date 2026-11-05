@@ -64,4 +64,4 @@ export function foeSprite(name: string, family?: string, boss = false): string |
 }
 export const CLASS_SPRITE: Record<string, string> = { warrior: "knight_m", mage: "wizzard_m", rogue: "elf_m", cleric: "angel", hero: "knight_f" };
 /** Things on the map that have a sprite. */
-export const THING_SPRITE: Record<string, string> = { wooden: "chest_wood", iron: "chest_iron", vault: "chest_gold", bosschest: "chest_gold", crimson_vault: "chest_gold", shop: "dwarf_m", goblin: "goblin" };
+export const THING_SPRITE: Record<string, string> = { wooden: "chest_wood", iron: "chest_iron", vault: "chest_gold", bosschest: "chest_gold", crimson_vault: "chest_gold", secret: "chest_gold", shop: "dwarf_m", goblin: "goblin" };

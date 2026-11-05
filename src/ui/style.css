@@ -1316,7 +1316,7 @@ body[data-theme] .bag-overlay .toast:not(.err) b { color: inherit; }
 /* The Crawl (prototype): the floor fills the screen; the HUD floats over it in the corners. */
 body.crawl-on { overflow: hidden; }
 .crawl-screen { position: fixed; inset: 0; z-index: 4; background: #0b0806; overflow: hidden; }
-.crawl-screen canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; cursor: pointer; }
+.crawl-screen canvas#crawl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; cursor: pointer; }
 .crawl-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(6,3,1,.55) 75%, rgba(4,2,1,.92) 100%); }
 .cz { position: absolute; z-index: 5; pointer-events: none; }
 .cz button, .cz .cz-bar { pointer-events: auto; }
@@ -1838,3 +1838,7 @@ body.crawl-on { overflow: hidden; }
 :is(.crawl-pop, .inv-detail, .mer-detail, .grit-body) .item .compare .cmp-fx li.up { color: #22703a; }
 :is(.crawl-pop, .inv-detail, .mer-detail, .grit-body) .item .compare .cmp-fx li.down { color: #a62a2a; }
 :is(.crawl-pop, .inv-detail, .mer-detail, .grit-body) .item .compare .sub { color: #7a5c3a; }
+
+/* The minimap, top right, with the layer and floor beneath it. */
+.cz-mini { position: static; display: block; cursor: default; width: 104px; height: 104px; background: rgba(10, 7, 4, .72); border: 2px solid #5a4330; border-radius: 6px; image-rendering: pixelated; box-shadow: 0 2px 8px rgba(0, 0, 0, .5); margin-bottom: 4px; }
+@media (min-width: 900px) { .cz-mini { width: 140px; height: 140px; } }

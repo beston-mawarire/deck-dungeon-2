@@ -9,6 +9,14 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.78.0
+- Floors with teeth: spike traps (2 HP each time you step on one) and pools of sludge or lava (you burn for 1 HP a step for the next 4 steps), often right across a hallway you need. Walks go around them when there's a way. They never quite kill you.
+- Blood Oaths: a standing stone that takes Max HP for good in return for a Rare or an Epic item.
+- Locked doors with a rich secret chest behind them (rare materials, a great deal of Gold, or very good loot). Elites very rarely carry a Skeleton Key to open one.
+- Cracked walls: lean on one and it may give way to a hidden nook.
+- Each layer has its own foes and its own colour of stone: the crypt, the sewers, the molten deep, the cold vaults, the shadow.
+- A minimap of the floor, top right, with the layer and floor beneath it.
+
 ## 1.77.2
 - Chest finds and events now open as a popup over the map instead of a new screen.
 - Forge, Masterwork, Jeweller, Alchemist, Blacksmith, Sanctum, Bounty Board, Level Up and end screens use the gritty stone frame with a hanging sign.

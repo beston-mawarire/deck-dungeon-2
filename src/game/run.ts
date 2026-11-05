@@ -25,7 +25,7 @@ const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(b
 import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 import { affixById, rescaleAffixes } from "./affixpool";
 import { MATS, matOfFamily, PLANTS, type Mat, type Plant } from "./camp";
-import { type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, idx, isFloor, isSeenTile, LAYER_FLOORS, look, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
+import { type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, type Hazard, idx, isFloor, isSeenTile, LAYER_FLOORS, layerOf, look, POOL_STEPS, SPIKE_DMG, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -120,7 +120,7 @@ export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
 const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
 
-export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller" | "masterwork";
+export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller" | "masterwork" | "oath" | "secret";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -157,6 +157,8 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   unique: { name: "A Strange Presence", icon: "✴️", text: "Someone — something — with a name. Dangerous, once per run, and carrying something rare." },
   crimson_elite: { name: "Crimson Elite", icon: "🩸", text: "Rarer and deadlier than a Champion. Great loot, and often a Crimson Key." },
   goblin: { name: "Treasure Goblin", icon: "💰", text: "A Treasure Goblin, stuffed with loot! Kill it within 3 rounds before it escapes, and everything it carries is yours." },
+  oath: { name: "Blood Oath", icon: "🩸", text: "A stone that wants a promise in blood. Give up Max HP for good, and take an item." },
+  secret: { name: "Secret Chest", icon: "💎", text: "Hidden away behind a locked door: rare materials, a great deal of Gold, or very good loot." },
   crimson_vault: { name: "Crimson Vault", icon: "🗝️", text: "Spend a Crimson Key: fight a Crimson boss for a Crimson item. Die here and your run is over." }
 };
 
@@ -367,7 +369,7 @@ export const DOPPEL_FLOOR = 5;
 export const WEAKNESSES = ["x_wk_blunt", "x_wk_sharp", "x_wk_twohand", "x_wk_spell", "x_wk_bleed", "x_wk_fragile"];
 export const UNHOLY_REROLL = 0.4;
 export const DOPPEL_AMBUSH = 0.35;
-export const OWN_PATH_EVENTS = [...CLEANSING_EVENTS, "sanguine_altar", ...Object.values(EVENT_ROOMS) as string[]];
+export const OWN_PATH_EVENTS = [...CLEANSING_EVENTS, "sanguine_altar", "blood_oath", ...Object.values(EVENT_ROOMS) as string[]];
 /** Can this event happen right now (once-a-run ones not yet met, enough Gold, deep enough)? */
 const eventOpen = (run: Run, e: GameEvent) => (!e.unique || !run.seenBosses.has(`e:${e.id}`)) && (!e.needCurse || Object.keys(run.hero.curses).length > 0) && run.floor >= (e.minFloor ?? 0) && run.hero.f.gold >= eventGold(run, e);
 /** A quiet stretch: from floor 1, some steps offer no fights at all. */
@@ -577,11 +579,11 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   };
   const chest = (): RoomType => (depth >= 3 && rng() < 0.06 ? "vault" : rng() < 0.6 ? "wooden" : "iron");
   /** Dig a pocket and put things in it (never on the tile just inside the door, so you can always step in). */
-  const pocket = (items: string[], guardChance: number, prefer?: (i: number) => number, size?: [number, number]) => {
+  const pocket = (items: string[], guardChance: number, prefer?: (i: number) => number, size?: [number, number], door?: string) => {
     const two = items.length > 1;
     const [pw, ph] = size ?? (two ? (rng() < 0.5 ? [2, 3] : [3, 2]) : [2, 2]);
     const dug = digPocket(m, rng, pw, ph, pockets, prefer);
-    if (!dug) { for (const it of items) putInHall(it); return; }
+    if (!dug) { if (!door) for (const it of items) putInHall(it); return; }
     pockets.add(dug.door);
     for (const c of dug.cells) pockets.add(c);
     // On some floors, some little rooms have a second way in: if one door is guarded, try the other side.
@@ -603,6 +605,8 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
     }
     const spots = dug.cells.filter(c => c !== dug.front).sort(() => rng() - 0.5);
     items.forEach((it, k) => putAt(spots[k] ?? dug.front, it));
+    // A locked door or a cracked wall in the doorway instead of a guard.
+    if (door) { putAt(dug.door, door); return; }
     if (rng() < guardChance) {
       // How far in this pocket is (its door hangs off a tile you walk to).
       const near = Math.min(...[[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => fromStart[dug.door + dy * m.w + dx]).filter(v => v >= 0)) < 6;
@@ -621,6 +625,8 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   if (Object.keys(run.hero.curses).length > 0 && !run.seenBosses.has(`cleanse:${run.floor}`)) { run.seenBosses.add(`cleanse:${run.floor}`); pois.push("cleansing"); }
   const lw = roomWeights(run, false);
   const marks = Object.fromEntries(LANDMARKS.map(k => [k, lw[k] ?? 0]).filter(([, v]) => (v as number) > 0)) as Partial<Record<RoomType, number>>;
+  // Blood Oaths: a Crawl landmark of their own.
+  marks.oath = OATH_WEIGHT;
   for (let n = floorLandmarks(rng()); n > 0 && Object.keys(marks).length; n--) { const room = pickW(rng, marks); delete marks[room]; pois.push(room); }
   for (let n = 1 + (rng() < 0.4 ? 1 : 0); n > 0; n--) pois.push(chest());
   pois.sort(() => rng() - 0.5);
@@ -657,6 +663,9 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   }
   // Nooks: a doorway and one tile, off a hall or a hallway, holding an urn or a chest; now and then someone stands in the doorway.
   if (rng() < 0.7) pocket([rng() < 0.35 ? chest() : "urn"], NOOK_GUARD, undefined, [1, 1]);
+  // Secrets: a locked room with one rich chest (a Skeleton Key opens it), and now and then a cracked wall with a nook behind it.
+  if (depth >= 2 && rng() < SECRET_ROOM_CHANCE) pocket(["secret"], 0, undefined, [2, 2], "locked");
+  if (rng() < HIDDEN_NOOK_CHANCE) pocket([rng() < 0.5 ? "wooden" : "urn"], 0, undefined, [1, 1], "crack");
   // Urns: one to three about the halls, never two close together. Smash them for coins (and, rarely, a potion).
   const urns = () => m.things.filter(t => t.room === "urn");
   for (let n = 1 + (rng() < 0.4 ? 1 : 0), tries = 0; n > 0 && tries < 30; tries++) {
@@ -666,10 +675,11 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
     putAt(sp[Math.floor(rng() * sp.length)], "urn");
     n--;
   }
+  placeHazards(run, m, rng, depth, s, taken, pockets, inHall);
   m.torches = wallTorches(m, rng, 4 + Math.floor(rng() * 3));
-  // Each foe is decided now (so the map and the fight show the same monster). Elites and Champions are sometimes a Tormentor.
+  // Each foe is decided now (so the map and the fight show the same monster): each layer has its own. Elites and Champions are sometimes a Tormentor.
   for (const t of m.things) if (t.room === "fight" || t.room === "elite" || t.room === "champion") {
-    const pool = t.room !== "fight" && rng() < 0.25 ? ELITE_ONLY : MONSTERS;
+    const pool = t.room !== "fight" && rng() < 0.25 ? ELITE_ONLY : layerFoes(run);
     t.foe = pool[Math.floor(rng() * pool.length)].name;
   }
   look(m);
@@ -678,6 +688,88 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   if (run.hero.f.persist["ins_keeneye"]) sense(r => r === "trapdoor");
   if (run.hero.f.persist["ins_treasure"]) sense(r => r === "wooden" || r === "iron" || r === "vault");
   return m;
+}
+
+/** Blood Oaths turn up about as often as the other landmarks; secret rooms (from a layer's second floor) and hidden nooks now and then. */
+export const OATH_WEIGHT = 6;
+export const SECRET_ROOM_CHANCE = 0.4;
+export const HIDDEN_NOOK_CHANCE = 0.3;
+/** Crawl Elites very rarely carry a Skeleton Key. */
+export const SKELETON_KEY_DROP = 0.1;
+
+/** Each layer's own foes (the sixth layer on goes round again, tougher each time). */
+export const LAYER_FOES: string[][] = [
+  ["Skeleton", "Wolf", "Giant Spider", "Ghoul", "Wraith", "Hexer", "Acolyte"],
+  ["Rot Leech", "Dust Leech", "Giant Spider", "Boar", "Blight Priest", "Ghoul", "Vampire Spawn"],
+  ["Forge Golem", "Stone Golem", "Sentry", "Storm Wisp", "Acolyte", "Zealot", "Ash Wight"],
+  ["Wraith", "Vampire Spawn", "Iron Tortoise", "Shieldbearer", "Gloomcaller", "Skeleton", "Ghoul"],
+  ["Gloomcaller", "Blight Priest", "Zealot", "Vampire Spawn", "Stone Golem", "Storm Wisp", "Hexer"]
+];
+export function layerFoes(run: Run) {
+  if (run.mode === "abyss") return MONSTERS;
+  const names = LAYER_FOES[layerOf(run.floor)];
+  const pool = MONSTERS.filter(mo => names.includes(mo.name));
+  return pool.length ? pool : MONSTERS;
+}
+/** Which pools each layer has (spikes are everywhere): sludge in the sewers, lava deeper down. */
+const LAYER_POOLS: Hazard[][] = [["sludge"], ["sludge"], ["lava"], ["sludge", "lava"], ["lava", "sludge"]];
+
+/** Hazards: spike traps and pools, often right across a hallway you have to take. */
+function placeHazards(run: Run, m: FloorMap, rng: () => number, depth: number, s: { x: number; y: number }, taken: Set<number>, pockets: Set<number>, inHall: (i: number) => boolean) {
+  const L = run.mode === "abyss" ? 4 : layerOf(run.floor);
+  // The very first floor is gentle.
+  if (L === 0 && depth <= 1) return;
+  const haz: Record<number, Hazard> = {};
+  const startI = idx(m, s.x, s.y);
+  const all = reachable(m, s.x, s.y, new Set());
+  const ok = (i: number) => m.tiles[i] === 1 && !taken.has(i) && !pockets.has(i) && i !== startI && !haz[i];
+  // Hallway tiles you can't get around (taking one away cuts something off), and the rest of the hallways.
+  const chokes: number[] = [], halls: number[] = [];
+  for (let i = 0; i < m.tiles.length; i++) {
+    if (!ok(i) || inHall(i) || Math.abs((i % m.w) - s.x) + Math.abs(Math.floor(i / m.w) - s.y) < 3) continue;
+    const cut = reachable(m, s.x, s.y, new Set([i]));
+    if (m.tiles.some((t, j) => t === 1 && all[j] && !cut[j] && j !== i)) chokes.push(i); else halls.push(i);
+  }
+  const far = (i: number) => Object.keys(haz).every(k => Math.abs((+k % m.w) - (i % m.w)) + Math.abs(Math.floor(+k / m.w) - Math.floor(i / m.w)) > 3);
+  const pick = (list: number[]) => { const c = list.filter(i => ok(i) && far(i)); return c.length ? c[Math.floor(rng() * c.length)] : -1; };
+  // Spike traps: one or two, most often on a tile you must cross.
+  for (let n = 1 + (rng() < 0.45 ? 1 : 0); n > 0; n--) {
+    const i = pick(rng() < 0.7 && chokes.length ? chokes : [...chokes, ...halls]);
+    if (i >= 0) haz[i] = "spike";
+  }
+  // A pool across a hallway: two or three tiles of lava or sludge (on the first layer, only from its third floor).
+  if ((L > 0 || depth >= 3) && rng() < (L === 0 ? 0.4 : 0.65)) {
+    const kinds = LAYER_POOLS[L];
+    const kind = kinds[Math.floor(rng() * kinds.length)];
+    const c = pick(chokes.length ? chokes : halls);
+    if (c >= 0) {
+      const cells = [c];
+      const len = 2 + (rng() < 0.5 ? 1 : 0);
+      for (let k = 0; k < cells.length && cells.length < len; k++) {
+        const x = cells[k] % m.w, y = Math.floor(cells[k] / m.w);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const j = idx(m, x + dx, y + dy);
+          if (cells.length < len && !cells.includes(j) && ok(j) && !inHall(j)) cells.push(j);
+        }
+      }
+      for (const i of cells) haz[i] = kind;
+    }
+  }
+  if (Object.keys(haz).length) m.haz = haz;
+}
+
+/** What a step costs on hazards: spikes bite each time, and a pool keeps burning for the next few steps. Never quite kills you. */
+export function hazardStep(run: Run): number {
+  const m = run.grid!, h = run.hero;
+  let dmg = 0;
+  if (m.burn && m.burn > 0) { dmg += 1; m.burn--; if (!m.burn) m.burnKind = undefined; }
+  const hz = m.haz?.[idx(m, m.px, m.py)];
+  if (hz === "spike") dmg += SPIKE_DMG;
+  else if (hz === "lava" || hz === "sludge") { m.burn = POOL_STEPS; m.burnKind = hz; }
+  if (!dmg) return 0;
+  const was = h.f.hp;
+  h.f.hp = Math.max(1, h.f.hp - dmg);
+  return was - h.f.hp;
 }
 
 /** A few little torches on walls that face onto the floor. */
@@ -734,15 +826,37 @@ export function gridSelect(run: Run, t: number) {
 
 /** Take one step on the floor (to a tile next to you). Stepping onto a thing meets it.
  *  Returns what happened: "moved" (and which things came into view), "enter" (a room opened), or a reason you can't. */
-export function gridStep(run: Run, x: number, y: number): { ok: true; entered: boolean; seen: number[] } | { ok: false; why: string } {
+export function gridStep(run: Run, x: number, y: number): { ok: true; entered: boolean; seen: number[]; hurt?: number } | { ok: false; why: string } {
   const m = run.grid;
   if (!m || run.scene.t !== "map") return { ok: false, why: "" };
   if (Math.abs(x - m.px) + Math.abs(y - m.py) !== 1 || !isFloor(m, x, y)) return { ok: false, why: "You can't go that way." };
   const t = thingAt(m, x, y);
+  // A locked door: a Skeleton Key opens it; without one, you stay where you are.
+  if (t >= 0 && m.things[t].room === "locked") {
+    const h = run.hero;
+    if ((h.f.persist["skelKeys"] ?? 0) <= 0) { m.sel = undefined; return { ok: false, why: "🔒 Locked. A Skeleton Key would open it." }; }
+    h.f.persist["skelKeys"]--;
+    m.things[t].done = true;
+    m.sel = undefined;
+    run.message = "🗝️ The Skeleton Key turns with a groan, and crumbles to dust. The door swings open.";
+  }
+  // A cracked wall gives way when you lean on it.
+  else if (t >= 0 && m.things[t].room === "crack") {
+    m.things[t].done = true;
+    m.sel = undefined;
+    run.message = "🧱 The cracked wall crumbles. There's a nook behind it!";
+  }
+  const t2 = thingAt(m, x, y);
   m.bx = m.px; m.by = m.py;
   m.px = x; m.py = y;
   const seen = look(m);
-  if (t < 0) return { ok: true, entered: false, seen };
+  const hurt = t2 < 0 || m.things[t2].room !== "urn" ? hazardStep(run) : 0;
+  if (t2 < 0) return { ok: true, entered: false, seen, hurt };
+  return { ...gridMeet(run, t2, seen), hurt };
+}
+
+function gridMeet(run: Run, t: number, seen: number[]): { ok: true; entered: boolean; seen: number[] } {
+  const m = run.grid!;
   m.sel = undefined;
   if (m.things[t].room === "trapdoor") { descend(run); return { ok: true, entered: true, seen }; }
   if (m.things[t].room === "urn") { smashUrn(run, t); m.px = m.bx!; m.py = m.by!; return { ok: true, entered: false, seen }; }
@@ -817,6 +931,8 @@ export function descend(run: Run) {
     return;
   }
   run.grid = makeGrid(run, m.depth + 1, m.explored);
+  // Still burning from the floor above: it carries on down.
+  if (m.burn) { run.grid.burn = m.burn; run.grid.burnKind = m.burnKind; }
   run.message = `🕳️ You drop through the trapdoor to floor ${m.depth + 1}. There's no climbing back up.`;
 }
 
@@ -980,6 +1096,8 @@ function enterRoom(run: Run, room: RoomType) {
       return;
     }
     case "sanctum": run.scene = { t: "sanctum" }; return;
+    case "oath": run.scene = { t: "event", ev: EVENTS.find(e => e.id === "blood_oath")!, result: null, found: [] }; return;
+    case "secret": return openSecret(run);
     case "crossroads":
       run.seenBosses.add("e:crossroads");
       run.scene = { t: "event", ev: crossroadsEvent(CROSSROADS_GUISES[run.crossroadsGuise ?? 0]), result: null, found: [] };
@@ -988,6 +1106,25 @@ function enterRoom(run: Run, room: RoomType) {
     case "unique": return fight(run, "elite", "unique");
     case "goblin": return fight(run, "elite", "goblin");
     case "nemesis": run.seenBosses.add("nemesis"); return fight(run, "champion", "nemesis");
+  }
+}
+
+/** A secret chest: rare materials, a great deal of Gold, or very good loot (one of the three). */
+function openSecret(run: Run) {
+  const h = run.hero;
+  const x = run.rng();
+  if (x < 0.34) {
+    const sm = 1 + (run.rng() < 0.5 ? 1 : 0), ori = 1 + (run.rng() < 0.4 ? 1 : 0);
+    h.starmetal += sm;
+    h.orilium = (h.orilium ?? 0) + ori;
+    run.message = `💎 The secret chest holds rare materials: ${sm} Starmetal and ${ori} Orilium.`;
+    run.scene = { t: "loot", title: "Secret Chest", items: [], gold: 0, scrolls: 0, potions: 0 };
+  } else if (x < 0.67) {
+    run.message = "💎 The secret chest is packed with Gold.";
+    run.scene = { t: "loot", title: "Secret Chest", items: [], gold: 40 + 25 * run.floor, scrolls: 0, potions: 0 };
+  } else {
+    setGenLuck(genLuck(run));
+    run.scene = { t: "loot", title: "Secret Chest", items: [rollItem(h, run.rng() < 0.45 ? "epic" : "rare", depth(run), run.rng)], gold: 0, scrolls: 0, potions: 0 };
   }
 }
 
@@ -1366,6 +1503,7 @@ function afterFight(run: Run) {
   let potions = 0;
   let relic: string | undefined;
   let keyFound = false;
+  let keyNote = "";
   const T = tables(run);
   // Generated gear from tougher foes is more often Greater (✦) — or, very rarely, Overcharged.
   setGenLuck(genLuck(run) * ({ normal: 1, elite: 1.25, champion: 1.6, crimson: 2, boss: run.scene.uber ? 2.6 : 2 } as Record<string, number>)[rank] * (then === "unique" || then === "dragon" || then === "nemesis" ? 1.5 : 1));
@@ -1425,8 +1563,9 @@ function afterFight(run: Run) {
     relic = randomRelic(run, 2);
     if (run.rng() < 0.3) scrolls++;
   } else if (rank === "elite" && crawlFoe) {
-    // Crawl Elites now and then drop a weapon or a piece of armour; that's all.
+    // Crawl Elites now and then drop a weapon or a piece of armour; that's all (and, very rarely, a Skeleton Key).
     if (run.rng() < CRAWL_ELITE_GEAR) items.push(crawlGear(run, T.elite));
+    if (run.rng() < SKELETON_KEY_DROP) { h.f.persist["skelKeys"] = (h.f.persist["skelKeys"] ?? 0) + 1; keyNote = "🗝️ It was carrying a Skeleton Key! Somewhere down here, a locked door."; }
   } else if (rank === "elite") {
     items.push(roll(T.elite));
     if (then === "mimic" && !run.gridMode) items.push(roll(T.elite));
@@ -1555,10 +1694,10 @@ function afterFight(run: Run) {
   if (run.gridMode && items.length > 1) { items.sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity)); items.length = 1; }
   // Nothing to pick up: straight back to the floor.
   if (crawlFoe && !items.length && !potions && !keyFound && !relic && then !== "resplendent") {
-    run.message = [`Victory: +${xp} XP${mats ? ` · ${mats}` : ""}.`, golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean).join(" ");
+    run.message = [`Victory: +${xp} XP${mats ? ` · ${mats}` : ""}.`, golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote, keyNote].filter(Boolean).join(" ");
     return advance(run);
   }
-  if (mats) run.message = [run.message, mats].filter(Boolean).join(" ");
+  if (mats || keyNote) run.message = [run.message, mats, keyNote].filter(Boolean).join(" ");
   run.scene = { t: "loot", title: then === "dragon" ? "The Dragon's Hoard" : then === "goblin" ? "The Treasure Goblin's hoard" : then === "mimic" ? "The Mimic's hoard" : thiefPay ? `You caught the ${b.enemy.name}!` : "Victory", items, gold: gold + goblinGold, scrolls, relic: run.relicChoice ? undefined : relic, potions, then: then === "resplendent" ? "resplendent" : undefined, crimsonKey: keyFound || undefined, dragonHeart: heartLevel || undefined, crucible: crucibleFound || undefined, sigils: sigil ? [sigil] : undefined };
   const notes = [run.message, thiefPay ? `It drops its stash: +${thiefPay} Gold (60% of your purse).` : "", golemScrap ? `The golem breaks apart: +${golemScrap} ⚙️ Scrap.` : "", curseNote].filter(Boolean);
   run.message = notes.join(" ");
@@ -1890,6 +2029,7 @@ export function chooseEvent(run: Run, i: number) {
     hurt: (n: number) => { h.f.hp = Math.max(1, h.f.hp - n); },
     healPct: (p: number) => { restore(h, Math.round(h.f.maxHp * p)); },
     addMaxHp: (n: number) => { h.f.persist["maxHpLoss"] = (h.f.persist["maxHpLoss"] ?? 0) - n; recompute(h); h.f.hp += n; },
+    cutMaxHp: (n: number) => { h.f.persist["maxHpLoss"] = (h.f.persist["maxHpLoss"] ?? 0) + n; recompute(h); h.f.hp = Math.max(1, Math.min(h.f.hp, h.f.maxHp)); },
     gainItem: (r: Rarity) => { const it = rollItem(h, r, depth(run), run.rng); found.push(it); return it; },
     gainRelic: () => { const id = randomRelic(run); grantRelic(run, id); return getItem(id).name; },
     loseRelic: () => { const ids = Object.keys(h.relics); if (!ids.length) return null; const id = ids[Math.floor(run.rng() * ids.length)]; h.relics[id]--; if (!h.relics[id]) delete h.relics[id]; recompute(h); return getItem(id).name; },

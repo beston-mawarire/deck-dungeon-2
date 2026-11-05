@@ -10,6 +10,8 @@ export interface EventCtx {
   hurt: (n: number) => void;
   healPct: (pct: number) => void;
   addMaxHp: (n: number) => void;
+  /** Lose Max HP for good (this run). */
+  cutMaxHp: (n: number) => void;
   gainItem: (rarity: Rarity) => GearItem;
   gainRelic: () => string;
   loseRelic: () => string | null;
@@ -83,7 +85,21 @@ const sanguine = (pct: number, label: string, hint: string, run: (c: EventCtx) =
   run: c => { const n = blood(pct)(c); c.hurt(n); return `🩸 You bleed ${n} into the basin. ${run(c)}`; }
 });
 
+/** A Blood Oath: give up a share of your Max HP for good, and take an item. */
+const oath = (pct: number, label: string, hint: string, rarity: Rarity): EventOption => ({
+  label: `${label} · ${Math.round(pct * 100)}% Max HP`, hint,
+  can: c => c.maxHp() > 10,
+  run: c => { const n = Math.max(1, Math.round(c.maxHp() * pct)); c.cutMaxHp(n); c.gainItem(rarity); return `🩸 You cut your palm and swear. The stone drinks: −${n} Max HP, for good.`; }
+});
+
 export const EVENTS: GameEvent[] = [
+  { id: "blood_oath", weight: 0, title: "The Blood Oath", icon: "🩸",
+    text: "A standing stone, its runes filled in with something dark and dry. A blade lies at its foot. Swear on it, and it will hold you to your word.",
+    options: [
+      oath(0.1, "A small oath", "A Rare item", "rare"),
+      oath(0.2, "A binding oath", "An Epic item", "epic"),
+      leave
+    ] },
   { id: "crossroads", unique: true, weight: 0.12, minFloor: 2, title: "The Crossroads", icon: "🌒", text: "", options: [] },
   { id: "sanguine_altar", weight: 0.8, title: "The Sanguine Altar", icon: "🩸",
     text: "A basin of black stone, stained to the rim. Carved hands reach up from its sides, palms open. It does not want gold.",
