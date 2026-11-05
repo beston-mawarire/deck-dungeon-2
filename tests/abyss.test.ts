@@ -65,10 +65,9 @@ describe("the Abyss", () => {
     expect(bankRuin(m, run)).toBe(false);
     expect(m.ruinShards).toBe(1);
     expect(abyssUnlocked(m)).toBe(true);
-    expect(spendShard(m)).toBe(false); // one shard isn't enough: the Abyss costs five
-    m.ruinShards = 6;
-    expect(spendShard(m)).toBe(true);
-    expect(m.ruinShards).toBe(1);
+    expect(spendShard(m)).toBe(true); // the Abyss costs one shard
+    expect(m.ruinShards).toBe(0);
+    expect(spendShard(m)).toBe(false);
     // Floor 19 boss: nothing.
     const early = newRun("warrior", 4); early.mode = "endless"; early.floor = 19;
     win(early, enter(early, "boss", STEPS_PER_FLOOR));

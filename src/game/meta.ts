@@ -88,7 +88,9 @@ export interface Meta {
 
 /** The Abyss opens to anyone who has beaten floor 15 (reached floor 16) in the campaign. */
 export const ABYSS_UNLOCK_FLOOR = 15;
-export const abyssUnlocked = (m: Meta) => m.bestFloor > ABYSS_UNLOCK_FLOOR;
+/** The Abyss opens once any class has beaten the dungeon's last layer. */
+export const abyssUnlocked = (m: Meta) => Object.values(m.layersBeaten ?? {}).some(n => (n ?? 0) >= ABYSS_UNLOCK_LAYERS) || m.bestFloor > ABYSS_UNLOCK_FLOOR;
+export const ABYSS_UNLOCK_LAYERS = 5;
 
 /** Move this run's Ruin Shards and Vanadium Plates to the device as soon as they drop. True if anything changed. */
 export function bankRuin(m: Meta, run: Run): boolean {
@@ -134,7 +136,7 @@ export function applyPlate(m: Meta, origin: string): boolean {
 }
 
 /** Ruin Shards it costs to enter the Abyss. */
-export const ABYSS_SHARD_COST = 5;
+export const ABYSS_SHARD_COST = 1;
 /** Pay the Ruin Shards to enter the Abyss. */
 export function spendShard(m: Meta): boolean {
   if ((m.ruinShards ?? 0) < ABYSS_SHARD_COST) return false;

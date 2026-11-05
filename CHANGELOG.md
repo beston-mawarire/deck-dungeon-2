@@ -9,6 +9,16 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.89.0
+
+- **The Abyss and the Daily Dungeon are walked now**, like the main dungeon. The Abyss is ten depths, each a layer of floors with an Uber boss at the bottom; the Daily is the same dungeon and hero for everyone that day.
+- **The Abyss opens once any of your heroes beats the dungeon's last layer.** Each run costs one Ruin Shard, and every guardian from the last layer on (when you Delve deeper) leaves one; Vanadium Plates come from the same guardians.
+- **Achievements count layers now**, not the old floors (Reach the 7th layer, the 10th, a Champion on the first layer, and so on), and say "Beat the dungeon" where they said "Win the Campaign".
+- Heat unlocks after your first win, and says so.
+- The leaderboards count layers, and accept the dungeon's kill counts.
+- Bounty contracts count encounters (anything you walk into), and say so.
+- Text that still talked about the Campaign, floor 20 or the old Crucible now matches the dungeon. The title screen's old holiday tag is gone.
+
 ## 1.88.0
 
 - **Attributes on gear.** Uncommon and better gear sometimes comes with a flat bonus to an attribute: +1 on an Uncommon, more on Rares, Epics and Legendaries. What it raises depends on the piece: light armour leans to Agility, heavy gear to Strength and Vitality, robes and staves to Intellect and Faith, but there's always a chance of something else. Your Attributes tab shows what your gear adds.

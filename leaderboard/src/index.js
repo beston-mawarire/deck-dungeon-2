@@ -86,7 +86,8 @@ function discrepancy(row, s, now) {
   if (secs < MIN_SECONDS_PER_FLOOR * (row.floor - 1)) return `floor ${row.floor} in ${Math.round(secs)}s`;
   const F = row.turbo ? TURBO_DEPTHS[row.floor] ?? row.floor : row.floor;
   if (row.elites + row.champions > row.kills) return "more Elites/Champions than kills";
-  if (row.kills > 14 * F + 6) return `${row.kills} kills by floor ${F}`;
+  // (A "floor" here is a layer of the walkable dungeon: six floors of its own, each with a dozen foes or so.)
+  if (row.kills > 90 * F + 20) return `${row.kills} kills by layer ${F}`;
   if (row.best_hit > row.damage) return "biggest hit above total damage";
   if (row.gold > 3000 * F + 150 * F * F) return `${row.gold} Gold by floor ${F}`;
   if (row.level > 6 * F + 10) return `level ${row.level} by floor ${F}`;

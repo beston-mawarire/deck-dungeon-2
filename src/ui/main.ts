@@ -18,7 +18,7 @@ import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
 import { GEN_MODULE_MAP, modValue } from "../game/gen";
 import { CLASS_SKILLS, ABYSS_MODS, ACHIEVEMENTS, applyKit, currentAbyssMod, HEAT_LEVELS, HEAT_MAX, HEAT_RENOWN, heatOf, KIT_RARE_LEVEL, KIT_COMMON_LEVEL, KIT_SLOTS, KIT_UNCOMMON_LEVEL, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX, MASTERY_XP } from "../game/progress";
-import { ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem, abyssUnlocked, ABYSS_UNLOCK_FLOOR, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
+import { ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem, abyssUnlocked, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard, UNLOCK_TIERS } from "../game/meta";
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
@@ -193,13 +193,13 @@ const say = (msg: string | null, bad = true) => {
 };
 /** The Abyss tab's explainer (shown the first time you open the tab, and from its "How it works" button). */
 let abyssIntroOpen = false;
-const abyssIntro = () => storyBeat({ icon: "🕳️", title: "The Abyss", text: "A run of its own, far deadlier than the Campaign, and where your permanent power comes from.", list: [
-  `🔓 Opens once you beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.`,
+const abyssIntro = () => storyBeat({ icon: "🕳️", title: "The Abyss", text: "A run of its own, far deadlier than the dungeon above, and where your permanent power comes from.", list: [
+  `🔓 Opens once any of your heroes beats the dungeon's last layer. Each run costs ${ABYSS_SHARD_COST} Ruin Shard${ABYSS_SHARD_COST === 1 ? "" : "s"}.`,
   "☠️ Ten depths. Every fight is a rank tougher, each depth ends with an Uber boss, and your Armor wears down as you go.",
   "💰 The richest loot in the game, best from Champions, bosses and Uber bosses.",
-  "🪨 Ruin Shards (the entry fee) drop from Campaign bosses on floor 20 and deeper.",
-  "⬛ Vanadium Plates drop from the same bosses. Give them to a class for good: they make it stronger in the Abyss, far more so from the third plate on.",
-  "💎 Ruin Gems drop from Uber bosses. Put them on any class for more Max HP, Damage and Armor in the Campaign and the Abyss, and move them whenever you like.",
+  "🪨 Ruin Shards (the entry fee) drop from every guardian from the last layer on.",
+  "⬛ Vanadium Plates sometimes drop from the same guardians. Give them to a class for good: they make it stronger in the Abyss, far more so from the third plate on.",
+  "💎 Ruin Gems drop from Uber bosses. Put them on any class for more Max HP, Damage and Armor in the dungeon and the Abyss, and move them whenever you like.",
   "🌕 A new twist every week, and a leaderboard for the deepest runs."
 ] }, "data-closeabyssintro");
 
@@ -429,19 +429,19 @@ function titleScreen() {
   if ((menuTab as string) === "abyss") {
     const shards = meta.ruinShards ?? 0;
     const body = !abyssUnlocked(meta)
-      ? `<div class="panel abyss-locked"><p class="big">🔒 The Abyss is sealed.</p><p>Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find the way down.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p><button class="dg-stone small" data-abyssintro>❔ How it works</button></div>`
+      ? `<div class="panel abyss-locked"><p class="big">🔒 The Abyss is sealed.</p><p>Beat the dungeon's last layer, with any hero, to find the way down.</p><button class="dg-stone small" data-abyssintro>❔ How it works</button></div>`
       : `<div class="campaign-hero abyss-hero">
           <div class="ch-text"><b>🕳️ The Abyss</b><span>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. The richest loot comes from the deadliest. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.</span></div>
           <div class="hero-btns"><button class="dg-stone small" data-abyssintro>❔ How it works</button><button class="story-btn small" data-story="abyss">📖 Story</button></div>
         </div>
         <div class="abyss-stock">
-          <div class="stile extra-tile shard-tile"><span>🪨</span><span><b>${shards}</b> Ruin Shard${shards === 1 ? "" : "s"}<span class="sub">From Campaign bosses, floor 20 and deeper.</span></span></div>
+          <div class="stile extra-tile shard-tile"><span>🪨</span><span><b>${shards}</b> Ruin Shard${shards === 1 ? "" : "s"}<span class="sub">From every guardian from the last layer on.</span></span></div>
           <div class="stile extra-tile plate-tile"><span>⬛</span><span><b>${meta.plates ?? 0}</b> Vanadium Plate${(meta.plates ?? 0) === 1 ? "" : "s"} to give<span class="sub">Rare drops from the same bosses.</span></span></div>
           <div class="stile extra-tile gem-tile" style="grid-column: 1 / -1"><span>💎</span><span><b>${(meta.ruinGems ?? 0) + Object.values(meta.classGems ?? {}).reduce((a: number, n) => a + (n ?? 0), 0)}</b> Ruin Gem${((meta.ruinGems ?? 0) + Object.values(meta.classGems ?? {}).reduce((a: number, n) => a + (n ?? 0), 0)) === 1 ? "" : "s"} · ${meta.ruinGems ?? 0} free<span class="sub">Every Uber boss drops one. +10% base stats on any class, in every mode; open a class to move them.</span></span></div>
           <div class="stile extra-tile" style="grid-column: 1 / -1"><span>🏅</span><span>Deepest: <b>${meta.abyssBest ? `depth ${meta.abyssBest}/10` : "not yet"}</b><span class="sub">${meta.abyssRuns ?? 0} Abyss run${(meta.abyssRuns ?? 0) === 1 ? "" : "s"}</span></span></div>
         </div>
         ${(() => { const w = currentAbyssMod(); return `<div class="panel abyss-week"><b>${w.icon} This week: ${esc(w.name)}</b><br><span class="sub">${esc(w.text)}. Changes every Monday.</span></div>`; })()}
-        ${shards >= ABYSS_SHARD_COST ? "" : `<div class="panel abyss-warn">You need ${ABYSS_SHARD_COST} Ruin Shards to enter (you have ${shards}). Every boss from floor 20 of the Campaign drops one.</div>`}
+        ${shards >= ABYSS_SHARD_COST ? "" : `<div class="panel abyss-warn">You need ${ABYSS_SHARD_COST} Ruin Shard${ABYSS_SHARD_COST === 1 ? "" : "s"} to enter (you have ${shards}). Every guardian from the last layer on drops one.</div>`}
         <h2 class="bright">Choose a hero</h2>
         <p class="sub">Vanadium Plates make a hero stronger in the Abyss only. Once given, a plate stays with that hero for good.</p>
         ${originCards(true)}
@@ -494,7 +494,7 @@ function tavernScreen(infoRow: string, cont: string) {
 }
 
 function heatPanel() {
-  if (!meta.wins) return `<div class="panel heat-panel locked"><b>🔥 Heat</b> <span class="sub">— win the Campaign once to unlock harder runs for more Renown.</span></div>`;
+  if (!meta.wins) return `<div class="panel heat-panel locked"><b>🔥 Heat</b> <span class="sub">— beat the dungeon's last layer once to unlock harder runs for more Renown.</span></div>`;
   const h = meta.heat ?? 0;
   return `<div class="panel heat-panel">
     <div class="row"><b class="grow">🔥 Heat ${h ? h : "off"}</b><span class="sub">${h ? `+${Math.round(HEAT_RENOWN * h * 100)}% Renown · better loot` : "Harder runs, more Renown, better loot"}</span></div>
@@ -521,7 +521,7 @@ function challengesPopup() {
     <div class="mini-row heat-row"><span class="mr-ic">🔥</span><span class="grow"><b>Heat ${meta.wins ? (meta.heat ? meta.heat : "off") : "locked"}</b><span class="sub">${meta.wins ? "Set it when you pick your class." : "Win the Campaign once to unlock harder, richer runs."}</span></span></div>
   </div>
     ${abyssUnlocked(meta) ? `<div class="mini-row week-row"><span class="mr-ic">${w.icon}</span><span class="grow"><b>Abyss this week: ${esc(w.name)}</b><span class="sub">${esc(w.text)}.</span></span></div>`
-      : `<div class="mini-row week-row locked"><span class="mr-ic">🔒</span><span class="grow"><b>Abyss weekly twist</b><span class="sub">Locked: beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to open the Abyss.</span></span></div>`}
+      : `<div class="mini-row week-row locked"><span class="mr-ic">🔒</span><span class="grow"><b>Abyss weekly twist</b><span class="sub">Locked: beat the dungeon's last layer to open the Abyss.</span></span></div>`}
   </div></div>`;
 }
 
@@ -835,8 +835,8 @@ function campBody(o: OriginId, tab: CampTab): string {
   }
   if (tab === "abyss") {
     const shards = meta.ruinShards ?? 0;
-    if (!abyssUnlocked(meta)) return `<p>The way down is sealed. Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign to find it.</p><p class="sub">Your deepest so far: floor ${meta.bestFloor}.</p>`;
-    return `<p>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.</p>
+    if (!abyssUnlocked(meta)) return `<p>The way down is sealed. Beat the dungeon's last layer, with any hero, to find it.</p>`;
+    return `<p>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. Each run costs ${ABYSS_SHARD_COST} Ruin Shard${ABYSS_SHARD_COST === 1 ? "" : "s"}: every guardian from the last layer on leaves one.</p>
       <p class="sub">🪨 ${shards} Ruin Shard${shards === 1 ? "" : "s"} · ⬛ ${meta.classPlates?.[o] ?? 0} plate${(meta.classPlates?.[o] ?? 0) === 1 ? "" : "s"} on the ${og.name} · ${meta.plates ?? 0} to give</p>
       ${(() => { const w = currentAbyssMod(); return `<p class="sub">${w.icon} This week: <b>${esc(w.name)}</b>. ${esc(w.text)}.</p>`; })()}
       ${meta.plates ? `<button class="small camp-drop ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : "＋ Give a Vanadium Plate"}</button>` : ""}
@@ -1711,13 +1711,13 @@ function sanctumScene(r: Run) {
 }
 
 function bountyCard(r: Run, q: { kind: string; target: number; status?: string; reward: Parameters<typeof rewardText>[0]; roomsLeft: number }, btn: string) {
-  return `<div class="item bounty-card"><div class="meta">Contract · ${q.roomsLeft} rooms</div><div class="nm">📋 ${esc(bountyText(q as Parameters<typeof bountyText>[0], r.hero.origin))}</div><p>Reward: <b>${esc(rewardText(q.reward))}</b></p>${btn}</div>`;
+  return `<div class="item bounty-card"><div class="meta">Contract · ${q.roomsLeft} ${r.gridMode ? "encounters" : "rooms"}</div><div class="nm">📋 ${esc(bountyText(q as Parameters<typeof bountyText>[0], r.hero.origin))}</div><p>Reward: <b>${esc(rewardText(q.reward))}</b></p>${btn}</div>`;
 }
 
 function bountyScene(r: Run) {
   if (r.scene.t !== "bounty") return "";
   const cur = r.bounty;
-  return `<h2>📋 The Bounty Board</h2><div class="panel"><p>Notices nailed one over another, most of them stained. Pick one. Finish it within ${r.scene.offers[0]?.roomsLeft ?? 14} rooms and the reward is yours.</p>
+  return `<h2>📋 The Bounty Board</h2><div class="panel"><p>Notices nailed one over another, most of them stained. Pick one. Finish it within ${r.scene.offers[0]?.roomsLeft ?? 14} ${r.gridMode ? "encounters (anything you walk into counts)" : "rooms"} and the reward is yours.</p>
     ${cur ? `<p class="sub">You already hold a contract (${esc(bountyText(cur, r.hero.origin))} · ${bountyProgress(r.hero, cur)}/${cur.target}). Taking a new one tears up the old.</p>` : ""}</div>
     <div class="cards">${r.scene.offers.map((q, i) => bountyCard(r, q, `<button class="small primary" data-takebounty="${i}">Take this contract</button>`)).join("")}</div>
     <div class="row" style="margin-top:12px"><button data-leave>Leave the board</button></div>`;
@@ -1743,9 +1743,9 @@ function bountyPopup(r: Run) {
     <div class="beat-icon">📋</div><h2 class="bright">Your bounty</h2>
     <p class="big">${esc(bountyText(q, r.hero.origin))}</p>
     <div class="bar bounty-bar"><i style="width:${(n / q.target) * 100}%"></i></div>
-    <p><b>${n}/${q.target}</b> done · <b>${q.roomsLeft}</b> room${q.roomsLeft === 1 ? "" : "s"} left</p>
+    <p><b>${n}/${q.target}</b> done · <b>${q.roomsLeft}</b> ${r.gridMode ? "encounter" : "room"}${q.roomsLeft === 1 ? "" : "s"} left</p>
     <p>Reward: <b>${esc(rewardText(q.reward))}</b></p>
-    ${bountyDone(r) ? `<p class="crimson-ink">Done! You'll be paid when you're back on the path.</p>` : ""}
+    ${bountyDone(r) ? `<p class="crimson-ink">Done! You'll be paid ${r.gridMode ? "after your next encounter" : "when you're back on the path"}.</p>` : ""}
     <div class="row" style="justify-content:center"><button class="closebtn" data-closebounty>✕ Close</button></div></div></div>`;
 }
 
@@ -1832,7 +1832,7 @@ function runStatsPanel(r: Run) {
 
 function leaderboardPopup() {
   const ORIGIN_IC: Record<string, string> = { warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" };
-  const main = ([["campaign", "🏰 Campaign"], ["daily", "📅 Daily"], ["abyss", "🕳️ Abyss"], ["heat", "🔥 Heat"], ["bounty", "🎯 Bounty"]] as [Scope, string][])
+  const main = ([["campaign", "🏰 Dungeon"], ["daily", "📅 Daily"], ["abyss", "🕳️ Abyss"], ["heat", "🔥 Heat"], ["bounty", "🎯 Bounty"]] as [Scope, string][])
     .map(([k, l]) => `<button class="lb-main ${lbScope === k ? "active" : ""}" data-lbscope="${k}">${l}</button>`).join("");
   const subs = lbScope === "bounty" ? [] : SUB_BOARDS[lbScope];
   const unit = subs.find(b => b.id === lbBoard);
@@ -2013,7 +2013,7 @@ function bag(r: Run, bodyOnly = false) {
   const artefactsHtml = `<div class="art-group"><div class="art-grid">${
     h.crucible
       ? artTile(true, "⚗️", "Transmuter's Crucible", "At a Forge: Common → Legendary", `Once the key to transmuting. Now any Masterwork can turn a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} Starmetal.`)
-      : artTile(false, "⚗️", "Empty", "Beat the fifth boss…", "A strange tool kept by the Campaign's fifth boss. With it, a Forge can do something remarkable…")
+      : artTile(false, "⚗️", "Empty", "Learn it at the Camp…", "The Knowledge Table can teach you the Crucible's secret. With it, a Forge can do something remarkable…")
   }${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}${artTile(false, "❔", "Empty", "Unknown", "Something old and strange belongs here.")}</div>
     <div class="stile extra-tile star-tile" style="margin-top:10px"><span>✴️</span><span><b>${h.starmetal}</b> Starmetal<span class="sub">${h.crucible ? "Feeds the Crucible at the Forge. Jewellers want it too." : "A rare metal from the finest gear. Scrap Legendaries and Crimson gear for it."}</span></span></div></div>`;
   const extras = `${keepsakeHtml}${heartHtml}
@@ -2302,19 +2302,19 @@ function helpGlossary() {
     row("🧪", "Healing Potions", "Heal 12. You start with 3 potion slots: carry up to 3, and drink up to 3 in one fight. Potion gear and relics add slots (more at higher rarity)")
   ].join(""))}
   ${group("📈 Between runs", [
-    row("⭐", "Class Mastery", `Each class grows with play (floors reached and bosses beaten). Each level takes longer than the last. At mastery ${KIT_COMMON_LEVEL} you can swap its starting weapon, off-hand and armour for a short list of Commons picked for that class; at ${KIT_UNCOMMON_LEVEL}, Uncommons too; at ${KIT_RARE_LEVEL}, Rares`),
+    row("⭐", "Class Mastery", `Each class grows with play (layers reached and guardians beaten). Each level takes longer than the last. At mastery ${KIT_COMMON_LEVEL} you can swap its starting weapon, off-hand and armour for a short list of Commons picked for that class; at ${KIT_UNCOMMON_LEVEL}, Uncommons too; at ${KIT_RARE_LEVEL}, Rares`),
     row("🏆", "Achievements", "Each one pays Renown once, and many give a title to show beside your name on the leaderboards (Info → Achievements)"),
-    row("🔥", "Heat", "After your first Campaign win: optional extra difficulty (set it when you pick a class). Five levels that stack, each giving more Renown and slightly better loot"),
+    row("🔥", "Heat", "After your first win: optional extra difficulty (set it at the Camp's Enter Dungeon). Five levels that stack, each giving more Renown and slightly better loot"),
     row("📅", "Daily Dungeon", "The same dungeon and class for everyone each day; one attempt, with its own leaderboard"),
-    row("😈", "Nemesis", "Whatever kills your Campaign run waits in the next one, stronger each time it wins. Beat it for a bounty"),
+    row("😈", "Nemesis", "Whatever kills your run waits in the next one, stronger each time it wins. Beat it for a bounty"),
     row("🌕", "Abyss weekly twist", "Each week the Abyss changes: some twists help, some hurt")
   ].join(""))}
   ${group("🕳️ The Abyss", [
-    row("🔓", "Opening it", `Beat floor ${ABYSS_UNLOCK_FLOOR} of the Campaign. Then each Abyss run costs ${ABYSS_SHARD_COST} Ruin Shards`),
-    row("🪨", "Ruin Shards", "Every Campaign boss from floor 20 on drops one"),
+    row("🔓", "Opening it", `Beat the dungeon's last layer with any hero. Then each Abyss run costs ${ABYSS_SHARD_COST} Ruin Shard${ABYSS_SHARD_COST === 1 ? "" : "s"}`),
+    row("🪨", "Ruin Shards", "Every guardian from the last layer on drops one"),
     row("⬛", "Vanadium Plates", "Those same bosses sometimes drop one. Give it to a class (for good): in the Abyss only, that class gets more Max HP, Armor and Damage for every plate"),
     row("☠️", "Ten depths", "Every plain fight is a rank tougher: monsters are Elites, Elites are Champions, Champions are bosses, and each depth ends with an Uber boss. Each depth is far deadlier than the last"),
-    row("💰", "The loot", "Much richer than the Campaign, and richest from Champions, bosses and Uber bosses. Playing safe won't find the gear you need")
+    row("💰", "The loot", "Much richer than the dungeon above, and richest from Champions, bosses and Uber bosses. Playing safe won't find the gear you need")
   ].join(""))}`;
 }
 
@@ -2335,7 +2335,7 @@ function splashScreen() {
     <div class="dg-torch left" aria-hidden="true"><b></b><i></i></div><div class="dg-torch right" aria-hidden="true"><b></b><i></i></div>
     <div class="dg-embers" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => `<span style="left:${(i * 37) % 100}%;animation-delay:${(i * 0.73) % 6}s;animation-duration:${6 + (i % 5)}s"></span>`).join("")}</div>
     <div class="splash-dice">🎲</div>
-    <div class="splash-head"><h1 class="splash-title">DECK DUNGEON <span>2</span></h1><span class="splash-blurb">An early Christmas! 🎄</span></div>
+    <div class="splash-head"><h1 class="splash-title">DECK DUNGEON <span>2</span></h1></div>
     <p class="splash-tag">Venture into the depths of darkness. Slay the horrors within.</p>
     <div class="splash-buttons">
       ${musicBlocked() ? `<button class="small music-hint" data-startmusic>🎵 Tap for music</button>` : ""}
@@ -2495,7 +2495,7 @@ function masteryPanel(o: OriginId) {
   return `<div class="panel mastery-panel">
     <div class="row"><b class="grow">⭐ Mastery ${lv}${lv >= MASTERY_MAX ? " (max)" : ""}</b><span class="sub">${lv >= MASTERY_MAX ? `${xp} XP` : `${xp}/${next} XP`}</span></div>
     <div class="bar mastery-bar"><i style="width:${pct}%"></i></div>
-    <p class="sub">Earned by playing the ${og.name}: floors reached and bosses beaten.</p>
+    <p class="sub">Earned by playing the ${og.name}: floors explored and guardians beaten.</p>
     ${lv >= KIT_COMMON_LEVEL ? `<p class="kit-head"><b>Starting kit</b> <span class="sub">${lv >= KIT_UNCOMMON_LEVEL ? "Commons and Uncommons" : `Commons (Uncommons at mastery ${KIT_UNCOMMON_LEVEL})`}</span></p>
       ${KIT_SLOTS.map(sel).join("")}
       ${chosen.length ? `<div class="kit-notes">${chosen.map(b => `<p class="sub"><b>${esc(b.name)}:</b> ${esc(b.text)}</p>`).join("")}</div>` : ""}`
@@ -2548,7 +2548,7 @@ function gemPanel(o: OriginId) {
   const total = free + Object.values(meta.classGems ?? {}).reduce((a: number, n) => a + (n ?? 0), 0);
   if (!total) return "";
   return `<div class="panel gem-panel"><p class="big">💎 <b>${on}</b> Ruin Gem${on === 1 ? "" : "s"} on the ${ORIGINS[o].name}</p>
-    <p class="sub">${on ? `+${Math.round(GEM_BONUS * on * 100)}% Max HP, Damage and Armor in the Campaign and the Abyss (not the Daily).` : "None yet."} Each gem adds ${Math.round(GEM_BONUS * 100)}%. Gems move freely between classes.</p>
+    <p class="sub">${on ? `+${Math.round(GEM_BONUS * on * 100)}% Max HP, Damage and Armor in the dungeon and the Abyss (not the Daily).` : "None yet."} Each gem adds ${Math.round(GEM_BONUS * 100)}%. Gems move freely between classes.</p>
     <div class="row">${free ? `<button class="small primary" data-addgem="${o}">＋ Add a gem (${free} free)</button>` : ""}${on ? `<button class="small" data-removegem="${o}">− Take one back</button>` : ""}</div></div>`;
 }
 
@@ -2568,7 +2568,7 @@ function originPopup(o: OriginId) {
     ${gemPanel(o)}
     <div class="panel plate-panel"><p class="big">⬛ <b>${pl}</b> Vanadium Plate${pl === 1 ? "" : "s"} on the ${og.name}</p>
       <p class="sub">${pl ? `+${Math.round((plateMult(pl) - 1) * 100)}% Max HP, Armor and Damage in the Abyss.` : "No plates yet."} The first two plates add ${Math.round(PLATE_BONUS * 100)}% each; from the 3rd on, each adds 30%.</p>
-      ${free ? `<button class="small ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : `＋ Give a plate (${free} to give)`}</button>` : `<p class="sub">No plates to give. Campaign bosses from floor 20 sometimes drop one.</p>`}</div>
+      ${free ? `<button class="small ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : `＋ Give a plate (${free} to give)`}</button>` : `<p class="sub">No plates to give. Guardians from the last layer on sometimes drop one.</p>`}</div>
     ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
     <div class="row" style="justify-content:center;margin-top:12px"><button class="primary abyss-go" data-startabyss ${shards >= ABYSS_SHARD_COST ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 ${ABYSS_SHARD_COST}</button><button data-closeorigin>Back</button></div>
     ${shards >= ABYSS_SHARD_COST ? `<p class="sub center">You have ${shards} Ruin Shard${shards === 1 ? "" : "s"}.</p>` : `<p class="sub center warn">You need ${ABYSS_SHARD_COST} Ruin Shards (you have ${shards}).</p>`}
@@ -3206,7 +3206,8 @@ function bind() {
       meta.daily = { day: today, floor: 1, won: false };
       saveMeta(meta);
       mode = "campaign"; lbResult = null; lbNaming = false; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
-      const nr = newDailyRun(today); // (no Ruin Gems: the Daily stays a level field)
+      const nr = newDailyRun(today); // (no Ruin Gems or Camp upgrades: the Daily stays a level field)
+      startCrawl(nr);
       run = nr; void startSession(nr);
     });
     on("[data-startabyss]", () => { if (pendingOrigin) startAbyss();    });
@@ -3252,6 +3253,9 @@ function bind() {
       const nr = newRun(o, Date.now() & 0x7fffffff, "abyss", lockedIds(meta));
       nr.abyssMod = currentAbyssMod().id;
       applyKit(nr, meta.kits?.[o], masteryLevel(meta.mastery?.[o] ?? 0), lockedIds(meta));
+      // The Abyss is walked too: ten depths, each a layer of floors with an Uber boss at the bottom.
+      startCrawl(nr);
+      applyHall(meta, nr);
       nr.hero.plates = meta.classPlates?.[o] ?? 0;
       withGems(nr);
       run = nr; void startSession(nr);

@@ -1763,9 +1763,10 @@ function afterFight(run: Run) {
     if (relic) offerRelic(run, relic, 1);
     grantScrolls(run, scrolls);
     recompute(h);
-    // From floor 20, every boss leaves a Ruin Shard (the key to an Abyss run), and sometimes a Vanadium Plate.
+    // From the last layer on (floor 20 of the old Campaign), every guardian leaves a Ruin Shard (the key to an Abyss run),
+    // and sometimes a Vanadium Plate.
     let ruinNote = "";
-    if (run.mode !== "abyss" && run.floor >= RUIN_FLOOR) {
+    if (run.mode !== "abyss" && run.floor >= (run.gridMode ? FLOORS : RUIN_FLOOR)) {
       run.ruin = run.ruin ?? { shards: 0, plates: 0 };
       run.ruin.shards++;
       ruinNote = " · 🪨 a Ruin Shard";
@@ -2543,7 +2544,7 @@ export function takeBounty(run: Run, i: number) {
   if (offer) markEncounter(run, "room:bounty");
   if (!offer) return;
   run.bounty = { ...offer, base: run.hero.f.persist[offer.kind === "status" ? `q_st_${offer.status}` : `q_${offer.kind}`] ?? 0 };
-  run.message = `📋 Contract taken: ${bountyText(offer, run.hero.origin)} within ${offer.roomsLeft} rooms.`;
+  run.message = `📋 Contract taken: ${bountyText(offer, run.hero.origin)} within ${offer.roomsLeft} ${run.gridMode ? "encounters" : "rooms"}.`;
   advance(run);
 }
 
