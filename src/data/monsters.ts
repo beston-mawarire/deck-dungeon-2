@@ -110,7 +110,7 @@ export const AFFIX_WEIGHT: Record<string, number> = { x_grievous: 0.6, x_blighti
 export interface MonsterDef { name: string; family: string; hp: number; power: number; armor?: number; traits: string[]; faces?: FaceSpec[] }
 
 export const MONSTERS: MonsterDef[] = [
-  { name: "Wolf", family: "Beast", hp: 10, power: 3, traits: ["m_ambush"] },
+  { name: "Flayed", family: "Beast", hp: 10, power: 3, traits: ["m_ambush"] },
   { name: "Shieldbearer", family: "Cultist", hp: 13, power: 3, armor: 2, traits: ["m_shieldwall"] },
   { name: "Iron Tortoise", family: "Beast", hp: 16, power: 3, armor: 3, traits: ["m_shieldwall"] },
   { name: "Boar", family: "Beast", hp: 14, power: 3, armor: 1, traits: [], faces: [GRAZE, HIT, HIT, HIT, HIT, spell("Gore", "crit", hex("bleed", 2))] },

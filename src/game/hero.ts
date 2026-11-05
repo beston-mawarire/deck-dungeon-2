@@ -179,12 +179,14 @@ export const fillText = (text: string, n: number) =>
     .replace(/\{n\/(\d+)\}/g, (_m, d) => String(Math.max(1, Math.ceil(n / Number(d)))));
 
 /** Lines describing an item for the UI. */
+/** Marks the item-type line in itemLines (shown in a thin box, not as text). */
+export const TYPE_MARK = "\u2063";
 export function itemLines(item: GearItem): string[] {
   const b = baseOf(item.base);
   const eb = effectiveBase(item);
   const lines: string[] = [];
   if (item.reqLevel) lines.push(`🔒 Requires level ${item.reqLevel}`);
-  lines.push(`🏷️ ${familyLine(eb)}`);
+  lines.push(`${TYPE_MARK}${familyLine(eb)}`);
   if (isHeavy(eb)) lines.push(`🪨 Heavy: no Dodge, Evade or Haste while you wear it, but ${eb.kind === "weapon" ? "it hits 15% harder" : "it carries 30% more Armor"}.`);
   if (eb.damage !== undefined) lines.push(`Damage ${weaponDamage(item)}${eb.twoHanded ? " · two-handed" : ""}${eb.offDamage ? ` · off-hand ${weaponDamage(item, true)}${offhandPenalty(item) ? " (clumsy: 60%)" : ""}` : ""}`);
   const armor = itemArmor(eb, item.level);

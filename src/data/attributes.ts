@@ -24,9 +24,9 @@ export const ATTR_INFO: Record<Attr, { name: string; icon: string; blurb: string
   str: { name: "Strength", icon: "💪", blurb: "A bigger frame, and blows that stagger.",
     lines: n => [`+${4 * n} Max HP`, `+${n}% Bash`] },
   agi: { name: "Agility", icon: "🏹", blurb: "Slip hits, and find the gaps.",
-    lines: n => [`+${2 * n}% Dodge`, `+${Math.round(1.5 * n)}% Crit chance`, `Crits deal +${5 * n}% damage`] },
-  int: { name: "Intellect", icon: "📘", blurb: "Elements and statuses bite deeper; staves and wands strike harder.",
-    lines: n => [`Status damage +${6 * n}%`, `Reactions deal +${6 * n}%`, `Staves and wands deal +${4 * n}% damage`] },
+    lines: n => [`+${2 * n}% Dodge`, `+${Math.round(1.5 * n)}% Crit chance`] },
+  int: { name: "Intellect", icon: "📘", blurb: "Elements and statuses bite deeper.",
+    lines: n => [`Status damage +${6 * n}%`, `Reactions deal +${6 * n}%`] },
   fai: { name: "Faith", icon: "✝️", blurb: "Bear what the dark throws at you, and find your curses lifted sooner.",
     lines: n => [`Reactions hit you for ${pct(n, 4, RESIST_CAP)}% less`, `Status damage on you −${pct(n, 4, RESIST_CAP)}%`, `Altars that lift curses turn up more often`] },
   vit: { name: "Vitality", icon: "❤️", blurb: "Every bit of healing goes further.",
@@ -41,11 +41,10 @@ const attr = (id: Attr, hooks: HookDef["hooks"]): HookDef => ({ id: `attr_${id}`
  *  base-attribute Damage are read where they apply (the statuses, the run and the hero's stats). */
 export const ATTR_HOOKS: HookDef[] = [
   attr("str", { stats: (s, n) => { s.maxHp += 4 * n; s.bash += n; } }),
-  attr("agi", { stats: (s, n) => { s.dodge += 2 * n; s.critChance += Math.round(1.5 * n); s.critDmg = (s.critDmg ?? 0) + 5 * n; } }),
+  attr("agi", { stats: (s, n) => { s.dodge += 2 * n; s.critChance += Math.round(1.5 * n); } }),
   attr("int", {
     stats: (s, n) => { s.dotAmp = (s.dotAmp ?? 0) + 6 * n; },
-    reactionMult: (_b, _f, n) => 1 + 0.06 * n,
-    modifyAttack: (_b, c, n) => { if (!c.offhand && c.attacker.persist["mainArcane"]) c.mult *= 1 + 0.04 * n; }
+    reactionMult: (_b, _f, n) => 1 + 0.06 * n
   }),
   attr("fai", {}),
   attr("vit", { healMult: n => 1 + 0.08 * n }),

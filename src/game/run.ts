@@ -29,7 +29,7 @@ import { ATTR_PER_LEVEL } from "../data/attributes";
 import { type Fish, fishById, POND_CASTS, rollCatch } from "./fishing";
 import { MASTERY_FAMILIES, TOTEM_DROP, TOTEM_LAYER, TOTEMS, WM_XP } from "./longroad";
 import { classify } from "./families";
-import { openedAt, type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, type Hazard, idx, isFloor, isSeenTile, LAYER_FLOORS, layerOf, look, POOL_STEPS, SPIKE_DMG, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
+import { openedAt, type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, type Hazard, idx, isFloor, isSeenTile, LAYER_FLOORS, layerFloors, layerOf, look, POOL_STEPS, SPIKE_DMG, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -484,7 +484,7 @@ const FOE_ROOMS: RoomType[] = ["fight", "elite", "champion", "unique", "goblin",
 
 /** Where this layer's services fall: the campfire on the last floor before the boss, the others spread over the rest. */
 function layerPlan(run: Run): Partial<Record<RoomType, number>> {
-  const rng = run.rng, last = LAYER_FLOORS - 1, any = () => 1 + Math.floor(rng() * last);
+  const rng = run.rng, last = layerFloors(run) - 1, any = () => 1 + Math.floor(rng() * last);
   // Two Merchants a layer: one at the entrance (floor 0), and one somewhere on the third floor.
   // (Campfires, and a third Merchant, come from what the Camp's Knowledge Table has taught.)
   const plan: Partial<Record<RoomType, number>> = { shop: 3 };
@@ -744,7 +744,7 @@ export const SKELETON_KEY_DROP = 0.1;
 
 /** Each layer's own foes (the sixth layer on goes round again, tougher each time). */
 export const LAYER_FOES: string[][] = [
-  ["Skeleton", "Wolf", "Giant Spider", "Ghoul", "Wraith", "Hexer", "Acolyte"],
+  ["Skeleton", "Flayed", "Giant Spider", "Ghoul", "Wraith", "Hexer", "Acolyte"],
   ["Rot Leech", "Dust Leech", "Giant Spider", "Boar", "Blight Priest", "Ghoul", "Vampire Spawn"],
   ["Forge Golem", "Stone Golem", "Sentry", "Storm Wisp", "Acolyte", "Zealot", "Ash Wight"],
   ["Wraith", "Vampire Spawn", "Iron Tortoise", "Shieldbearer", "Gloomcaller", "Skeleton", "Ghoul"],
@@ -1040,10 +1040,10 @@ export function descend(run: Run) {
   run.hero.f.persist["floor"] = run.floor;
   // From the boss's treasure room: down to the next layer.
   if (m.depth === TREASURE_DEPTH) { run.gridDescend = true; run.bossChest = undefined; advance(run); return; }
-  if (m.depth + 1 >= LAYER_FLOORS) {
+  if (m.depth + 1 >= layerFloors(run)) {
     run.step = STEPS_PER_FLOOR;
     const name = run.mode === "abyss" ? "The Uber boss" : run.floor === WALL_FLOOR ? "The Horror" : run.floor === DEATH_FLOOR ? "DEATH" : run.floor === END_FLOOR ? "The End" : "The guardian of this layer";
-    run.popup = { icon: "👑", title: `Floor ${LAYER_FLOORS} — the bottom`, text: `The trapdoor gives way and you land hard in the dark at the bottom of the layer. There's no way back up. ${name} is already here, and it has seen you.` };
+    run.popup = { icon: "👑", title: `Floor ${layerFloors(run)} — the bottom`, text: `The trapdoor gives way and you land hard in the dark at the bottom of the layer. There's no way back up. ${name} is already here, and it has seen you.` };
     enterRoom(run, "boss");
     return;
   }
@@ -1381,7 +1381,7 @@ export function fight(run: Run, rank: MonsterRank, then?: "resplendent" | "mimic
     // Every foe in the Crawl is close to an Elite: plain monsters come much tougher.
     const near = rank === "normal" && !thief;
     // They ease you in: well short of that on a layer's first floor, full strength from the fourth.
-    const depthIn = run.grid?.depth ?? LAYER_FLOORS;
+    const depthIn = run.grid?.depth ?? layerFloors(run);
     // (The very first layer eases you in further: its plain foes reach full strength only on its last floors.)
     const ramp = run.floor <= 1 && run.mode !== "abyss" ? Math.min(1, 0.1 + 0.18 * (depthIn - 1)) : Math.min(1, 0.25 + 0.25 * (depthIn - 1));
     // Elites on the first layer's first two floors come a little softer too.

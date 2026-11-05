@@ -83,7 +83,7 @@ export const THEMES: FloorTheme[] = [
   { id: "icy", name: "The Icy Labyrinth", icon: "❄️", families: ["Undead", "Beast"], trait: "x_th_rime", traitChance: 0.3,
     text: "Frost furs every wall, and the corridors twist back on themselves. Your breath hangs in the air.", hint: "Frost-bitten foes that slow you down",
     monsters: [
-      { name: "Frost Wolf", family: "Beast", hp: 11, power: 3, traits: ["m_ambush", "x_th_rime"] },
+      { name: "Frostbitten Flayed", family: "Beast", hp: 11, power: 3, traits: ["m_ambush", "x_th_rime"] },
       { name: "Ice Wraith", family: "Undead", hp: 9, power: 3, traits: ["m_incorporeal", "m_grave_chill"] }
     ],
     elites: [{ name: "Glacial Golem", family: "Construct", hp: 19, power: 3, armor: 3, traits: ["x_frostproof"], faces: [MISS, HIT, HIT, HIT, HIT, spell("Avalanche", "crit", hex("chill", 3))] }],

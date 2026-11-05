@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
 import { abyssUnlocked, type Meta } from "../src/game/meta";
 import { newDailyRun, newRun, startCrawl } from "../src/game/run";
+import { layerFloors, LAYER_FLOORS } from "../src/game/grid";
 import { crawlStep } from "./crawlbot";
 
 beforeAll(() => loadLibrary());
@@ -22,6 +23,10 @@ describe("the Abyss and the Daily, walked", () => {
       expect(r.floor).toBeGreaterThanOrEqual(1);
     }
   }, 60000);
+  it("the Abyss's depths are shorter than the dungeon's layers", () => {
+    expect(layerFloors({ mode: "abyss" })).toBeLessThan(LAYER_FLOORS);
+    expect(layerFloors({ mode: "campaign" })).toBe(LAYER_FLOORS);
+  });
   it("a Daily run is a walkable dungeon too, the same for everyone that day", () => {
     const a = newDailyRun("2026-11-06"); startCrawl(a);
     const b = newDailyRun("2026-11-06"); startCrawl(b);

@@ -69,6 +69,7 @@ export const MINOR_TALENTS: HookDef[] = [
   talent({ id: "tm_keen_edge", name: "Keen Edge", tags: ["Crit"], text: "Crits deal +5% / +10% / +15% damage", hooks: { stats: (s, n) => { s.critDmg = (s.critDmg ?? 0) + 5 * n; } } }),
   talent({ id: "tm_sharp_eye", name: "Sharp Eye", tags: ["Crit"], text: "+1% / +2% / +4% Crit chance", hooks: { stats: (s, n) => { s.critChance += rank(n, 1, 2, 4); } } }),
   talent({ id: "tm_nimble", name: "Nimble Step", tags: ["Tempo"], text: "+1% / +2% / +4% Dodge", hooks: { stats: (s, n) => { s.dodge += rank(n, 1, 2, 4); } } }),
+  talent({ id: "tm_staff_lore", name: "Staff Lore", tags: ["Arcane"], text: "Staves and wands deal +4% / +8% / +12% damage", hooks: { modifyAttack: (_b, c, n) => { if (!c.offhand && c.attacker.persist["mainArcane"]) c.mult *= 1 + 0.04 * n; } } }),
   talent({ id: "tm_studious", name: "Studious", tags: ["Arcane"], text: "Spell Amp +4% / +8% / +12%", hooks: { stats: (s, n) => { s.spellAmp += 4 * n; } } }),
   talent({ id: "tm_field_medic", name: "Field Medic", tags: ["Blood"], text: "Healing +5% / +10% / +15%", hooks: { healMult: n => 1 + (5 * n) / 100 } }),
   talent({ id: "tm_second_wind", name: "Second Wind", tags: ["Blood"], text: "Heal 1 / 2 / 3 after each fight you win", hooks: { onFightEnd: (b, f, n) => { if (b.over === "won" && f.id === "player") heal(b, f, n, "Second Wind"); } } }),

@@ -1,5 +1,5 @@
 // The Crawl (prototype): the floor drawn full-screen on a canvas, the camera on the player, point-and-click walking.
-import { idx, inSight, isFloor, isSeenTile, LAYER_FLOORS, layerOf, pathToward, SIGHT, thingAt, type FloorMap } from "../game/grid";
+import { idx, inSight, isFloor, isSeenTile, layerFloors, layerOf, pathToward, SIGHT, thingAt, type FloorMap } from "../game/grid";
 import { gridSelect, gridStep, type Run } from "../game/run";
 import { atlas, CLASS_SPRITE, drawSprite, drawTile, drawWater, foeSprite, hasSprite, spriteSize, THING_SPRITE } from "./sprites";
 
@@ -246,7 +246,7 @@ export function drawCrawl() {
     ctx.globalAlpha = on ? 1 : 0.6;
     ctx.fillStyle = "rgba(20,10,4,.45)";
     ctx.beginPath(); ctx.ellipse(cx, cy + ts * 0.3, ts * 0.32, ts * 0.1, 0, 0, Math.PI * 2); ctx.fill();
-    if (t.room === "trapdoor") drawTrapdoor(ctx, cx, cy, ts, m.depth === LAYER_FLOORS - 1);
+    if (t.room === "trapdoor") drawTrapdoor(ctx, cx, cy, ts, m.depth === layerFloors(runRef ?? {}) - 1);
     else {
       // A sprite where we have one (the foe itself, a chest, the Merchant); an emoji otherwise.
       const sk = t.foe ? foeSprite(t.foe, undefined, false) : t.opened && THING_SPRITE[t.room] ? `${THING_SPRITE[t.room]}_open` : THING_SPRITE[t.room];
@@ -332,7 +332,7 @@ function drawMinimap(m: FloorMap) {
   }
   for (const t of m.things) {
     if (t.done || !m.seen[idx(m, t.x, t.y)]) continue;
-    const col = t.room === "trapdoor" ? (m.depth === LAYER_FLOORS - 1 ? "#ff3a2e" : "#ffd23a") : t.room === "shop" ? "#e8c070" : t.room === "locked" ? "#c08040" : null;
+    const col = t.room === "trapdoor" ? (m.depth === layerFloors(runRef ?? {}) - 1 ? "#ff3a2e" : "#ffd23a") : t.room === "shop" ? "#e8c070" : t.room === "locked" ? "#c08040" : null;
     if (!col) continue;
     ctx.fillStyle = col;
     ctx.fillRect(t.x * c, t.y * c, c, c);

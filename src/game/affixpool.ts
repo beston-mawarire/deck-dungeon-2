@@ -97,7 +97,8 @@ export function affixPool(): Affix[] {
   for (const m of GEN_MINORS) {
     if (["gm_damage", "gm_armor", "gm_hp"].includes(m.id)) continue;
     const kinds = m.slots ? ALL_KINDS.filter(k => m.slots!.includes(k === "weapon" ? "main" : k === "off" ? "off" : k === "armour" ? "armour" : "trinket")) : ALL_KINDS;
-    out.push({ id: m.id, def: m, grade: "minor", group: m.group, kinds, gen: m, weight: m.weight ?? 1, tags: m.tags });
+    // (Staff damage only rolls on staves, wands and foci.)
+    out.push({ id: m.id, def: m, grade: "minor", group: m.group, kinds, gen: m, weight: m.weight ?? 1, tags: m.tags, families: m.id === "gm_staffdmg" ? ["arcane", "focus"] : undefined });
   }
   // ---- Major: the generator's trigger → payload lines ----
   for (const m of GEN_MAJORS) {

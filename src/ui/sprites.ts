@@ -51,7 +51,7 @@ export function spriteHtml(k: string, scale: number, cls = ""): string {
 /** Which sprite a foe wears, by its name (then its kind). */
 const BY_NAME: [RegExp, string][] = [
   [/goblin|pickpocket/i, "goblin"], [/imp/i, "imp"], [/skeleton|bone|garrick/i, "skelet"], [/ghoul/i, "zombie"], [/wight|wraith|shade/i, "ice_zombie"],
-  [/vampire/i, "chort"], [/wolf/i, "wogol"], [/boar/i, "swampy"], [/tortoise/i, "muddy"], [/spider/i, "chort"], [/leech/i, "slug"],
+  [/vampire/i, "chort"], [/wolf|flayed/i, "wogol"], [/boar/i, "swampy"], [/tortoise/i, "muddy"], [/spider/i, "chort"], [/leech/i, "slug"],
   [/troll|grimtooth|kragg/i, "ogre"], [/shieldbearer/i, "masked_orc"], [/acolyte/i, "orc_shaman"], [/hexer|blight|necro/i, "necromancer"],
   [/zealot/i, "orc_warrior"], [/gloomcaller|painweaver/i, "doc"], [/mother ember/i, "big_demon"], [/nightshade/i, "elf_f"],
   [/golem/i, "muddy"], [/wisp/i, "angel"], [/sentry|sentinel|maiden/i, "knight_f"], [/mimic/i, "chest_mimic"], [/death|the end|horror/i, "big_demon"]

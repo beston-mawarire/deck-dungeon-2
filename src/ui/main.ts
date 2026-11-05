@@ -28,7 +28,7 @@ import {
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
-import { LAYER_FLOORS } from "../game/grid";
+import { layerFloors } from "../game/grid";
 import { isThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
 import { branchSpent, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TOTEMS, totemById, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
@@ -38,7 +38,7 @@ import { mountCampMap, resetCampWalk } from "./campmap";
 import { CAMP_CASTS, type CastPlan, FISH, fishById, planCast, rollCatch } from "../game/fishing";
 import { ELITE_ONLY, MONSTERS } from "../data/monsters";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
-import { gearAttr, spendAttr, treeAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
+import { gearAttr, spendAttr, TYPE_MARK, treeAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
 import { INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
@@ -351,7 +351,7 @@ function itemCard(it: GearItem, buttons = "", compare: boolean | { hero: Hero; s
     ${equippedAs ? `<div class="eqbadge">⚔️ Equipped · ${esc(equippedAs)}</div>` : ""}
     <div class="meta">${itemRarity(it)}${it.gen ? ` · <span class="gen-tag" title="Made by chance: a generated item">⚒ forged by chance</span>` : ""} · ${b.slot === "main" ? "weapon" : b.slot === "off" ? "off-hand" : b.slot} · level ${it.level}</div>
     <div class="nm">${esc(itemName(it))}</div>
-    <ul>${itemLines(it).map(l => `<li${l.startsWith("🔒 Requires level") ? ` class="req-line"` : ""}>${esc(l)}</li>`).join("")}</ul>
+    <ul>${itemLines(it).map(l => l.startsWith(TYPE_MARK) ? `<li class="type-line"><span class="item-type">${esc(l.slice(TYPE_MARK.length))}</span></li>` : `<li${l.startsWith("🔒 Requires level") ? ` class="req-line"` : ""}>${esc(l)}</li>`).join("")}</ul>
     ${it.infused ? (() => { const t = baseOf(it.infused!); return `<div class="infused">💠 Infused: <b>${esc(t.name)}</b> — ${esc(t.legendary?.reveal ?? t.text)}</div>`; })() : ""}
     ${(it.upgrades ?? 0) > 0 ? `<div class="sub upgraded-note">⬆️ Upgraded ${it.upgrades}×</div>` : ""}
     ${it.refine || it.bound ? `<div class="sub mw-note">${[it.refine ? `Refined ${"•".repeat(it.refine)}` : "", it.bound ? "🔒 Bound" : ""].filter(Boolean).join(" · ")}</div>` : ""}
@@ -392,7 +392,7 @@ function hud(r: Run) {
     <div class="row stat"><span><b>${Math.max(0, f.hp)}</b>/${f.maxHp} HP</span><span>⚔️ <b>${f.damage}</b>${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}</span><span>🛡️ <b>${f.armor}</b></span>
       <span>🪙 <b>${f.gold}</b></span><span>⚙️ <b>${h.scrap}</b></span>${h.azure ? `<span title="Azure dust: from scrapping Rares">💠 <b>${h.azure}</b></span>` : ""}${h.orilium ? `<span title="Orilium: from scrapping Epics">🔶 <b>${h.orilium}</b></span>` : ""}<span title="Healing Potions carried / how many you can carry">🧪 <b>${h.potions}</b>/${potionCap(h)}</span><span>📜 <b>${h.scrolls}</b></span>${h.manaPotions ? `<span>🔷 <b>${h.manaPotions}</b></span>` : ""}${h.starmetal ? `<span>✴️ <b>${h.starmetal}</b></span>` : ""}${h.crimsonKeys ? `<span class="crimson-ink">🗝️ <b>${h.crimsonKeys}</b></span>` : ""}</div>
     <div class="bar xp"><i style="width:${(h.xp / need) * 100}%"></i></div>
-    ${r.gridMode && r.grid ? `<div class="steps">${Array.from({ length: LAYER_FLOORS }, (_, i) => `<i class="${i < r.grid!.depth - 1 || r.step >= STEPS_PER_FLOOR ? "done" : ""}"></i>`).join("")}</div>` : `<div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>`}
+    ${r.gridMode && r.grid ? `<div class="steps">${Array.from({ length: layerFloors(r) }, (_, i) => `<i class="${i < r.grid!.depth - 1 || r.step >= STEPS_PER_FLOOR ? "done" : ""}"></i>`).join("")}</div>` : `<div class="steps">${Array.from({ length: STEPS_PER_FLOOR + 1 }, (_, i) => `<i class="${i < r.step || (r.step === STEPS_PER_FLOOR && i < STEPS_PER_FLOOR) ? "done" : ""}"></i>`).join("")}</div>`}
     <div class="row hud-actions" style="margin-top:6px"><button class="small bag-btn" data-bag>${newTabs(r).size ? `<b class="newdot" title="Something new in your Inventory"></b>` : ""}🎒 <span class="lbl">Inventory</span></button>${bountyBtn(r)}${h.potions && f.hp > 0 && f.hp < f.maxHp && !busy && r.scene.t !== "over" ? `<button class="small potion-btn" data-potion>🧪 <span class="lbl">Potion </span>(+12)</button>` : ""}<span class="grow"></span><button class="small" data-help title="How to play">❓</button><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button><button class="small" data-menu title="Menu">☰ <span class="lbl">Menu</span></button></div>
     <div class="hud-floor">${floorHeader(r)}</div>
   </div>`;
@@ -660,6 +660,8 @@ function potionCircle(r: Run) {
   const canHeal = h.potions > 0 && f.hp > 0 && f.hp < f.maxHp && !busy && (!inFight || drunk < potionsPerFight(h));
   const tonics = Object.entries(h.tonics ?? {});
   const fightOnly = (what: string) => `data-potnote="${esc(what)} only work in a fight."`;
+  // Nothing to drink: the drawer stays shut (a tap just says so).
+  if (!h.potions && !h.manaPotions && !tonics.length) return `<button class="cz-circle empty" data-potnote="No potions. Merchants sell them, and some foes drop them." aria-label="No potions">🧪</button>`;
   return `<button class="cz-circle" data-potdrawer aria-label="Potions">🧪${h.potions ? `<b class="cz-count">${h.potions}</b>` : ""}</button>
     <div class="cz-drawer ${potDrawer ? "open" : ""}">
       <button class="cz-pot" data-potion ${canHeal ? "" : "disabled"} title="Healing Potion">🧪<b>${h.potions}</b></button>
@@ -2117,7 +2119,7 @@ function crawlBag(r: Run) {
     const baseA = BASE_ATTR[h.origin as keyof typeof BASE_ATTR];
     const rows = ATTRS.map(a => {
       const info = ATTR_INFO[a], spent = h.attrs?.[a] ?? 0, tree = treeAttr(h, a), gear = gearAttr(h, a), n = spent + tree + gear, isFav = baseA === a;
-      // (The class attribute's base Damage shows in your ⚔️ Damage; crit damage and staff damage stay unlisted.)
+      // (The class attribute's base Damage shows in your ⚔️ Damage.)
       const now = shownLines(info.lines(attrPower(n)));
       const next = shownLines(info.lines(attrPower(n + 1)));
       const lines = now.map((l, i) => `<li class="${l !== next[i] ? "grows" : ""}"><span>${esc(l)}</span>${l !== next[i] && pts ? `<i>→ ${esc(/[+−-]?\d+%?/.exec(next[i])?.[0] ?? next[i])}</i>` : ""}</li>`).join("");
@@ -2136,8 +2138,8 @@ function crawlBag(r: Run) {
 }
 
 /** Wide screens: your equipped gear, always in view on the left. */
-/** Attribute lines shown in the game (crit damage and staff damage work, unlisted). */
-const shownLines = (l: string[]) => l.filter(x => !/^(Crits deal|Staves and wands)/.test(x));
+/** Attribute lines as shown (all of them now). */
+const shownLines = (l: string[]) => l;
 
 function sideEquip(r: Run) {
   const h = r.hero;
@@ -2145,7 +2147,7 @@ function sideEquip(r: Run) {
   const rows = openSlots(h).map(s => {
     const it = h.equip[s];
     if (!it) return `<div class="se-item empty"><div class="se-slot">${slotName[s]}</div><span class="sub">Empty</span></div>`;
-    const lines = itemLines(it).filter(l => !l.startsWith("Faces:") && !l.startsWith("✝️") && !l.startsWith("✨ Purify")).slice(0, 3);
+    const lines = itemLines(it).filter(l => !l.startsWith("Faces:") && !l.startsWith("✝️") && !l.startsWith("✨ Purify")).map(l => l.replace(TYPE_MARK, "")).slice(0, 3);
     return `<div class="se-item r-${it.rarity}"><div class="se-slot">${slotName[s]} · ${itemRarity(it)} · lv ${it.level}</div><div class="nm">${esc(itemName(it))}</div>
       ${lines.map(l => `<div class="se-line">${esc(l)}</div>`).join("")}</div>`;
   }).join("");

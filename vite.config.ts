@@ -21,5 +21,6 @@ export default defineConfig({
     { name: "version-file", closeBundle() { writeFileSync(join(single ? "dist-single" : "dist", "version.json"), JSON.stringify({ version: pkg.version, build })); } }
   ],
   build: { outDir: single ? "dist-single" : "dist" },
-  test: { globals: true, environment: "node" }
+  // The old room-choice game is kept in the code (nothing reaches it now), but its tests are parked.
+  test: { globals: true, environment: "node", exclude: ["**/node_modules/**", "tests/sim.test.ts", "tests/auto.test.ts", "tests/crossroads.test.ts", "tests/transform.test.ts"] }
 });

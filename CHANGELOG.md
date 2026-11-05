@@ -9,6 +9,19 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.91.0
+
+- **Crit damage and staff damage come from gear and the tree now**, not from attributes. Agility gives Dodge and Crit chance; Intellect gives status and reaction damage. Look for "Crits deal +%" lines on gear, a new "Staves and wands deal +%" line on staves, wands and foci, and Keen Edge and Staff Lore in the Passive Tree.
+- **The Abyss's depths are shorter:** three floors and the Uber boss's.
+- **Fights:**
+  - The moves are wooden planks with a nail at each end, and their colour runs along the bottom edge.
+  - Guarding is calmer: just a soft blue glow at your feet.
+  - With one or two throwables, their buttons don't stretch across the row.
+  - With nothing to drink, the potion button doesn't open an empty drawer.
+  - On big screens like a 13-inch iPad, your hero can't slide under the buttons any more.
+- Wolves are gone (the dungeon never had any): they're **Flayed** now, and Frost Wolves are Frostbitten Flayed.
+- An item's type (Short Blade · Medium · Blade, Light Armour…) sits in a thin box of its own, with no tag icon.
+
 ## 1.90.0
 
 - **Balance:** the first layer eases you in more gently. Its plain foes reach full strength only on its last floors, and its Elites are a little softer on the first two floors.

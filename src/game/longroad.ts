@@ -25,7 +25,7 @@ const BRANCH_DEFS: Omit<TreeBranch, "nodes" | "tiers">[] = [
 ];
 /** Old passives left out of the tree: the small stat bumps that attributes now give (Crit, Dodge, Healing, status
  *  damage, Bash, Max HP…), and ones the Crawl has little room for (a 150-Gold purse, Cleave carry-over). */
-export const TREE_DROPPED = new Set(["tm_sharp_eye", "tm_nimble", "tm_field_medic", "tm_lingering_harm", "tm_studious", "tm_sturdy", "tm_heavy_hand", "tm_keen_edge",
+export const TREE_DROPPED = new Set(["tm_sharp_eye", "tm_nimble", "tm_field_medic", "tm_lingering_harm", "tm_studious", "tm_sturdy", "tm_heavy_hand",
   "tm_steady_breath", "tm_thrifty", "t_mercenary", "t_carver"]);
 /** Weakest to strongest, from fights simulated at layer 6 with every class (each passive at rank III against the
  *  same foes), with the build-defining ones moved to the very end. Anything unlisted sits in the middle. */
@@ -35,7 +35,7 @@ export const TREE_ORDER = [
   "t_ambidextrous", "t_slippery", "t_bloodrage", "t_heavy_hitter", "t_riposte", "t_counter_stance", "t_parrying_blades", "t_rhythm", "t_hexer", "t_twin_strikes",
   "t_tortoise", "t_static_field", "t_shield_wall", "t_kindler", "t_pummel", "tm_offhand_drills", "t_evasion", "t_momentum", "t_shield_bash", "t_crossed_blades",
   "t_hunters_mark", "t_live_wire", "t_light_feet", "tm_prickly", "t_toxicologist", "t_heavy_hands", "t_stalwart", "tm_opening_jab", "t_rend", "t_relentless",
-  "t_juggernaut", "t_retaliate", "t_envenomed", "t_splinter", "t_overwhelm", "tm_toughened", "tm_padded", "tm_precision", "tm_second_wind", "tm_practiced",
+  "t_juggernaut", "t_retaliate", "t_envenomed", "t_splinter", "t_overwhelm", "tm_toughened", "tm_padded", "tm_precision", "tm_second_wind", "tm_practiced", "tm_keen_edge", "tm_staff_lore",
   "t_thick_skin", "t_barbed", "tm_hardened", "t_haymaker", "t_double_down", "t_battle_fury", "t_vigor", "t_static_charge", "t_malediction", "t_zealotry",
   "t_loaded_dice", "t_troll_blood", "t_lucky_streak", "t_frostbite", "t_battle_trance", "t_immunologist", "t_fault_lines", "t_executioner", "t_divine_favor",
   "t_quick_hands", "t_vanguard", "t_iron_will", "t_fire_within", "t_pyrotechnics", "t_conductor", "t_crushing_blows", "t_exploit_opening", "t_catalyst",
