@@ -9,6 +9,13 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.86.0
+
+- **Fishing.** Still Pools now turn up in the dungeon. Cast your line, watch the float, and strike only on the deep tug: twitches are just the water teasing you, and most casts bring up nothing. Each pool gives you three casts.
+- Fish can be eaten on the spot for healing (some raise your Max HP for the run), or carried home. The Gilded Koi sells for a good pile of Gold. Now and then you'll hook a sunken purse or a rusted lockbox instead.
+- **The Camp has its own Still Pool,** by the fire. It gives you three casts between runs, and anything you land there goes straight home.
+- **The Trophy Room has a Tank** showing every kind of fish you've brought home, with the ones you haven't caught yet left as a mystery.
+
 ## 1.85.0
 - Fights sound like what's hitting: blades ring, blunt weapons thud, staves chime, and foes sound like what they are (beasts, the undead, constructs, cultists). Crits, blocks, statuses and reactions have their own sounds too (Kenney's Impact Sounds).
 - Strange doors stand in the walls now, with a faint violet glow.

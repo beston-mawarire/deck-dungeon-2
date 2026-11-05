@@ -1,7 +1,7 @@
 // The Crawl (prototype): the floor drawn full-screen on a canvas, the camera on the player, point-and-click walking.
 import { idx, inSight, isFloor, isSeenTile, LAYER_FLOORS, layerOf, pathToward, SIGHT, thingAt, type FloorMap } from "../game/grid";
 import { gridSelect, gridStep, type Run } from "../game/run";
-import { atlas, CLASS_SPRITE, drawSprite, drawTile, foeSprite, hasSprite, spriteSize, THING_SPRITE } from "./sprites";
+import { atlas, CLASS_SPRITE, drawSprite, drawTile, drawWater, foeSprite, hasSprite, spriteSize, THING_SPRITE } from "./sprites";
 
 const STEP_MS = 130;
 
@@ -255,6 +255,7 @@ export function drawCrawl() {
       const sz = sk ? spriteSize(sk) : null;
       const scale = sz && sz.h > 24 && !big ? Math.min(ts / 16, (ts * 1.45) / sz.h) : ts / 16;
       if (t.room === "rest") drawCampfire(ctx, cx, cy, ts, now);
+      else if (t.room === "pond") drawWater(ctx, cx, cy + ts * 0.08, ts * 0.42, ts * 0.3, now);
       else if (t.room === "event" && hasSprite("doors_leaf_open")) {
         // A strange door, set in the wall behind it, with a faint glow spilling out.
         const pulse = 0.55 + 0.45 * Math.sin(now / 700);

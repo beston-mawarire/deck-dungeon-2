@@ -1,6 +1,6 @@
 // The Camp as a place you walk around: a cavern courtyard drawn from the tileset, with each of the Camp's options
 // as a spot you walk up to (the Hall's door, the Garden's plots, the Brewery's cauldron, the way down…).
-import { atlas, CLASS_SPRITE, drawSprite, drawTile, hasSprite } from "./sprites";
+import { atlas, CLASS_SPRITE, drawWater, drawSprite, drawTile, hasSprite } from "./sprites";
 
 export const CAMP_W = 23, CAMP_H = 25;
 export interface CampSpot { id: string; name: string; tiles: [number, number][]; locked?: boolean }
@@ -12,7 +12,7 @@ const ROOMS: { id: string; name: string; cx: number; cy: number; side: "n" | "s"
   { id: "tree", name: "Passive Tree", cx: 7, cy: 22, side: "s" }, { id: "abyss", name: "The Abyss", cx: 11, cy: 22, side: "s" }, { id: "weapons", name: "Weapon Mastery", cx: 15, cy: 22, side: "s" }
 ];
 /** Where everything stands (x, y). */
-export const CAMP_SPOTS: CampSpot[] = ROOMS.map(r => ({ id: r.id, name: r.name, tiles: r.tiles ?? [[r.cx, r.cy]] }));
+export const CAMP_SPOTS: CampSpot[] = [...ROOMS.map(r => ({ id: r.id, name: r.name, tiles: r.tiles ?? [[r.cx, r.cy]] as [number, number][] })), { id: "pond", name: "Still Pool", tiles: [[14, 15], [15, 15]] }];
 const HUB = { x0: 6, x1: 16, y0: 7, y1: 17 };
 /** The campfire in the middle of the hall (in the way, but not a spot). */
 const FIRE: [number, number] = [11, 12];
@@ -176,6 +176,11 @@ function drawSpot(ctx: CanvasRenderingContext2D, s: CampSpot, ts: number, ox: nu
       ctx.fillStyle = "#4a2e16"; ctx.fillRect(cx - ts * 0.42, cy + ts * 0.05, ts * 0.84, ts * 0.08); ctx.fillRect(cx - ts * 0.42, cy - ts * 0.35, ts * 0.06, ts * 0.75); ctx.fillRect(cx + ts * 0.36, cy - ts * 0.35, ts * 0.06, ts * 0.75);
       const ws = ["weapon_regular_sword", "weapon_axe", "weapon_spear", "weapon_red_magic_staff"];
       ws.forEach((w, k) => drawSprite(ctx, w, cx - ts * 0.27 + k * ts * 0.18, by, sc * 0.75));
+      break;
+    }
+    case "pond": {
+      // The Camp's own still pool, two tiles wide, in the corner of the hall.
+      drawWater(ctx, sx0 + ts, cy + ts * 0.05, ts * 0.9, ts * 0.38, now);
       break;
     }
     case "abyss": {

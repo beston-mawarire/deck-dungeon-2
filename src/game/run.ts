@@ -26,6 +26,7 @@ import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type
 import { affixById, rescaleAffixes } from "./affixpool";
 import { MATS, matOfFamily, PLANTS, type Mat, type Plant } from "./camp";
 import { ATTR_PER_LEVEL } from "../data/attributes";
+import { type Fish, fishById, POND_CASTS, rollCatch } from "./fishing";
 import { MASTERY_FAMILIES, TOTEM_DROP, TOTEM_LAYER, TOTEMS, WM_XP } from "./longroad";
 import { classify } from "./families";
 import { openedAt, type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, type Hazard, idx, isFloor, isSeenTile, LAYER_FLOORS, layerOf, look, POOL_STEPS, SPIKE_DMG, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
@@ -123,7 +124,7 @@ export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
 const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
 
-export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller" | "masterwork" | "oath" | "secret" | "offering";
+export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller" | "masterwork" | "oath" | "secret" | "offering" | "pond";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
@@ -161,6 +162,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: str
   crimson_elite: { name: "Crimson Elite", icon: "🩸", text: "Rarer and deadlier than a Champion. Great loot, and often a Crimson Key." },
   goblin: { name: "Treasure Goblin", icon: "💰", text: "A Treasure Goblin, stuffed with loot! Kill it within 3 rounds before it escapes, and everything it carries is yours." },
   oath: { name: "Blood Oath", icon: "🩸", text: "A stone that wants a promise in blood. Give up Max HP for good, and take an item." },
+  pond: { name: "Still Pool", icon: "🎣", text: "Black water, very still. Something moves under it." },
   offering: { name: "Offering Altar", icon: "⚱️", text: "An altar that takes what you lay on it. Give it two or more items and it may give one back, better. Or nothing at all." },
   secret: { name: "Secret Chest", icon: "💎", text: "Hidden away behind a locked door." },
   crimson_vault: { name: "Crimson Vault", icon: "🗝️", text: "Spend a Crimson Key: fight a Crimson boss for a Crimson item. Die here and your run is over." }
@@ -185,6 +187,8 @@ export type Scene =
   | { t: "talent"; options: string[] }
   | { t: "shop"; stock: ShopEntry[]; /** One item may be sold per Merchant visit. */ soldItem?: string; /** % markup from the Gold you carried when this stock was priced. */ markup?: number }
   | { t: "forge" }
+  /** A still pool (the Crawl): a few casts of a line. */
+  | { t: "fishing"; casts: number; log: string[] }
   /** An Offering Altar (the Crawl): sacrifice items for one new one, once. */
   | { t: "offering"; used?: boolean }
   /** The Masterwork; while a Rework's two options wait for a pick, they're held here. */
@@ -641,6 +645,7 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   // Blood Oaths: a Crawl landmark of their own.
   marks.oath = OATH_WEIGHT;
   marks.offering = OFFERING_WEIGHT;
+  marks.pond = POND_WEIGHT;
   for (let n = floorLandmarks(rng()); n > 0 && Object.keys(marks).length; n--) { const room = pickW(rng, marks); delete marks[room]; pois.push(room); }
   for (let n = 1 + (rng() < 0.4 ? 1 : 0); n > 0; n--) pois.push(chest());
   pois.sort(() => rng() - 0.5);
@@ -708,6 +713,8 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
 export const OATH_WEIGHT = 6;
 /** Offering Altars (the Forge's old Offering, now a landmark of its own). */
 export const OFFERING_WEIGHT = 5;
+/** Still pools for fishing. */
+export const POND_WEIGHT = 4;
 export const SECRET_ROOM_CHANCE = 0.4;
 export const HIDDEN_NOOK_CHANCE = 0.3;
 /** Crawl Elites very rarely carry a Skeleton Key. */
@@ -901,6 +908,46 @@ function gridMeet(run: Run, t: number, seen: number[]): { ok: true; entered: boo
   chooseRoom(run, m.things[t].room as RoomType);
   run.nextFoe = undefined;
   return { ok: true, entered: true, seen };
+}
+
+/** A cast at a dungeon pool: use one up, and say what (if anything) came up. Fish can be eaten now or kept for the Camp. */
+export function fishCast(run: Run, struck: boolean): { text: string; fish?: Fish } {
+  const s = run.scene;
+  if (s.t !== "fishing" || s.casts <= 0) return { text: "" };
+  s.casts--;
+  if (!struck) { s.log.unshift("The line goes slack."); return { text: "The line goes slack." }; }
+  const c = rollCatch(run.rng, Math.max(1, Math.min(5, run.floor)));
+  const h = run.hero;
+  let text = "";
+  if (c.kind === "none") text = "Nothing on the hook.";
+  else if (c.kind === "junk") {
+    if (c.gold) { h.f.gold += c.gold; text = `${c.icon} ${c.name}: +${c.gold} Gold.`; }
+    else { const it = rollItem(h, run.rng() < 0.3 ? "rare" : "uncommon", depth(run), run.rng); const err = addToBackpack(h, it); text = err ? `${c.icon} ${c.name}, but there's no room in your backpack for what's inside.` : `${c.icon} ${c.name}! Inside: ${itemName(it)} (in your backpack).`; if (!err) markFound(run, it); }
+  } else {
+    h.f.persist[`fishk_${c.fish.id}`] = (h.f.persist[`fishk_${c.fish.id}`] ?? 0) + 1;
+    text = `${c.fish.icon} You land a ${c.fish.name}!`;
+    s.log.unshift(text);
+    return { text, fish: c.fish };
+  }
+  s.log.unshift(text);
+  return { text };
+}
+/** Eat a fish caught this run (it no longer goes back to the Camp). */
+export function eatFish(run: Run, id: string): string | null {
+  const f = fishById(id), h = run.hero, k = `fishk_${id}`;
+  if (!f || !(h.f.persist[k] ?? 0) || !f.heal) return null;
+  h.f.persist[k]--;
+  if (f.maxHp) { h.f.persist["maxHpLoss"] = (h.f.persist["maxHpLoss"] ?? 0) - f.maxHp; recompute(h); h.f.hp += f.maxHp; }
+  restore(h, f.heal);
+  return `You eat the ${f.name}.${f.maxHp ? ` +${f.maxHp} Max HP.` : ""}`;
+}
+/** Sell a Gilded Koi for its gold (it no longer goes back to the Camp). */
+export function sellFish(run: Run, id: string): string | null {
+  const f = fishById(id), h = run.hero, k = `fishk_${id}`;
+  if (!f?.gold || !(h.f.persist[k] ?? 0)) return null;
+  h.f.persist[k]--;
+  h.f.gold += f.gold;
+  return `+${f.gold} Gold for the ${f.name}.`;
 }
 
 /** Bombs, Vile Brews and Smoke Bombs: bought, or found in urns and chests. You carry up to three of each. */
@@ -1155,6 +1202,7 @@ function enterRoom(run: Run, room: RoomType) {
     }
     case "sanctum": run.scene = { t: "sanctum" }; return;
     case "offering": run.scene = { t: "offering" }; return;
+    case "pond": run.scene = { t: "fishing", casts: POND_CASTS, log: [] }; return;
     case "oath": run.scene = { t: "event", ev: EVENTS.find(e => e.id === "blood_oath")!, result: null, found: [] }; return;
     case "secret": return openSecret(run);
     case "crossroads":

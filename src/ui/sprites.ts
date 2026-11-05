@@ -75,3 +75,25 @@ export const THING_SPRITE: Record<string, string> = {
 };
 /** A sprite's size in pixels (for fitting tall ones into a tile). */
 export const spriteSize = (k: string) => (S[k] ? { w: S[k].w, h: S[k].h } : null);
+
+/** A still, black pool with a ring of stones and slow ripples (the dungeon's fishing spots, and the Camp's). */
+export function drawWater(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, now: number) {
+  ctx.save();
+  ctx.fillStyle = "#3a3532";
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx * 1.12, ry * 1.18, 0, 0, Math.PI * 2); ctx.fill();
+  const g = ctx.createRadialGradient(cx, cy - ry * 0.3, 0, cx, cy, rx);
+  g.addColorStop(0, "#1d3a4a"); g.addColorStop(0.7, "#0c1a24"); g.addColorStop(1, "#050a0f");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+  // Stones round the edge.
+  ctx.fillStyle = "#57504a";
+  for (let k = 0; k < 9; k++) { const a = (k / 9) * Math.PI * 2 + 0.3; ctx.beginPath(); ctx.ellipse(cx + Math.cos(a) * rx * 1.08, cy + Math.sin(a) * ry * 1.12, rx * 0.12, ry * 0.12, a, 0, Math.PI * 2); ctx.fill(); }
+  // Slow rings spreading out.
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.clip();
+  for (let k = 0; k < 2; k++) {
+    const ph = ((now / 2600) + k / 2) % 1;
+    ctx.strokeStyle = `rgba(150,200,230,${0.35 * (1 - ph)})`; ctx.lineWidth = Math.max(1, rx / 18);
+    ctx.beginPath(); ctx.ellipse(cx + rx * 0.15, cy, rx * 0.15 + rx * 0.7 * ph, ry * 0.15 + ry * 0.7 * ph, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.fillStyle = "rgba(200,230,255,.18)"; ctx.beginPath(); ctx.ellipse(cx - rx * 0.35, cy - ry * 0.35, rx * 0.25, ry * 0.12, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}

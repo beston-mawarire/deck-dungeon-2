@@ -2235,3 +2235,32 @@ button.plank-btn:active { transform: translateY(2px); }
 :is(.crawl-pop, .inv-detail, .mer-detail, .grit-inner, .inv-screen) button.take-equip:disabled, .inv-detail button[data-equip]:disabled { background: #2a2420 !important; border-color: #4a4038 !important; color: #8a7e72 !important; opacity: .7; filter: grayscale(1); }
 .exp-pop { z-index: 45; }
 .mer-leave.plank-btn { align-self: center; }
+
+/* ---------- Fishing ---------- */
+.fish-panel { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.fish-water { position: relative; width: min(320px, 86vw); height: 170px; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(ellipse at 45% 35%, #1d3a4a 0%, #0c1a24 60%, #04080c 100%);
+  border: 6px solid #4a443e; box-shadow: inset 0 0 30px #000, 0 0 0 3px #2a2522, 0 6px 18px rgba(0,0,0,.6); }
+.fish-ripple { position: absolute; left: 50%; top: 50%; width: 40px; height: 16px; margin: -8px 0 0 -20px; border-radius: 50%;
+  border: 2px solid rgba(150,200,230,.4); animation: fishRipple 3.4s ease-out infinite; }
+.fish-ripple.r2 { animation-delay: 1.7s; }
+@keyframes fishRipple { from { transform: scale(.4); opacity: .9; } to { transform: scale(4.5); opacity: 0; } }
+.bobber { position: absolute; left: 50%; top: 46%; width: 18px; height: 26px; margin-left: -9px; opacity: 0; transition: opacity .3s, transform .15s; }
+.bobber.out { opacity: 1; }
+.bobber i { display: block; width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(#e64a3a 0 50%, #f3ead6 50% 100%); border: 2px solid #2a1810; box-shadow: 0 2px 4px rgba(0,0,0,.6); }
+.bobber::before { content: ""; position: absolute; left: 8px; top: -12px; width: 2px; height: 12px; background: #2a1810; }
+.bobber.twitch { animation: bobTwitch .32s ease-in-out; }
+.bobber.bite { transform: translateY(14px) scale(.85); opacity: .65; }
+.bobber.bite::after { content: ""; position: absolute; left: -16px; top: 4px; width: 50px; height: 20px; border-radius: 50%; border: 2px solid rgba(220,240,255,.75); animation: fishRipple .6s ease-out infinite; }
+@keyframes bobTwitch { 0%,100% { transform: translateY(0); } 40% { transform: translateY(4px); } 70% { transform: translateY(-1px); } }
+.fish-landed { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font-size: 3.2rem; animation: fishJump .6s ease-out; filter: drop-shadow(0 3px 6px #000); }
+@keyframes fishJump { from { transform: translate(-50%,10%) scale(.5); opacity: 0; } to { transform: translate(-50%,-50%) scale(1); opacity: 1; } }
+.fish-note { font-weight: 700; color: #f0dcb4; text-align: center; margin: 0; }
+.fish-btns { display: flex; flex-direction: column; gap: 8px; align-items: stretch; min-width: 240px; }
+.fish-strike { animation: strikePulse .8s ease-in-out infinite; }
+@keyframes strikePulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.25); } }
+.tr-head { margin: 18px 0 8px; text-align: center; }
+.trophy.fish.unknown { opacity: .5; }
+.trophy.fish.rare b { color: #8fd0ff; }
+.trophy.fish.legendary b { color: #ffd34a; }
+.fish-tank .tr-plaque { font-size: 1.8rem; }

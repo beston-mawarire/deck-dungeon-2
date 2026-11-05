@@ -22,7 +22,7 @@ import { ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
+  sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, fishCast, eatFish, sellFish, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   startCrawl, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
@@ -35,6 +35,7 @@ import { familyOpenCount } from "../game/loot";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { mountCampMap, resetCampWalk } from "./campmap";
+import { CAMP_CASTS, type CastPlan, FISH, fishById, planCast, rollCatch } from "../game/fishing";
 import { ELITE_ONLY, MONSTERS } from "../data/monsters";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
 import { spendAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
@@ -805,7 +806,7 @@ const CAMP_TABS: { id: CampTab; icon: string; name: string }[] = [
   { id: "expedition", icon: "🗺️", name: "Expedition" }, { id: "quests", icon: "📋", name: "Quest Board" }, { id: "hall", icon: "🏛️", name: "Hall" },
   { id: "skills", icon: "✨", name: "Skills" }, { id: "garden", icon: "🌱", name: "Garden" }, { id: "brewery", icon: "⚗️", name: "Brewery" },
   { id: "knowledge", icon: "📚", name: "Knowledge" }, { id: "tree", icon: "🌳", name: "Passive Tree" }, { id: "weapons", icon: "⚔️", name: "Weapon Mastery" },
-  { id: "trophies", icon: "🏆", name: "Trophy Room" }, { id: "bestiary", icon: "📖", name: "Bestiary" },
+  { id: "pond", icon: "🎣", name: "Still Pool" }, { id: "trophies", icon: "🏆", name: "Trophy Room" }, { id: "bestiary", icon: "📖", name: "Bestiary" },
   { id: "abyss", icon: "🕳️", name: "The Abyss" }
 ];
 
@@ -883,6 +884,7 @@ function campBody(o: OriginId, tab: CampTab): string {
       <div class="brew-acts"><button class="hu-buy" data-stir>🥄 Stir</button><button class="hu-buy" data-bottle>🍶 Bottle it</button></div>`;
   }
   if (tab === "tree") return "";
+  if (tab === "pond") return fishingPanel("camp");
   if (tab === "bestiary") {
     const seen = meta.bestiary ?? {};
     const foes = [...MONSTERS.map(m => ({ name: m.name, family: m.family, traits: m.traits })), ...ELITE_ONLY.map(m => ({ name: m.name, family: m.family, traits: m.traits }))];
@@ -908,7 +910,9 @@ function campBody(o: OriginId, tab: CampTab): string {
       return t ? { name, icon: t[1], tier: t[2], note: `${e.kills} beaten`, sk: foeSprite(name, e.family) } : null;
     }).filter((x): x is NonNullable<typeof x> => !!x);
     return `<p>Beat a kind of foe 10 times and its trophy goes on the wall: bronze at 10, silver at 25, gold at 50. Every guardian you bring down gets one of its own.</p>
-      ${won.length ? `<div class="trophies">${won.map(w => `<div class="trophy ${w.tier}"><span class="tr-plaque">${w.sk && hasSprite(w.sk) ? spriteHtml(w.sk, 3, "beast-spr") : w.icon}</span><b>${w.icon} ${esc(w.name)}</b><span class="sub">${esc(w.note)}</span></div>`).join("")}</div>` : `<div class="panel"><p class="sub">The walls are bare. Beat a kind of foe 10 times, or a layer's guardian, to hang your first trophy.</p></div>`}`;
+      ${won.length ? `<div class="trophies">${won.map(w => `<div class="trophy ${w.tier}"><span class="tr-plaque">${w.sk && hasSprite(w.sk) ? spriteHtml(w.sk, 3, "beast-spr") : w.icon}</span><b>${w.icon} ${esc(w.name)}</b><span class="sub">${esc(w.note)}</span></div>`).join("")}</div>` : `<div class="panel"><p class="sub">The walls are bare. Beat a kind of foe 10 times, or a layer's guardian, to hang your first trophy.</p></div>`}
+      <h3 class="tr-head">🐟 The Tank</h3>
+      <div class="trophies fish-tank">${FISH.map(f => { const n = meta.fish?.[f.id] ?? 0; return n ? `<div class="trophy fish ${f.rarity}"><span class="tr-plaque">${f.icon}</span><b>${esc(f.name)}</b><span class="sub">${n} caught</span></div>` : `<div class="trophy fish unknown"><span class="tr-plaque">❔</span><b>???</b><span class="sub">Not caught yet</span></div>`; }).join("")}</div>`;
   }
   if (tab === "weapons") {
     return `<p>Every weapon family learns from the fights you win with it, whoever holds it. The more you master a family, the more of its weapons turn up in your loot: a few at first, all of them at mastery ${WM_MAX}.</p>
@@ -968,6 +972,77 @@ function treeNodePopup(o: OriginId) {
     ${why && !taken ? `<p class="sub center">${esc(why)}</p>` : ""}
     <div class="row plank-row" style="justify-content:center;margin-top:10px">${taken ? "" : `<button class="plank-btn" data-node="${key}" ${why ? "disabled" : ""}>＋ Add a point${treeOpen(meta, o) ? ` (${t.points} left)` : ""}</button>`}<button class="plank-btn" data-closenode>Close</button></div>
   </div></div>`;
+}
+
+// ---------- Fishing (a dungeon pool, or the Camp's) ----------
+let fishLine: { plan: CastPlan; t0: number; timers: number[]; inRun: boolean } | null = null;
+let fishNote = "";
+/** A fish just landed in a run, waiting for "eat it" or "keep it". */
+let fishCaught: string | null = null;
+const fishCastsLeft = () => (run && run.scene.t === "fishing" ? run.scene.casts : meta.fishCasts ?? CAMP_CASTS);
+function fishingPanel(where: "run" | "camp") {
+  const left = fishCastsLeft();
+  const f = fishCaught ? fishById(fishCaught) : undefined;
+  const btns = f && where === "run"
+    ? `${f.heal ? `<button class="plank-btn" data-fisheat="${f.id}">🍖 Eat it (heal ${f.heal}${f.maxHp ? `, +${f.maxHp} Max HP` : ""})</button>` : ""}${f.gold ? `<button class="plank-btn" data-fishsell="${f.id}">🪙 Sell it (${f.gold} Gold)</button>` : ""}<button class="plank-btn" data-fishkeep>🎒 Keep it for the Camp</button>`
+    : fishLine ? `<button class="plank-btn fish-strike" data-fishstrike>🎣 Catch!</button>`
+    : left > 0 ? `<button class="plank-btn" data-fishcast>🎣 Cast the line (${left} left)</button>`
+    : `<p class="sub center">The water's gone still. Nothing more will bite here${where === "camp" ? " until your next run" : ""}.</p>`;
+  return `<div class="fish-panel">
+    <p class="sub center">${where === "run" ? "Cast, watch the float, and strike only on the deep tug. Most casts bring up nothing." : "Fish the Camp's pool between runs. Strike only on the deep tug."}</p>
+    <div class="fish-water"><i class="fish-ripple r1"></i><i class="fish-ripple r2"></i><div class="bobber ${fishLine ? "out" : ""}" id="bobber"><i></i></div>${f ? `<div class="fish-landed">${f.icon}</div>` : ""}</div>
+    ${fishNote ? `<p class="fish-note">${esc(fishNote)}</p>` : ""}
+    ${f ? `<p class="sub center">${esc(f.text)}</p>` : ""}
+    <div class="fish-btns">${btns}</div>
+  </div>`;
+}
+function fishStart() {
+  if (fishLine || fishCastsLeft() <= 0) return;
+  fishCaught = null; fishNote = "The float settles on the black water…";
+  const plan = planCast(Math.random);
+  const t0 = performance.now(), timers: number[] = [];
+  fishLine = { plan, t0, timers, inRun: !!run && run.scene.t === "fishing" };
+  const bob = (cls: string, ms: number) => { const el = document.getElementById("bobber"); if (!el) return; el.classList.add(cls); window.setTimeout(() => el.classList.remove(cls), ms); };
+  for (const t of plan.twitches) timers.push(window.setTimeout(() => { bob("twitch", 320); sfx("click"); }, t));
+  if (plan.bite !== null) {
+    timers.push(window.setTimeout(() => { bob("bite", plan.window); impact("status", "status"); }, plan.bite));
+    timers.push(window.setTimeout(() => fishResolve(false, "It took the bait and got away."), plan.bite + plan.window + 40));
+  } else timers.push(window.setTimeout(() => fishResolve(false, "Nothing's biting. You reel in an empty hook."), (plan.twitches.at(-1) ?? 1500) + 2600));
+  render();
+}
+function fishStrike() {
+  if (!fishLine) return;
+  const { plan, t0 } = fishLine;
+  const at = performance.now() - t0;
+  const ok = plan.bite !== null && at >= plan.bite && at <= plan.bite + plan.window;
+  fishResolve(ok, ok ? "" : "Too soon: you pull the hook clean out of the water.");
+}
+function fishResolve(ok: boolean, miss: string) {
+  if (!fishLine) return;
+  for (const t of fishLine.timers) clearTimeout(t);
+  const inRun = fishLine.inRun;
+  fishLine = null;
+  // Walked off mid-cast: the line just comes in.
+  if (inRun !== (!!run && run.scene.t === "fishing")) return;
+  if (inRun && run) {
+    const res = fishCast(run, ok);
+    fishNote = ok ? res.text : miss;
+    if (res.fish && (res.fish.heal || res.fish.gold)) fishCaught = res.fish.id;
+  } else {
+    // The Camp's pool: catches go straight to your collection.
+    meta.fishCasts = Math.max(0, (meta.fishCasts ?? CAMP_CASTS) - 1);
+    if (!ok) fishNote = miss;
+    else {
+      const c = rollCatch(Math.random);
+      if (c.kind === "none") fishNote = "Something took the bait and spat it out. Nothing on the hook.";
+      else if (c.kind === "fish") { (meta.fish ??= {})[c.fish.id] = (meta.fish[c.fish.id] ?? 0) + 1; fishNote = `${c.fish.icon} You land a ${c.fish.name}! It goes in the Trophy Room's tank.`; }
+      else if (c.kind === "junk" && c.gold) { campOf(meta).crowns += 1; fishNote = `${c.icon} ${c.name}, with an old 👑 Crown Shard inside.`; }
+      else { const mats = Object.keys(MATS) as Mat[]; const k = mats[Math.floor(Math.random() * mats.length)]; campOf(meta).mats[k] = (campOf(meta).mats[k] ?? 0) + 2; fishNote = `🧰 A rusted lockbox: +2 ${MATS[k].icon} ${MATS[k].name}.`; }
+    }
+    saveMeta(meta);
+  }
+  if (ok) sfx("chest"); else sfx("miss");
+  render();
 }
 
 /** The Way Down: a dungeon archway, pitch black inside, with what you need to set out in its mouth. */
@@ -2359,7 +2434,7 @@ function masteryPanel(o: OriginId) {
 let kitPick: KitSlot | null = null;
 /** The Camp: the hero you've brought there, the tab open, and the contract taken at its Quest Board. */
 let camp: OriginId | null = null;
-type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "tree" | "weapons" | "abyss" | "trophies" | "bestiary";
+type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "tree" | "weapons" | "abyss" | "trophies" | "bestiary" | "pond";
 let campTab: CampTab = "expedition";
 let campOffers: Bounty[] | null = null;
 let campQuest: number | null = null;
@@ -2699,7 +2774,7 @@ function render2() {
   if (s.t === "over") saveRun(r, banked);
   const body =
     s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r)
-    : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r) : s.t === "offering" ? forgeScene(r, true) : s.t === "masterwork" ? masterworkScene(r)
+    : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r) : s.t === "offering" ? forgeScene(r, true) : s.t === "fishing" ? `<h2>Still Pool</h2>${fishingPanel("run")}<div class="fish-btns" style="margin:10px auto 0"><button class="plank-btn" data-leave>Leave the pool</button></div>` : s.t === "masterwork" ? masterworkScene(r)
     : s.t === "cleared" ? clearedScene(r)
     : s.t === "smith" ? smithScene(r)
     : s.t === "alchemist" ? alchemistScene(r)
@@ -2734,7 +2809,7 @@ function render2() {
   const strange = s.t === "event" && !!s.strange && !!r.gridMode;
   const crawlPop = !!r.gridMode && !!r.grid && POPS.includes(s.t) && !strange;
   const crawlView = (s.t === "map" || s.t === "resplendent" || crawlPop) && !!r.gridMode && !!r.grid;
-  const FRAMED: Record<string, string> = { forge: "Forge", offering: "Offering Altar", masterwork: "Masterwork", jeweller: "Jeweller", alchemist: "Alchemist", smith: "Blacksmith", sanctum: "Dragon Sanctum", bounty: "Bounty Board", talent: "Level Up", cleared: "Layer Cleared", over: r.scene.t === "over" && r.scene.won ? "Victory" : "Fallen" };
+  const FRAMED: Record<string, string> = { forge: "Forge", offering: "Offering Altar", fishing: "Still Pool", masterwork: "Masterwork", jeweller: "Jeweller", alchemist: "Alchemist", smith: "Blacksmith", sanctum: "Dragon Sanctum", bounty: "Bounty Board", talent: "Level Up", cleared: "Layer Cleared", over: r.scene.t === "over" && r.scene.won ? "Victory" : "Fallen" };
   const crawlFrame = !!r.gridMode && !!FRAMED[s.t];
   const crawlFight = s.t === "combat" && !!r.gridMode;
   const crawlShop = s.t === "shop" && !!r.gridMode;
@@ -3084,7 +3159,9 @@ function bind() {
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
     on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; campTab = "expedition"; campRoom = null; resetCampWalk(); campOffers = null; campQuest = null; });
-    on("[data-closeroom]", () => { campRoom = null; expPop = null; });
+    on("[data-closeroom]", () => { campRoom = null; expPop = null; fishCaught = null; fishNote = ""; if (fishLine) { for (const t of fishLine.timers) clearTimeout(t); fishLine = null; } });
+    on("[data-fishcast]", () => fishStart());
+    on("[data-fishstrike]", () => fishStrike());
     on("[data-exppop]", el => { expPop = (el.dataset.exppop || null) as typeof expPop; });
     on("[data-campback]", () => { camp = null; kitPick = null; });
     on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; plateArmed = false; });
@@ -3182,6 +3259,11 @@ function bind() {
   on("[data-talentsub]", el => { talentSub = el.dataset.talentsub as "talents" | "curses"; });
   // The Crawl: once the only find is taken (or left), the popup just closes — no "Continue" step.
   const lootDone = () => { const sc = r.scene; if (r.gridMode && sc.t === "loot" && !sc.items.length && !sc.gold && !sc.potions && !sc.scrolls && !sc.relic && !sc.then && !sc.crimsonKey && !sc.dragonHeart && !sc.sigils?.length) finishLoot(r); };
+  on("[data-fishcast]", () => fishStart());
+  on("[data-fishstrike]", () => fishStrike());
+  on("[data-fisheat]", el => { const t = eatFish(r, el.dataset.fisheat!); fishCaught = null; if (t) { fishNote = t; sfx("heal"); } });
+  on("[data-fishsell]", el => { const t = sellFish(r, el.dataset.fishsell!); fishCaught = null; if (t) { fishNote = t; sfx("coins"); } });
+  on("[data-fishkeep]", () => { fishCaught = null; fishNote = "You wrap it up and stow it. It'll go home with you."; });
   on("[data-take]", el => { compareOpen = null; const err = takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack", el.dataset.slot as EquipSlot | undefined); say(err); if (!err) lootDone(); });
   on("[data-compare]", el => { compareOpen = { uid: Number(el.dataset.compare), slot: el.dataset.slot as EquipSlot | undefined }; });
   on("[data-compareclose]", () => { compareOpen = null; });
@@ -3264,7 +3346,7 @@ function bind() {
     for (const it of list) sellItem(r, it.uid);
     say(`Sold ${list.length} item${list.length === 1 ? "" : "s"} for ${r.hero.f.gold - before} 🪙`, false); sfx("chest");
   });
-  on("[data-leave]", () => { r.message = ""; forgeTab = "upgrade"; offerSel.clear(); advance(r); });
+  on("[data-leave]", () => { r.message = ""; forgeTab = "upgrade"; fishCaught = null; fishNote = ""; if (fishLine) { for (const t of fishLine.timers) clearTimeout(t); fishLine = null; } offerSel.clear(); advance(r); });
   on("[data-up]", el => say(forgeUpgrade(r, Number(el.dataset.up))));
   on("[data-rr]", el => say(forgeReroll(r, Number(el.dataset.rr))));
   on("[data-forgetab]", el => { forgeTab = el.dataset.forgetab as typeof forgeTab; offerSel.clear(); combineSel = []; forgeAsk = null; });

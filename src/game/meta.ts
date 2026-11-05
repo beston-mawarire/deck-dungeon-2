@@ -1,5 +1,6 @@
 // Between runs: Renown (earned from every run), unlock tiers that add items to the loot pools,
 // and the Codex of everything you've found. Stored in the browser (localStorage), per player.
+import { CAMP_CASTS, FISH } from "./fishing";
 import { MASTERY_FAMILIES, TOTEMS, treeOf, treeOpen, treePointsFor } from "./longroad";
 import { trackMarks, type Run } from "./run";
 import { EQUIP_SLOTS, itemName } from "./hero";
@@ -34,6 +35,9 @@ export interface Meta {
   weaponXp?: Partial<Record<string, number>>;
   /** The Bestiary: every kind of foe beaten in the Crawl, how many times, and the most HP and Power seen on it. */
   bestiary?: Record<string, { kills: number; hp: number; power: number; family?: string; boss?: boolean }>;
+  /** Fish caught and kept (from dungeon pools and the Camp's), and casts left at the Camp's pool. */
+  fish?: Partial<Record<string, number>>;
+  fishCasts?: number;
   /** Totems held, and the one set at the dungeon door for the next run. */
   totems?: Partial<Record<string, number>>;
   totemSet?: string;
@@ -260,6 +264,9 @@ export function bankLongRoad(m: Meta, run: Run) {
   if (treeOpen(m, run.hero.origin)) treeOf(m, run.hero.origin).points += treePointsFor(p["layersWon"] ?? 0, p["l1depth"] ?? 0);
   for (const fam of MASTERY_FAMILIES) if (p[`wmx_${fam}`]) (m.weaponXp ??= {})[fam] = (m.weaponXp[fam] ?? 0) + p[`wmx_${fam}`];
   for (const t of TOTEMS) if (p[`totf_${t.id}`]) (m.totems ??= {})[t.id] = (m.totems[t.id] ?? 0) + p[`totf_${t.id}`];
+  // Fish carried home, and the Camp's pool is full of bites again.
+  for (const f of FISH) if (p[`fishk_${f.id}`]) (m.fish ??= {})[f.id] = (m.fish[f.id] ?? 0) + p[`fishk_${f.id}`];
+  m.fishCasts = CAMP_CASTS;
   // The Bestiary: what this run beat.
   for (const [name, k] of Object.entries(run.kills ?? {})) {
     const e = ((m.bestiary ??= {})[name] ??= { kills: 0, hp: 0, power: 0 });
