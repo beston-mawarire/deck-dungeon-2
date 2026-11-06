@@ -9,6 +9,22 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.96.0
+Phase 2 of the endgame rework: loot.
+- **Richer finds, layer by layer.** Every chest, Elite, Champion, guardian and Merchant now rolls on odds that grow with the layer. Rares are common from the 2nd Layer, Epics are a regular find from the 3rd, and by the 5th a full Epic-and-Legendary kit is a real possibility. Normal monsters still drop no gear.
+- Elites drop gear more often (22%, was 12%), and so do Champions (45%, was 30%).
+- **Guardians always pay out.** A layer's guardian leaves one item, and it's never below Rare: Rare or better on the 1st Layer, at least Epic from the 3rd, and a Legendary 35% of the time on the 5th.
+- **24 new class Legendaries**, six per class, three for each of two ways to play:
+  - Warrior: the Bulwark (Aegis of the Unmoved, Bastion Plate, Oathkeeper's Torc) and the Berserker (Twinfang Cleaver, Horn of Ruin, Berserker's Hide).
+  - Rogue: the Duelist (Mirrorstep, Whisperweave, Riposte Charm) and the Assassin (Viper's Kiss, Nightshade Vial, Shadowsilk Wraps).
+  - Mage: the Elementalist (Prism of Ruin, Stormglass Robe, Wand of Kindled Ash) and the Arcanist (Codex of the Deep Well, Aetherbound Robes, Sigil of Overflow).
+  - Cleric: the Penitent (Flagellant's Chain, Martyr's Shroud, Thorned Reliquary) and the Zealot (Censer of Dawn, Hallowed Hammer, Seraph's Seal).
+- A class's own Legendaries turn up three times as often as general ones, and only ever drop for that class.
+- **12 new Epic powers** leaning the same ways: Rampart, Frenzied, Shadowed, Viperous, Resonant, Wellspring, Penitent, Radiant, Shattering, Bloodletting, Sparking and Steadfast.
+- Weapon mastery opens more of each weapon family from the start (65%, was 40%), so the pool is wider without a grind.
+- Main menu: **Continue** takes you straight back into your run, and **Start** begins a new one.
+- Warrior: Battle-Hardened no longer gives 2 Might when you Guard. It still gives +2 Armor when you Guard, and +1 Damage for every 5 Armor you wear.
+
 ## 1.95.0
 Phase 1 of the endgame rework: Tarot, a new Abyss, and Heat as a pact.
 - **Tarot cards.** 21 Major Arcana, from the Fool to Judgement. You can carry two into a normal run (pick them at the Enter Dungeon door, under Tarot). Every card pairs a boon with a bane: the Emperor adds Elites that always drop gear but hit harder; the Moon turns more iron chests into Mimics with richer hoards; the Tower makes layer bosses tougher and their hoards richer; and so on. "Edict" cards (the High Priestess, Judgement) bend a rule and add Heat.

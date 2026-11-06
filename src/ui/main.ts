@@ -2273,7 +2273,7 @@ const ORIGIN_PITCH: Record<OriginId, string> = {
 };
 /** Each class's passive in a few words (the full text is in the Codex). */
 const ORIGIN_PASSIVE: Record<OriginId, string> = {
-  warrior: "+2 Armor and 2 Might when you Guard",
+  warrior: "+2 Armor when you Guard; +1 Damage for every 5 Armor",
   rogue: "Your first attack each fight rolls twice",
   mage: "Your spell faces add +1 status stack",
   cleric: "Heal 1 a round for each positive status"
@@ -2443,7 +2443,8 @@ function splashScreen() {
     <p class="m3-tag">Venture into the depths. Slay the horrors within.</p>
     <div class="m3-buttons">
       ${musicBlocked() ? `<button class="plank-btn m3-music" data-startmusic>Tap for music</button>` : ""}
-      <button class="plank-btn m3-play" data-play>${sv ? "Continue" : "Play"}</button>
+      ${sv ? `<button class="plank-btn m3-play" data-continue>Continue</button>` : ""}
+      <button class="plank-btn ${sv ? "" : "m3-play"}" data-play>Start</button>
       <button class="plank-btn" data-help>How to play</button>
       <button class="plank-btn" data-lb>Leaderboards</button>
       <div class="m3-pair"><button class="plank-btn" data-changes>Changes</button><button class="plank-btn" data-options>Options</button></div>

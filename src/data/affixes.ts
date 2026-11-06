@@ -1,3 +1,4 @@
+import { CLASS_LEGENDARIES, STYLE_EPICS } from "./legends2";
 // Rolled bonuses (Uncommon+), Epic powers (Epic) and Legendaries (one of a kind).
 // A bonus's stacks are its magnitude n; "{n}" in text is replaced when shown.
 import { DUAL_LEGENDARIES } from "./dualwield";
@@ -324,5 +325,8 @@ export const LEGENDARIES: GearBase[] = [
     hooks: { onHit: (b, c) => { const pool = ["burn", "poison", "chill", "bleed", "weak", "exposed"] as const; applyStatus(b, c.attacker, c.defender, pool[Math.floor(b.rng() * pool.length)], 2); } } })
 ];
 
+// The class Legendaries and the Epic powers that lean the same ways (1.96).
+LEGENDARIES.push(...CLASS_LEGENDARIES);
+EPIC_POWERS.push(...STYLE_EPICS);
 // The Treasury's Legendaries join the pool.
 LEGENDARIES.push(...DUAL_LEGENDARIES, ...STAFF_LEGENDARIES, ...LEGENDARY_ITEMS, ...CHARM_LEGENDARIES, ...SINGLE_CHARM_LEGENDARIES, ...SHIELD_LEGENDARIES, ...ROBE_LEGENDARIES, ...STREAK_GEAR_2.filter(g => g.rarity === "legendary"), ...BRUTE_LEGENDARIES, ...HEAT_LEGENDARIES, ...DAGGER_LEGENDARIES, ...PATH_LEGENDARIES, ...PATH_LEGENDARIES_2, ...CONDITIONAL_LEGENDARIES, ...PLAIN_LEGENDARIES, ...TRINKET_LEGENDARIES, ...CONSECRATE_LEGENDARIES, ...BLESSING_LEGENDARIES, ...DEPTH_LEGENDARIES, ...ICE_FORGE_LEGENDARIES, ...BLEED_LEGENDARIES, ...WEAK_LEGENDARIES, ...MIGHT_LEGENDARIES, ...HEAVY_LEGENDARIES, ...WAR_HAMMER_LEGENDARIES, ...SACRIFICE_LEGENDARIES, ...POTION_LEGENDARIES);

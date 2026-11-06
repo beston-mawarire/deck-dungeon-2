@@ -60,7 +60,7 @@ function familyRank(b: GearBase): { rank: number; size: number } {
   return rank === undefined ? { rank: -1, size: 0 } : { rank, size: FAMILY_ORDER.get(`#${classify(b).family}`) ?? 0 };
 }
 /** How much of a family is open at a mastery level: two-fifths at first, all of it at level 10. */
-export const masteryShare = (level: number) => Math.min(1, 0.4 + 0.06 * level);
+export const masteryShare = (level: number) => Math.min(1, 0.65 + 0.035 * level);
 export function masteryOpen(b: GearBase, level: number): boolean {
   const { rank, size } = familyRank(b);
   if (rank < 0) return true;
@@ -87,6 +87,23 @@ export const TABLES = {
   crimson: { rare: 69, epic: 26, legendary: 5 },
   shop: { common: 14, uncommon: 56, rare: 28, epic: 2 }
 } satisfies Record<string, Odds>;
+
+/** The dungeon's loot, layer by layer (1.96): Rares common from the 2nd layer, Epics a regular find from the 3rd, and a
+ *  Legendary a real hope by the 5th. A layer's guardian always leaves something good (one item, at these odds). */
+const at = (L: number, v: number[]) => v[Math.max(0, Math.min(v.length - 1, L - 1))];
+export function crawlTables(L: number) {
+  const o = (r: Partial<Record<Rarity, number[]>>): Odds => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, at(L, v!)]).filter(([, v]) => (v as number) > 0));
+  return {
+    ...TABLES,
+    wooden: o({ common: [62, 50, 38, 28, 20, 15], uncommon: [32, 38, 40, 40, 40, 38], rare: [6, 10, 17, 24, 30, 34], epic: [0, 1.5, 4, 6.5, 8.5, 11], legendary: [0, 0, 0.3, 0.6, 1, 1.5] }),
+    iron: o({ uncommon: [62, 52, 42, 34, 28, 22], rare: [33, 38, 42, 45, 46, 46], epic: [4.5, 8.5, 13.5, 17.5, 21, 25], legendary: [0.5, 1, 2, 3, 4, 5.5] }),
+    elite: o({ uncommon: [55, 47, 40, 33, 27, 22], rare: [37, 40, 42, 44, 45, 45], epic: [7, 11, 15, 19, 23, 27], legendary: [1, 1.5, 2.5, 3.5, 4.5, 6] }),
+    champion: o({ uncommon: [10, 6, 0, 0, 0, 0], rare: [66, 60, 58, 52, 47, 42], epic: [20, 28, 34, 38, 41, 44], legendary: [4, 6, 8, 10, 12, 14] }),
+    boss: o({ rare: [82, 50, 0, 0, 0, 0], epic: [15, 42, 82, 75, 65, 55], legendary: [3, 8, 18, 25, 35, 45] }),
+    uber: o({ epic: [55, 55, 55, 55, 55, 50], legendary: [45, 45, 45, 45, 45, 50] }),
+    shop: o({ common: [14, 8, 4, 0, 0, 0], uncommon: [56, 50, 44, 38, 32, 28], rare: [28, 36, 42, 48, 52, 54], epic: [2, 6, 10, 14, 16, 18] })
+  };
+}
 
 /** Campaign boss picks grow richer floor by floor: early bosses mostly offer Uncommons, a Rare is a treat. */
 export function bossOdds(floor: number): Odds {
@@ -259,11 +276,12 @@ function rollItemRaw(h: Hero, rarity: Rarity, floor: number, rng: () => number):
     return { uid: h.nextUid++, base: base.id, rarity: "crimson", level: floor, bonuses: affixesFor(h, base, "crimson", floor, rng), revealed: true, bash: rollBash("crimson", base, rng) };
   }
   if (rarity === "legendary") {
-    const pool = LEGENDARIES.filter(l => classFits(h, l) && minOK(h, floor, legFloor(l)) && (h.heat ?? 0) >= 2 * (l.heatMin ?? 0) && unlocked(h, l) && !LOCKED.has(l.id) && !DROPPED.has(l.id));
+    const pool = LEGENDARIES.filter(l => classFits(h, l) && (!l.forClass || l.forClass === h.origin) && minOK(h, floor, legFloor(l)) && (h.heat ?? 0) >= 2 * (l.heatMin ?? 0) && unlocked(h, l) && !LOCKED.has(l.id) && !DROPPED.has(l.id));
     if (pool.length === 0) rarity = "epic";
     else {
       // A gentle lean toward your build; Legendaries should feel like a surprise, not a fixed path.
-      const base = weighted(rng, pool, b => (1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * elementalW(b.tags));
+      // (A class's own Legendaries turn up more often: they're what its ways to play are built on.)
+      const base = weighted(rng, pool, b => (1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * elementalW(b.tags) * (b.forClass ? 3 : 1));
       DROPPED.add(base.id);
       return { uid: h.nextUid++, base: base.id, rarity: "legendary", level: floor, bonuses: affixesFor(h, base, "legendary", floor, rng), revealed: false, bash: rollBash("legendary", base, rng) };
     }

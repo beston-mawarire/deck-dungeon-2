@@ -22,7 +22,7 @@ import { generate, genName, setGenLuck } from "./gen";
 import { GEN_MINORS } from "../data/genparts";
 import { SIGIL_SETS } from "../data/talisman";
 const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
-import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
+import { bossOdds, crawlTables, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 import { affixById, rescaleAffixes } from "./affixpool";
 import { MATS, matOfFamily, PLANTS, type Mat, type Plant } from "./camp";
 import { ATTR_PER_LEVEL, PER } from "../data/attributes";
@@ -86,7 +86,7 @@ function dropItem(run: Run, odds: Partial<Record<Rarity, number>>): GearItem {
   return it;
 }
 /** Crawl Elites (and Champions) sometimes drop a weapon or a piece of armour. */
-export const CRAWL_ELITE_GEAR = 0.12, CRAWL_CHAMPION_GEAR = 0.3;
+export const CRAWL_ELITE_GEAR = 0.22, CRAWL_CHAMPION_GEAR = 0.45;
 function crawlGear(run: Run, odds: Partial<Record<Rarity, number>>): GearItem {
   let it = dropItem(run, odds);
   for (let k = 0; k < 8 && !["weapon", "armour"].includes(effectiveBase(it).kind); k++) it = dropItem(run, odds);
@@ -134,7 +134,7 @@ export const ABYSS_DMG_BASE = 1.45;
 /** From this floor on (outside the Abyss), bosses drop Ruin Shards, and sometimes a Vanadium Plate. */
 export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
-const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
+const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.gridMode ? crawlTables(run.floor) : run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
 
 export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller" | "masterwork" | "oath" | "secret" | "offering" | "pond";
 
@@ -1923,12 +1923,13 @@ function afterFight(run: Run) {
     // The Tower: Epics and Legendaries far likelier from a layer boss, and a second item in its hoard.
     const tower = tarotOf(h, "tower");
     const tw = (o: Partial<Record<Rarity, number>>) => (!tower.on ? o : { ...o, epic: (o.epic ?? 0) * (1 + 0.5 * tower.boon), legendary: (o.legendary ?? 0) * (1 + 0.5 * tower.boon) });
-    const bo = tw(run.scene.uber ? T.uber : run.mode === "abyss" ? T.boss : bossOdds(run.floor));
+    const bo = tw(run.scene.uber ? T.uber : run.gridMode || run.mode === "abyss" ? T.boss : bossOdds(run.floor));
     const offer = b.enemy.crimson ? [rollItem(h, "crimson", depth(run), run.rng), roll(bo), roll(bo)]
       : EPIC_CRIMSON_FLOORS.includes(run.floor) ? [rollEpicCrimson(h, depth(run), run.rng), roll(bo), roll(bo)]
+      : run.gridMode ? [run.legendaryDue ? rollItem(h, "legendary", depth(run), run.rng) : roll(bo), ...(tower.on ? [roll(bo)] : [])]
       : [run.legendaryDue ? rollItem(h, "legendary", depth(run), run.rng) : roll(bo), roll(bo), roll(bo), ...(tower.on ? [roll(bo)] : [])];
     run.legendaryDue = false;
-    // The Crawl: the boss's hoard holds one item, the best of the three (two with the Tower).
+    // The Crawl: the boss's hoard holds one item (a choice of two with the Tower).
     if (run.gridMode) { offer.sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity)); offer.length = tower.on ? 2 : 1; }
     // After the fifth boss, bosses sometimes leave a Keepsake behind.
     // Keepsakes are a rare find: about one boss in ten after floor 5 leaves one behind.
@@ -2193,7 +2194,7 @@ function shopStock(run: Run): ShopEntry[] {
   const h = run.hero;
   const stock: ShopEntry[] = [];
   for (let i = 0; i < 3; i++) {
-    const item = rollItem(h, rollRarity(run.rng, heatOdds(run, TABLES.shop), luckFloor(run)), depth(run), run.rng);
+    const item = rollItem(h, rollRarity(run.rng, heatOdds(run, tables(run).shop), luckFloor(run)), depth(run), run.rng);
     gateItem(run, item);
     stock.push({ kind: "item", item, price: Math.round(PRICE[item.rarity] * shopMult(run)) });
   }

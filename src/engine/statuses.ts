@@ -304,6 +304,8 @@ const HARMFUL_REACTIONS: ReactionId[] = ["lacerate", "crushed", "hamstring", "co
 function react(b: Battle, source: Fighter | null, t: Fighter, id: ReactionId, depth: number) {
   const rx = REACTIONS.find(r => r.id === id)!;
   if (source?.id === "player") source.persist["q_reactions"] = (source.persist["q_reactions"] ?? 0) + 1;
+  // Gear that listens for your reactions (they come through as the "reaction" skill event).
+  if (source && depth === 0) eachHook(source, "onSkill", (h, s) => h(b, source, "reaction", s));
   const name = rx.name;
   fx(b, { who: t.id, kind: "reaction", text: `${name}!`, status: `rx:${id}`, src: source?.id });
   // Run-long record (shown in the bag): which reactions happened on you, and on your enemies.
