@@ -51,6 +51,8 @@ export interface Meta {
   skillPick?: Record<string, string>;
   /** Each class's chosen path (Bulwark or Berserker, and so on). */
   path?: Record<string, string>;
+  /** The Camp Ledger: the marks each path has earned (see LEDGER_MARKS). */
+  ledger?: Record<string, string[]>;
   /** Campaign runs in a row that ended without a Legendary (four, and the next run's first boss offers one). */
   dryRuns?: number;
   renown: number;
@@ -210,6 +212,30 @@ export function renownFor(run: Run): number {
 }
 
 /** Record a finished run. Returns the Renown earned and any tiers newly unlocked. */
+/** The Camp Ledger's marks, earned per path: how far each way of playing each class has gone. */
+export const LEDGER_MARKS: { id: string; icon: string; name: string }[] = [
+  { id: "l1", icon: "🥉", name: "Beat the 1st Layer" },
+  { id: "l3", icon: "🥈", name: "Beat the 3rd Layer" },
+  { id: "win", icon: "🏆", name: "Beat the dungeon" },
+  { id: "h4", icon: "🔥", name: "Beat the dungeon at Heat 4 or more" },
+  { id: "h8", icon: "🌋", name: "Beat the dungeon at Heat 8 or more" },
+  { id: "abyss", icon: "🕳️", name: "Clear the Abyss" }
+];
+/** The marks this run earns its path. */
+export function ledgerMarks(run: Run): string[] {
+  const won = run.scene.t === "over" && run.scene.won, out: string[] = [];
+  if (!run.hero.path || run.daily) return out;
+  if (run.mode === "abyss") return won ? ["abyss"] : out;
+  if (run.mode !== "campaign") return out;
+  const layers = run.hero.f.persist["layersWon"] ?? 0, heat = run.heat ?? 0;
+  if (layers >= 1 || won) out.push("l1");
+  if (layers >= 3 || won) out.push("l3");
+  if (won) out.push("win");
+  if (won && heat >= 4) out.push("h4");
+  if (won && heat >= 8) out.push("h8");
+  return out;
+}
+
 export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: number; unlocked: string[]; achievements: string[]; mastery?: { origin: string; gained: number; level: number; levelUp: boolean } } {
   const before = m.renown;
   const earned = Math.max(0, renownFor(run) - alreadyEarned);
@@ -246,6 +272,9 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
     run.bountyPaid = true;
     run.bounties = payBounties(m, run.hero.origin, heatOf(run));
   }
+  // The Camp Ledger: marks for this run's path.
+  const marks = ledgerMarks(run);
+  if (marks.length && run.hero.path) { const l = ((m.ledger ??= {})[run.hero.path] ??= []); for (const k of marks) if (!l.includes(k)) l.push(k); }
   const won = run.hero.f.persist["layersWon"] ?? 0;
   if (run.gridMode && won) (m.layersBeaten ??= {})[run.hero.origin] = Math.max(m.layersBeaten[run.hero.origin] ?? 0, won);
   if (run.gridMode && !alreadyEarned) bankLongRoad(m, run);

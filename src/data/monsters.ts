@@ -154,7 +154,12 @@ export function monsterHpMult(floor: number) {
 export const monsterPowerAdd = (floor: number) => Math.round((1.5 * (floor - 1) + 0.8 * Math.max(0, floor - 2)) * (floor > 20 ? Math.pow(1.15, floor - 20) : 1));
 
 /** Unique foes: named, once per run, far tougher than an Elite, and each with a signature set of traits. */
-export const UNIQUES: { id: string; name: string; title: string; family: string; traits: string[]; armor?: number; faces?: FaceSpec[] }[] = [
+export const UNIQUES: { id: string; name: string; title: string; family: string; traits: string[]; armor?: number; faces?: FaceSpec[]; /** The 1st Layer's own (weaker) uniques: one waits on every 1st Layer. */ early?: boolean }[] = [
+  { id: "ratking", name: "The Rat King", title: "Lord of the Low Tunnels", family: "Beast", traits: ["x_swift", "x_venomous"], early: true },
+  { id: "foreman", name: "The Rusted Foreman", title: "Who Dug Too Deep", family: "Construct", traits: ["x_armored"], armor: 2, early: true },
+  { id: "moss", name: "Old Widow Moss", title: "Spinner in the Dark", family: "Beast", traits: ["x_vampiric"], early: true,
+    faces: [GRAZE, HIT, HIT, HIT, spell("Bind", "hit", hex("weak", 2)), CRIT] },
+  { id: "brother", name: "Brother Candlewick", title: "Last of the Cellar Choir", family: "Cultist", traits: ["x_smouldering"], early: true },
   { id: "garrick", name: "Sir Garrick", title: "the Hollow Knight", family: "Undead", traits: ["x_armored", "x_regenerating"], armor: 2 },
   { id: "shades", name: "The Twin Shades", title: "Two Breaths of Cold", family: "Undead", traits: ["m_incorporeal", "x_swift", "m_grave_chill"] },
   { id: "ember", name: "Mother Ember", title: "Keeper of the Last Fire", family: "Cultist", traits: ["x_blazing", "x_smouldering"] },
@@ -166,11 +171,14 @@ export const UNIQUES: { id: string; name: string; title: string; family: string;
   { id: "warlord", name: "Warlord Kragg", title: "Breaker of Shields", family: "Beast", traits: ["m_zeal", "x_tormenting"], armor: 1 }
 ];
 
+/** How much of a full unique's HP the 1st Layer's own uniques carry. */
+export const EARLY_UNIQUE_HP = 0.55;
 export function makeUnique(rng: () => number, floor: number, seen: Set<string>): Fighter {
-  const pool = UNIQUES.filter(u => !seen.has(`u:${u.id}`));
-  const u = (pool.length ? pool : UNIQUES)[Math.floor(rng() * (pool.length || UNIQUES.length))];
+  const early = floor <= 1, all = UNIQUES.filter(u => !!u.early === early);
+  const pool = all.filter(u => !seen.has(`u:${u.id}`));
+  const u = (pool.length ? pool : all)[Math.floor(rng() * (pool.length || all.length))];
   seen.add(`u:${u.id}`);
-  const hp = Math.round(22 * monsterHpMult(floor) * (2.4 + 0.15 * floor));
+  const hp = Math.round(22 * monsterHpMult(floor) * (2.4 + 0.15 * floor) * (early ? EARLY_UNIQUE_HP : 1));
   const items: Record<string, number> = {};
   for (const t of u.traits) items[t] = 1;
   return {

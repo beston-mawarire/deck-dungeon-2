@@ -1,4 +1,4 @@
-import { PATH_MAP, pathsOf, SKILL_LEVEL } from "../data/classpaths";
+import { PATH_MAP, PATHS, pathsOf, SKILL_LEVEL } from "../data/classpaths";
 import { BOUNTY_CAP, bountyReward, HEAT_LOOT_CAP, HEAT_LOOT_PER, PACT, PACT_MAP, pactHeat } from "../game/pact";
 import { baneOf, boonOf, REVERSE_LEVEL, TAROT, TAROT_MAP, TAROT_MAX_LEVEL, TAROT_SLOTS, tarotHeat } from "../game/tarot";
 import { OMEN_MAP, OMENS_FOR_FOUR } from "../game/omens";
@@ -22,13 +22,13 @@ import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
 import { GEN_MODULE_MAP, modValue } from "../game/gen";
 import { ACHIEVEMENTS, currentAbyssMod,  heatOf, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX } from "../game/progress";
-import { chosenPath, carriedTarot, flipTarot, takeTarot, toggleTarot, ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem, abyssUnlocked, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta } from "../game/meta";
+import { chosenPath, LEDGER_MARKS, carriedTarot, flipTarot, takeTarot, toggleTarot, ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem, abyssUnlocked, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta } from "../game/meta";
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  startCrawl, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
+  startCrawl, tavernGift, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, chooseOmen, chooseSkill, omensTaken, setOut, ABYSS_LAYER, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -540,6 +540,17 @@ function tarotCard(id: string, lvl: number, slot?: { rev?: boolean }, offer = fa
       : `<div class="tc-btns"><button class="small ${slot ? "primary" : ""}" data-tarotequip="${id}">${slot ? "✔ Carrying" : "Carry"}</button>${lvl >= REVERSE_LEVEL && !t.noReverse && slot ? `<button class="small" data-tarotflip="${id}">${slot.rev ? "Upright" : "Reverse"}</button>` : ""}</div>`}
   </div>`;
 }
+/** The Camp Ledger: every path of every class, and the marks it has earned. */
+function ledgerPanel() {
+  const L = meta.ledger ?? {};
+  const total = PATHS.length * LEDGER_MARKS.length, got = PATHS.reduce((a, p) => a + (L[p.id]?.length ?? 0), 0);
+  const head = `<tr><th></th>${LEDGER_MARKS.map(k => `<th title="${esc(k.name)}">${k.icon}</th>`).join("")}</tr>`;
+  const rows = PATHS.map(p => `<tr><th class="lg-path"><span>${p.icon}</span>${esc(p.name)}<i>${esc(ORIGINS[p.origin].name)}</i></th>${LEDGER_MARKS.map(k => `<td class="${L[p.id]?.includes(k.id) ? "on" : ""}" title="${esc(k.name)}">${L[p.id]?.includes(k.id) ? k.icon : "·"}</td>`).join("")}</tr>`).join("");
+  return `<div class="ledger"><h3 class="tr-head">📒 The Ledger <span class="sub">${got}/${total}</span></h3>
+    <p class="sub">Every path of every class, and how far it has gone. A mark is earned by the path you walked.</p>
+    <table class="lg-table">${head}${rows}</table>
+    <p class="lg-key">${LEDGER_MARKS.map(k => `<span>${k.icon} ${esc(k.name)}</span>`).join("")}</p></div>`;
+}
 /** The Camp's Tarot Room: all 21 cards under a night sky, the ones you hold face up. */
 function tarotRoom() {
   const eq = carriedTarot(meta);
@@ -971,7 +982,9 @@ function campBody(o: OriginId, tab: CampTab): string {
       const t = TIERS.find(([k]) => e.kills >= k);
       return t ? { name, icon: t[1], tier: t[2], note: `${e.kills} beaten`, sk: foeSprite(name, e.family) } : null;
     }).filter((x): x is NonNullable<typeof x> => !!x);
-    return `<p>Beat a kind of foe 10 times and its trophy goes on the wall: bronze at 10, silver at 25, gold at 50. Every guardian you bring down gets one of its own.</p>
+    return `${ledgerPanel()}
+      <h3 class="tr-head">🏆 The Wall</h3>
+      <p>Beat a kind of foe 10 times and its trophy goes on the wall: bronze at 10, silver at 25, gold at 50. Every guardian you bring down gets one of its own.</p>
       ${won.length ? `<div class="trophies">${won.map(w => `<div class="trophy ${w.tier}"><span class="tr-plaque">${w.sk && hasSprite(w.sk) ? spriteHtml(w.sk, 3, "beast-spr") : w.icon}</span><b>${w.icon} ${esc(w.name)}</b><span class="sub">${esc(w.note)}</span></div>`).join("")}</div>` : `<div class="panel"><p class="sub">The walls are bare. Beat a kind of foe 10 times, or a layer's guardian, to hang your first trophy.</p></div>`}
       <h3 class="tr-head">🐟 The Tank</h3>
       <div class="trophies fish-tank">${FISH.map(f => { const n = meta.fish?.[f.id] ?? 0; return n ? `<div class="trophy fish ${f.rarity}"><span class="tr-plaque">${f.icon}</span><b>${esc(f.name)}</b><span class="sub">${n} caught</span></div>` : `<div class="trophy fish unknown"><span class="tr-plaque">❔</span><b>???</b><span class="sub">Not caught yet</span></div>`; }).join("")}</div>`;
@@ -1399,9 +1412,9 @@ function pickScene(r: Run) {
   const ks = s.keepsake ? getItem(s.keepsake) : null;
   const m = /^(.*?)(!?)\s*(?:—\s*)?choose one$/i.exec(s.title);
   const title = `<h2 class="pick-title"><span>${esc(m ? m[1] + m[2] : s.title)}</span>${m ? "<b>Choose one reward</b>" : ""}</h2>`;
-  return `${(r.gridMode && chestHead(s.title)) || title}${sigilFound(s.sigils)}
+  return `${(r.gridMode && chestHead(s.title)) || title}${s.gift ? `<p class="pick-sub">“On the house. Something for the road: pick one.”</p>` : ""}${sigilFound(s.sigils)}
     ${ks ? `<div class="item keepsake"><div class="meta">Keepsake · one at a time${r.hero.keepsake ? ` · replaces ${esc(getItem(r.hero.keepsake).name)}` : ""}</div><div class="nm">🕯️ ${esc(ks.name)}</div><p>${esc(ks.text)}.</p><div class="row"><button class="small primary" data-keepsake>Take the Keepsake</button></div><p class="sub">Free: it doesn't count as your pick.</p></div>` : ""}
-    ${s.items.length > 1 ? `<div class="toast pick-note">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
+    ${s.items.length > 1 && !s.gift ? `<div class="toast pick-note">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
     <div class="cards">${s.items.map(it => itemCard(it, s.items.length > 1 ? pickButtons(it) : takeButtons(it), true)).join("")}</div>
     ${s.passed?.length ? `<h2 class="lost-out">Lost out on</h2><div class="cards">${s.passed.map(it => itemCard(it)).join("")}</div>` : ""}
     <div class="row" style="margin-top:12px"><button class="take-pack take-none" data-finish>🚫 Take nothing</button></div>`;
@@ -3448,6 +3461,8 @@ function bind() {
       // The ability picked at the Camp's Skills (if it's still open to this class).
       // The class path chosen at the Camp (passive; it sets the skills on offer at level 5).
       nr.hero.path = chosenPath(meta, o); recompute(nr.hero);
+      // Setting out from the top: the Tavern sends you off with a trinket of your choice.
+      if (nr.floor === 1) tavernGift(nr);
       // A contract taken at the Camp's Quest Board comes along.
       const q = campQuest !== null ? campOffers?.[campQuest] : undefined;
       if (q) nr.bounty = { ...q, base: 0, roomsLeft: q.roomsLeft * CAMP_QUEST_ROOMS };

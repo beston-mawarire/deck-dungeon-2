@@ -219,3 +219,37 @@ describe("class paths", () => {
     expect(b.player.mana).toBe(2);
   });
 });
+
+describe("the 1st Layer and the Ledger (1.98)", () => {
+  it("the Tavern's parting gift offers three different ready-to-wear trinkets, and taking one leaves you on the map", async () => {
+    const { tavernGift, takeItem } = await import("../src/game/run");
+    const r = newRun("rogue", 71); startCrawl(r);
+    tavernGift(r);
+    const s = r.scene as { t: string; items: { uid: number; base: string; reqLevel?: number }[]; gift?: boolean };
+    expect(s.t).toBe("pick"); expect(s.gift).toBe(true);
+    expect(new Set(s.items.map(i => i.base)).size).toBe(3);
+    expect(s.items.every(i => !i.reqLevel)).toBe(true);
+    expect(takeItem(r, s.items[0].uid, "equip")).toBeNull();
+    expect(r.scene.t).toBe("map");
+    expect(r.step).toBe(0);
+  });
+  it("every 1st Layer holds one of its own named foes on a middle floor", () => {
+    for (let seed = 1; seed < 20; seed++) {
+      const r = newRun("warrior", 700 + seed); startCrawl(r);
+      const at = r.gridPlan?.unique ?? 0;
+      expect(at).toBeGreaterThanOrEqual(2); expect(at).toBeLessThanOrEqual(4);
+      expect(makeGrid(r, at).things.some(t => t.room === "unique")).toBe(true);
+    }
+  });
+  it("Ledger marks go to the path walked", async () => {
+    const { ledgerMarks } = await import("../src/game/meta");
+    const r = newRun("mage", 72); startCrawl(r);
+    r.hero.path = "arcanist"; r.hero.f.persist["layersWon"] = 3; r.heat = 5;
+    expect(ledgerMarks(r)).toEqual(["l1", "l3"]);
+    r.scene = { t: "over", won: true };
+    expect(ledgerMarks(r)).toEqual(["l1", "l3", "win", "h4"]);
+    const m = fresh(); recordRun(m, r);
+    expect(m.ledger?.arcanist).toContain("win");
+  });
+});
+

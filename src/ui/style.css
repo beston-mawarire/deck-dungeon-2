@@ -2611,3 +2611,18 @@ body .popup.at-pop button.closebtn { background: linear-gradient(180deg, #5a361a
 .inv-cards .item.r-common .nm { color: #ead7b3; }
 .inv-cards .item :is(.meta, .sub) { color: #b39a74; }
 .inv-cards .item ul { color: #ead7b3; }
+/* ===== 1.98: the Camp Ledger (in the Trophy Room) ===== */
+.ledger { margin-bottom: 14px; }
+.lg-table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: .9rem; }
+.lg-table th, .lg-table td { padding: 5px 3px; text-align: center; border-bottom: 1px dotted rgba(160,120,70,.45); }
+.lg-table tr:first-child th { font-size: 1.05rem; }
+.lg-table td { color: #5a4a36; font-size: 1.05rem; }
+.lg-table td.on { color: inherit; text-shadow: 0 0 6px rgba(255,210,120,.5); }
+.lg-path { text-align: left !important; white-space: nowrap; color: #f3d58a; font-family: Georgia, serif; font-weight: 700; }
+.lg-path span { margin-right: 5px; }
+.lg-path i { display: block; font: 400 .7rem system-ui, sans-serif; color: #b39a74; font-style: normal; margin-left: 1.6em; }
+.lg-key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .76rem; color: #b39a74; margin: 4px 0 0; }
+/* A pick's title on the Crawl's parchment popups: dark ink (it was pale lilac, made for the old dark screens). */
+.crawl-pop .pick-title span { color: #3b2410; text-shadow: none; font-family: Georgia, "Times New Roman", serif; letter-spacing: .03em; }
+.crawl-pop .pick-title b { color: #8a5a14; text-shadow: none; }
+.crawl-pop .pick-sub { text-align: center; color: #5a3e22; margin: -4px 0 10px; }

@@ -1789,8 +1789,14 @@ describe("treasury and encounters", () => {
     const { makeUnique, UNIQUES } = await import("../src/data/monsters");
     const seen = new Set<string>();
     const names = new Set<string>();
-    for (let i = 0; i < UNIQUES.length; i++) names.add(makeUnique(makeRng(i), 2, seen).name);
-    expect(names.size).toBe(UNIQUES.length);
+    const late = UNIQUES.filter(u => !u.early), early = UNIQUES.filter(u => u.early);
+    for (let i = 0; i < late.length; i++) names.add(makeUnique(makeRng(i), 2, seen).name);
+    expect(names.size).toBe(late.length);
+    expect([...names].every(n => late.some(u => u.name === n))).toBe(true);
+    // The 1st Layer has its own, softer ones.
+    const firsts = new Set<string>();
+    for (let i = 0; i < early.length; i++) firsts.add(makeUnique(makeRng(i), 1, seen).name);
+    expect(firsts.size).toBe(early.length);
   });
   it("each new floor announces itself", () => {
     const run = newRun("cleric", 5);

@@ -203,7 +203,7 @@ export type Scene =
   | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" | "nemesis" | "doppel"; uber?: boolean }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; /** Talisman sigils found (names). */ sigils?: string[]; potions: number; then?: "resplendent"; crimsonKey?: boolean; /** A Bounty Board payout (closing it doesn't use a step). */ bounty?: boolean; /** A Dragon Heart was torn from the dragon (its level now). */ dragonHeart?: number; /** The Transmuter's Crucible dropped. */ crucible?: boolean }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
-  | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** Talisman sigils found (names). */ sigils?: string[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
+  | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** The Tavern's parting gift: closing it leaves you where you stand. */ gift?: boolean; /** Talisman sigils found (names). */ sigils?: string[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
   | { t: "talent"; options: string[] }
   | { t: "shop"; stock: ShopEntry[]; /** One item may be sold per Merchant visit. */ soldItem?: string; /** % markup from the Gold you carried when this stock was priced. */ markup?: number }
   | { t: "forge" }
@@ -442,7 +442,7 @@ function roomWeights(run: Run, first: boolean): Partial<Record<RoomType, number>
   // After the fifth boss (Endless), Crimson Elites start to appear; they drop the keys to Crimson Vaults.
   if (crimsonActive(run)) w.crimson_elite = 4;
   // Named unique foes: from floor 2, rare, each one once per run.
-  if (run.floor >= 2 && UNIQUES.some(u => !run.seenBosses.has(`u:${u.id}`))) w.unique = 2;
+  if (run.floor >= 2 && UNIQUES.some(u => !u.early && !run.seenBosses.has(`u:${u.id}`))) w.unique = 2;
   // Treasure Goblins: from floor 3, about as rare as a Legendary drop.
   if (run.floor >= 3) w.goblin = 0.5;
   if (abyssMod(run, "goblin_rush")) w.goblin = 6;
@@ -518,6 +518,8 @@ function layerPlan(run: Run): Partial<Record<RoomType, number>> {
   plan[run.jewellerNext ? "jeweller" : "forge"] = 2 + Math.floor(rng() * (last - 1));
   run.jewellerNext = !run.jewellerNext;
   if (run.floor >= MASTERWORK_FLOOR && run.mode !== "abyss") plan.masterwork = any();
+  // The 1st Layer: one of its own named foes waits on a middle floor (2nd to 4th), in a little room of its own.
+  if (run.floor === 1 && run.mode !== "abyss") plan.unique = 2 + Math.floor(rng() * 3);
   if (crimsonActive(run) && run.hero.crimsonKeys > 0) plan.crimson_vault = any();
   const heart = run.hero.dragonHeart;
   if (heart && !heart.unified) plan.sanctum = any();
@@ -535,6 +537,10 @@ export const CRAWL_NORMAL_HP = 1.8;
 export const CRAWL_NORMAL_POWER = 2;
 /** How much softer Elites are on the first layer's first two floors. */
 export const FIRST_ELITE_EASE = 0.85;
+/** A 1st-Layer unique's drop: a Rare, or this often an Epic. */
+export const EARLY_UNIQUE_EPIC = 0.4;
+/** The Tavern's parting gift: a choice of trinkets as a campaign run begins. */
+export const GIFT_TRINKETS = 3;
 /** How often a curse-lifting altar turns up, as a landmark (the same whether or not you're cursed). */
 export const CLEANSING_WEIGHT = 3;
 /** Chance a floor has a Crimson foe's room: this much per layer below the first, up to the cap. */
@@ -636,7 +642,10 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   const pocket = (items: string[], guardChance: number, prefer?: (i: number) => number, size?: [number, number], door?: string) => {
     const two = items.length > 1;
     const [pw, ph] = size ?? (two ? (rng() < 0.5 ? [2, 3] : [3, 2]) : [2, 2]);
-    const dug = digPocket(m, rng, pw, ph, pockets, prefer);
+    // (Never through the wall an urn or a chest stands against.)
+    const avoid = new Set(pockets);
+    for (const t of m.things) if (LOOT.includes(t.room)) avoid.add(idx(m, t.x, t.y));
+    const dug = digPocket(m, rng, pw, ph, avoid, prefer);
     if (!dug) { if (!door) for (const it of items) putInHall(it); return; }
     pockets.add(dug.door);
     for (const c of dug.cells) pockets.add(c);
@@ -652,12 +661,17 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
         // Rock on both sides of the new doorway, so it's a doorway and not a gap.
         const side = Math.abs(d) === 1 ? m.w : 1;
         if (m.tiles[w + side] !== 0 || m.tiles[w - side] !== 0) continue;
+        // Never knock through the wall an urn or a chest stands against.
+        if (m.things.some(t => LOOT.includes(t.room) && Math.abs(t.x - (w % m.w)) + Math.abs(t.y - Math.floor(w / m.w)) === 1)) continue;
         m.tiles[w] = 1;
         pockets.add(w);
         break;
       }
     }
     const spots = dug.cells.filter(c => c !== dug.front).sort(() => rng() - 0.5);
+    // An urn or a chest stands against rock (a second doorway can leave a cell open all round).
+    const rock = (c: number) => [1, -1, m.w, -m.w].filter(d => m.tiles[c + d] === 0).length;
+    items.forEach((it, k) => { if (!LOOT.includes(it) || rock(spots[k] ?? dug.front) > 0) return; const j = spots.findIndex((c, q) => q !== k && rock(c) > 0); if (j >= 0) [spots[k], spots[j]] = [spots[j], spots[k]]; });
     // A strange door stands in a wall: put it on a cell with rock behind it (above), if the room has one.
     const ev = items.indexOf("event");
     if (ev >= 0) { const w = spots.findIndex(c => m.tiles[c - m.w] === 0); if (w >= 0 && w !== ev) [spots[ev], spots[w]] = [spots[w], spots[ev]]; }
@@ -690,7 +704,8 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   marks.offering = OFFERING_WEIGHT;
   if (run.hero.f.persist["ins_angling"]) marks.pond = POND_WEIGHT;
   marks.cleansing = CLEANSING_WEIGHT;
-  for (let n = floorLandmarks(rng()); n > 0 && Object.keys(marks).length; n--) { const room = pickW(rng, marks); delete marks[room]; pois.push(room); }
+  // (The 1st Layer is never bare: every floor has at least one.)
+  for (let n = Math.max(run.floor === 1 && run.mode !== "abyss" ? 1 : 0, floorLandmarks(rng())); n > 0 && Object.keys(marks).length; n--) { const room = pickW(rng, marks); delete marks[room]; pois.push(room); }
   // (The Chariot: fewer chests.)
   for (let n = 1 + (rng() < 0.4 ? 1 : 0) - Math.round(tarotOf(run.hero, "chariot").bane); n > 0; n--) pois.push(chest());
   // Tarot landmarks: an altar to lift curses (the Hierophant), a Sacred Spring (the Star), one Blood Oath a layer (the Hanged Man).
@@ -926,6 +941,18 @@ export function startCrawl(run: Run) {
   run.hero.f.persist["classLoot"] = 1;
   run.grid = makeGrid(run, 0);
   run.choices = [];
+}
+
+/** The Tavern's parting gift: three trinkets (Uncommon, ready to wear), and you take one with you. */
+export function tavernGift(run: Run) {
+  const h = run.hero, items: GearItem[] = [];
+  for (let k = 0; k < 60 && items.length < GIFT_TRINKETS; k++) {
+    const it = rollItem(h, "uncommon", 1, run.rng);
+    if (effectiveBase(it).kind !== "trinket" || items.some(i => i.base === it.base)) continue;
+    it.reqLevel = undefined; it.revealed = true;
+    items.push(it);
+  }
+  if (items.length) run.scene = { t: "pick", title: "A parting gift from the Tavern", items, gift: true };
 }
 
 /** Choose your path's skill (from level 5): one of the two it offers, for the rest of the run. */
@@ -1858,7 +1885,10 @@ function afterFight(run: Run) {
     run.message = "🎭 The Changeling comes apart like smoke. It leaves something of yours behind… no, better than yours.";
   } else if (then === "unique") {
     // Unique foes: always an Epic (sometimes a Legendary), a good relic and a fat purse.
-    items.push(rollItem(h, run.rng() < 0.15 ? "legendary" : "epic", depth(run), run.rng));
+    // (The 1st Layer's own: a Rare, often an Epic.)
+    h.f.persist["uniquesBeaten"] = (h.f.persist["uniquesBeaten"] ?? 0) + 1;
+    if (run.floor <= 1) items.push(rollItem(h, run.rng() < EARLY_UNIQUE_EPIC ? "epic" : "rare", depth(run), run.rng));
+    else items.push(rollItem(h, run.rng() < 0.15 ? "legendary" : "epic", depth(run), run.rng));
     relic = randomRelic(run, 2);
     if (run.rng() < 0.3) scrolls++;
   } else if (rank === "elite" && crawlFoe) {
@@ -2174,6 +2204,7 @@ export function scrapFound(run: Run, uid: number) {
 }
 
 export function finishLoot(run: Run) {
+  if (run.scene.t === "pick" && run.scene.gift) { run.scene = { t: "map" }; return; }
   let bountyPay = false;
   if (run.scene.t === "loot") {
     bountyPay = !!run.scene.bounty;

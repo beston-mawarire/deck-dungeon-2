@@ -141,11 +141,13 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "heat_ashborn", name: "Ashborn", text: "Beat the dungeon at Heat 6 or higher wearing a Heatforged item", renown: 50, title: "Ashborn", group: "Heat", check: r => campaignWon(r) && (r.heat ?? 0) >= 6 && P(r, "ach_heatworn") > 0 },
   { id: "heat_deep", name: "Slow Burn", text: "Reach the 5th Layer at Heat 8 or higher", renown: 40, group: "Heat", check: r => r.mode === "campaign" && (r.heat ?? 0) >= 8 && r.floor >= 5 },
   { id: "heat_dry", name: "Dry Heat", text: "Beat the dungeon at Heat 10 or higher without drinking a single potion", renown: 120, title: "the Unquenched", group: "Heat", check: r => campaignWon(r) && (r.heat ?? 0) >= 10 && P(r, "potsDrunk") === 0 },
-  { id: "floor10", name: "Into the Deep", text: "Reach the 7th layer", renown: 20, check: r => r.mode !== "abyss" && r.floor >= 7 },
-  { id: "floor20", name: "Horror's Doorstep", text: "Reach the 10th layer", renown: 30, title: "Deepwalker", check: r => r.mode !== "abyss" && r.floor >= 10 },
-  { id: "cursed20", name: "Damned and Delving", text: "Reach the 10th layer carrying 3 or more curses", renown: 40, title: "The Damned", check: r => r.mode !== "abyss" && r.floor >= 10 && Object.values(r.hero.curses).reduce((a, n) => a + n, 0) >= 3 },
+  { id: "floor10", name: "Into the Deep", text: "Reach the 5th Layer", renown: 20, check: r => r.mode === "campaign" && r.floor >= 5 },
+  { id: "floor20", name: "Horror's Doorstep", text: "Reach the Abyss's last floor", renown: 30, title: "Deepwalker", check: r => r.mode === "abyss" && (r.grid?.depth ?? 0) >= 5 },
+  { id: "cursed20", name: "Damned and Delving", text: "Reach the 5th Layer carrying 3 or more curses", renown: 40, title: "The Damned", check: r => r.mode === "campaign" && r.floor >= 5 && Object.values(r.hero.curses).reduce((a, n) => a + n, 0) >= 3 },
   { id: "death", name: "Reaper's Reaper", text: "Beat DEATH", renown: 100, title: "Deathless", check: r => P(r, "ach_death") > 0 },
-  { id: "the_end", name: "After the End", text: "Beat THE END", renown: 200, title: "Eternal", check: r => !!r.finale },
+  { id: "uniques3", name: "Head Hunter", text: "Beat 3 named Unique foes in one run", renown: 40, title: "Head Hunter", check: r => P(r, "uniquesBeaten") >= 3 },
+  { id: "first_unique", name: "Big Name, Bigger Fall", text: "Beat one of the 1st Layer's named foes", renown: 10, check: r => P(r, "uniquesBeaten") >= 1 },
+  { id: "path_skill", name: "A Path Chosen", text: "Choose your path's skill at level 5", renown: 5, check: r => !!r.hero.skill },
   { id: "nemesis", name: "Settled Score", text: "Beat your Nemesis", renown: 15, title: "Avenger", check: r => !!r.nemesisBeaten },
   { id: "legend_set", name: "Living Legend", text: "Finish a run wearing nothing but Legendaries", renown: 40, title: "Living Legend", check: r => EQUIP_SLOTS.every(s => !r.hero.equip[s] || ["legendary", "crimson", "epic_crimson", "legendary_crimson"].includes(r.hero.equip[s]!.rarity)) && EQUIP_SLOTS.filter(s => r.hero.equip[s]).length >= 5 },
   { id: "hit1k", name: "Heavy Hitter", text: "Land a hit of 1,000 or more", renown: 15, check: r => Math.max(P(r, "t_best"), r.stats.bestHit) >= 1000 },
@@ -180,15 +182,15 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "fuse", name: "Jeweller's Apprentice", text: "Fuse two things at the Jeweller", renown: 15, check: r => P(r, "ach_fuse") > 0 },
   { id: "infuse", name: "Infused", text: "Infuse a trinket into your gear at the Jeweller", renown: 15, check: r => P(r, "ach_infuse") > 0 },
   { id: "warrior_noguard", name: "No Shield Needed", text: "Beat the dungeon as a Warrior without ever Guarding", renown: 50, title: "the Reckless", check: r => campaignWon(r) && r.hero.origin === "warrior" && P(r, "act_guard") === 0 },
-  { id: "mage_nobarrier", name: "Unshielded", text: "Beat the dungeon as a Mage without ever using Elemental Barrier", renown: 50, check: r => campaignWon(r) && r.hero.origin === "mage" && P(r, "act_barrier") === 0 },
-  { id: "rogue_nocounter", name: "Straight Shooter", text: "Beat the dungeon as a Rogue without ever Countering", renown: 50, check: r => campaignWon(r) && r.hero.origin === "rogue" && P(r, "act_counter") === 0 },
+  { id: "mage_nobarrier", name: "Spell-less", text: "Beat the dungeon as a Mage without ever using a skill", renown: 50, check: r => campaignWon(r) && r.hero.origin === "mage" && P(r, "q_skill") === 0 },
+  { id: "rogue_nocounter", name: "Straight Shooter", text: "Beat the dungeon as a Rogue without ever using a skill", renown: 50, check: r => campaignWon(r) && r.hero.origin === "rogue" && P(r, "q_skill") === 0 },
   { id: "gen_greater", name: "A Cut Above", text: "Find an item with a ✦ Greater roll", renown: 10, check: r => P(r, "ach_greater") > 0 },
   { id: "gen_mythic", name: "Mythic", text: "Find an item with a ✦✦✦ Mythic roll", renown: 40, title: "the Blessed", check: r => P(r, "ach_mythic") > 0 },
   { id: "gen_overcharged", name: "Overcharged", text: "Find an Overcharged item", renown: 50, title: "Live Wire", check: r => P(r, "ach_overcharged") > 0 },
   { id: "gen_veined", name: "Red in the Vein", text: "Find a Crimson-veined item", renown: 20, check: r => P(r, "ach_veined") > 0 },
   { id: "sigil_two", name: "Matching Pair", text: "Wear two sigils of the same set", renown: 10, check: r => P(r, "ach_sigil2") > 0 },
   { id: "sigil_full", name: "Full Talisman", text: "Wear a complete sigil set", renown: 40, title: "the Complete", check: r => P(r, "ach_sigil_full") > 0 },
-  { id: "cleric_nopenance", name: "No Regrets", text: "Beat the dungeon as a Cleric without ever using Penance", renown: 50, check: r => campaignWon(r) && r.hero.origin === "cleric" && P(r, "act_penance") === 0 }
+  { id: "cleric_nopenance", name: "No Regrets", text: "Beat the dungeon as a Cleric without ever using a skill", renown: 50, check: r => campaignWon(r) && r.hero.origin === "cleric" && P(r, "q_skill") === 0 }
 ];
 
 // ---------- Heat ----------
