@@ -156,8 +156,6 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "abyss5", name: "Abyss Diver", text: "Accept five Omens in one Abyss run", renown: 30, title: "Abyss Diver", check: r => r.mode === "abyss" && Object.values(r.hero.omens ?? {}).reduce((a, n) => a + n, 0) >= 5 },
   { id: "abyss10", name: "Rock Bottom", text: "Clear the Abyss", renown: 100, title: "Abyssal", check: r => r.mode === "abyss" && won(r) },
   { id: "all_classes", name: "Paragon", text: "Beat the dungeon with every class", renown: 50, title: "Paragon", check: (_r, m) => ["warrior", "rogue", "mage", "cleric"].every(o => (m.winsBy?.[o] ?? 0) > 0) },
-  { id: "mastery10", name: "Grandmaster", text: "Reach mastery 10 with a class", renown: 50, title: "Grandmaster", check: () => false },
-  { id: "mastery_all", name: "Master of All", text: "Reach mastery 10 with every class", renown: 150, title: "Master of All", check: () => false },
   { id: "low_hp_win", name: "By a Thread", text: "Win a fight with less than 10% of your HP left", renown: 15, check: r => P(r, "ach_low_hp_win") > 0 },
   { id: "all_leg", name: "Legendary Wardrobe", text: "Wear only Legendaries, in every slot", renown: 40, title: "Legend-clad", check: r => P(r, "ach_all_leg") > 0 },
   { id: "all_epic", name: "Purple Reign", text: "Wear only Epics, in every slot", renown: 25, check: r => P(r, "ach_all_epic") > 0 },
@@ -177,7 +175,6 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "salvage_leg", name: "What Have I Done", text: "Scrap a Legendary", renown: 10, check: r => P(r, "ach_salvage_leg") > 0 },
   { id: "sell_leg", name: "Cash Is King", text: "Sell a Legendary", renown: 10, check: r => P(r, "ach_sell_leg") > 0 },
   { id: "sell_all", name: "Naked Ambition", text: "Sell every piece of gear you're wearing", renown: 10, check: r => P(r, "ach_sell_all") > 0 },
-  { id: "combine", name: "Two Become One", text: "Combine two items at the Forge", renown: 10, check: r => P(r, "ach_combine") > 0 },
   { id: "transmute", name: "Alchemist", text: "Transmute an item with the Crucible", renown: 20, check: r => P(r, "ach_transmute") > 0 },
   { id: "fuse", name: "Jeweller's Apprentice", text: "Fuse two things at the Jeweller", renown: 15, check: r => P(r, "ach_fuse") > 0 },
   { id: "infuse", name: "Infused", text: "Infuse a trinket into your gear at the Jeweller", renown: 15, check: r => P(r, "ach_infuse") > 0 },
@@ -188,8 +185,6 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "gen_mythic", name: "Mythic", text: "Find an item with a ✦✦✦ Mythic roll", renown: 40, title: "the Blessed", check: r => P(r, "ach_mythic") > 0 },
   { id: "gen_overcharged", name: "Overcharged", text: "Find an Overcharged item", renown: 50, title: "Live Wire", check: r => P(r, "ach_overcharged") > 0 },
   { id: "gen_veined", name: "Red in the Vein", text: "Find a Crimson-veined item", renown: 20, check: r => P(r, "ach_veined") > 0 },
-  { id: "sigil_two", name: "Matching Pair", text: "Wear two sigils of the same set", renown: 10, check: r => P(r, "ach_sigil2") > 0 },
-  { id: "sigil_full", name: "Full Talisman", text: "Wear a complete sigil set", renown: 40, title: "the Complete", check: r => P(r, "ach_sigil_full") > 0 },
   { id: "cleric_nopenance", name: "No Regrets", text: "Beat the dungeon as a Cleric without ever using a skill", renown: 50, check: r => campaignWon(r) && r.hero.origin === "cleric" && P(r, "q_skill") === 0 }
 ];
 

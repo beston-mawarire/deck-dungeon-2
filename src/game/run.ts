@@ -1389,7 +1389,8 @@ function enterRoom(run: Run, room: RoomType) {
     case "rest": run.scene = { t: "rest", done: false }; return;
     case "event": {
       // Unique encounters (the dragon, the mirror pool) happen at most once per run.
-      const pool = EVENTS.filter(e => !OWN_PATH_EVENTS.includes(e.id) && eventOpen(run, e));
+      // (The Crossroads Dealer trades relics, and the Crawl has none.)
+      const pool = EVENTS.filter(e => !OWN_PATH_EVENTS.includes(e.id) && eventOpen(run, e) && !(run.gridMode && e.id === "dealer"));
       const ev = pickW(run.rng, Object.fromEntries(pool.map(e => [e.id, eventWeight(run, e)])) as Record<string, number>);
       startEvent(run, pool.find(e => e.id === ev)!);
       // The Crawl: what's behind the door plays out in a room of its own.
@@ -1988,7 +1989,8 @@ function afterFight(run: Run) {
       run.message = `+${bossGold} Gold${ruinNote}`;
       return;
     }
-    const bossSigil = rollSigilDrop(run, 0.4, 0.65);
+    // (Sigils belong to the old Campaign: the Crawl has no Talisman.)
+    const bossSigil = run.gridMode ? null : rollSigilDrop(run, 0.4, 0.65);
     // Crimson bosses offer a Crimson item alongside two boss finds; the bosses of floors 20–24 offer an Epic Crimson.
     // The Tower: Epics and Legendaries far likelier from a layer boss, and a second item in its hoard.
     const tower = tarotOf(h, "tower");

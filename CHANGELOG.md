@@ -9,6 +9,16 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.0
+Deck Dungeon 3 is now version 2.
+- **Merchant popups** now have the dungeon's wood-and-brass buttons (no more yellow, blue and pink), and so does the popup for gear you're wearing.
+- **A systems check-up:**
+  - **Transmuting works again.** The Knowledge Table's "Crucible's Secret" now adds a Transmute tab at the Forge; it was a dead purchase.
+  - **Leftovers retired.** Guardians no longer drop Talisman sigils (the Crawl has no Talisman). The Crossroads Dealer, which trades relics, no longer turns up in the dungeon.
+  - **Achievements trimmed.** Five that could no longer be earned are gone: Grandmaster, Master of All, Two Become One, Matching Pair and Full Talisman.
+  - **Text updated.** The Codex drops Keepsakes, Relics and Fusions and retired gear, and calls talents "Passives (Passive Tree)". The weekly Abyss twist is gone from the reference (it no longer applies). The backup text no longer mentions Shards and Plates.
+  - **Drills in the Challenges list.** Challenges now shows your Drill clears and gold medals.
+
 ## 1.100.0
 Phase 4 begins: first impressions.
 - **The Merchant, redone.** A market stall with the Merchant behind it. Wares are tiles framed in their rarity's colour, potions and throwables sit on a shelf, and your own gear sits below to sell. Tap anything to see it in full in a popup. On wide screens, selling sits beside the stall.

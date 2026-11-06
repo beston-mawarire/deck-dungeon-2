@@ -2713,3 +2713,16 @@ body .popup.at-pop button.closebtn { background: linear-gradient(180deg, #5a361a
 body .tip-bubble button { min-height: 30px; padding: 3px 12px; font-size: .8rem; border-radius: 8px !important; box-shadow: none !important; text-shadow: none; }
 body .tip-bubble button.tb-ok { background: linear-gradient(180deg, #5a361a, #3e2410) !important; color: #f5c542 !important; border: 1px solid #2a1608 !important; font-weight: 700; }
 body .tip-bubble button.tb-off { background: transparent !important; color: #6e5032 !important; border: 1px dotted #8a6a40 !important; }
+/* 1.100.1 / 2.0: the item popups' buttons (Merchant, worn gear) in the dungeon's wood and brass, like the rest of the Crawl. */
+:is(.shop-pop, .inv-eqpop) button { position: relative; min-height: 40px; font-weight: 800; letter-spacing: .02em; color: #f6e8c8 !important; text-shadow: 0 1px 0 rgba(0,0,0,.7);
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 2px, transparent 2px 8px), linear-gradient(180deg, #4a3320, #36241a 55%, #281a10) !important;
+  border: 2px solid #1a0f06 !important; border-radius: 6px !important; box-shadow: inset 0 1px 0 rgba(255,220,160,.16), inset 0 -2px 0 rgba(0,0,0,.35), 0 3px 0 #120a04 !important; }
+:is(.shop-pop, .inv-eqpop) button:is(.primary, .mer-act):not(:disabled) { color: #ffe2a0 !important;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 2px, transparent 2px 8px), linear-gradient(180deg, #7e5530, #5f3d20 55%, #4a2e17) !important; border-color: #24160a !important; }
+:is(.shop-pop, .inv-eqpop) button.mer-act.danger { color: #ffd0c0 !important; background: linear-gradient(180deg, #6a2a1e, #4a1a12) !important; }
+:is(.shop-pop, .inv-eqpop) button:disabled { opacity: .55; filter: saturate(.6); }
+:is(.shop-pop, .inv-eqpop) button:active { transform: translateY(2px); }
+:is(.shop-pop, .inv-eqpop) button.take-cmp { color: #e8d6b0 !important; font-weight: 700; }
+:is(.shop-pop, .inv-eqpop) button:is(.shop-x, .inv-eqx) { min-width: 140px; padding: 8px 28px; }
+:is(.shop-pop, .inv-eqpop) button:is(.shop-x, .inv-eqx)::before, :is(.shop-pop, .inv-eqpop) button:is(.shop-x, .inv-eqx)::after { content: ""; position: absolute; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #b8aea2, #4a433c 70%); }
+:is(.shop-pop, .inv-eqpop) button:is(.shop-x, .inv-eqx)::before { left: 10px; } :is(.shop-pop, .inv-eqpop) button:is(.shop-x, .inv-eqx)::after { right: 10px; }

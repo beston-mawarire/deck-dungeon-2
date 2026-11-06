@@ -4,7 +4,7 @@ import { baneOf, boonOf, REVERSE_LEVEL, TAROT, TAROT_MAP, TAROT_MAX_LEVEL, TAROT
 import { OMEN_MAP, OMENS_FOR_FOUR } from "../game/omens";
 // Deck Dungeon 2 — the playable game.
 import { justReset } from "./reset"; // first: the Great Reset wipes old saves before anything loads them
-import { BONUSES, CRIMSON, CURSES, KEEPSAKES, TRAITS, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
+import { BONUSES, CRIMSON, CURSES, TRAITS, EPIC_POWERS, GEAR_BASES, LEGENDARIES, TALENTS, loadLibrary } from "../data";
 import { FUSION_RECIPES } from "../data/fusions";
 /** Relics that fuse with a different relic (labelled; trinket recipes never are). */
 const FUSABLE_RELICS = new Set(FUSION_RECIPES.flatMap(r => [r.a, r.b]));
@@ -611,6 +611,7 @@ function challengesPopup() {
       ${dailyDone ? `<span class="sub mr-side">${(() => { const ms = Date.parse(`${today}T00:00:00Z`) + 864e5 - Date.now(); return `${Math.floor(ms / 3600e3)}h ${Math.floor((ms % 3600e3) / 60e3)}m`; })()}</span>` : `<button class="small primary daily-go" data-daily>${dailyArmed ? "Replace save?" : "Play"}</button>`}</div>
     ${meta.nemesis ? `<div class="mini-row nemesis-row"><span class="mr-ic">😈</span><span class="grow"><b>Your Nemesis: ${esc(meta.nemesis.name)}</b><span class="sub">${meta.nemesis.level > 1 ? `Beaten you ${meta.nemesis.level}×. ` : ""}Waits in your next Campaign run. Bounty on its head.</span></span></div>` : ""}
     <div class="mini-row heat-row"><span class="mr-ic">🔥</span><span class="grow"><b>Heat ${meta.wins ? pactHeat(meta.pact ?? {}) || "off" : "locked"}</b><span class="sub">${meta.wins ? "Make your pact at the Enter Dungeon door. Each class has bounties up to Heat 10." : "Beat the dungeon's last layer once to make a pact: harder, richer runs."}</span></span></div>
+    <div class="mini-row"><span class="mr-ic">🎯</span><span class="grow"><b>Drills</b><span class="sub">${(() => { const d = meta.drills ?? {}, n = Object.values(d).filter(c => c.length).length; return n ? `${n}/${DRILLS.length} cleared · ${Object.values(d).filter(c => c.length >= 4).length} 🥇. In the Camp's Drills yard.` : "Ten short challenge runs, one rule each. In the Camp's Drills yard, once any class beats the 1st Layer."; })()}</span></span></div>
     <div class="mini-row week-row ${abyssUnlocked(meta) ? "" : "locked"}"><span class="mr-ic">${abyssUnlocked(meta) ? "🃏" : "🔒"}</span><span class="grow"><b>The Abyss</b><span class="sub">${abyssUnlocked(meta) ? `Cleared ${meta.abyssWins ?? 0}× · ${Object.keys(meta.tarot ?? {}).length}/${TAROT.length} Tarot cards. Enter it from the Camp.` : "Locked: beat the dungeon's last layer to open it."}</span></span></div>
   </div>
   </div></div>`;
@@ -667,7 +668,7 @@ function historyPopup() {
 /** All progress is backed up to the server; the backup code restores it on another device. */
 function backupPanel() {
   if (!leaderboardOn()) return "";
-  return `<div class="panel backup-panel"><p><b>🔐 Backup</b> <span class="sub">All your progress is backed up online: your Camp, achievements, Shards, Plates, settings and the run you're on. Keep this code to restore it on another device or after clearing your browser:</span></p>
+  return `<div class="panel backup-panel"><p><b>🔐 Backup</b> <span class="sub">All your progress is backed up online: your Camp, achievements, Tarot cards, medals, settings and the run you're on. Keep this code to restore it on another device or after clearing your browser:</span></p>
     <p class="backup-code">${esc(backupCode())}</p>
     ${restoreOpen ? `<div class="row"><input id="restore-code" class="grow" placeholder="Paste a backup code" maxlength="24" autocomplete="off"><button class="small primary" data-restore>Restore</button><button class="small" data-restoreclose>Cancel</button></div>
       <p class="sub">Restoring replaces all of this device's progress (and leaderboard identity) with the code's.</p>` : `<button class="small" data-restoreopen>Restore from a code</button>`}
@@ -686,15 +687,12 @@ function codexScreen() {
   return `<div class="row"><h1 class="grow">📖 Codex</h1><button data-back>Back</button></div>
     <p class="sub">Everything you've found across runs.</p>
 
-    ${section("Weapons & gear", GEAR_BASES)}
-    ${section("Legendaries", LEGENDARIES.map(l => ({ id: l.id, name: l.name, text: l.legendary!.reveal })))}
+    ${section("Weapons & gear", GEAR_BASES.filter(g => (g.weight ?? 1) > 0))}
+    ${section("Legendaries", LEGENDARIES.filter(l => (l.weight ?? 1) > 0).map(l => ({ id: l.id, name: l.name, text: l.legendary!.reveal })))}
     ${section("Crimson", CRIMSON)}
-    ${section("Keepsakes", KEEPSAKES)}
     ${section("Epic powers", EPIC_POWERS)}
     ${section("Bonuses", BONUSES)}
-    ${section("Relics", RELICS)}
-    ${section("Fusions", FUSION_RELICS.map(f => ({ ...f, text: `${f.text}. Recipe: ${FUSION_RECIPES.filter(r => r.out === f.id).map(r => `${getItem(r.a).name} + ${getItem(r.b).name}`).join("")}` })))}
-    ${section("Talents", TALENTS)}
+    ${section("Passives (Passive Tree)", TALENTS)}
     ${section("Curses", CURSES)}`;
 }
 
@@ -1575,8 +1573,9 @@ function forgeScene(r: Run, altar = false) {
   const fusions = availableFusions(r);
   // An Offering Altar shows only its offering; the Forge upgrades, scraps and reveals.
   if (altar) forgeTab = "offer";
-  else if (forgeTab === "offer" || forgeTab === "transmute") forgeTab = "upgrade";
-  const tabs = [["upgrade", "⚒️ Upgrade"], ["scrap", "⚙️ Scrap"], ...(r.gridMode ? [["reveal", "📜 Reveal"]] : [])];
+  else if (forgeTab === "offer" || (forgeTab === "transmute" && !h.crucible)) forgeTab = "upgrade";
+  // (Transmuting: once the Camp's Knowledge Table has taught the Crucible's Secret.)
+  const tabs = [["upgrade", "⚒️ Upgrade"], ["scrap", "⚙️ Scrap"], ...(r.gridMode ? [["reveal", "📜 Reveal"]] : []), ...(h.crucible ? [["transmute", "⚗️ Transmute"]] : [])];
   const eq = EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x);
   const exists = (u: number) => !!findItem(h, u);
   for (const u of [...offerSel]) if (!exists(u)) offerSel.delete(u);
@@ -2520,7 +2519,7 @@ function helpGlossary() {
     row("🔥", "Heat", "After your first win: make a pact at Enter Dungeon from 12 conditions you choose yourself. Each adds Heat, and Heat makes better finds likelier. Each class has bounties up to Heat 10"),
     row("📅", "Daily Dungeon", "The same dungeon and class for everyone each day; one attempt, with its own leaderboard"),
     row("😈", "Nemesis", "Whatever kills your run waits in the next one, stronger each time it wins. Beat it for a bounty"),
-    row("🌕", "Abyss weekly twist", "Each week the Abyss changes: some twists help, some hurt")
+    row("🎯", "Drills", "Ten short challenge runs from the Camp's Drills yard, one rule each, on the same footing for everyone. Medals and titles"),
   ].join(""))}
   ${group("🕳️ The Abyss", [
     row("🔓", "Opening it", `Beat the dungeon's last layer with any hero. Then each Abyss run costs ${ABYSS_SHARD_COST} Ruin Shard${ABYSS_SHARD_COST === 1 ? "" : "s"}`),
