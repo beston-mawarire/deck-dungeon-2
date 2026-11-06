@@ -2627,11 +2627,25 @@ body .popup.at-pop button.closebtn { background: linear-gradient(180deg, #5a361a
 .crawl-pop .pick-title b { color: #8a5a14; text-shadow: none; }
 .crawl-pop .pick-sub { text-align: center; color: #5a3e22; margin: -4px 0 10px; }
 /* 1.98.1: the Tavern's parting gift */
-.gift-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0 4px; }
-@media (max-width: 360px) { .gift-list { grid-template-columns: 1fr; } }
-.crawl-pop button.gift-opt { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 10px; min-height: 0; text-align: center;
+.gift-list { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 4px; }
+.crawl-pop button.gift-opt { display: flex; flex-direction: row; align-items: center; gap: 14px; padding: 12px 14px; min-height: 0; text-align: left;
   background: rgba(255,250,236,.55) !important; border: 2px dotted #8a6a40 !important; border-radius: 12px !important; color: #3b2410 !important; box-shadow: none !important; text-shadow: none; }
 .crawl-pop button.gift-opt:hover { background: rgba(255,240,200,.85) !important; border-color: #b8862a !important; }
 .gift-ic { font-size: 2rem; line-height: 1; }
 .gift-opt b { display: block; font-size: .98rem; }
 .gift-opt i { display: block; font-style: normal; font-weight: 400; font-size: .8rem; color: #5a3e22; margin-top: 2px; }
+/* 1.99: the main menu's buttons get a little darker, one after the next. */
+.m3-buttons .plank-btn[style*="--dk"] { filter: brightness(calc(1 - .08 * var(--dk, 0))); }
+.m3-buttons .plank-btn[style*="--dk"]:hover { filter: brightness(calc(1.08 - .08 * var(--dk, 0))); }
+/* ===== 1.99: the Camp's Drills ===== */
+.drill-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 8px; }
+.drill-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: linear-gradient(170deg, rgba(42,28,16,.95), rgba(24,15,8,.95)); border: 2px solid #6b4c2c; color: #ead7b3; }
+.drill-card.done { border-color: #c49a5a; }
+.drill-card.locked { opacity: .55; border-style: dashed; }
+.dr-head { display: flex; align-items: center; gap: 8px; } .dr-head b { font-family: Georgia, serif; font-size: 1.08rem; color: #f3d58a; }
+.dr-ic { font-size: 1.5rem; } .dr-medal { margin-left: auto; font-size: 1.4rem; }
+.dr-text { margin: 0; font-size: .86rem; line-height: 1.35; color: #d9c6a2; flex: 1; }
+.dr-by { margin: 0; font-size: .8rem; color: #b39a74; }
+.drill-card button { align-self: stretch; }
+.cz-drill { margin-top: 2px; font-size: .78rem; color: #f3d58a; text-shadow: 0 1px 2px #000; }
+.cz-drill b.low { color: #ffb84a; } .cz-drill b.late { color: #ff6a5a; }

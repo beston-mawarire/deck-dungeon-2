@@ -1,3 +1,4 @@
+import { BOSSRUSH_LAYERS, bossRushLevel, CLOCK_STEPS, drillLayers, PILGRIM_CURSES, PILGRIM_LOOT } from "./drills";
 import { PATH_MAP, SKILL_LEVEL } from "../data/classpaths";
 // A run: three floors of path choices, fights, chests, shops, forges and bosses.
 import { drawWeight } from "../data/minors";
@@ -115,7 +116,7 @@ const heatOdds = (run: Run, odds: Partial<Record<Rarity, number>>): Partial<Reco
   const devil = tarotOf(h, "devil"), wheel = tarotOf(h, "wheel");
   const curses = Object.values(h.curses).reduce((a, b) => a + b, 0);
   const up = (1 + HEAT_LOOT_PER * Math.min(HEAT_LOOT_CAP, heatOf(run))) * STANDARD_LOOT
-    * (1 + 0.12 * devil.boon * curses) * (1 + 0.03 * (h.f.persist["reaping"] ?? 0)) * (1 + 0.25 * (h.omens?.["gilded"] ?? 0));
+    * (1 + 0.12 * devil.boon * curses) * (1 + (h.boundCurses?.length ? PILGRIM_LOOT * curses : 0)) * (1 + 0.03 * (h.f.persist["reaping"] ?? 0)) * (1 + 0.25 * (h.omens?.["gilded"] ?? 0));
   for (const r of ["rare", "epic", "legendary"] as const) if (out[r]) out[r] = out[r]! * up;
   if (wheel.on) {
     for (const r of ["epic", "legendary"] as const) if (out[r]) out[r] = out[r]! * (1 + 0.6 * wheel.boon);
@@ -324,6 +325,10 @@ export interface Run {
   seenTabs?: Record<string, string>;
   /** The Daily Dungeon this run belongs to (its UTC date, YYYY-MM-DD), if any. */
   daily?: string;
+  /** A Drill (a challenge run from the Camp's Drills room). */
+  drill?: string;
+  /** This run was its Drill's first clear (by anyone). */
+  drillFirst?: boolean;
   /** The Crawl (prototype): floors are fogged grids of rooms rather than a row of paths. */
   gridMode?: boolean;
   grid?: FloorMap;
@@ -541,8 +546,6 @@ export const CRAWL_NORMAL_POWER = 2;
 export const FIRST_ELITE_EASE = 0.85;
 /** A 1st-Layer unique's drop: a Rare, or this often an Epic. */
 export const EARLY_UNIQUE_EPIC = 0.4;
-/** The Tavern's parting gift of Gold (the other choices: a Healing Potion, a Mana Potion or a Skeleton Key). */
-export const GIFT_GOLD = 40;
 /** How often a curse-lifting altar turns up, as a landmark (the same whether or not you're cursed). */
 export const CLEANSING_WEIGHT = 3;
 /** Chance a floor has a Crimson foe's room: this much per layer below the first, up to the cap. */
@@ -789,7 +792,11 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   }
   placeHazards(run, m, rng, depth, s, taken, pockets, inHall);
   // (The Abyss: few torches burn down there.)
-  m.torches = wallTorches(m, rng, run.mode === "abyss" ? 1 + Math.floor(rng() * 2) : 4 + Math.floor(rng() * 3));
+  m.torches = wallTorches(m, rng, run.drill === "dark" ? 0 : run.mode === "abyss" ? 1 + Math.floor(rng() * 2) : 4 + Math.floor(rng() * 3));
+  // Drills: Lights Out sees 1 tile; Against the Clock counts your steps; the Elite Gauntlet has no plain fights.
+  if (run.drill === "dark") m.sight = 1;
+  if (run.drill === "clock") m.clock = CLOCK_STEPS;
+  if (run.drill === "gauntlet") for (const t of m.things) if (t.room === "fight") t.room = "elite";
   // Each foe is decided now (so the map and the fight show the same monster): each layer has its own. Elites and Champions are sometimes a Tormentor.
   for (const t of m.things) if (t.room === "fight" || t.room === "elite" || t.room === "champion") {
     const pool = t.room !== "fight" && rng() < 0.25 ? ELITE_ONLY : layerFoes(run);
@@ -947,7 +954,6 @@ export function startCrawl(run: Run) {
 
 /** The Tavern's parting gift: you choose one as a run sets out from the top. */
 export const GIFTS = {
-  gold: { icon: "🪙", name: `${GIFT_GOLD} Gold`, text: "Enough for a potion or two at the first Merchant." },
   potion: { icon: "🧪", name: "A Healing Potion", text: "For the first fight that goes wrong." },
   key: { icon: "🗝️", name: "A Skeleton Key", text: "Opens one locked door, and what's behind it." },
   mana: { icon: "🔷", name: "A Mana Potion", text: "Fills your Mana: one more skill when it counts." }
@@ -957,8 +963,7 @@ export function tavernGift(run: Run) { run.scene = { t: "gift" }; }
 export function takeGift(run: Run, id: GiftId) {
   if (run.scene.t !== "gift") return;
   const h = run.hero;
-  if (id === "gold") h.f.gold += GIFT_GOLD;
-  else if (id === "potion") h.potions += 1;
+  if (id === "potion") h.potions += 1;
   else if (id === "mana") h.manaPotions += 1;
   else h.f.persist["skelKeys"] = (h.f.persist["skelKeys"] ?? 0) + 1;
   run.message = `${GIFTS[id].icon} The keeper hands you ${GIFTS[id].name.replace(/^A /, "a ")}. "Come back in one piece."`;
@@ -968,6 +973,7 @@ export function takeGift(run: Run, id: GiftId) {
 /** Choose your path's skill (from level 5): one of the two it offers, for the rest of the run. */
 export function chooseSkill(run: Run, id: string): string | null {
   const h = run.hero, p = h.path ? PATH_MAP.get(h.path) : undefined;
+  if (run.drill === "silent") return "No skills in this Drill.";
   if (!p) return "You walk no path.";
   if (h.skill) return "You've already chosen your skill.";
   if (h.level < SKILL_LEVEL) return `Reach level ${SKILL_LEVEL} first.`;
@@ -1064,7 +1070,12 @@ export function gridStep(run: Run, x: number, y: number): { ok: true; entered: b
   m.bx = m.px; m.by = m.py;
   m.px = x; m.py = y;
   const seen = look(m);
-  const hurt = t2 < 0 || m.things[t2].room !== "urn" ? hazardStep(run) : 0;
+  let hurt = t2 < 0 || m.things[t2].room !== "urn" ? hazardStep(run) : 0;
+  // Against the Clock (a Drill): every step past the floor's limit costs 1 HP (it never kills you).
+  if (m.clock !== undefined && m.depth > 0) {
+    m.clock--;
+    if (m.clock < 0 && run.hero.f.hp > 1) { run.hero.f.hp--; hurt = (hurt ?? 0) + 1; }
+  }
   if (t2 < 0) return { ok: true, entered: false, seen, hurt };
   return { ...gridMeet(run, t2, seen), hurt };
 }
@@ -1204,7 +1215,10 @@ export function descend(run: Run) {
   hf.persist["potFloor"] = 0;
   // From the boss's treasure room: down to the next layer.
   if (m.depth === TREASURE_DEPTH) { run.gridDescend = true; run.bossChest = undefined; advance(run); return; }
-  if (m.depth + 1 >= layerFloors(run)) {
+  // Against the Clock (a Drill): steps left over are Gold.
+  if (m.clock !== undefined && m.clock > 0 && m.depth > 0) { run.hero.f.gold += m.clock; run.message = `⏳ ${m.clock} steps to spare: +${m.clock} Gold.`; }
+  // Boss Rush (a Drill): the entrance's trapdoor drops you straight onto the guardian.
+  if (m.depth + 1 >= layerFloors(run) || run.drill === "bossrush") {
     run.step = STEPS_PER_FLOOR;
     const name = run.mode === "abyss" ? "The Abyss's warden" : run.floor === WALL_FLOOR ? "The Horror" : run.floor === DEATH_FLOOR ? "DEATH" : run.floor === END_FLOOR ? "The End" : "The guardian of this layer";
     run.popup = { icon: "👑", title: `Floor ${layerFloors(run)} — the bottom`, text: `The trapdoor gives way and you land hard in the dark at the bottom of the layer. There's no way back up. ${name} is already here, and it has seen you.` };
@@ -1580,11 +1594,11 @@ export function availableActions(run: Run): Action[] {
   // reading the fight is part of the skill.
   // The ability chosen at the Camp's Skills (one a run); otherwise the class's own.
   // The path skill chosen at level 5 (none before that).
-  if (h.skill) out.push(h.skill as Action);
+  if (h.skill && run.drill !== "silent") out.push(h.skill as Action);
   // Skills your Legendaries grant.
-  for (const it of Object.values(h.equip)) { const g = it ? effectiveBase(it).grants : undefined; if (g && isSkill(g) && !out.includes(g)) out.push(g as Action); }
+  if (run.drill !== "silent") for (const it of Object.values(h.equip)) { const g = it ? effectiveBase(it).grants : undefined; if (g && isSkill(g) && !out.includes(g)) out.push(g as Action); }
   // Abilities your gear grants (each one a button of its own, costing Mana like your class's).
-  for (const id of Object.keys(h.f.items)) if (id.startsWith("ab_")) { const sk = id.slice(3) as Action; if (isSkill(sk) && !out.includes(sk)) out.push(sk); }
+  if (run.drill !== "silent") for (const id of Object.keys(h.f.items)) if (id.startsWith("ab_")) { const sk = id.slice(3) as Action; if (isSkill(sk) && !out.includes(sk)) out.push(sk); }
   // Things to throw, when you carry any.
   for (const t of THROWS) if ((h.f.persist[THROW_INFO[t].key] ?? 0) > 0) out.push(t);
   if (!b.enemy.boss && (!b.enemy.elite || b.player.flags["smoke"])) out.push("flee");
@@ -1904,7 +1918,9 @@ function afterFight(run: Run) {
     // Crawl Elites now and then drop a weapon or a piece of armour; that's all (and, very rarely, a Skeleton Key).
     // (The Emperor: every Elite drops gear, one rarity better at II.)
     const emp = tarotOf(h, "emperor");
-    if (emp.on || run.rng() < CRAWL_ELITE_GEAR) items.push(crawlGear(run, emp.boon > 1 ? T.champion : T.elite));
+    // (The Elite Gauntlet, a Drill: the same as the Emperor at II.)
+    const gaunt = run.drill === "gauntlet";
+    if (emp.on || gaunt || run.rng() < CRAWL_ELITE_GEAR) items.push(crawlGear(run, emp.boon > 1 || gaunt ? T.champion : T.elite));
     if (run.rng() < SKELETON_KEY_DROP) { h.f.persist["skelKeys"] = (h.f.persist["skelKeys"] ?? 0) + 1; keyNote = "🗝️ It was carrying a Skeleton Key! Somewhere down here, a locked door."; }
   } else if (rank === "elite") {
     items.push(roll(T.elite));
@@ -2110,8 +2126,8 @@ export function gainXp(run: Run, n: number) {
     // The Crawl: attribute points instead of talents.
     if (run.gridMode) {
       // A level changes nothing by itself: it's the points you spend that make you stronger.
-      h.attrPoints = (h.attrPoints ?? 0) + ATTR_PER_LEVEL;
-      const skillNow = h.level >= SKILL_LEVEL && !h.skill && !!h.path;
+      h.attrPoints = (h.attrPoints ?? 0) + ATTR_PER_LEVEL * (run.drill === "silent" ? 2 : 1);
+      const skillNow = h.level >= SKILL_LEVEL && !h.skill && !!h.path && run.drill !== "silent";
       run.popup = skillNow
         ? { icon: PATH_MAP.get(h.path!)?.icon ?? "⭐", title: `Level ${h.level}: choose your skill!`, text: `The ${PATH_MAP.get(h.path!)?.name ?? ""} path offers you a skill. Open your inventory's Attributes tab to choose it (and spend your ${h.attrPoints} attribute point${h.attrPoints === 1 ? "" : "s"}).` }
         : { icon: "⭐", title: `Level ${h.level}!`, text: `You have ${h.attrPoints} attribute point${h.attrPoints === 1 ? "" : "s"} to spend. Open your inventory's Attributes tab to put them to use.` };
@@ -2725,7 +2741,7 @@ export function advance(run: Run, fromTalent = false) {
     if (run.step >= STEPS_PER_FLOOR) {
       // After a floor boss, stop on a "Floor cleared" screen; the player continues when ready.
       // (Not after the campaign's final boss: that goes straight to the victory.)
-      const finalBoss = (run.mode === "campaign" && run.floor >= FLOORS) || (run.mode === "abyss" && run.floor >= ABYSS_LAYER);
+      const finalBoss = (run.mode === "campaign" && run.floor >= runLayers(run)) || (run.mode === "abyss" && run.floor >= ABYSS_LAYER);
       if (!finalBoss && run.clearedFloor !== run.floor) {
         run.clearedFloor = run.floor;
         run.scene = { t: "cleared", floor: run.floor, boss: run.lastBoss ?? "The guardian" };
@@ -2737,6 +2753,8 @@ export function advance(run: Run, fromTalent = false) {
       recompute(run.hero);
       run.step = 0;
       if (run.gridMode) { run.grid = makeGrid(run, 0); run.gridDescend = false; }
+      // Boss Rush (a Drill): raised a few levels for each guardian.
+      if (run.drill === "bossrush" && run.floor <= BOSSRUSH_LAYERS) bossRushLevels(run);
       // The Sun: each new layer begins with full HP and Mana (and, from II, a Healing Potion).
       const sun = tarotOf(run.hero, "sun");
       if (sun.on && run.gridMode) {
@@ -2756,7 +2774,7 @@ export function advance(run: Run, fromTalent = false) {
           : { icon: "⬇️", title: `${where} — ${floorName(run.floor)}`, text: `${FLOOR_LINES[(run.floor - 2) % FLOOR_LINES.length]} The deeper you go, the deadlier it gets — and the richer the loot.` };
       }
       if (run.floor === FLOORS && run.mode !== "abyss") run.popup = { icon: "🕳️", title: `${run.gridMode ? `The ${ordinal(FLOORS)} Layer` : `Floor ${FLOORS}`} — The Source of the Darkness`, text: "You are close now. The darkness here is thick enough to taste, and every step pulls at you. A cold despair settles in your chest, whispering that the gate cannot be closed, that no one walks back out. Somewhere below, the gate breathes." };
-      if (run.floor > FLOORS && run.mode === "campaign") {
+      if (run.floor > runLayers(run) && run.mode === "campaign") {
         run.scene = { t: "over", won: true };
         return;
       }
@@ -3115,6 +3133,7 @@ export function payTribute(run: Run, curseId: string): string | null {
   if (s.t !== "tribute") return null;
   const h = run.hero;
   if (!h.curses[curseId]) return null;
+  if (h.boundCurses?.includes(curseId)) return "That curse is bound to you for this Drill.";
   const cost = tributeCost(run);
   if (h.f.gold < cost) return "Not enough Gold.";
   h.f.gold -= cost;
@@ -3199,6 +3218,43 @@ export function newDailyRun(day = utcDay()): Run {
   const run = newRun(d.origin, d.seed, "campaign", new Set());
   run.daily = day;
   return run;
+}
+
+/** How many layers this run goes down before it's won: the dungeon's five, or a Drill's own. */
+export const runLayers = (run: Run) => (run.drill ? drillLayers(run.drill) : FLOORS);
+/** Boss Rush: raised to this layer's level, with Gold for its Merchant. */
+function bossRushLevels(run: Run) {
+  const h = run.hero;
+  while (h.level < bossRushLevel(run.floor)) gainXp(run, xpToLevel(h.level) - h.xp);
+  h.f.gold += 40;
+  h.f.hp = h.f.maxHp;
+  run.popup = undefined;
+}
+/** Set a run up as a Drill (after startCrawl): its one rule, and the same footing for everyone. */
+export function startDrill(run: Run, id: string) {
+  const h = run.hero, f = h.f;
+  run.drill = id;
+  if (id === "glass") f.persist["drill_glass"] = 1;
+  if (id === "bare") { f.persist["drill_bare"] = 1; delete h.equip.main; delete h.equip.off; delete h.equip.armour; }
+  if (id === "dry") { f.persist["noPotions"] = 1; h.potions = 0; }
+  if (id === "pilgrim") {
+    const pool = CURSES.filter(c => !h.curses[c.id]);
+    h.boundCurses = [];
+    for (let k = 0; k < PILGRIM_CURSES && pool.length; k++) { const c = pool.splice(Math.floor(run.rng() * pool.length), 1)[0]; h.curses[c.id] = 1; h.boundCurses.push(c.id); }
+    f.persist["everCursed"] = 1;
+  }
+  if (id === "borrowed") {
+    const others = (["warrior", "rogue", "mage", "cleric"] as const).filter(o => o !== h.origin);
+    const o = others[Math.floor(run.rng() * others.length)];
+    h.lootAs = o;
+    const kit = newHero(o).equip;
+    h.equip.main = kit.main; h.equip.off = kit.off; h.equip.armour = kit.armour;
+    if (!h.equip.off) delete h.equip.off;
+  }
+  if (id === "bossrush") bossRushLevels(run);
+  recompute(h);
+  f.hp = f.maxHp;
+  run.grid = makeGrid(run, 0);
 }
 
 /** Achievement marks that depend on what you hold right now (checked every screen). */

@@ -19,18 +19,25 @@ export type Catch = { kind: "none" } | { kind: "fish"; fish: Fish } | { kind: "j
 export interface CastPlan { twitches: number[]; bite: number | null; window: number }
 
 /** Roll a cast: when the float twitches, when (and if) the real bite comes, and how long it holds. */
-export function planCast(rng: () => number): CastPlan {
+/** How many false twitches come before the real bite: none (it's the first movement) up to three (the fourth). */
+export const TWITCH_ODDS = [0.2, 0.3, 0.3, 0.2];
+/** How often a cast gets a real bite: a dungeon pond, and the Camp's pool (the stingiest water there is). */
+export const POND_BITE = 0.5, CAMP_BITE = 0.3;
+export function planCast(rng: () => number, biteChance = POND_BITE): CastPlan {
   const twitches: number[] = [];
   let t = 1200 + rng() * 1500;
-  const n = Math.floor(rng() * 3);
+  let x = rng(), n = 0;
+  while (n < TWITCH_ODDS.length - 1 && x >= TWITCH_ODDS[n]) { x -= TWITCH_ODDS[n]; n++; }
   for (let k = 0; k < n; k++) { twitches.push(Math.round(t)); t += 700 + rng() * 1300; }
-  // About half of all casts get no real bite.
-  const bite = rng() < 0.5 ? null : Math.round(t + 400 + rng() * 1200);
+  // Many casts get no real bite at all.
+  const bite = rng() >= biteChance ? null : Math.round(t + 400 + rng() * 1200);
   return { twitches, bite, window: 850 };
 }
 
 /** What's on the line once you strike at the bite (deeper water, finer fish). */
-export function rollCatch(rng: () => number, deep = 1): Catch {
+export function rollCatch(rng: () => number, deep = 1, empty = 0): Catch {
+  // (Some water gives up less: the Camp's pool often has nothing on the hook even when you strike right.)
+  if (empty && rng() < empty) return { kind: "none" };
   const x = rng();
   if (x < 0.08) return rng() < 0.5 ? { kind: "junk", name: "Sunken Purse", icon: "👛", gold: 15 + Math.floor(rng() * 20) * deep } : { kind: "junk", name: "Rusted Lockbox", icon: "🧰", item: true };
   const w: [Fish["rarity"], number][] = [["common", 62], ["uncommon", 26 + 3 * deep], ["rare", 10 + 2 * deep], ["legendary", 2 + deep * 0.5]];
@@ -44,3 +51,7 @@ export function rollCatch(rng: () => number, deep = 1): Catch {
 /** Casts at one dungeon pond, and at the Camp's pool between runs. */
 export const POND_CASTS = 3;
 export const CAMP_CASTS = 3;
+/** The Camp's pool: how often a good strike still comes up empty, and how shallow it fishes. */
+export const CAMP_EMPTY = 0.4, CAMP_DEEP = 0;
+/** A fish goes in the Trophy Room's tank once you've caught this many. */
+export const TANK_CATCHES = 2;

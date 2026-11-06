@@ -221,13 +221,14 @@ describe("class paths", () => {
 });
 
 describe("the 1st Layer and the Ledger (1.98)", () => {
-  it("the Tavern's parting gift: Gold, a Healing Potion, a Mana Potion or a Skeleton Key, and then you're on the map", async () => {
-    const { tavernGift, takeGift, GIFT_GOLD } = await import("../src/game/run");
+  it("the Tavern's parting gift: a Healing Potion, a Mana Potion or a Skeleton Key, and then you're on the map", async () => {
+    const { tavernGift, takeGift, GIFTS } = await import("../src/game/run");
+    expect(Object.keys(GIFTS).sort()).toEqual(["key", "mana", "potion"]);
     const r = newRun("rogue", 71); startCrawl(r);
-    const g0 = r.hero.f.gold;
+    const p0 = r.hero.potions;
     tavernGift(r); expect(r.scene.t).toBe("gift");
-    takeGift(r, "gold");
-    expect(r.hero.f.gold).toBe(g0 + GIFT_GOLD); expect(r.scene.t).toBe("map"); expect(r.step).toBe(0);
+    takeGift(r, "potion");
+    expect(r.hero.potions).toBe(p0 + 1); expect(r.scene.t).toBe("map"); expect(r.step).toBe(0);
     const k = newRun("rogue", 72); startCrawl(k); tavernGift(k); takeGift(k, "key");
     expect(k.hero.f.persist["skelKeys"]).toBe(1);
     const p = newRun("rogue", 73); startCrawl(p); tavernGift(p); takeGift(p, "mana");

@@ -1,4 +1,5 @@
 // The hero: origin, equipped gear, backpack, relics, talents, curses — and turning all of that into a Fighter.
+import { FIST_DAMAGE, GLASS_DMG, GLASS_HP } from "./drills";
 import { POTION_SLOTS } from "../data/potions";
 import { MANA_POTION_SLOTS } from "../data/classgear";
 import { classify, familyLine, isHeavy } from "./families";
@@ -43,6 +44,8 @@ export const GEM_STAT = 0.1;
 export const BASE_POTION_CAP = 3;
 /** Potion slots: how many Healing Potions you can carry, and also how many you can drink in one fight. */
 export function potionCap(h: Hero): number {
+  // Dry Throat (a Drill): no Healing Potions at all.
+  if (h.f.persist["noPotions"]) return 0;
   // (The Lovers' bane, and Heat's Short Supply: fewer.)
   const lov = h.tarot?.find(t => t.id === "lovers");
   let n = BASE_POTION_CAP - (lov ? (lov.rev ? 2 : 1) : 0) - (h.pact?.["supply"] ? 1 : 0);
@@ -82,6 +85,10 @@ export interface Hero {
   potions: number;
   /** The class ability taken on this run (from the Camp's Skills); none = the class's own. */
   skill?: string;
+  /** Borrowed Steel (a Drill): the class whose kit and weapons you get. */
+  lootAs?: OriginId;
+  /** Cursed Pilgrim (a Drill): curses that can never be lifted. */
+  boundCurses?: string[];
   /** Extra Backpack slots (the Hall). */
   packBonus?: number;
   /** The Crawl: points put into each attribute this run, and points not yet spent. */
@@ -264,8 +271,11 @@ export function recompute(h: Hero) {
   // Lost Titan's Grip or the War Harness (an event can take relics): put back what no longer fits.
   if (!hasGrip(h) && h.equip.off && effectiveBase(h.equip.off).twoHanded) { h.backpack.push(h.equip.off); delete h.equip.off; }
   if (!keepsOffHand(h) && h.equip.main && effectiveBase(h.equip.main).twoHanded && h.equip.off) { h.backpack.push(h.equip.off); delete h.equip.off; }
+  // Cursed Pilgrim: bound curses always come back.
+  for (const id of h.boundCurses ?? []) if (!h.curses[id]) h.curses[id] = 1;
+  // (Classes have no built-in passive any more: those live in the Passive Tree as nodes anyone can take.)
   const o = ORIGINS[h.origin];
-  const items: Record<string, number> = { [o.passive]: 1 };
+  const items: Record<string, number> = {};
   const add = (id: string, n = 1) => (items[id] = (items[id] ?? 0) + n);
   for (const [id, n] of Object.entries(h.relics)) add(id, n);
   for (const [id, n] of Object.entries(h.talents)) add(id, n);
@@ -364,6 +374,7 @@ export function recompute(h: Hero) {
   // Your class's base attribute: each point in it adds +1 to your base Damage.
   const ba = BASE_ATTR[h.origin as keyof typeof BASE_ATTR];
   if (ba) s.damage += Math.floor(attrOf(h, ba) / BASE_DMG_PER);
+  if (f.persist["drill_bare"] && !h.equip.main) s.damage += FIST_DAMAGE;
   // Read by the fight: Faith's resistances, Vitality's Regen, and whether you swing a staff or a wand (Intellect).
   f.persist["faiRes"] = attrOf(h, "fai");
   f.persist["vitRegen"] = attrOf(h, "vit");
@@ -413,6 +424,8 @@ export function recompute(h: Hero) {
   f.persist["intPts"] = attrOf(h, "int");
   // A Blood Oath binds your Max HP where the oath left it: nothing raises it past that again this run.
   const cap = f.persist["maxHpCap"];
+  // Drills: Glass Cannon (40% Max HP, +50% damage); Bare Hands (fists when there's no weapon).
+  if (f.persist["drill_glass"]) { s.maxHp = Math.max(1, Math.round(s.maxHp * GLASS_HP)); s.dmgDealt = (s.dmgDealt ?? 0) + GLASS_DMG; }
   f.maxHp = Math.max(1, cap ? Math.min(s.maxHp, cap) : s.maxHp);
   f.hp = Math.min(f.hp, f.maxHp);
   f.armor = Math.max(0, s.armor);

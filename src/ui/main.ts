@@ -22,13 +22,14 @@ import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
 import { GEN_MODULE_MAP, modValue } from "../game/gen";
 import { ACHIEVEMENTS, currentAbyssMod,  heatOf, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX } from "../game/progress";
+import { DRILL_CROWNS, DRILL_LAYERS, DRILL_MAP, DRILLS, drillMedal, drillsOpen } from "../game/drills";
 import { chosenPath, LEDGER_MARKS, carriedTarot, flipTarot, takeTarot, toggleTarot, ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem, abyssUnlocked, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta } from "../game/meta";
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  startCrawl, tavernGift, takeGift, GIFTS, type GiftId, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
+  startCrawl, startDrill, tavernGift, takeGift, GIFTS, type GiftId, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, chooseOmen, chooseSkill, omensTaken, setOut, ABYSS_LAYER, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -39,7 +40,7 @@ import { familyOpenCount } from "../game/loot";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR, BASE_DMG_PER } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { mountCampMap, resetCampWalk } from "./campmap";
-import { CAMP_CASTS, type CastPlan, FISH, fishById, planCast, rollCatch } from "../game/fishing";
+import { CAMP_BITE, CAMP_CASTS, CAMP_DEEP, CAMP_EMPTY, type CastPlan, FISH, fishById, planCast, POND_BITE, rollCatch, TANK_CATCHES } from "../game/fishing";
 import { ELITE_ONLY, MONSTERS } from "../data/monsters";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
 import { gearAttr, spendAttr, TYPE_MARK, treeAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
@@ -540,6 +541,25 @@ function tarotCard(id: string, lvl: number, slot?: { rev?: boolean }, offer = fa
       : `<div class="tc-btns"><button class="small ${slot ? "primary" : ""}" data-tarotequip="${id}">${slot ? "✔ Carrying" : "Carry"}</button>${lvl >= REVERSE_LEVEL && !t.noReverse && slot ? `<button class="small" data-tarotflip="${id}">${slot.rev ? "Upright" : "Reverse"}</button>` : ""}</div>`}
   </div>`;
 }
+/** The Camp's Drills room: ten short challenge runs, each with one rule. */
+function drillsRoom(o: OriginId) {
+  const won = (meta.layersBeaten && Object.values(meta.layersBeaten).some(n => (n ?? 0) >= 1)) || meta.wins > 0;
+  const open = drillsOpen(meta.drills);
+  const pth = PATH_MAP.get(chosenPath(meta, o));
+  const head = `<p>Short runs with one rule each: ${DRILL_LAYERS} layers (the Boss Rush: all five guardians). Everyone plays them the same way: no Heat, no Tarot, no Hall upgrades and no Passive Tree. You pick your class and path as usual.</p>
+    <p class="sub">The first clear of a Drill gives 👑 ${DRILL_CROWNS} Crown Shards and a title. Medals: 🥉 one class, 🥈 two, 🥇 all four. Drills don't count towards layers beaten, your Nemesis, bounties or the Ledger. ${open < DRILLS.length ? `Each Drill you clear opens the next (${open} of ${DRILLS.length} open).` : ""}</p>`;
+  if (!won) return `${head}<div class="panel"><p class="sub">🔒 The Drills yard opens once any class beats the 1st Layer.</p></div>`;
+  const cards = DRILLS.map((d, i) => {
+    const by = meta.drills?.[d.id] ?? [], medal = drillMedal(by.length), lock = i >= open;
+    return `<div class="drill-card ${lock ? "locked" : ""} ${by.length ? "done" : ""}">
+      <div class="dr-head"><span class="dr-ic">${lock ? "🔒" : d.icon}</span><b>${esc(d.name)}</b>${medal ? `<span class="dr-medal" title="Cleared with ${by.length} class${by.length === 1 ? "" : "es"}">${medal}</span>` : ""}</div>
+      <p class="dr-text">${lock ? "Clear another Drill to open this one." : esc(d.text)}</p>
+      ${by.length ? `<p class="dr-by">${by.map(c => ORIGIN_ICON[c]).join(" ")} cleared</p>` : ""}
+      ${lock ? "" : `<button class="primary small" data-drill="${d.id}">Start as the ${esc(ORIGINS[o].name)}${pth ? ` · ${pth.icon} ${esc(pth.name)}` : ""}</button>`}
+    </div>`;
+  }).join("");
+  return `${head}${liveSave() ? `<p class="sub warn center">Starting a Drill replaces your saved run.</p>` : ""}<div class="drill-list">${cards}</div>`;
+}
 /** The Camp Ledger: every path of every class, and the marks it has earned. */
 function ledgerPanel() {
   const L = meta.ledger ?? {};
@@ -878,7 +898,7 @@ const CAMP_TABS: { id: CampTab; icon: string; name: string }[] = [
   { id: "skills", icon: "🧭", name: "Paths" }, { id: "garden", icon: "🌱", name: "Garden" }, { id: "brewery", icon: "⚗️", name: "Brewery" },
   { id: "knowledge", icon: "📚", name: "Knowledge" }, { id: "tree", icon: "🌳", name: "Passive Tree" }, { id: "weapons", icon: "⚔️", name: "Weapon Mastery" },
   { id: "pond", icon: "🎣", name: "Still Pool" }, { id: "trophies", icon: "🏆", name: "Trophy Room" }, { id: "bestiary", icon: "📖", name: "Bestiary" },
-  { id: "abyss", icon: "🕳️", name: "The Abyss" }, { id: "tarot", icon: "🃏", name: "Tarot Room" }
+  { id: "abyss", icon: "🕳️", name: "The Abyss" }, { id: "tarot", icon: "🃏", name: "Tarot Room" }, { id: "drills", icon: "🎯", name: "Drills" }
 ];
 
 /** One Camp option's content (it sits inside that option's archway). */
@@ -974,6 +994,7 @@ function campBody(o: OriginId, tab: CampTab): string {
     return `<p>Beat a kind of foe ${BESTIARY_KILLS} times and its record opens here: what it was like at its toughest. ${n} of ${foes.length} kinds so far.</p>
       <div class="beasts">${foes.map(card).join("")}${bosses.map(card).join("")}</div>`;
   }
+  if (tab === "drills") return drillsRoom(o);
   if (tab === "trophies") {
     const seen = meta.bestiary ?? {};
     const TIERS: [number, string, string][] = [[50, "🥇", "gold"], [25, "🥈", "silver"], [10, "🥉", "bronze"]];
@@ -987,7 +1008,8 @@ function campBody(o: OriginId, tab: CampTab): string {
       <p>Beat a kind of foe 10 times and its trophy goes on the wall: bronze at 10, silver at 25, gold at 50. Every guardian you bring down gets one of its own.</p>
       ${won.length ? `<div class="trophies">${won.map(w => `<div class="trophy ${w.tier}"><span class="tr-plaque">${w.sk && hasSprite(w.sk) ? spriteHtml(w.sk, 3, "beast-spr") : w.icon}</span><b>${w.icon} ${esc(w.name)}</b><span class="sub">${esc(w.note)}</span></div>`).join("")}</div>` : `<div class="panel"><p class="sub">The walls are bare. Beat a kind of foe 10 times, or a layer's guardian, to hang your first trophy.</p></div>`}
       <h3 class="tr-head">🐟 The Tank</h3>
-      <div class="trophies fish-tank">${FISH.map(f => { const n = meta.fish?.[f.id] ?? 0; return n ? `<div class="trophy fish ${f.rarity}"><span class="tr-plaque">${f.icon}</span><b>${esc(f.name)}</b><span class="sub">${n} caught</span></div>` : `<div class="trophy fish unknown"><span class="tr-plaque">❔</span><b>???</b><span class="sub">Not caught yet</span></div>`; }).join("")}</div>`;
+      <p class="sub">A fish goes in the tank once you've caught ${TANK_CATCHES}.</p>
+      <div class="trophies fish-tank">${FISH.map(f => { const n = meta.fish?.[f.id] ?? 0; return n >= TANK_CATCHES ? `<div class="trophy fish ${f.rarity}"><span class="tr-plaque">${f.icon}</span><b>${esc(f.name)}</b><span class="sub">${n} caught</span></div>` : `<div class="trophy fish unknown"><span class="tr-plaque">❔</span><b>???</b><span class="sub">${n ? `Caught ${n} of ${TANK_CATCHES}` : "Not caught yet"}</span></div>`; }).join("")}</div>`;
   }
   if (tab === "weapons") {
     return `<p>Every weapon family learns from the fights you win with it, whoever holds it. The more you master a family, the more of its weapons turn up in your loot: a few at first, all of them at mastery ${WM_MAX}.</p>
@@ -1078,7 +1100,7 @@ function fishingPanel(where: "run" | "camp") {
 function fishStart() {
   if (fishLine || fishCastsLeft() <= 0) return;
   fishCaught = null; fishNote = "The float settles on the black water…";
-  const plan = planCast(Math.random);
+  const plan = planCast(Math.random, run && run.scene.t === "fishing" ? POND_BITE : CAMP_BITE);
   const t0 = performance.now(), timers: number[] = [];
   fishLine = { plan, t0, timers, inRun: !!run && run.scene.t === "fishing" };
   const bob = (cls: string, ms: number) => { const el = document.getElementById("bobber"); if (!el) return; el.classList.add(cls); window.setTimeout(() => el.classList.remove(cls), ms); };
@@ -1112,9 +1134,9 @@ function fishResolve(ok: boolean, miss: string) {
     meta.fishCasts = Math.max(0, (meta.fishCasts ?? CAMP_CASTS) - 1);
     if (!ok) fishNote = miss;
     else {
-      const c = rollCatch(Math.random);
+      const c = rollCatch(Math.random, CAMP_DEEP, CAMP_EMPTY);
       if (c.kind === "none") fishNote = "Something took the bait and spat it out. Nothing on the hook.";
-      else if (c.kind === "fish") { (meta.fish ??= {})[c.fish.id] = (meta.fish[c.fish.id] ?? 0) + 1; fishNote = `${c.fish.icon} You land a ${c.fish.name}! It goes in the Trophy Room's tank.`; }
+      else if (c.kind === "fish") { const n = (meta.fish ??= {})[c.fish.id] = (meta.fish[c.fish.id] ?? 0) + 1; fishNote = `${c.fish.icon} You land a ${c.fish.name}! ${n === TANK_CATCHES ? "That's two: it goes in the Trophy Room's tank." : n < TANK_CATCHES ? "Catch one more and it goes in the Trophy Room's tank." : "Another for the tank."}`; }
       else if (c.kind === "junk" && c.gold) { campOf(meta).crowns += 1; fishNote = `${c.icon} ${c.name}, with an old 👑 Crown Shard inside.`; }
       else { const mats = Object.keys(MATS) as Mat[]; const k = mats[Math.floor(Math.random() * mats.length)]; campOf(meta).mats[k] = (campOf(meta).mats[k] ?? 0) + 2; fishNote = `🧰 A rusted lockbox: +2 ${MATS[k].icon} ${MATS[k].name}.`; }
     }
@@ -1273,6 +1295,7 @@ function crawlScreen(r: Run, msg: string[], bad: boolean) {
       <canvas id="minimap" class="cz-mini" aria-label="Map of what you've explored"></canvas>
       <div class="cz-layer">${layer}</div>
       <div class="cz-floor">${m.depth === 0 ? "Dungeon Entrance" : m.depth === TREASURE_DEPTH ? "The Hoard" : `Floor ${m.depth}`}</div>
+      ${r.drill ? `<div class="cz-drill">${DRILL_MAP.get(r.drill)?.icon ?? "🎯"} ${esc(DRILL_MAP.get(r.drill)?.name ?? "Drill")}${m.clock !== undefined && m.depth > 0 ? ` · <b class="${m.clock < 0 ? "late" : m.clock <= 15 ? "low" : ""}">⏳ ${m.clock}</b>` : ""}</div>` : ""}
       ${quests}
     </div>
     ${msg.length ? `<div class="cz cz-toasts">${msg.map((x, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(x)}</div>`).join("")}</div>` : ""}
@@ -1712,13 +1735,15 @@ function crawlOver(r: Run) {
   const stage = won || r.retired
     ? endStage("won", `<div class="es-boss">${spriteHtml("chest_gold_open", 4, "es-chest")}${hero}${spriteHtml("coin", 3, "es-coin c1")}${spriteHtml("coin", 3, "es-coin c2")}${spriteHtml("coin", 3, "es-coin c3")}</div>`)
     : endStage("fallen", `<div class="es-boss">${hero}${spriteHtml("skull", 3, "es-skull")}</div>${killer ? `<div class="es-killer">${killer}</div>` : ""}`);
-  const title = r.finale ? "Nothing remains. You won everything." : won && r.mode === "abyss" ? "The Abyss's warden falls. The Abyss gives you a card." : won ? "The last guardian falls. You win!" : r.retired ? `Home from the ${ordinal(r.floor)} Layer, victorious.` : r.abandoned ? "You gave up the run." : "You have fallen.";
+  const dr = r.drill ? DRILL_MAP.get(r.drill) : undefined;
+  const title = dr ? (won ? `${dr.icon} ${dr.name}: Drill cleared!` : `${dr.icon} ${dr.name}: the Drill beat you this time.`) : r.finale ? "Nothing remains. You won everything." : won && r.mode === "abyss" ? "The Abyss's warden falls. The Abyss gives you a card." : won ? "The last guardian falls. You win!" : r.retired ? `Home from the ${ordinal(r.floor)} Layer, victorious.` : r.abandoned ? "You gave up the run." : "You have fallen.";
   const gear = EQUIP_SLOTS.map(sl => h.equip[sl]).filter((x): x is GearItem => !!x);
   return `${stage}
     <h2 class="end-title ${won || r.retired ? "won" : "lost"}">${title}</h2>
     ${!won && k && !r.abandoned ? `<p class="end-line">Slain by <b class="cl-boss">${esc(k.name)}</b>${k.title ? ` <span class="sub">${esc(k.title)}</span>` : ""}, with ${big(k.hp)}/${big(k.maxHp)} HP left.</p>` : ""}
     ${endStats(r)}
     ${recorded?.achievements.length ? `<div class="end-box">${recorded.achievements.map(id => { const a = ACHIEVEMENTS.find(x => x.id === id)!; return `<p>🏆 <b>${esc(a.name)}</b>: ${esc(a.text)}${a.title ? ` <span class="sub">(title “${esc(a.title)}”)</span>` : ""}</p>`; }).join("")}</div>` : ""}
+    ${dr && won ? `<div class="end-box"><p>${drillMedal((meta.drills?.[dr.id] ?? []).length)} <b>${esc(dr.name)}</b> cleared with the ${esc(ORIGINS[h.origin].name)}.${r.drillFirst ? ` First clear: 👑 ${DRILL_CROWNS} Crown Shards, sent to the Camp.` : ""}</p></div>` : ""}
     ${r.bounties?.length ? `<div class="end-box bounty-box"><p>🏅 <b>Heat bounties</b> for the ${esc(ORIGINS[h.origin].name)}: ${r.bounties.map(b => `Heat ${b.heat} (👑 ${b.crowns}${b.scrolls ? " · 📜 1" : ""})`).join(", ")}. Sent to the Camp.</p></div>` : ""}
     ${r.mode === "abyss" && won ? tarotOfferPanel() || `<p class="end-line">🃏 Your card is in the Camp's Tarot Room.</p>` : ""}
     ${(() => { const lb = runStatsPanel(r).replace(/<div class="lb-stats">[\s\S]*?<\/div>/, "").trim(); return lb ? `<div class="end-box lb-box">${lb}</div>` : ""; })()}
@@ -1909,7 +1934,7 @@ function killerPanel(r: Run) {
 
 /** Send a finished run to the leaderboards (once), then show where it placed. */
 function sendRun(r: Run) {
-  if (!leaderboardOn() || r.submitted) return;
+  if (!leaderboardOn() || r.submitted || r.drill) return;
   lbResult = "sending";
   // (The answer can arrive after you've already left this run: then it must not save the old run back over the cleared one.)
   void submitRun(r, VERSION).then(res => { if (run !== r) return; lbResult = res; if (res) { r.lbDone = true; if (r.scene.t === "over") saveRun(r, banked); } render(); });
@@ -2068,7 +2093,6 @@ function bag(r: Run, bodyOnly = false) {
   const pack = h.backpack.map(it => itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(s => `<button class="small primary" data-equip="${it.uid}" data-slot="${s}">Equip${slotsFor(it, h).length > 1 ? ` (${slotName[s].toLowerCase()})` : ""}</button>`).join("")}${r.gridMode ? "" : `<button class="small take-scrap" data-salvage="${it.uid}">Scrap</button>`}${revealBtn(r, it)}`, !inCombat)).join("");
   const fusable = (id: string) => (FUSABLE_RELICS.has(id) ? ` <span class="fusable-tag">🔗 Fusable</span>` : "");
   const list = (o: Record<string, number>, cls = "") => Object.entries(o).map(([id, n]) => { const d = getItem(id); return `<p class="${cls}"><b class="nm">${esc(d.name)}</b>${n > 1 ? ` ×${n}` : ""}${cls === "relic-line" ? fusable(id) : ""} — <span class="desc">${esc(fillText(d.text, n))}</span></p>`; }).join("") || `<p class="sub">None yet.</p>`;
-  const passive = getItem(ORIGINS[h.origin].passive);
   const f = h.f;
   const crits = f.faces.filter(x => x.kind === "crit").length;
   const misses = f.faces.filter(x => x.kind === "miss").length;
@@ -2166,7 +2190,7 @@ function bag(r: Run, bodyOnly = false) {
     : bagTab === "stats" ? `<div class="row subtabs">
         <button class="small ${statsSub === "attributes" ? "primary" : ""}" data-statssub="attributes">📊 Attributes</button>
         <button class="small ${statsSub === "statuses" ? "primary" : ""}" data-statssub="statuses">✴️ Statuses & reactions</button></div>
-      ${statsSub === "attributes" ? `${stats}<p><b>${esc(passive.name)}</b> (origin) — ${esc(passive.text)}.</p>` : reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`}`
+      ${statsSub === "attributes" ? `${stats}` : reactionsPanel(r) || `<p class="sub">No reactions yet this run.</p>`}`
     : bagTab === "relics" ? `<div class="row subtabs">
         <button class="small ${spoilsSub === "relics" ? "primary" : ""}" data-spoilsub="relics">💎 Relics${nRelics ? ` (${nRelics})` : ""}</button>
         <button class="small ${spoilsSub === "artefacts" ? "primary" : ""}" data-spoilsub="artefacts">⚗️ Artefacts${h.crucible ? " (1)" : ""}</button></div>
@@ -2240,7 +2264,7 @@ function crawlBag(r: Run) {
   return `<div class="cb-screen inv-screen"><div class="mer-inner inv-inner">
     ${top}
     <div class="inv-body">${body}</div>
-    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}" title="${label.split(" ").slice(1).join(" ")}" aria-label="${label.split(" ").slice(1).join(" ")}"><i>${label.split(" ")[0]}${id === "attrs" && (pts || (h.path && !h.skill && h.level >= SKILL_LEVEL)) ? `<b class="tab-badge">${pts || "!"}</b>` : ""}</i><span>${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
+    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}" title="${label.split(" ").slice(1).join(" ")}" aria-label="${label.split(" ").slice(1).join(" ")}"><i>${label.split(" ")[0]}${id === "attrs" && (pts || (h.path && !h.skill && h.level >= SKILL_LEVEL && r.drill !== "silent")) ? `<b class="tab-badge">${pts || "!"}</b>` : ""}</i><span>${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
   </div></div>${attrPopup(r)}`;
 }
 
@@ -2261,6 +2285,7 @@ function attrPopup(r: Run) {
 function skillSection(r: Run) {
   const h = r.hero, p = h.path ? PATH_MAP.get(h.path) : undefined;
   if (!p) return "";
+  if (r.drill === "silent") return `<div class="sk-sec dim"><div class="sk-head"><span>🤐</span><b>Silent Hands</b><span class="sk-sub">No skill in this Drill</span></div></div>`;
   const card = (id: string, pick: boolean) => `<div class="sk-card ${h.skill === id ? "on" : ""}"><b>${esc(ACTION_INFO[id as Action].label(h.f))}</b><span>${esc(ACTION_INFO[id as Action].tip)}</span>
     ${pick ? `<button class="at-choose" data-chooseskill="${id}">Choose</button>` : ""}</div>`;
   const head = `<div class="sk-head"><span>${p.icon}</span><b>The ${esc(p.name)}</b><span class="sk-sub">${h.skill ? "Your skill" : h.level >= SKILL_LEVEL ? "Choose your skill" : `Your skill comes at level ${SKILL_LEVEL}`}</span></div>`;
@@ -2341,13 +2366,6 @@ const ORIGIN_PITCH: Record<OriginId, string> = {
   rogue: "Strike first, slip every blow, and make each cut count.",
   mage: "Stack statuses until they explode.",
   cleric: "Outlast them, then return the pain."
-};
-/** Each class's passive in a few words (the full text is in the Codex). */
-const ORIGIN_PASSIVE: Record<OriginId, string> = {
-  warrior: "+2 Armor when you Guard; +1 Damage for every 5 Armor",
-  rogue: "Your first attack each fight rolls twice",
-  mage: "Your spell faces add +1 status stack",
-  cleric: "Heal 1 a round for each positive status"
 };
 
 const STORIES: Record<Mode, { icon: string; title: string; text: string }> = {
@@ -2514,11 +2532,11 @@ function splashScreen() {
     <p class="m3-tag">Venture into the depths. Slay the horrors within.</p>
     <div class="m3-buttons">
       ${musicBlocked() ? `<button class="plank-btn m3-music" data-startmusic>Tap for music</button>` : ""}
-      ${sv ? `<button class="plank-btn m3-play" data-continue>Continue</button>` : ""}
-      <button class="plank-btn ${sv ? "" : "m3-play"}" data-play>Start</button>
-      <button class="plank-btn" data-help>How to play</button>
-      <button class="plank-btn" data-lb>Leaderboards</button>
-      <div class="m3-pair"><button class="plank-btn" data-changes>Changes</button><button class="plank-btn" data-options>Options</button></div>
+      ${sv ? `<button class="plank-btn m3-play" data-continue style="--dk:0">Continue</button>` : ""}
+      <button class="plank-btn ${sv ? "" : "m3-play"}" data-play style="--dk:${sv ? 1 : 0}">⚔️ Start ⚔️</button>
+      <button class="plank-btn" data-help style="--dk:${sv ? 2 : 1}">How to play</button>
+      <button class="plank-btn" data-lb style="--dk:${sv ? 3 : 2}">🏆 Leaderboards 🏆</button>
+      <div class="m3-pair"><button class="plank-btn" data-changes style="--dk:${sv ? 4 : 3}">Changes</button><button class="plank-btn" data-options style="--dk:${sv ? 4 : 3}">Options</button></div>
     </div>
     <p class="m3-foot">${meta.runs} runs · ${meta.wins} wins</p>
     <p class="version">${VERSION}</p>
@@ -2661,7 +2679,7 @@ function masteryPanel(_o: OriginId) {
 let kitPick: KitSlot | null = null;
 /** The Camp: the hero you've brought there, the tab open, and the contract taken at its Quest Board. */
 let camp: OriginId | null = null;
-type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "tree" | "weapons" | "abyss" | "trophies" | "bestiary" | "pond" | "tarot";
+type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "tree" | "weapons" | "abyss" | "trophies" | "bestiary" | "pond" | "tarot" | "drills";
 let campTab: CampTab = "expedition";
 let campOffers: Bounty[] | null = null;
 let campQuest: number | null = null;
@@ -2704,7 +2722,6 @@ function gemPanel(o: OriginId) {
 
 function originPopup(o: OriginId) {
   const og = ORIGINS[o];
-  const p = getItem(og.passive);
   if (menuTab === "abyss") {
     const pl = meta.classPlates?.[o] ?? 0;
     const free = meta.plates ?? 0;
@@ -2731,7 +2748,6 @@ function originPopup(o: OriginId) {
     <p class="center op-pitch">${esc(ORIGIN_PITCH[o])}</p>
     <ul class="op-facts">
       ${(() => { const [a, b] = pathsOf(o); const won = (meta.layersBeaten?.[o] ?? 0) >= 1; return `<li><span>🧭</span><span><b>Two paths</b> The ${esc(a.name)} or the ${esc(b.name)}${won ? "" : " (the second opens once you beat the 1st Layer)"}. Your path picks your skill at level ${SKILL_LEVEL}.</span></li>`; })()}
-      <li><span>${ORIGIN_ICON[o]}</span><span><b>${esc(p.name)}</b> ${esc(ORIGIN_PASSIVE[o])}</span></li>
       ${(() => { const ba = BASE_ATTR[o as keyof typeof BASE_ATTR]; if (!ba) return ""; const ai = ATTR_INFO[ba]; return `<li><span>${ai.icon}</span><span><b>${esc(ai.name)}</b> +1 Damage for every ${BASE_DMG_PER} points</span></li>`; })()}
       <li><span>❤️</span><span><b>${og.hp} HP · ${MANA_MAX} Mana</b> ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}. Only Mana Potions refill your Mana.</span></li>
     </ul>
@@ -3440,6 +3456,19 @@ function bind() {
     on("[data-campabyss]", () => { pendingOrigin = camp; startAbyss(); });
     on("[data-descend]", () => { if (!camp) return; pendingOrigin = camp; startCampaign(); });
     on("[data-start]", () => startCampaign());
+    on("[data-drill]", el => { if (camp) startDrillRun(camp, el.dataset.drill!); });
+    /** A Drill: a level field (no Hall, Heat, Tarot or Passive Tree), the class's path, and the Drill's one rule. */
+    function startDrillRun(o: OriginId, id: string) {
+      mode = "campaign"; lbResult = null; lbNaming = false; pendingOrigin = null; camp = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
+      campRoom = null; campOffers = null; campQuest = null;
+      const nr = newRun(o, Date.now() & 0x7fffffff, "campaign", lockedIds(meta));
+      startCrawl(nr);
+      setOut(nr, {}, []);
+      nr.hero.path = chosenPath(meta, o);
+      startDrill(nr, id);
+      // (Drills stay off the leaderboards.)
+      run = nr;
+    }
     function startAbyss() {
       const o = pendingOrigin; if (!o) return;
       meta.abyssRuns = (meta.abyssRuns ?? 0) + 1; saveMeta(meta);
@@ -3639,7 +3668,7 @@ function bind() {
   on("[data-rest]", () => say(rest(r, "heal")));
   on("[data-risk]", el => confirmRisk(r, el.dataset.risk === "yes"));
   on("[data-event]", el => chooseEvent(r, Number(el.dataset.event)));
-  on("[data-newrun]", () => { clearSave(); camp = r.mode === "campaign" || r.mode === "endless" ? r.hero.origin : null; campTab = "expedition"; campRoom = null; resetCampWalk(); campOffers = null; campQuest = null; view = "title"; run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
+  on("[data-newrun]", () => { clearSave(); camp = r.mode === "campaign" || r.mode === "endless" ? r.hero.origin : null; campTab = r.drill ? "drills" : "expedition"; campRoom = r.drill ? "drills" : null; resetCampWalk(); campOffers = null; campQuest = null; view = "title"; run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
   on("[data-endless]", () => { if (run) { run.submitted = false; run.lbDone = false; run.endRecord = undefined; } lbResult = null; continueEndless(r); recorded = null; });
   on("[data-unequip]", el => { const sl = el.dataset.unequip as EquipSlot, uid = r.hero.equip[sl]?.uid; const err = unequip(r.hero, sl); say(err); if (!err && uid !== undefined) { invPick = { k: "bp", uid }; sfx("equip"); } });
   on("[data-equip]", el => { const uid = Number(el.dataset.equip); const it = r.hero.backpack.find(i => i.uid === uid); if (!it) return; const err = equipItem(r.hero, it, el.dataset.slot as EquipSlot); say(err); if (!err) { const sl = EQUIP_SLOTS.find(k => r.hero.equip[k]?.uid === uid); if (sl) invPick = { k: "eq", slot: sl }; sfx("equip"); } });

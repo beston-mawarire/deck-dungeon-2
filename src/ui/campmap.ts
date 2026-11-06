@@ -11,7 +11,9 @@ const ROOMS: { id: string; name: string; cx: number; cy: number; side: "n" | "s"
   { id: "knowledge", name: "Knowledge", cx: 20, cy: 8, side: "e" }, { id: "brewery", name: "Brewery", cx: 20, cy: 12, side: "e", tiles: [[20, 12], [21, 12]] }, { id: "bestiary", name: "Bestiary", cx: 20, cy: 16, side: "e" },
   { id: "tree", name: "Passive Tree", cx: 7, cy: 22, side: "s" }, { id: "abyss", name: "The Abyss", cx: 11, cy: 22, side: "s" }, { id: "weapons", name: "Weapon Mastery", cx: 15, cy: 22, side: "s" },
   // The Tarot room: off the Weapon Mastery room, through a short passage (side "x": no passage of its own to the hall).
-  { id: "tarot", name: "Tarot Room", cx: 19, cy: 22, side: "x" }
+  { id: "tarot", name: "Tarot Room", cx: 19, cy: 22, side: "x" },
+  // The Drills yard: off the Passive Tree's room, the same way.
+  { id: "drills", name: "Drills", cx: 3, cy: 22, side: "x" }
 ];
 /** Where everything stands (x, y). */
 export const CAMP_SPOTS: CampSpot[] = [...ROOMS.map(r => ({ id: r.id, name: r.name, tiles: r.tiles ?? [[r.cx, r.cy]] as [number, number][] })), { id: "pond", name: "Still Pool", tiles: [[14, 15], [15, 15]] }];
@@ -25,6 +27,7 @@ const FLOOR = (() => {
   const dig = (x0: number, y0: number, x1: number, y1: number) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) f[y * CAMP_W + x] = 1; };
   dig(HUB.x0, HUB.y0, HUB.x1, HUB.y1);
   dig(17, 22, 17, 22);
+  dig(5, 22, 5, 22);
   for (const r of ROOMS) {
     dig(r.cx - 1, r.cy - 1, r.cx + 1, r.cy + 1);
     if (r.side === "n") dig(r.cx, r.cy + 2, r.cx, HUB.y0 - 1);
@@ -184,6 +187,17 @@ function drawSpot(ctx: CanvasRenderingContext2D, s: CampSpot, ts: number, ox: nu
     case "pond": {
       // The Camp's own still pool, two tiles wide, in the corner of the hall.
       drawWater(ctx, sx0 + ts, cy + ts * 0.05, ts * 0.9, ts * 0.38, now);
+      break;
+    }
+    case "drills": {
+      // A training dummy: a post, a cross-bar and a sack of straw, with a practice sword stuck in the ground.
+      shadow(0.3);
+      ctx.fillStyle = "#5a3a1e"; ctx.fillRect(cx - ts * 0.04, cy - ts * 0.3, ts * 0.08, ts * 0.72);
+      ctx.fillRect(cx - ts * 0.3, cy - ts * 0.12, ts * 0.6, ts * 0.07);
+      ctx.fillStyle = "#c9a560"; ctx.beginPath(); ctx.ellipse(cx, cy + ts * 0.02, ts * 0.17, ts * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#b08a48"; ctx.beginPath(); ctx.arc(cx, cy - ts * 0.3, ts * 0.12, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#7a2a1a"; ctx.lineWidth = Math.max(1, ts / 24); ctx.beginPath(); ctx.moveTo(cx - ts * 0.08, cy - ts * 0.03); ctx.lineTo(cx + ts * 0.08, cy + ts * 0.08); ctx.moveTo(cx + ts * 0.08, cy - ts * 0.03); ctx.lineTo(cx - ts * 0.08, cy + ts * 0.08); ctx.stroke();
+      ctx.fillStyle = "#c8ccd4"; ctx.fillRect(cx + ts * 0.3, cy - ts * 0.05, ts * 0.04, ts * 0.38); ctx.fillStyle = "#6a4424"; ctx.fillRect(cx + ts * 0.25, cy - ts * 0.08, ts * 0.14, ts * 0.04);
       break;
     }
     case "tarot": {

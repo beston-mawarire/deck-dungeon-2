@@ -11,14 +11,15 @@ export const AFFINITY: Record<OriginId, string[]> = {
   cleric: ["w_mace", "w_morningstar", "w_flail", "w_hammer", "o_holy_symbol", "o_prayer_beads", "o_sun_disc", "o_reliquary", "o_censer", "a_padded", "a_vestments", "a_scale", "t_templar_seal", "t_band_vigor"]
 };
 
-export const ORIGINS: Record<OriginId, { name: string; hp: number; kit: string[]; passive: string; blurb: string }> = {
-  warrior: { name: "Warrior", hp: 36, kit: ["w_sword", "o_wooden_shield", "a_chain"], passive: "o_warrior", blurb: "Steel and shield. Strength makes the wall." },
-  rogue: { name: "Rogue", hp: 32, kit: ["w_dagger", "w_throwing_knife", "a_leather"], passive: "o_rogue", blurb: "Two blades, first strike. Agility keeps you untouched." },
-  mage: { name: "Mage", hp: 34, kit: ["w_staff", "o_ember_charm", "a_cloth"], passive: "o_mage", blurb: "Every face a spell. Intellect makes them burst." },
-  cleric: { name: "Cleric", hp: 34, kit: ["w_blessed_mace", "o_holy_symbol", "a_padded"], passive: "o_cleric", blurb: "Holy wrath that outlasts. Faith takes the pain." }
+export const ORIGINS: Record<OriginId, { name: string; hp: number; kit: string[]; blurb: string }> = {
+  warrior: { name: "Warrior", hp: 36, kit: ["w_sword", "o_wooden_shield", "a_chain"], blurb: "Steel and shield. Strength makes the wall." },
+  rogue: { name: "Rogue", hp: 32, kit: ["w_dagger", "w_throwing_knife", "a_leather"], blurb: "Two blades, first strike. Agility keeps you untouched." },
+  mage: { name: "Mage", hp: 34, kit: ["w_staff", "o_ember_charm", "a_cloth"], blurb: "Every face a spell. Intellect makes them burst." },
+  cleric: { name: "Cleric", hp: 34, kit: ["w_blessed_mace", "o_holy_symbol", "a_padded"], blurb: "Holy wrath that outlasts. Faith takes the pain." }
 };
 
 const origin = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "origin", ...d });
+/** The old class passives: no class has one now (they're Passive Tree nodes, in skilltree.ts). Kept registered so old saves still load. */
 export const ORIGIN_PASSIVES: HookDef[] = [
   origin({ id: "o_warrior", name: "Battle-Hardened", tags: ["Guard"], text: "Guarding is your craft: +2 Armor when Guarding. Steel is strength: your Hits and Crits deal +1 Damage for every 5 Armor you wear", hooks: { modifyAttack: (_b, c) => { c.bonus += Math.floor(c.attacker.armor / 5); }, onGuard: (_b, f) => { f.flags["guardArmor"] = (f.flags["guardArmor"] ?? 0) + 2; } } }),
   origin({ id: "o_rogue", name: "Opportunist", tags: ["Crit", "Luck"], text: "Your first attack each fight rolls twice and keeps the better", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "focus", 1) } }),

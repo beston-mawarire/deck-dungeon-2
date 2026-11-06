@@ -9,6 +9,7 @@ import { BOUNTY_CAP, bountyReward } from "./pact";
 import { TAROT_MAP, TAROT_MAX_LEVEL, TAROT_SLOTS, tarotOffer, type TarotSlot } from "./tarot";
 import { OMENS_FOR_FOUR } from "./omens";
 import { makeRng } from "../engine/rng";
+import { DRILL_CROWNS } from "./drills";
 import { omensTaken } from "./run";
 import { ACHIEVEMENTS, heatOf, HEAT_RENOWN, type Kit, masteryFor, masteryLevel, MASTERY_MAX } from "./progress";
 
@@ -17,6 +18,8 @@ export interface HistoryEntry {
   at: number;
   mode: string;
   daily?: string;
+  /** A Drill run. */
+  drill?: string;
   origin: string;
   floor: number;
   won: boolean;
@@ -53,6 +56,8 @@ export interface Meta {
   path?: Record<string, string>;
   /** The Camp Ledger: the marks each path has earned (see LEDGER_MARKS). */
   ledger?: Record<string, string[]>;
+  /** Drills: the classes that have cleared each one (its medal). */
+  drills?: Record<string, import("../engine/types").OriginId[]>;
   /** Campaign runs in a row that ended without a Legendary (four, and the next run's first boss offers one). */
   dryRuns?: number;
   renown: number;
@@ -236,11 +241,38 @@ export function ledgerMarks(run: Run): string[] {
   return out;
 }
 
+/** A Drill's end: its medal (and a first clear's Crown Shards), achievements, the Bestiary and found items. */
+function recordDrill(m: Meta, run: Run, before: number, earned: number): ReturnType<typeof recordRun> {
+  void before;
+  const won = run.scene.t === "over" && run.scene.won, id = run.drill!, o = run.hero.origin;
+  if (won) {
+    const by = ((m.drills ??= {})[id] ??= []);
+    if (!by.length) { (m.camp ??= { crowns: 0, mats: {}, hall: {} }).crowns += DRILL_CROWNS; run.drillFirst = true; }
+    if (!by.includes(o)) by.push(o);
+  }
+  const entry: HistoryEntry = { at: Date.now(), mode: run.mode, origin: o, floor: run.floor, won, drill: id, abandoned: run.abandoned || undefined, level: run.hero.level, kills: run.stats.kills, bosses: run.stats.bosses,
+    killer: run.killer ? `${run.killer.name}${run.killer.rank ? ` (${run.killer.rank})` : ""}` : undefined,
+    build: EQUIP_SLOTS.map(sl => run.hero.equip[sl]).filter((x): x is NonNullable<typeof x> => !!x).map(it => ({ name: itemName(it), rarity: it.rarity, level: it.level })) };
+  m.history = [entry, ...(m.history ?? [])].slice(0, HISTORY_SIZE);
+  m.found = [...new Set([...m.found, ...run.found])];
+  trackMarks(run);
+  m.encounters = [...new Set([...(m.encounters ?? []), ...(run.encounters ?? [])])];
+  const got: string[] = [];
+  for (const a of ACHIEVEMENTS) {
+    if (m.achievements?.includes(a.id) || a.id === "mastery10" || a.id === "mastery_all") continue;
+    if (a.check(run, { wins: m.wins, winsBy: m.winsBy as Record<string, number>, encounters: m.encounters })) { (m.achievements ??= []).push(a.id); m.renown += a.renown; got.push(a.id); }
+  }
+  saveMeta(m);
+  return { earned, unlocked: [], achievements: got };
+}
+
 export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: number; unlocked: string[]; achievements: string[]; mastery?: { origin: string; gained: number; level: number; levelUp: boolean } } {
   const before = m.renown;
   const earned = Math.max(0, renownFor(run) - alreadyEarned);
   m.renown += earned;
   if (!alreadyEarned) m.runs++;
+  // Drills count only towards their own medals (and Renown, achievements and the Bestiary).
+  if (run.drill) return recordDrill(m, run, before, earned);
   if (!alreadyEarned && run.mode !== "abyss" && !run.daily) m.dryRuns = run.stats.legendaries > 0 ? 0 : (m.dryRuns ?? 0) + 1;
   if (run.scene.t === "over" && run.scene.won) m.wins++;
   if (run.daily && m.daily?.day === run.daily) m.daily = { day: run.daily, floor: Math.max(m.daily.floor, run.floor), won: m.daily.won || (run.scene.t === "over" && run.scene.won), done: true };

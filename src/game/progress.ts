@@ -121,29 +121,29 @@ export function applyKit(run: Run, kit: Kit | undefined, level: number, locked: 
 export interface Achievement { id: string; name: string; text: string; renown: number; title?: string; group?: string; check: (run: Run, m: { wins?: number; winsBy?: Record<string, number>; encounters?: string[] }) => boolean }
 const won = (r: Run) => r.scene.t === "over" && r.scene.won;
 const P = (r: Run, k: string) => r.hero.f.persist[k] ?? 0;
-const campaignWon = (r: Run) => r.scene.t === "over" && r.scene.won && r.mode === "campaign";
+const campaignWon = (r: Run) => r.scene.t === "over" && r.scene.won && r.mode === "campaign" && !r.drill;
 export const ACHIEVEMENTS: Achievement[] = [
   { id: "first_boss", name: "First Steps", text: "Beat a layer's guardian", renown: 10, title: "Delver", check: r => r.stats.bosses >= 1 },
   { id: "champ_f1", name: "Punching Up", text: "Beat a Champion on the first layer", renown: 15, title: "Upstart", check: r => P(r, "ach_champ1") > 0 },
   { id: "goblin", name: "Goblin Slayer", text: "Catch a Treasure Goblin before it escapes", renown: 10, check: r => P(r, "ach_goblin") > 0 },
   { id: "flawless_boss", name: "Untouched", text: "Beat a guardian without taking a hit", renown: 20, title: "Untouchable", check: r => P(r, "ach_flawless_boss") > 0 },
-  { id: "campaign_win", name: "Gatecloser", text: "Beat the dungeon", renown: 30, title: "Gatecloser", check: r => won(r) && r.mode === "campaign" },
-  { id: "teetotal", name: "Teetotal", text: "Beat the dungeon without drinking a single potion", renown: 40, title: "Teetotaller", check: r => won(r) && r.mode === "campaign" && P(r, "potsDrunk") === 0 },
+  { id: "campaign_win", name: "Gatecloser", text: "Beat the dungeon", renown: 30, title: "Gatecloser", check: r => campaignWon(r) },
+  { id: "teetotal", name: "Teetotal", text: "Beat the dungeon without drinking a single potion", renown: 40, title: "Teetotaller", check: r => campaignWon(r) && P(r, "potsDrunk") === 0 },
   { id: "doppel", name: "Know Thyself", text: "Beat the Changeling Doppelgänger", renown: 25, title: "the Unmirrored", check: r => P(r, "ach_doppel") > 0 },
   { id: "cursed5", name: "Walking Curse", text: "Carry 5 or more curses at once", renown: 25, title: "the Accursed", check: r => P(r, "ach_curses5") > 0 },
   // Heat
   { id: "heat_first", name: "Feel the Heat", text: "Beat the dungeon at Heat 1 or higher", renown: 20, title: "Kindled", group: "Heat", check: r => campaignWon(r) && (r.heat ?? 0) >= 1 },
-  { id: "hot_win", name: "Trial by Fire", text: "Beat the dungeon at Heat 6 or higher", renown: 50, title: "Firewalker", group: "Heat", check: r => won(r) && r.mode === "campaign" && (r.heat ?? 0) >= 6 },
-  { id: "inferno_win", name: "Inferno", text: "Beat the dungeon at Heat 10 or higher", renown: 100, title: "Inferno-born", group: "Heat", check: r => won(r) && r.mode === "campaign" && (r.heat ?? 0) >= 10 },
+  { id: "hot_win", name: "Trial by Fire", text: "Beat the dungeon at Heat 6 or higher", renown: 50, title: "Firewalker", group: "Heat", check: r => campaignWon(r) && (r.heat ?? 0) >= 6 },
+  { id: "inferno_win", name: "Inferno", text: "Beat the dungeon at Heat 10 or higher", renown: 100, title: "Inferno-born", group: "Heat", check: r => campaignWon(r) && (r.heat ?? 0) >= 10 },
   { id: "heat_forged", name: "Forged in Fire", text: "Find a Heatforged item (they only drop at Heat 1 or higher)", renown: 15, group: "Heat", check: r => P(r, "ach_heatforged") > 0 },
   { id: "heat_smith", name: "Smith of Cinders", text: "Wear 3 Heatforged items at once", renown: 30, title: "Cindersmith", group: "Heat", check: r => P(r, "ach_heatforged3") > 0 },
   { id: "heat_legend", name: "Crowned in Embers", text: "Find a Heatforged Legendary", renown: 40, group: "Heat", check: r => P(r, "ach_heatlegend") > 0 },
   { id: "heat_ashborn", name: "Ashborn", text: "Beat the dungeon at Heat 6 or higher wearing a Heatforged item", renown: 50, title: "Ashborn", group: "Heat", check: r => campaignWon(r) && (r.heat ?? 0) >= 6 && P(r, "ach_heatworn") > 0 },
   { id: "heat_deep", name: "Slow Burn", text: "Reach the 5th Layer at Heat 8 or higher", renown: 40, group: "Heat", check: r => r.mode === "campaign" && (r.heat ?? 0) >= 8 && r.floor >= 5 },
   { id: "heat_dry", name: "Dry Heat", text: "Beat the dungeon at Heat 10 or higher without drinking a single potion", renown: 120, title: "the Unquenched", group: "Heat", check: r => campaignWon(r) && (r.heat ?? 0) >= 10 && P(r, "potsDrunk") === 0 },
-  { id: "floor10", name: "Into the Deep", text: "Reach the 5th Layer", renown: 20, check: r => r.mode === "campaign" && r.floor >= 5 },
+  { id: "floor10", name: "Into the Deep", text: "Reach the 5th Layer", renown: 20, check: r => r.mode === "campaign" && !r.drill && r.floor >= 5 },
   { id: "floor20", name: "Horror's Doorstep", text: "Reach the Abyss's last floor", renown: 30, title: "Deepwalker", check: r => r.mode === "abyss" && (r.grid?.depth ?? 0) >= 5 },
-  { id: "cursed20", name: "Damned and Delving", text: "Reach the 5th Layer carrying 3 or more curses", renown: 40, title: "The Damned", check: r => r.mode === "campaign" && r.floor >= 5 && Object.values(r.hero.curses).reduce((a, n) => a + n, 0) >= 3 },
+  { id: "cursed20", name: "Damned and Delving", text: "Reach the 5th Layer carrying 3 or more curses", renown: 40, title: "The Damned", check: r => r.mode === "campaign" && !r.drill && r.floor >= 5 && Object.values(r.hero.curses).reduce((a, n) => a + n, 0) >= 3 },
   { id: "death", name: "Reaper's Reaper", text: "Beat DEATH", renown: 100, title: "Deathless", check: r => P(r, "ach_death") > 0 },
   { id: "uniques3", name: "Head Hunter", text: "Beat 3 named Unique foes in one run", renown: 40, title: "Head Hunter", check: r => P(r, "uniquesBeaten") >= 3 },
   { id: "first_unique", name: "Big Name, Bigger Fall", text: "Beat one of the 1st Layer's named foes", renown: 10, check: r => P(r, "uniquesBeaten") >= 1 },
@@ -192,6 +192,12 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "sigil_full", name: "Full Talisman", text: "Wear a complete sigil set", renown: 40, title: "the Complete", check: r => P(r, "ach_sigil_full") > 0 },
   { id: "cleric_nopenance", name: "No Regrets", text: "Beat the dungeon as a Cleric without ever using a skill", renown: 50, check: r => campaignWon(r) && r.hero.origin === "cleric" && P(r, "q_skill") === 0 }
 ];
+
+// Drills: one each, with a title.
+const DRILL_TITLES: [string, string, string][] = [["bossrush", "Kingslayer", "Clear the Boss Rush Drill"], ["glass", "Glass-Hearted", "Clear the Glass Cannon Drill"], ["bare", "Bare-Knuckled", "Clear the Bare Hands Drill"],
+  ["dry", "the Parched", "Clear the Dry Throat Drill"], ["gauntlet", "Gauntlet-Runner", "Clear the Elite Gauntlet Drill"], ["pilgrim", "the Bound", "Clear the Cursed Pilgrim Drill"],
+  ["clock", "the Swift", "Clear the Against the Clock Drill"], ["silent", "the Silent", "Clear the Silent Hands Drill"], ["dark", "Dark-Walker", "Clear the Lights Out Drill"], ["borrowed", "the Borrower", "Clear the Borrowed Steel Drill"]];
+for (const [id, title, text] of DRILL_TITLES) ACHIEVEMENTS.push({ id: `drill_${id}`, name: title.replace(/^the /, "The "), text, renown: 25, title, group: "Drills", check: r => r.drill === id && won(r) });
 
 // ---------- Heat ----------
 /** Optional difficulty, unlocked by your first win. Each level adds its twist on top of the ones below. */

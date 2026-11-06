@@ -45,6 +45,10 @@ export interface MapThing {
 }
 
 export interface FloorMap {
+  /** Lights Out (a Drill): how far you see (otherwise SIGHT). */
+  sight?: number;
+  /** Against the Clock (a Drill): steps left on this floor. */
+  clock?: number;
   /** The layer (run.floor) and which of its floors this is (1–5; the 6th is the boss). */
   floor: number;
   depth: number;
@@ -249,8 +253,9 @@ export function lineOfSight(m: FloorMap, ax: number, ay: number, bx: number, by:
 /** Tiles in sight right now. */
 export function inSight(m: FloorMap, x = m.px, y = m.py): number[] {
   const out: number[] = [];
-  for (let dy = -SIGHT; dy <= SIGHT; dy++) for (let dx = -SIGHT; dx <= SIGHT; dx++) {
-    if (dx * dx + dy * dy > SIGHT * SIGHT + 1) continue;
+  const R = m.sight ?? SIGHT;
+  for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+    if (dx * dx + dy * dy > R * R + 1) continue;
     const tx = x + dx, ty = y + dy;
     if (inside(m, tx, ty) && lineOfSight(m, x, y, tx, ty)) out.push(idx(m, tx, ty));
   }

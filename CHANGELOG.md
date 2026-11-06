@@ -9,6 +9,19 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.99.0
+Phase 3, part 3: Drills.
+- **Drills.** A new Camp room, next to the Passive Tree, with ten short challenge runs of one rule each: Boss Rush, Glass Cannon, Bare Hands, Dry Throat, Elite Gauntlet, Cursed Pilgrim, Against the Clock, Silent Hands, Lights Out and Borrowed Steel.
+  - **Length:** a Drill runs 3 layers; the Boss Rush runs all five guardians.
+  - **Same footing for everyone:** no Heat, no Tarot, no Hall upgrades and no Passive Tree. You pick your class and path.
+  - **Unlocking:** the room opens once any class beats the 1st Layer. Three Drills are open at first, and each one you clear opens another.
+  - **Rewards:** a Drill's first clear gives 👑 3 Crown Shards and a title. Medals: 🥉 one class, 🥈 two, 🥇 all four.
+  - **Kept apart:** Drills don't count towards layers beaten, wins, your Nemesis, bounties, the Ledger or the leaderboards.
+- **Class passives are now Passive Tree nodes.** Battle-Hardened, Opportunist, Arcane Spark and Devotion no longer come with a class (they clashed with the paths). Each is now a 3-rank node any class can take.
+- **Fishing.** The real bite can come on the 1st, 2nd, 3rd or 4th movement of the float. The Camp's pool is now the stingiest water: fewer bites, and often nothing on the hook. A fish only goes in the Trophy Room's tank once you've caught it twice.
+- **Parting gift:** a Healing Potion, a Mana Potion or a Skeleton Key (the Gold option is gone).
+- **Main menu:** ⚔️ Start ⚔️ and 🏆 Leaderboards 🏆, and the buttons get a little darker one after the next.
+
 ## 1.98.1
 - **The Tavern's parting gift** is now your choice of 40 Gold, a Healing Potion, a Mana Potion or a Skeleton Key (it was a choice of trinkets).
 - The Paths room no longer says "something gained and something given up".
