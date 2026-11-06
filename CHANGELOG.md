@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.11
+- The Compare page has Add to backpack, alongside Equip and Leave it (the same choices as the find itself).
+
 ## 2.0.10
 - Item views are pages now, not popups. A shop item, an equipped item from the backpack, a chest's find and rewards each fill the screen and have a Back button.
 - Compare equipped is a page of its own. Nothing else is drawn under it, so it can't end up hidden. It has the wooden sign, dotted rarity cards, and Equip, Scrap and Back along the bottom.

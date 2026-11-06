@@ -2879,3 +2879,4 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
 .cmp-screen .cmp-foot { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; margin-top: 10px; }
 .cmp-screen .cmp-foot > button:not(.plank-btn) { min-height: 46px; padding: 0 18px; }
 @media (max-width: 520px) { .cmp-screen .cmp-foot > button:not(.plank-btn) { flex: 1 1 40%; } .cmp-screen .cmp-foot .plank-btn { flex: 1 1 100%; } }
+@media (max-width: 520px) { .cmp-screen .cmp-foot > button:not(.plank-btn) { flex: 1 1 30%; padding: 0 8px; font-size: .9rem; } }

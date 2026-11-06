@@ -2614,7 +2614,7 @@ function comparePopup(r: Run): string {
       <h3 class="cmp-h">What changes</h3>
       ${compareHtml(h, it, slot, true) || `<p class="sub">Nothing changes.</p>`}
     </div>
-    <div class="cmp-foot">${found.takeable ? `<button class="take-equip" data-take="${it.uid}" data-how="equip" data-slot="${slot}">✔ Equip ${esc(label.toLowerCase())}</button><button class="take-scrap" data-scrapfound="${it.uid}">Scrap (+${scrapValue(h, it)} ⚙️)</button>` : ""}<button class="plank-btn" data-compareclose>← Back</button></div>
+    <div class="cmp-foot">${found.takeable ? `<button class="take-equip" data-take="${it.uid}" data-how="equip" data-slot="${slot}">✔ Equip ${esc(label.toLowerCase())}</button><button class="take-pack" data-take="${it.uid}" data-how="pack">🎒 Add to backpack</button><button class="take-scrap" data-scrapfound="${it.uid}">${r.gridMode ? "Leave it" : `Scrap (+${scrapValue(h, it)} ⚙️)`}</button>` : ""}<button class="plank-btn" data-compareclose>← Back</button></div>
   </div></div>`;
 }
 
