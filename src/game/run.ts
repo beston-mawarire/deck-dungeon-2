@@ -203,7 +203,9 @@ export type Scene =
   | { t: "combat"; battle: Battle; rank: MonsterRank; then?: "resplendent" | "mimic" | "crimson" | "unique" | "goblin" | "dragon" | "transformed" | "death" | "nemesis" | "doppel"; uber?: boolean }
   | { t: "loot"; title: string; items: GearItem[]; gold: number; scrolls: number; relic?: string; /** Talisman sigils found (names). */ sigils?: string[]; potions: number; then?: "resplendent"; crimsonKey?: boolean; /** A Bounty Board payout (closing it doesn't use a step). */ bounty?: boolean; /** A Dragon Heart was torn from the dragon (its level now). */ dragonHeart?: number; /** The Transmuter's Crucible dropped. */ crucible?: boolean }
   | { t: "resplendent"; cards: ResplendentCard[]; picked: number | null; glove: boolean }
-  | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** The Tavern's parting gift: closing it leaves you where you stand. */ gift?: boolean; /** Talisman sigils found (names). */ sigils?: string[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
+  /** The Tavern's parting gift: one of four, as a run sets out from the top. */
+  | { t: "gift" }
+  | { t: "pick"; title: string; items: GearItem[]; passed?: GearItem[]; /** Talisman sigils found (names). */ sigils?: string[]; /** A Keepsake on offer (bosses after floor 5). */ keepsake?: string }
   | { t: "talent"; options: string[] }
   | { t: "shop"; stock: ShopEntry[]; /** One item may be sold per Merchant visit. */ soldItem?: string; /** % markup from the Gold you carried when this stock was priced. */ markup?: number }
   | { t: "forge" }
@@ -539,8 +541,8 @@ export const CRAWL_NORMAL_POWER = 2;
 export const FIRST_ELITE_EASE = 0.85;
 /** A 1st-Layer unique's drop: a Rare, or this often an Epic. */
 export const EARLY_UNIQUE_EPIC = 0.4;
-/** The Tavern's parting gift: a choice of trinkets as a campaign run begins. */
-export const GIFT_TRINKETS = 3;
+/** The Tavern's parting gift of Gold (the other choices: a Healing Potion, a Mana Potion or a Skeleton Key). */
+export const GIFT_GOLD = 40;
 /** How often a curse-lifting altar turns up, as a landmark (the same whether or not you're cursed). */
 export const CLEANSING_WEIGHT = 3;
 /** Chance a floor has a Crimson foe's room: this much per layer below the first, up to the cap. */
@@ -943,16 +945,24 @@ export function startCrawl(run: Run) {
   run.choices = [];
 }
 
-/** The Tavern's parting gift: three trinkets (Uncommon, ready to wear), and you take one with you. */
-export function tavernGift(run: Run) {
-  const h = run.hero, items: GearItem[] = [];
-  for (let k = 0; k < 60 && items.length < GIFT_TRINKETS; k++) {
-    const it = rollItem(h, "uncommon", 1, run.rng);
-    if (effectiveBase(it).kind !== "trinket" || items.some(i => i.base === it.base)) continue;
-    it.reqLevel = undefined; it.revealed = true;
-    items.push(it);
-  }
-  if (items.length) run.scene = { t: "pick", title: "A parting gift from the Tavern", items, gift: true };
+/** The Tavern's parting gift: you choose one as a run sets out from the top. */
+export const GIFTS = {
+  gold: { icon: "🪙", name: `${GIFT_GOLD} Gold`, text: "Enough for a potion or two at the first Merchant." },
+  potion: { icon: "🧪", name: "A Healing Potion", text: "For the first fight that goes wrong." },
+  key: { icon: "🗝️", name: "A Skeleton Key", text: "Opens one locked door, and what's behind it." },
+  mana: { icon: "🔷", name: "A Mana Potion", text: "Fills your Mana: one more skill when it counts." }
+} as const;
+export type GiftId = keyof typeof GIFTS;
+export function tavernGift(run: Run) { run.scene = { t: "gift" }; }
+export function takeGift(run: Run, id: GiftId) {
+  if (run.scene.t !== "gift") return;
+  const h = run.hero;
+  if (id === "gold") h.f.gold += GIFT_GOLD;
+  else if (id === "potion") h.potions += 1;
+  else if (id === "mana") h.manaPotions += 1;
+  else h.f.persist["skelKeys"] = (h.f.persist["skelKeys"] ?? 0) + 1;
+  run.message = `${GIFTS[id].icon} The keeper hands you ${GIFTS[id].name.replace(/^A /, "a ")}. "Come back in one piece."`;
+  run.scene = { t: "map" };
 }
 
 /** Choose your path's skill (from level 5): one of the two it offers, for the rest of the run. */
@@ -1884,8 +1894,7 @@ function afterFight(run: Run) {
     h.f.persist["ach_doppel"] = 1;
     run.message = "🎭 The Changeling comes apart like smoke. It leaves something of yours behind… no, better than yours.";
   } else if (then === "unique") {
-    // Unique foes: always an Epic (sometimes a Legendary), a good relic and a fat purse.
-    // (The 1st Layer's own: a Rare, often an Epic.)
+    // Unique foes: always an Epic (sometimes a Legendary). (The 1st Layer's own: a Rare, often an Epic.)
     h.f.persist["uniquesBeaten"] = (h.f.persist["uniquesBeaten"] ?? 0) + 1;
     if (run.floor <= 1) items.push(rollItem(h, run.rng() < EARLY_UNIQUE_EPIC ? "epic" : "rare", depth(run), run.rng));
     else items.push(rollItem(h, run.rng() < 0.15 ? "legendary" : "epic", depth(run), run.rng));
@@ -2204,7 +2213,6 @@ export function scrapFound(run: Run, uid: number) {
 }
 
 export function finishLoot(run: Run) {
-  if (run.scene.t === "pick" && run.scene.gift) { run.scene = { t: "map" }; return; }
   let bountyPay = false;
   if (run.scene.t === "loot") {
     bountyPay = !!run.scene.bounty;

@@ -221,17 +221,17 @@ describe("class paths", () => {
 });
 
 describe("the 1st Layer and the Ledger (1.98)", () => {
-  it("the Tavern's parting gift offers three different ready-to-wear trinkets, and taking one leaves you on the map", async () => {
-    const { tavernGift, takeItem } = await import("../src/game/run");
+  it("the Tavern's parting gift: Gold, a Healing Potion, a Mana Potion or a Skeleton Key, and then you're on the map", async () => {
+    const { tavernGift, takeGift, GIFT_GOLD } = await import("../src/game/run");
     const r = newRun("rogue", 71); startCrawl(r);
-    tavernGift(r);
-    const s = r.scene as { t: string; items: { uid: number; base: string; reqLevel?: number }[]; gift?: boolean };
-    expect(s.t).toBe("pick"); expect(s.gift).toBe(true);
-    expect(new Set(s.items.map(i => i.base)).size).toBe(3);
-    expect(s.items.every(i => !i.reqLevel)).toBe(true);
-    expect(takeItem(r, s.items[0].uid, "equip")).toBeNull();
-    expect(r.scene.t).toBe("map");
-    expect(r.step).toBe(0);
+    const g0 = r.hero.f.gold;
+    tavernGift(r); expect(r.scene.t).toBe("gift");
+    takeGift(r, "gold");
+    expect(r.hero.f.gold).toBe(g0 + GIFT_GOLD); expect(r.scene.t).toBe("map"); expect(r.step).toBe(0);
+    const k = newRun("rogue", 72); startCrawl(k); tavernGift(k); takeGift(k, "key");
+    expect(k.hero.f.persist["skelKeys"]).toBe(1);
+    const p = newRun("rogue", 73); startCrawl(p); tavernGift(p); takeGift(p, "mana");
+    expect(p.hero.manaPotions).toBe(1);
   });
   it("every 1st Layer holds one of its own named foes on a middle floor", () => {
     for (let seed = 1; seed < 20; seed++) {

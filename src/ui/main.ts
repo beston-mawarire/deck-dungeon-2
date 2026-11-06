@@ -28,7 +28,7 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  startCrawl, tavernGift, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
+  startCrawl, tavernGift, takeGift, GIFTS, type GiftId, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, chooseOmen, chooseSkill, omensTaken, setOut, ABYSS_LAYER, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -915,7 +915,7 @@ function campBody(o: OriginId, tab: CampTab): string {
   if (tab === "skills") {
     const won = meta.layersBeaten?.[o] ?? 0;
     const pick = chosenPath(meta, o);
-    return `<p>Two ways to play the ${og.name}. Your path is passive: something gained and something given up. It also decides the skills you can choose from when you reach level ${SKILL_LEVEL} in a run.</p>
+    return `<p>Two ways to play the ${og.name}. Your path is passive, and it decides the skills you can choose from when you reach level ${SKILL_LEVEL} in a run.</p>
       <div class="path-list">${pathsOf(o).map((p, i) => {
         const open = i === 0 || won >= 1, on = pick === p.id;
         return `<div class="path-card ${on ? "on" : ""} ${open ? "" : "locked"}">
@@ -1406,15 +1406,20 @@ function lootScene(r: Run) {
   return victory ? `<div class="victory"><div class="victory-title">${esc(s.title === "Victory" ? "VICTORY" : s.title.toUpperCase())}</div>${body}</div>` : `${(r.gridMode && chestHead(s.title)) || `<h2>${esc(s.title)}</h2>`}${body}`;
 }
 
+/** The Tavern's parting gift: one of four. */
+function giftScene() {
+  return `<h2 class="pick-title"><span>A parting gift from the Tavern</span></h2><p class="pick-sub">“On the house. Something for the road: take one.”</p>
+    <div class="gift-list">${(Object.keys(GIFTS) as GiftId[]).map(k => `<button class="gift-opt" data-gift="${k}"><span class="gift-ic">${GIFTS[k].icon}</span><span><b>${esc(GIFTS[k].name)}</b><i>${esc(GIFTS[k].text)}</i></span></button>`).join("")}</div>`;
+}
 function pickScene(r: Run) {
   if (r.scene.t !== "pick") return "";
   const s = r.scene;
   const ks = s.keepsake ? getItem(s.keepsake) : null;
   const m = /^(.*?)(!?)\s*(?:—\s*)?choose one$/i.exec(s.title);
   const title = `<h2 class="pick-title"><span>${esc(m ? m[1] + m[2] : s.title)}</span>${m ? "<b>Choose one reward</b>" : ""}</h2>`;
-  return `${(r.gridMode && chestHead(s.title)) || title}${s.gift ? `<p class="pick-sub">“On the house. Something for the road: pick one.”</p>` : ""}${sigilFound(s.sigils)}
+  return `${(r.gridMode && chestHead(s.title)) || title}${sigilFound(s.sigils)}
     ${ks ? `<div class="item keepsake"><div class="meta">Keepsake · one at a time${r.hero.keepsake ? ` · replaces ${esc(getItem(r.hero.keepsake).name)}` : ""}</div><div class="nm">🕯️ ${esc(ks.name)}</div><p>${esc(ks.text)}.</p><div class="row"><button class="small primary" data-keepsake>Take the Keepsake</button></div><p class="sub">Free: it doesn't count as your pick.</p></div>` : ""}
-    ${s.items.length > 1 && !s.gift ? `<div class="toast pick-note">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
+    ${s.items.length > 1 ? `<div class="toast pick-note">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
     <div class="cards">${s.items.map(it => itemCard(it, s.items.length > 1 ? pickButtons(it) : takeButtons(it), true)).join("")}</div>
     ${s.passed?.length ? `<h2 class="lost-out">Lost out on</h2><div class="cards">${s.passed.map(it => itemCard(it)).join("")}</div>` : ""}
     <div class="row" style="margin-top:12px"><button class="take-pack take-none" data-finish>🚫 Take nothing</button></div>`;
@@ -3023,7 +3028,7 @@ function render3() {
   // A finished run stays saved on its results screen until a new run starts.
   if (s.t === "over") saveRun(r, banked);
   const body =
-    s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r)
+    s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r) : s.t === "gift" ? giftScene()
     : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r) : s.t === "offering" ? forgeScene(r, true) : s.t === "fishing" ? `${fishingPanel("run")}<div class="fish-btns" style="margin:10px auto 0"><button class="plank-btn" data-leave>Leave the pool</button></div>` : s.t === "masterwork" ? masterworkScene(r)
     : s.t === "cleared" ? clearedScene(r)
     : s.t === "omen" ? omenScene(r)
@@ -3055,7 +3060,7 @@ function render3() {
     }
   }
   // The Crawl: finds and encounters pop up over the map; every other scene sits in the dungeon's stone frame.
-  const POPS = ["loot", "pick", "event", "confirm", "rest", "tribute"];
+  const POPS = ["gift", "loot", "pick", "event", "confirm", "rest", "tribute"];
   // Something Strange: its event plays in a dark room of its own, not over the map.
   // (The Abyss's Omens play in a dark room too.)
   const strange = (s.t === "event" && !!s.strange && !!r.gridMode) || s.t === "omen";
@@ -3569,6 +3574,7 @@ function bind() {
   on("[data-revealpick]", el => { revealSel = Number(el.dataset.revealpick); });
   on("[data-revealgo]", () => { if (revealSel === null) return; const err = reveal(r.hero, revealSel); say(err ?? "The Legendary reveals its true power!", !!err); if (!err) { revealSel = null; celebrate("legendary", "REVEALED"); } });
   app.querySelectorAll<HTMLElement>("[data-invclose]").forEach(el => (el.onclick = ev => { if (ev.target !== el) return; ev.stopPropagation(); invPick = null; render(); }));
+  on("[data-gift]", el => takeGift(r, el.dataset.gift as GiftId));
   on("[data-invpick]", el => { const [k, v] = el.dataset.invpick!.split(":"); invPick = k === "eq" ? { k: "eq", slot: v as EquipSlot } : { k: "bp", uid: Number(v) }; });
   on("[data-mpick]", el => { const [k, v] = el.dataset.mpick!.split(":"); merPick = k === "s" ? { k: "stock", i: Number(v) } : { k: "own", uid: Number(v) }; sellArmed = null; });
   on("[data-minv]", el => { merInv = el.dataset.minv as typeof merInv; merPick = merPick?.k === "own" ? null : merPick; sellArmed = null; });

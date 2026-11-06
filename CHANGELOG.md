@@ -9,10 +9,14 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.98.1
+- **The Tavern's parting gift** is now your choice of 40 Gold, a Healing Potion, a Mana Potion or a Skeleton Key (it was a choice of trinkets).
+- The Paths room no longer says "something gained and something given up".
+
 ## 1.98.0
 Phase 3, part 2: a livelier 1st Layer, the Camp Ledger, and achievements that fit the dungeon as it is now.
 - **A parting gift.** Setting out from the 1st Layer, the Tavern offers three Uncommon trinkets, ready to wear. Take one with you.
-- **The 1st Layer's own named foes.** One waits on every 1st Layer, somewhere on its 2nd to 4th floor, in a room of its own: the Rat King, the Rusted Foreman, Old Widow Moss or Brother Candlewick. Each is tougher than a Champion and softer than the guardian, and drops a Rare (often an Epic) and a relic. The deeper Uniques are unchanged.
+- **The 1st Layer's own named foes.** One waits on every 1st Layer, somewhere on its 2nd to 4th floor, in a room of its own: the Rat King, the Rusted Foreman, Old Widow Moss or Brother Candlewick. Each is tougher than a Champion and softer than the guardian, and drops a Rare (often an Epic). The deeper Uniques are unchanged.
 - **No bare floors up top.** Every floor of the 1st Layer now has at least one landmark (an altar, a shrine, an encounter…).
 - **The Camp Ledger.** In the Trophy Room: all 8 paths, and the marks each has earned. The marks are: 1st Layer, 3rd Layer, the dungeon, Heat 4, Heat 8, and the Abyss.
 - **Achievements cleaned up.** Ones that asked for the 7th or 10th layer now ask for the 5th Layer or the Abyss's last floor. THE END (out of reach now) is replaced by Head Hunter: beat 3 Unique foes in one run. The "never use Barrier/Counter/Penance" ones now mean "never use a skill". New: Big Name, Bigger Fall, and A Path Chosen.
