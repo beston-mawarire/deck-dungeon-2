@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.12
+- On small screens the Descend button keeps only its left arrow.
+
 ## 2.0.11
 - The Compare page has Add to backpack, alongside Equip and Leave it (the same choices as the find itself).
 

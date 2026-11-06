@@ -1191,7 +1191,7 @@ function expeditionScreen(o: OriginId) {
       <div class="cb-torch r"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
       <div class="exp-arch"><div class="exp-dark">
         <div class="exp-btns">
-          <button class="plank-btn exp-go" data-descend><span class="eg-arrow">▼</span>Descend<span class="eg-arrow">▼</span></button>
+          <button class="plank-btn exp-go" data-descend><span class="eg-arrow">▼</span>Descend<span class="eg-arrow eg-r">▼</span></button>
           <button class="plank-btn" data-exppop="layer">Layer · ${ordinal(Math.min(startLayer, maxStartLayer(o)))}</button>
           <button class="plank-btn" data-exppop="heat">Heat${heat ? ` · ${heat}` : ""}</button>
           ${Object.keys(meta.tarot ?? {}).length ? `<button class="plank-btn" data-exppop="tarot">Tarot${carriedTarot(meta).length ? ` · ${carriedTarot(meta).map(c => TAROT_MAP.get(c.id)!.icon).join("")}` : ""}</button>` : ""}
