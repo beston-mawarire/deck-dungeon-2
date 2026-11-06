@@ -105,6 +105,21 @@ export function crawlTables(L: number) {
   };
 }
 
+/** Chests feel special: whatever a chest's table says, it has at least this chance of an Epic and of a Legendary,
+ *  rising across the whole dungeon (from the 1st Layer's first floor to the 5th Layer's last). */
+export const CHEST_EPIC = [0.05, 0.1] as const, CHEST_LEGENDARY = [0.02, 0.07] as const;
+export function chestFloorOdds(odds: Odds, t: number): Odds {
+  const k = Math.max(0, Math.min(1, t));
+  const E = CHEST_EPIC[0] + (CHEST_EPIC[1] - CHEST_EPIC[0]) * k, Lg = CHEST_LEGENDARY[0] + (CHEST_LEGENDARY[1] - CHEST_LEGENDARY[0]) * k;
+  const s = Object.values(odds).reduce((a, b) => a + (b ?? 0), 0) || 1;
+  const pe = Math.max(E, (odds.epic ?? 0) / s), pl = Math.max(Lg, (odds.legendary ?? 0) / s);
+  const rest = s - (odds.epic ?? 0) - (odds.legendary ?? 0);
+  const out: Odds = {};
+  for (const [r, w] of Object.entries(odds) as [Rarity, number][]) if (r !== "epic" && r !== "legendary") out[r] = rest > 0 ? (w / rest) * (1 - pe - pl) * 100 : 0;
+  out.epic = pe * 100; out.legendary = pl * 100;
+  return out;
+}
+
 /** Campaign boss picks grow richer floor by floor: early bosses mostly offer Uncommons, a Rare is a treat. */
 export function bossOdds(floor: number): Odds {
   if (floor <= 7) return { uncommon: 40, rare: 54, epic: 5, legendary: 1 };

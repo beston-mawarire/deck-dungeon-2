@@ -26,7 +26,10 @@ const BRANCH_DEFS: Omit<TreeBranch, "nodes" | "tiers">[] = [
 /** Old passives left out of the tree: the small stat bumps that attributes now give (Crit, Dodge, Healing, status
  *  damage, Bash, Max HP…), and ones the Crawl has little room for (a 150-Gold purse, Cleave carry-over). */
 export const TREE_DROPPED = new Set(["tm_sharp_eye", "tm_nimble", "tm_field_medic", "tm_lingering_harm", "tm_studious", "tm_sturdy", "tm_heavy_hand",
-  "tm_steady_breath", "tm_thrifty", "t_mercenary", "t_carver"]);
+  "tm_steady_breath", "tm_thrifty", "t_mercenary", "t_carver",
+  // 1.97: the old class skills now come only from Legendaries, so passives built on one skill leave the tree.
+  "mr_war_paint", "mr_ward_prism", "mr_martyr_shroud", "mr_feinting_pin", "mr_shieldwall_banner", "mr_fencing_glove", "mr_pilgrim_stride",
+  "mr_unbroken_horn", "mr_quickstep_anklet", "r_halo_retribution", "mr_knotted_cord"]);
 /** Weakest to strongest, from fights simulated at layer 6 with every class (each passive at rank III against the
  *  same foes), with the build-defining ones moved to the very end. Anything unlisted sits in the middle. */
 export const TREE_ORDER = [

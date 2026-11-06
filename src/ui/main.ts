@@ -1,3 +1,4 @@
+import { PATH_MAP, pathsOf, SKILL_LEVEL } from "../data/classpaths";
 import { BOUNTY_CAP, bountyReward, HEAT_LOOT_CAP, HEAT_LOOT_PER, PACT, PACT_MAP, pactHeat } from "../game/pact";
 import { baneOf, boonOf, REVERSE_LEVEL, TAROT, TAROT_MAP, TAROT_MAX_LEVEL, TAROT_SLOTS, tarotHeat } from "../game/tarot";
 import { OMEN_MAP, OMENS_FOR_FOUR } from "../game/omens";
@@ -20,15 +21,15 @@ import {
 import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
 import { GEN_MODULE_MAP, modValue } from "../game/gen";
-import { CLASS_SKILLS, skillLayers, ACHIEVEMENTS, currentAbyssMod,  heatOf, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX } from "../game/progress";
-import { carriedTarot, flipTarot, takeTarot, toggleTarot, ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem, abyssUnlocked, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta } from "../game/meta";
+import { CLASS_SKILLS, ACHIEVEMENTS, currentAbyssMod,  heatOf, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX } from "../game/progress";
+import { chosenPath, carriedTarot, flipTarot, takeTarot, toggleTarot, ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem, abyssUnlocked, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta } from "../game/meta";
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   startCrawl, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
-  abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, chooseOmen, omensTaken, setOut, ABYSS_LAYER, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
+  abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, chooseOmen, chooseSkill, omensTaken, setOut, ABYSS_LAYER, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { layerFloors } from "../game/grid";
@@ -118,7 +119,7 @@ let menuOpen = false;
 /** The current-bounty popup. */
 let bountyOpen = false;
 /** Which Inventory tab is open. */
-type BagTab = "gear" | "stats" | "relics" | "talents" | "extras" | "attrs";
+type BagTab = "gear" | "stats" | "relics" | "talents" | "extras" | "attrs" | "magik";
 let bagTab: BagTab = "gear";
 let talentSub: "talents" | "curses" = "talents";
 let spoilsSub: "relics" | "artefacts" = "relics";
@@ -523,7 +524,8 @@ function tarotPanel(compact = false) {
   return `<p class="sub center">Carry up to ${TAROT_SLOTS} into a normal run (${eq.length}/${TAROT_SLOTS}). From level II, a card can be Reversed: twice the boon, twice the bane.</p>
     <div class="tarot-grid ${compact ? "compact" : ""}">${owned.map(t => tarotCard(t.id, meta.tarot![t.id]!, eq.find(e => e.id === t.id))).join("")}</div>`;
 }
-function tarotCard(id: string, lvl: number, slot?: { rev?: boolean }, offer = false) {
+const tarotCardView = (id: string, lvl: number, rev?: boolean) => tarotCard(id, lvl, { rev }, false, true);
+function tarotCard(id: string, lvl: number, slot?: { rev?: boolean }, offer = false, view = false) {
   const t = TAROT_MAP.get(id)!;
   const s = { id, lvl, rev: slot?.rev };
   const m = boonOf(s), n = baneOf(s);
@@ -534,8 +536,26 @@ function tarotCard(id: string, lvl: number, slot?: { rev?: boolean }, offer = fa
     <b class="tc-name">${esc(t.name)}${slot?.rev ? " <i>(Reversed)</i>" : ""}</b>
     <p class="tc-boon">✦ ${esc(t.boon(m))}</p>
     <p class="tc-bane">✖ ${esc(t.bane(n))}${t.heat ? ` · 🔥+${t.heat * (slot?.rev ? 2 : 1)} Heat` : ""}</p>
-    ${offer ? `<button class="small primary" data-tarottake="${id}">${owned ? `Level up to ${"I".repeat(Math.min(TAROT_MAX_LEVEL, owned + 1))}` : "Take this card"}</button>`
+    ${view ? "" : offer ? `<button class="small primary" data-tarottake="${id}">${owned ? `Level up to ${"I".repeat(Math.min(TAROT_MAX_LEVEL, owned + 1))}` : "Take this card"}</button>`
       : `<div class="tc-btns"><button class="small ${slot ? "primary" : ""}" data-tarotequip="${id}">${slot ? "✔ Carrying" : "Carry"}</button>${lvl >= REVERSE_LEVEL && !t.noReverse && slot ? `<button class="small" data-tarotflip="${id}">${slot.rev ? "Upright" : "Reverse"}</button>` : ""}</div>`}
+  </div>`;
+}
+/** The Camp's Tarot Room: all 21 cards under a night sky, the ones you hold face up. */
+function tarotRoom() {
+  const eq = carriedTarot(meta);
+  const owned = TAROT.filter(t => (meta.tarot?.[t.id] ?? 0) > 0).length;
+  const cards = TAROT.map(t => {
+    const lvl = meta.tarot?.[t.id] ?? 0;
+    return lvl ? tarotCard(t.id, lvl, eq.find(e => e.id === t.id))
+      : `<div class="tarot-card locked"><div class="tc-top"><span class="tc-num">${t.num}</span><span>🔒</span></div><div class="tc-art">✶</div><b class="tc-name">${esc(t.name)}</b><p class="tc-lock">Locked</p></div>`;
+  }).join("");
+  return `<div class="tree-screen tarot-room">
+    <div class="ts-bar"><b>🃏 The Tarot Room</b><span class="ts-pts"><b>${owned}</b>/${TAROT.length} cards · carrying <b>${eq.length}</b>/${TAROT_SLOTS}${abyssUnlocked(meta) ? "" : " · the Abyss opens once you beat the dungeon's last layer"}</span><button class="plank-btn small" data-closeroom>Back to the Camp</button></div>
+    <div class="ts-scroll"><div class="ts-sky tr-sky">
+      <p class="tr-note">Locked cards come from the Abyss, one for every clear. Carry up to ${TAROT_SLOTS} into a normal run. From level II, a carried card can be Reversed: twice the boon, twice the bane.</p>
+      ${tarotOfferPanel()}
+      <div class="tarot-grid">${cards}</div>
+    </div></div>
   </div>`;
 }
 /** An Abyss clear's reward, waiting: pick one. */
@@ -844,10 +864,10 @@ function merchantScreen(r: Run, msg: string[], bad: boolean) {
 /** The Camp's tabs, as stone archways in a row (it scrolls sideways on a phone). */
 const CAMP_TABS: { id: CampTab; icon: string; name: string }[] = [
   { id: "expedition", icon: "🗺️", name: "Enter Dungeon" }, { id: "quests", icon: "📋", name: "Quest Board" }, { id: "hall", icon: "🏛️", name: "Hall" },
-  { id: "skills", icon: "✨", name: "Skills" }, { id: "garden", icon: "🌱", name: "Garden" }, { id: "brewery", icon: "⚗️", name: "Brewery" },
+  { id: "skills", icon: "🧭", name: "Paths" }, { id: "garden", icon: "🌱", name: "Garden" }, { id: "brewery", icon: "⚗️", name: "Brewery" },
   { id: "knowledge", icon: "📚", name: "Knowledge" }, { id: "tree", icon: "🌳", name: "Passive Tree" }, { id: "weapons", icon: "⚔️", name: "Weapon Mastery" },
   { id: "pond", icon: "🎣", name: "Still Pool" }, { id: "trophies", icon: "🏆", name: "Trophy Room" }, { id: "bestiary", icon: "📖", name: "Bestiary" },
-  { id: "abyss", icon: "🕳️", name: "The Abyss" }
+  { id: "abyss", icon: "🕳️", name: "The Abyss" }, { id: "tarot", icon: "🃏", name: "Tarot Room" }
 ];
 
 /** One Camp option's content (it sits inside that option's archway). */
@@ -879,17 +899,22 @@ function campBody(o: OriginId, tab: CampTab): string {
       <p class="sub">🏅 Abyss cleared ${meta.abyssWins ?? 0}× · 🃏 ${Object.keys(meta.tarot ?? {}).length}/${TAROT.length} Tarot cards. Each clear gives one (a new card, or a level for one you hold).</p>
       ${tarotOfferPanel()}
       <button class="primary camp-go" data-campabyss>🕳️ Enter the Abyss</button>
-      <h3 class="center">Your Tarot</h3>${tarotPanel(true)}`;
+      <p class="sub center">Your cards wait in the Camp's Tarot Room, where you choose which to carry.</p>`;
   }
   if (tab === "skills") {
     const won = meta.layersBeaten?.[o] ?? 0;
-    const pick = meta.skillPick?.[o] ?? CLASS_SKILLS[o][0].id;
-    return `<p>The ${og.name}'s abilities. You take one into each run: pick it here. The second opens once the ${og.name} has beaten the 1st Layer, the third after the 3rd.</p>
-      <p class="sub">Layers beaten: ${won}</p>
-      <div class="hall-list">${CLASS_SKILLS[o].map(k => {
-        const open = won >= skillLayers(k), on = pick === k.id;
-        return `<div class="hall-up skill ${on ? "done" : ""} ${open ? "" : "locked"}"><span class="hu-ic">${open ? k.icon : "🔒"}</span><span class="hu-txt"><b>${esc(k.name)}</b><span>${esc(k.text)}. Costs 🔷1.</span></span>
-          ${on ? `<span class="hu-done">✔ Taking it</span>` : open ? `<button class="hu-buy" data-skillpick="${k.id}">Take this</button>` : `<span class="hu-lock">Beat the ${ordinal(skillLayers(k))} Layer</span>`}</div>`;
+    const pick = chosenPath(meta, o);
+    return `<p>Two ways to play the ${og.name}. Your path is passive: something gained and something given up. It also decides the skills you can choose from when you reach level ${SKILL_LEVEL} in a run.</p>
+      <div class="path-list">${pathsOf(o).map((p, i) => {
+        const open = i === 0 || won >= 1, on = pick === p.id;
+        return `<div class="path-card ${on ? "on" : ""} ${open ? "" : "locked"}">
+          <div class="pc-head"><span class="pc-ic">${open ? p.icon : "🔒"}</span><b>The ${esc(p.name)}</b>${on ? `<span class="pc-on">✔ Your path</span>` : ""}</div>
+          <p class="pc-pitch">${esc(p.pitch)}</p>
+          <ul class="pc-gain">${p.gain.map(g => `<li>✦ ${esc(g)}</li>`).join("")}</ul>
+          <ul class="pc-lose">${p.lose.map(g => `<li>✖ ${esc(g)}</li>`).join("")}</ul>
+          <p class="pc-skills"><b>Level ${SKILL_LEVEL} skills:</b> ${p.skills.map(k => `${esc(ACTION_INFO[k as Action].label({ mana: 3, damage: 0, flags: {} } as never))}`).join(" or ")}</p>
+          ${on ? "" : open ? `<button class="primary small" data-pathpick="${p.id}">Walk this path</button>` : `<p class="sub">Beat the 1st Layer with the ${og.name} to open it.</p>`}
+        </div>`;
       }).join("")}</div>`;
   }
   if (tab === "garden") {
@@ -1181,7 +1206,7 @@ function campScreen(o: OriginId) {
     ${note && !room ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
     <div class="camp-map"><canvas id="campcv"></canvas></div>
   </div></div>
-  ${room?.id === "tree" ? treeScreen(o) : room?.id === "expedition" ? expeditionScreen(o) : room ? `<div class="cb-screen grit-screen camp-room"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${esc(room.name)}</div></div>
+  ${room?.id === "tree" ? treeScreen(o) : room?.id === "tarot" ? tarotRoom() : room?.id === "expedition" ? expeditionScreen(o) : room ? `<div class="cb-screen grit-screen camp-room"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${esc(room.name)}</div></div>
     ${note ? `<div class="toast ${noteBad ? "err" : ""}">${esc(note)}</div>` : ""}
     <div class="grit-body camp-room-body">${campBody(o, room.id)}</div>
     <button class="mer-leave plank-btn" data-closeroom>Back to the Camp</button></div></div>` : ""}`;
@@ -1677,7 +1702,7 @@ function crawlOver(r: Run) {
     ${endStats(r)}
     ${recorded?.achievements.length ? `<div class="end-box">${recorded.achievements.map(id => { const a = ACHIEVEMENTS.find(x => x.id === id)!; return `<p>🏆 <b>${esc(a.name)}</b>: ${esc(a.text)}${a.title ? ` <span class="sub">(title “${esc(a.title)}”)</span>` : ""}</p>`; }).join("")}</div>` : ""}
     ${r.bounties?.length ? `<div class="end-box bounty-box"><p>🏅 <b>Heat bounties</b> for the ${esc(ORIGINS[h.origin].name)}: ${r.bounties.map(b => `Heat ${b.heat} (👑 ${b.crowns}${b.scrolls ? " · 📜 1" : ""})`).join(", ")}. Sent to the Camp.</p></div>` : ""}
-    ${r.mode === "abyss" && won ? tarotOfferPanel() || `<p class="end-line">🃏 Your card is in the Camp's Abyss room.</p>` : ""}
+    ${r.mode === "abyss" && won ? tarotOfferPanel() || `<p class="end-line">🃏 Your card is in the Camp's Tarot Room.</p>` : ""}
     ${(() => { const lb = runStatsPanel(r).replace(/<div class="lb-stats">[\s\S]*?<\/div>/, "").trim(); return lb ? `<div class="end-box lb-box">${lb}</div>` : ""; })()}
     <p class="end-sub">What you carried at the end</p>
     <div class="end-gear">${gear.map(it => `<span class="eg-chip" style="--ink:${RARITY_INK[it.rarity] ?? "#e9d6b0"}"><b>${esc(itemName(it))}</b><i>${esc(it.rarity)} · ${esc(equippedSlot(r, it))}</i></span>`).join("")}</div>
@@ -1970,6 +1995,7 @@ function tabSigs(r: Run): Record<BagTab, string> {
   return {
     gear: `${h.backpack.map(i => i.uid).sort((a, b) => a - b).join(",")}|${(h.sigilBag ?? []).map(x => x.uid).join(",")}`,
     stats: "",
+    magik: (h.tarot ?? []).map(t => t.id).join(",") + Object.keys(h.omens ?? {}).join(","),
     attrs: String(h.attrPoints ?? 0),
     relics: `${ks(h.relics)}|${h.crucible ? 1 : 0}`,
     talents: `${ks(h.talents)}|${ks(h.curses)}`,
@@ -2159,50 +2185,77 @@ function crawlBag(r: Run) {
       ${curses ? `<div class="inv-curses">${curses}</div>` : ""}
     </div>`;
   const pts = h.attrPoints ?? 0;
-  const tabs: [BagTab, string][] = [["gear", "⚔️ Gear"], ["attrs", "📈 Attributes"], ["extras", "⚗️ Artefacts"]];
+  const tabs: [BagTab, string][] = [["gear", "⚔️ Gear"], ["attrs", "📈 Attributes"], ["magik", "🃏 Magik"], ["extras", "⚗️ Artefacts"]];
   if (bagTab === "stats" || bagTab === "talents" || bagTab === "relics") bagTab = "gear";
   let body = "";
   if (bagTab === "gear") {
-    const picked = invPick?.k === "eq" ? h.equip[invPick.slot] : invPick?.k === "bp" ? h.backpack.find(i => i.uid === (invPick as { uid: number }).uid) : undefined;
-    const slots = openSlots(h).map(sl => { const it = h.equip[sl]; const on = invPick?.k === "eq" && invPick.slot === sl;
+    const eqSlot = invPick?.k === "eq" ? invPick.slot : undefined, picked = eqSlot ? h.equip[eqSlot] : undefined;
+    const slots = openSlots(h).map(sl => { const it = h.equip[sl]; const on = eqSlot === sl;
       return `<button class="inv-slot ${it ? `r-${it.rarity}` : "empty"} ${on ? "on" : ""}" data-invpick="eq:${sl}"><span>${SLOT_SHORT[sl]}</span><b>${it ? esc(itemName(it)) : "Empty"}</b></button>`; }).join("");
-    const detail = !picked ? `<div class="inv-empty"><span>🔍</span><p>Tap an item to see it here.</p></div>`
-      : invPick?.k === "eq" ? itemCard(picked, inCombat ? "" : `<button class="small" data-unequip="${(invPick as { slot: EquipSlot }).slot}">Take it off</button>${revealBtn(r, picked)}`)
-      : itemCard(picked, inCombat ? "" : `${slotsFor(picked, h).map(sl => `<button class="small primary" data-equip="${picked.uid}" data-slot="${sl}" ${picked.reqLevel && h.level < picked.reqLevel ? "disabled" : ""}>Equip${slotsFor(picked, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, picked)}`, !inCombat);
+    // Tapping something you wear opens it on its own; the backpack below shows every item in full.
+    const eqPop = picked && eqSlot ? `<div class="overlay popup-wrap inv-eqpop" data-invclose><div class="inv-detail">${itemCard(picked, inCombat ? "" : `<button class="small" data-unequip="${eqSlot}">Take it off</button>${revealBtn(r, picked)}`)}<button class="small closebtn inv-eqx" data-invclose>Close</button></div></div>` : "";
     // Materials and scrolls sit in the backpack too (they take no slot).
     const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.orilium ?? 0, "🔶 Orilium"], [h.starmetal, "✴️ Starmetal"], [h.scrolls, "📜 Scroll of Revelation"], [h.f.persist["skelKeys"] ?? 0, "🗝️ Skeleton Key"], ...THROWS.map(t => [h.f.persist[THROW_INFO[t].key] ?? 0, `${THROW_INFO[t].icon} ${THROW_INFO[t].name}`])].filter(([n]) => (n as number) > 0)
       .map(([n, l]) => `<span class="mer-chip mat"><b>${l}</b><span>×${n}</span></span>`).join("");
-    const pack = mats + h.backpack.map(it => `<button class="mer-chip ${invPick?.k === "bp" && invPick.uid === it.uid ? "on" : ""}" data-invpick="bp:${it.uid}"><b style="color:${RARITY_INK[it.rarity] ?? "#e9d6b0"}">${esc(itemName(it))}</b><span>${esc(itemRarity(it))}${it.reqLevel && h.level < it.reqLevel ? ` · 🔒 Lv ${it.reqLevel}` : ""}</span></button>`).join("");
+    const cards = h.backpack.map(it => `<div class="inv-card">${itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(sl => `<button class="small primary" data-equip="${it.uid}" data-slot="${sl}" ${it.reqLevel && h.level < it.reqLevel ? "disabled" : ""}>Equip${slotsFor(it, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, it)}`, !inCombat)}</div>`).join("");
     const hk = CLASS_SPRITE[h.origin];
     body = `${inCombat ? `<p class="sub center">You can look, but you can't change gear mid-fight.</p>` : ""}
       <div class="inv-main">
         <div class="inv-slots">${slots}</div>
         <div class="inv-hero">${hk && hasSprite(hk) ? spriteHtml(hk, 6) : `<span class="inv-emoji">${ORIGIN_ICON[h.origin]}</span>`}<b>${esc(ORIGINS[h.origin].name)}</b></div>
-        <div class="inv-detail">${detail}</div>
       </div>
-      <div class="mer-panel inv-pack"><div class="mer-label">Backpack ${h.backpack.length}/${packSize(h)}</div><div class="mer-list">${pack || `<span class="mer-none">Empty.</span>`}</div></div>`;
+      <div class="mer-panel inv-pack"><div class="mer-label">Backpack ${h.backpack.length}/${packSize(h)}</div>${mats ? `<div class="inv-mats">${mats}</div>` : ""}
+        <div class="inv-cards">${cards || `<span class="mer-none">No gear in your pack.</span>`}</div></div>${eqPop}`;
   } else if (bagTab === "attrs") {
     const baseA = BASE_ATTR[h.origin as keyof typeof BASE_ATTR];
     const rows = ATTRS.map(a => {
-      const info = ATTR_INFO[a], spent = h.attrs?.[a] ?? 0, tree = treeAttr(h, a), gear = gearAttr(h, a), n = spent + tree + gear, isFav = baseA === a;
-      // (The class attribute's base Damage shows in your ⚔️ Damage.)
-      const dmgLine = (k: number) => (isFav ? [`+${Math.floor(k / BASE_DMG_PER)} base Damage (1 for every ${BASE_DMG_PER} points)`] : []);
-      const now = [...dmgLine(n), ...shownLines(info.lines(attrPower(n)))];
-      const next = [...dmgLine(n + 1), ...shownLines(info.lines(attrPower(n + 1)))];
-      const lines = now.map((l, i) => `<li class="${l !== next[i] ? "grows" : ""}"><span>${esc(l)}</span>${l !== next[i] && pts ? `<i>→ ${esc(/[+−-]?\d+%?/.exec(next[i])?.[0] ?? next[i])}</i>` : ""}</li>`).join("");
-      return `<div class="attr-row ${n ? "has" : ""}">
-        <div class="attr-head"><span class="attr-ic">${info.icon}</span><b>${info.name}</b>${isFav ? `<span class="attr-fav" title="Your class's base attribute: every ${BASE_DMG_PER} points also add +1 to your ⚔️ Damage">★ ${esc(ORIGINS[h.origin].name)}</span>` : ""}<span class="grow"></span><span class="attr-n">${n}${gear ? `<em title="From your gear">+${gear} 🛡️</em>` : ""}${tree ? `<em title="From the passive tree">+${tree} 🌳</em>` : ""}</span>
-          <button class="attr-plus" data-attr="${a}" ${pts && spent < ATTR_MAX && !inCombat ? "" : "disabled"} aria-label="Put a point into ${info.name}">+</button></div>
-        <p class="attr-blurb">${esc(info.blurb)}</p><ul class="attr-lines">${lines}</ul></div>`;
+      const info = ATTR_INFO[a], spent = h.attrs?.[a] ?? 0, n = spent + treeAttr(h, a) + gearAttr(h, a);
+      return `<div class="at-row"><span class="at-ic">${info.icon}</span><button class="at-name" data-attrinfo="${a}">${info.name}${baseA === a ? " <i>★</i>" : ""}</button>
+        <span class="at-n">${n}</span><button class="at-plus" data-attr="${a}" ${pts && spent < ATTR_MAX && !inCombat ? "" : "disabled"} aria-label="Put a point into ${info.name}">+</button></div>`;
     }).join("");
-    body = `<div class="attr-top">${pts ? `<b>${pts}</b> point${pts === 1 ? "" : "s"} to spend` : `No points to spend. Each level-up gives ${ATTR_PER_LEVEL}.`}</div><div class="attr-list">${rows}</div>`;
-  } else body = crawlArtefacts(r);
+    body = `<div class="at-sheet"><div class="at-top">${pts ? `<b>${pts}</b> point${pts === 1 ? "" : "s"} to spend` : `No points to spend · each level-up gives ${ATTR_PER_LEVEL}`}</div>
+      <div class="at-list">${rows}</div>
+      <p class="at-hint">Tap an attribute's name to see what it gives.</p>
+      ${skillSection(r)}</div>`;
+  } else if (bagTab === "magik") body = magikTab(r);
+  else body = crawlArtefacts(r);
   return `<div class="cb-screen inv-screen"><div class="mer-inner inv-inner">
     ${top}
     <div class="inv-body">${body}</div>
-    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}"><i>${label.split(" ")[0]}${id === "attrs" && pts ? `<b class="tab-badge">${pts}</b>` : ""}</i><span>${id === "attrs" ? `<span class="lb-long">Attributes</span><span class="lb-short">Attr</span>` : label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
-  </div></div>`;
+    <div class="mer-tabs inv-tabs">${tabs.map(([id, label]) => `<button class="${bagTab === id ? "on" : ""}" data-bagtab="${id}" title="${label.split(" ").slice(1).join(" ")}" aria-label="${label.split(" ").slice(1).join(" ")}"><i>${label.split(" ")[0]}${id === "attrs" && (pts || (h.path && !h.skill && h.level >= SKILL_LEVEL)) ? `<b class="tab-badge">${pts || "!"}</b>` : ""}</i><span>${label.split(" ").slice(1).join(" ")}</span></button>`).join("")}</div>
+  </div></div>${attrPopup(r)}`;
 }
+
+/** The attribute popup (tap a name in the Attributes tab): what it gives now, and with one more point. */
+let attrInfo: string | null = null;
+function attrPopup(r: Run) {
+  if (!attrInfo) return "";
+  const h = r.hero, a = attrInfo as (typeof ATTRS)[number], info = ATTR_INFO[a];
+  const n = (h.attrs?.[a] ?? 0) + treeAttr(h, a) + gearAttr(h, a);
+  const now = shownLines(info.lines(attrPower(n))), next = shownLines(info.lines(attrPower(n + 1)));
+  const base = BASE_ATTR[h.origin as keyof typeof BASE_ATTR] === a;
+  return `<div class="overlay popup-wrap" data-attrinfo=""><div class="popup at-pop"><button class="small closex closebtn" data-attrinfo="" aria-label="Close">✕</button>
+    <h2 class="center">${info.icon} ${info.name} <span class="at-pop-n">${n}</span></h2><p class="center">${esc(info.blurb)}</p>
+    <ul class="at-pop-lines">${now.map((l, i) => `<li>${esc(l)}${l !== next[i] ? ` <i>→ ${esc(/[+−-]?\d+(\.\d+)?%?/.exec(next[i])?.[0] ?? next[i])}</i>` : ""}</li>`).join("")}</ul>
+    ${base ? `<p class="sub center">★ The ${esc(ORIGINS[h.origin].name)}'s own attribute: it also strengthens your base Damage, by itself.</p>` : ""}</div></div>`;
+}
+/** Your path's skill: chosen at level 5, from the two your path offers. */
+function skillSection(r: Run) {
+  const h = r.hero, p = h.path ? PATH_MAP.get(h.path) : undefined;
+  if (!p) return "";
+  const card = (id: string, pick: boolean) => `<div class="sk-card ${h.skill === id ? "on" : ""}"><b>${esc(ACTION_INFO[id as Action].label(h.f))}</b><span>${esc(ACTION_INFO[id as Action].tip)}</span>
+    ${pick ? `<button class="at-choose" data-chooseskill="${id}">Choose</button>` : ""}</div>`;
+  const head = `<div class="sk-head"><span>${p.icon}</span><b>The ${esc(p.name)}</b><span class="sk-sub">${h.skill ? "Your skill" : h.level >= SKILL_LEVEL ? "Choose your skill" : `Your skill comes at level ${SKILL_LEVEL}`}</span></div>`;
+  if (h.skill) return `<div class="sk-sec">${head}${card(h.skill, false)}</div>`;
+  return `<div class="sk-sec ${h.level >= SKILL_LEVEL ? "" : "dim"}">${head}<div class="sk-cards">${p.skills.map(id => card(id, h.level >= SKILL_LEVEL)).join("")}</div></div>`;
+}
+/** The Magik tab: the Tarot cards you carry this run. */
+function magikTab(r: Run) {
+  const h = r.hero, cards = h.tarot ?? [];
+  if (!cards.length) return `<p class="sub center">${r.mode === "abyss" ? "No Tarot in the Abyss: its Omens are your magik down here." : "You carry no Tarot cards this run. They come from the Abyss; carry two from the Camp's Tarot room."}</p>${omenList(r)}`;
+  return `<div class="tarot-grid">${cards.map(c => tarotCardView(c.id, c.lvl, c.rev)).join("")}</div>${omenList(r)}`;
+}
+const omenList = (r: Run) => Object.keys(r.hero.omens ?? {}).length ? `<h3 class="center">👁️ Omens</h3><div class="af-list">${Object.entries(r.hero.omens!).map(([id, n]) => { const o = OMEN_MAP.get(id)!; return `<div class="af-tile"><span class="af-ic">${o.icon}</span><div class="af-txt"><b>${esc(o.name)}${n > 1 ? ` <em>×${n}</em>` : ""}</b><span>✦ ${esc(o.boon)} · ✖ ${esc(o.bane)}</span></div></div>`; }).join("")}</div>` : "";
 
 /** The Crawl's Artefacts tab: what you carry besides gear, any Blessings on you, and your curses. */
 function crawlArtefacts(r: Run) {
@@ -2590,7 +2643,7 @@ function masteryPanel(_o: OriginId) {
 let kitPick: KitSlot | null = null;
 /** The Camp: the hero you've brought there, the tab open, and the contract taken at its Quest Board. */
 let camp: OriginId | null = null;
-type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "tree" | "weapons" | "abyss" | "trophies" | "bestiary" | "pond";
+type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "tree" | "weapons" | "abyss" | "trophies" | "bestiary" | "pond" | "tarot";
 let campTab: CampTab = "expedition";
 let campOffers: Bounty[] | null = null;
 let campQuest: number | null = null;
@@ -2758,6 +2811,22 @@ const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }
   warcry: { label: () => "War Cry", tip: "Costs 1 Mana. Uses your turn: gain a lot of Might (more with Strength; half as much for each cry after the first this fight), and leave the enemy Weak and Exposed." },
   flee: { label: p => (p.flags["smoke"] ? "Flee 💨" : "Flee"), tip: "Leave the fight (not Elites or bosses). The foe gets a free hit as you go, unless smoke covers you. It stays where it was, and its wounds close." },
   crush: { label: () => "Crushing Blow", tip: "Costs 1 Mana. Attack for 60% more damage and Fracture the foe." },
+  bastion: { label: () => "Bastion", tip: "Costs 1 Mana. Guard this round, gain 3 Reinforced, and Spikes equal to half your Armor." },
+  shieldslam: { label: () => "Shield Slam", tip: "Costs 1 Mana. Slam the foe for your Damage plus your Armor, straight through its Armor, and Stun it." },
+  rampage: { label: () => "Rampage", tip: "Costs 1 Mana and a tenth of your HP. Strike twice." },
+  bloodlust: { label: () => "Bloodlust", tip: "Costs 1 Mana. Gain 2 Might, plus 2 more for every tenth of your HP that's missing, and Haste." },
+  feint: { label: () => "Feint", tip: "Costs 1 Mana. Evade the next blow, leave the foe Exposed, and your next attack deals 50% more." },
+  flurry: { label: () => "Flurry", tip: "Costs 1 Mana. Three quick strikes, each at half damage." },
+  ambush: { label: () => "Ambush", tip: "Costs 1 Mana. Strike for double damage (triple in a fight's first round)." },
+  toxicburst: { label: () => "Toxic Burst", tip: "Costs 1 Mana. The foe's Poison and Bleed burst for one and a half times their stacks, straight through Armor (they stay), and it's Poisoned 2 more." },
+  cataclysm: { label: () => "Cataclysm", tip: "Costs 1 Mana. Every Burn, Poison, Bleed, Chill, Shock and Static on the foe erupts at once, for one and a half times its stacks." },
+  prismbolt: { label: () => "Prism Bolt", tip: "Costs 1 Mana. Burn 2, Chill 2 and Shock 1 on the foe at once (and the reactions that follow)." },
+  manalance: { label: p => `Mana Lance (${(p.damage ?? 0) + 4 * Math.max(0, (p.mana ?? 1) - 1) + 2})`, tip: "Costs 1 Mana. Damage plus 4 for every Mana you have left after it (plus 2), straight through Armor." },
+  arcaneaegis: { label: () => "Arcane Aegis", tip: "Costs 1 Mana. Gain Barrier: 4, plus 3 for every Mana you have left after it." },
+  atonement: { label: () => "Atonement", tip: "Costs 1 Mana and 15% of your Max HP. The foe takes twice that, straight through Armor." },
+  martyrdom: { label: () => "Martyrdom", tip: "Costs 1 Mana. Guard this round, and every blow you take this round comes straight back at the one who struck it." },
+  consecrate: { label: () => "Consecrate", tip: "Costs 1 Mana. Gain 5 Regen, and Burn the foe 3 (6 if it's Unholy)." },
+  judgment: { label: () => "Judgment", tip: "Costs 1 Mana. Strike for 60% more (double against Unholy foes), and heal 10% of your Max HP." },
   shieldwall: { label: () => "Shield Wall", tip: "Costs 1 Mana. Guard this round (no shield needed) and gain Barrier of twice your Armor." },
   envenom: { label: () => "Envenom", tip: "Costs 1 Mana. Poison the foe (more on deeper layers), then attack." },
   smokebomb: { label: () => "Smoke Bomb", tip: "Costs 1 Mana. Uses your turn: Evade the next 2 hits and Blind the foe for 2 rounds." },
@@ -3313,6 +3382,8 @@ function bind() {
       mode = "campaign"; lbResult = null; lbNaming = false; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
       const nr = newDailyRun(today); // (no Ruin Gems or Camp upgrades: the Daily stays a level field)
       startCrawl(nr);
+      // A Daily walks its class's first path (a level field).
+      nr.hero.path = pathsOf(nr.hero.origin)[0].id; recompute(nr.hero);
       run = nr; void startSession(nr);
     });
     on("[data-startabyss]", () => { if (pendingOrigin) startAbyss();    });
@@ -3340,7 +3411,7 @@ function bind() {
     on("[data-brew]", el => { const b = startBrew(meta, el.dataset.brew as Plant); if (typeof b === "string") say(b); else { brew = b; saveMeta(meta); } });
     on("[data-stir]", () => { if (!brew) return; stir(meta, brew); sfx(brew.done ? "miss" : "roll"); if (brew.done) saveMeta(meta); });
     on("[data-bottle]", () => { if (!brew) return; bottle(meta, brew); saveMeta(meta); sfx(brew.made ? "chest" : "miss"); });
-    on("[data-skillpick]", el => { if (!camp) return; meta.skillPick = { ...(meta.skillPick ?? {}), [camp]: el.dataset.skillpick! }; saveMeta(meta); sfx("status"); });
+    on("[data-pathpick]", el => { if (!camp) return; meta.path = { ...(meta.path ?? {}), [camp]: el.dataset.pathpick! }; saveMeta(meta); sfx("status"); });
     on("[data-node]", el => { if (!camp) return; const err = spendNode(meta, camp, el.dataset.node!); if (err) say(err); else { saveMeta(meta); sfx("equip"); } });
     on("[data-nodeinfo]", el => { treeNode = el.dataset.nodeinfo!; });
     on("[data-closenode]", () => { treeNode = null; });
@@ -3362,6 +3433,7 @@ function bind() {
       applyHall(meta, nr);
       beginAtLayer(nr, ABYSS_LAYER);
       setOut(nr, {}, []);
+      nr.hero.path = chosenPath(meta, o); recompute(nr.hero);
       run = nr; void startSession(nr);
     }
     function startCampaign() { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; recompute(nr.hero); nr.legendaryDue = (meta.dryRuns ?? 0) >= 4;
@@ -3374,8 +3446,8 @@ function bind() {
       // The Heat pact and the Tarot cards carried (once the dungeon has been beaten, and once there are cards).
       setOut(nr, meta.wins ? meta.pact ?? {} : {}, carriedTarot(meta));
       // The ability picked at the Camp's Skills (if it's still open to this class).
-      const sk = meta.skillPick?.[o];
-      if (sk && CLASS_SKILLS[o].some(k => k.id === sk && (meta.layersBeaten?.[o] ?? 0) >= skillLayers(k)) && sk !== CLASS_SKILLS[o][0].id) nr.hero.skill = sk;
+      // The class path chosen at the Camp (passive; it sets the skills on offer at level 5).
+      nr.hero.path = chosenPath(meta, o); recompute(nr.hero);
       // A contract taken at the Camp's Quest Board comes along.
       const q = campQuest !== null ? campOffers?.[campQuest] : undefined;
       if (q) nr.bounty = { ...q, base: 0, roomsLeft: q.roomsLeft * CAMP_QUEST_ROOMS };
@@ -3451,6 +3523,8 @@ function bind() {
     }
   });
   on("[data-claim]", () => say(claimResplendent(r)));
+  on("[data-attrinfo]", el => { attrInfo = el.dataset.attrinfo || null; });
+  on("[data-chooseskill]", el => { const err = chooseSkill(r, el.dataset.chooseskill!); say(err); if (!err) sfx("legendary"); });
   on("[data-omen]", el => { chooseOmen(r, el.dataset.omen || null); sfx(el.dataset.omen ? "reaction" : "click"); });
   on("[data-ready]", el => { if (r.scene.t === "combat" && !busy) readyThrow(r.scene.battle, el.dataset.ready as Throw); });
   on("[data-mana]", () => { const n = r.hero.manaPotions ?? 0; say(drinkMana(r)); if ((r.hero.manaPotions ?? 0) < n) sfx("drink"); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
@@ -3479,6 +3553,7 @@ function bind() {
   on("[data-potdrawer]", () => { potDrawer = !potDrawer; });
   on("[data-revealpick]", el => { revealSel = Number(el.dataset.revealpick); });
   on("[data-revealgo]", () => { if (revealSel === null) return; const err = reveal(r.hero, revealSel); say(err ?? "The Legendary reveals its true power!", !!err); if (!err) { revealSel = null; celebrate("legendary", "REVEALED"); } });
+  app.querySelectorAll<HTMLElement>("[data-invclose]").forEach(el => (el.onclick = ev => { if (ev.target !== el) return; ev.stopPropagation(); invPick = null; render(); }));
   on("[data-invpick]", el => { const [k, v] = el.dataset.invpick!.split(":"); invPick = k === "eq" ? { k: "eq", slot: v as EquipSlot } : { k: "bp", uid: Number(v) }; });
   on("[data-mpick]", el => { const [k, v] = el.dataset.mpick!.split(":"); merPick = k === "s" ? { k: "stock", i: Number(v) } : { k: "own", uid: Number(v) }; sellArmed = null; });
   on("[data-minv]", el => { merInv = el.dataset.minv as typeof merInv; merPick = merPick?.k === "own" ? null : merPick; sellArmed = null; });

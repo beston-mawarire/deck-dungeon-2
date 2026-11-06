@@ -1,3 +1,4 @@
+import { PATH_MAP, SKILL_LEVEL } from "../data/classpaths";
 // A run: three floors of path choices, fights, chests, shops, forges and bosses.
 import { drawWeight } from "../data/minors";
 import { relicBonus } from "../data/basic_relics";
@@ -22,7 +23,7 @@ import { generate, genName, setGenLuck } from "./gen";
 import { GEN_MINORS } from "../data/genparts";
 import { SIGIL_SETS } from "../data/talisman";
 const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
-import { bossOdds, crawlTables, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
+import { bossOdds, chestFloorOdds, crawlTables, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 import { affixById, rescaleAffixes } from "./affixpool";
 import { MATS, matOfFamily, PLANTS, type Mat, type Plant } from "./camp";
 import { ATTR_PER_LEVEL, PER } from "../data/attributes";
@@ -75,6 +76,12 @@ export const ABYSS_FLOORS = 10;
 export const depth = (run: { mode: Mode; floor: number }) => run.floor;
 /** The floor the loot odds use (the Abyss counts as at least floor 3). */
 const luckFloor = (run: Run) => run.floor;
+/** A chest's odds in the Crawl: never below the dungeon's floor-by-floor Epic and Legendary chances. */
+const chestOdds = (run: Run, odds: Partial<Record<Rarity, number>>) => {
+  if (!run.gridMode) return odds;
+  const g = (Math.min(FLOORS, run.floor) - 1) * LAYER_FLOORS + Math.max(1, run.grid?.depth ?? 1);
+  return chestFloorOdds(odds, (g - 1) / (FLOORS * LAYER_FLOORS - 1));
+};
 /** A Heat condition's rank in this run (none in the Abyss or a Daily). */
 export const pactRank = (run: Run, id: string) => (run.mode === "abyss" || run.daily ? 0 : Math.min(PACT_MAP.get(id)?.max ?? 0, run.hero.pact?.[id] ?? 0));
 /** A dropped item: heat, the hidden ladders and the floor's Fortune, then the ladders climb or reset with what came out. */
@@ -921,6 +928,17 @@ export function startCrawl(run: Run) {
   run.choices = [];
 }
 
+/** Choose your path's skill (from level 5): one of the two it offers, for the rest of the run. */
+export function chooseSkill(run: Run, id: string): string | null {
+  const h = run.hero, p = h.path ? PATH_MAP.get(h.path) : undefined;
+  if (!p) return "You walk no path.";
+  if (h.skill) return "You've already chosen your skill.";
+  if (h.level < SKILL_LEVEL) return `Reach level ${SKILL_LEVEL} first.`;
+  if (!p.skills.includes(id)) return "That isn't one of your path's skills.";
+  h.skill = id;
+  return null;
+}
+
 /** Landing on an Abyss floor: three Omens on offer (accept one, or refuse them all). */
 export function offerOmens(run: Run) {
   if (run.mode !== "abyss") return;
@@ -1269,7 +1287,7 @@ function enterRoom(run: Run, room: RoomType) {
       setGenLuck(genLuck(run));
       // The Crawl: a chest holds one item and nothing else.
       const sg = run.gridMode ? null : rollSigilDrop(run, 0.06, 0.1);
-      const woodOdds = useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden;
+      const woodOdds = chestOdds(run, useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden);
       run.scene = { t: "loot", title: "Wooden Chest", items: [dropItem(run, woodOdds)], gold: run.gridMode ? 0 : (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: !run.gridMode && run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
       return;
     }
@@ -1285,7 +1303,7 @@ function enterRoom(run: Run, room: RoomType) {
         // On a Crawl layer's first floor, a smaller one.
         return fight(run, run.gridMode && run.grid?.depth === 1 && !moon.on ? "normal" : "elite", "mimic");
       }
-      const ironOdds = useClover(run) ? luckyOdds(tables(run).iron) : tables(run).iron;
+      const ironOdds = chestOdds(run, useClover(run) ? luckyOdds(tables(run).iron) : tables(run).iron);
       const items = [dropItem(run, ironOdds)];
       if (key && !run.gridMode) items.push(dropItem(run, ironOdds));
       run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: run.gridMode ? 0 : (5 + run.floor * 2) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: 0, sigils: sg ? [sg] : undefined };
@@ -1524,13 +1542,10 @@ export function availableActions(run: Run): Action[] {
   // Class actions are always offered, even when they'd be wasted (e.g. Counter while Evade already covers the next hit):
   // reading the fight is part of the skill.
   // The ability chosen at the Camp's Skills (one a run); otherwise the class's own.
+  // The path skill chosen at level 5 (none before that).
   if (h.skill) out.push(h.skill as Action);
-  else {
-    if (h.origin === "rogue") out.push("counter");
-    if (h.origin === "mage" && h.f.barrierElement) out.push("barrier");
-    if (h.origin === "cleric") out.push("penance");
-    if (h.origin === "warrior") out.push("warcry");
-  }
+  // Skills your Legendaries grant.
+  for (const it of Object.values(h.equip)) { const g = it ? effectiveBase(it).grants : undefined; if (g && isSkill(g) && !out.includes(g)) out.push(g as Action); }
   // Abilities your gear grants (each one a button of its own, costing Mana like your class's).
   for (const id of Object.keys(h.f.items)) if (id.startsWith("ab_")) { const sk = id.slice(3) as Action; if (isSkill(sk) && !out.includes(sk)) out.push(sk); }
   // Things to throw, when you carry any.
@@ -2057,7 +2072,10 @@ export function gainXp(run: Run, n: number) {
     if (run.gridMode) {
       // A level changes nothing by itself: it's the points you spend that make you stronger.
       h.attrPoints = (h.attrPoints ?? 0) + ATTR_PER_LEVEL;
-      run.popup = { icon: "⭐", title: `Level ${h.level}!`, text: `You have ${h.attrPoints} attribute point${h.attrPoints === 1 ? "" : "s"} to spend. Open your inventory's Attributes tab to put them to use.` };
+      const skillNow = h.level >= SKILL_LEVEL && !h.skill && !!h.path;
+      run.popup = skillNow
+        ? { icon: PATH_MAP.get(h.path!)?.icon ?? "⭐", title: `Level ${h.level}: choose your skill!`, text: `The ${PATH_MAP.get(h.path!)?.name ?? ""} path offers you a skill. Open your inventory's Attributes tab to choose it (and spend your ${h.attrPoints} attribute point${h.attrPoints === 1 ? "" : "s"}).` }
+        : { icon: "⭐", title: `Level ${h.level}!`, text: `You have ${h.attrPoints} attribute point${h.attrPoints === 1 ? "" : "s"} to spend. Open your inventory's Attributes tab to put them to use.` };
     } else run.pendingTalents++;
   }
 }

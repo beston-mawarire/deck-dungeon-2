@@ -112,6 +112,8 @@ export interface Hero {
   heat?: number;
   /** The Heat pact: each condition's rank. */
   pact?: Partial<Record<string, number>>;
+  /** The class path for this run (classpaths.ts). */
+  path?: string;
   /** Tarot cards carried (from the Abyss). */
   tarot?: import("./tarot").TarotSlot[];
   /** The Abyss's Omens accepted (Abyss runs only). */
@@ -344,6 +346,7 @@ export function recompute(h: Hero) {
   if (h.pact?.["dim"]) add("heat_dim", h.pact["dim"]);
   // Tarot cards that work through the fight's own rules.
   for (const t of h.tarot ?? []) if (TAROT_HOOKED.has(t.id)) add(`tarot_${t.id}`, t.rev ? 2 : 1);
+  if (h.path) add(`path_${h.path}`);
   for (const [id, n] of Object.entries(h.omens ?? {})) if (n && (id === "ironwill" || id === "whetstone")) add(`omen_${id}`, n);
   f.items = items;
   // What you're swinging: some foes are weak to blunt, bladed or two-handed weapons.

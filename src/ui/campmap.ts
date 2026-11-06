@@ -5,11 +5,13 @@ import { atlas, CLASS_SPRITE, drawWater, drawSprite, drawTile, hasSprite } from 
 export const CAMP_W = 23, CAMP_H = 25;
 export interface CampSpot { id: string; name: string; tiles: [number, number][]; locked?: boolean }
 /** A firelit hall in the middle, and each of the Camp's options in a little room of its own off it. */
-const ROOMS: { id: string; name: string; cx: number; cy: number; side: "n" | "s" | "w" | "e"; tiles?: [number, number][] }[] = [
+const ROOMS: { id: string; name: string; cx: number; cy: number; side: "n" | "s" | "w" | "e" | "x"; tiles?: [number, number][] }[] = [
   { id: "quests", name: "Quest Board", cx: 7, cy: 2, side: "n" }, { id: "expedition", name: "Enter Dungeon", cx: 11, cy: 2, side: "n" }, { id: "hall", name: "Hall", cx: 15, cy: 2, side: "n" },
-  { id: "skills", name: "Skills", cx: 2, cy: 8, side: "w" }, { id: "garden", name: "Garden", cx: 2, cy: 12, side: "w", tiles: [[1, 12], [2, 12], [3, 12]] }, { id: "trophies", name: "Trophy Room", cx: 2, cy: 16, side: "w" },
+  { id: "skills", name: "Paths", cx: 2, cy: 8, side: "w" }, { id: "garden", name: "Garden", cx: 2, cy: 12, side: "w", tiles: [[1, 12], [2, 12], [3, 12]] }, { id: "trophies", name: "Trophy Room", cx: 2, cy: 16, side: "w" },
   { id: "knowledge", name: "Knowledge", cx: 20, cy: 8, side: "e" }, { id: "brewery", name: "Brewery", cx: 20, cy: 12, side: "e", tiles: [[20, 12], [21, 12]] }, { id: "bestiary", name: "Bestiary", cx: 20, cy: 16, side: "e" },
-  { id: "tree", name: "Passive Tree", cx: 7, cy: 22, side: "s" }, { id: "abyss", name: "The Abyss", cx: 11, cy: 22, side: "s" }, { id: "weapons", name: "Weapon Mastery", cx: 15, cy: 22, side: "s" }
+  { id: "tree", name: "Passive Tree", cx: 7, cy: 22, side: "s" }, { id: "abyss", name: "The Abyss", cx: 11, cy: 22, side: "s" }, { id: "weapons", name: "Weapon Mastery", cx: 15, cy: 22, side: "s" },
+  // The Tarot room: off the Weapon Mastery room, through a short passage (side "x": no passage of its own to the hall).
+  { id: "tarot", name: "Tarot Room", cx: 19, cy: 22, side: "x" }
 ];
 /** Where everything stands (x, y). */
 export const CAMP_SPOTS: CampSpot[] = [...ROOMS.map(r => ({ id: r.id, name: r.name, tiles: r.tiles ?? [[r.cx, r.cy]] as [number, number][] })), { id: "pond", name: "Still Pool", tiles: [[14, 15], [15, 15]] }];
@@ -22,6 +24,7 @@ const FLOOR = (() => {
   const f = new Uint8Array(CAMP_W * CAMP_H);
   const dig = (x0: number, y0: number, x1: number, y1: number) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) f[y * CAMP_W + x] = 1; };
   dig(HUB.x0, HUB.y0, HUB.x1, HUB.y1);
+  dig(17, 22, 17, 22);
   for (const r of ROOMS) {
     dig(r.cx - 1, r.cy - 1, r.cx + 1, r.cy + 1);
     if (r.side === "n") dig(r.cx, r.cy + 2, r.cx, HUB.y0 - 1);
@@ -181,6 +184,19 @@ function drawSpot(ctx: CanvasRenderingContext2D, s: CampSpot, ts: number, ox: nu
     case "pond": {
       // The Camp's own still pool, two tiles wide, in the corner of the hall.
       drawWater(ctx, sx0 + ts, cy + ts * 0.05, ts * 0.9, ts * 0.38, now);
+      break;
+    }
+    case "tarot": {
+      // A little table with a spread of three cards, the middle one glowing.
+      shadow(0.3);
+      ctx.fillStyle = "#3a2410"; ctx.fillRect(cx - ts * 0.38, cy + ts * 0.02, ts * 0.76, ts * 0.12); ctx.fillRect(cx - ts * 0.32, cy + ts * 0.14, ts * 0.07, ts * 0.3); ctx.fillRect(cx + ts * 0.25, cy + ts * 0.14, ts * 0.07, ts * 0.3);
+      const glow = 0.5 + 0.5 * Math.sin(now / 600);
+      for (let k = -1; k <= 1; k++) {
+        ctx.save(); if (!k) { ctx.shadowColor = `rgba(190,150,255,${0.8 * glow})`; ctx.shadowBlur = ts * 0.3; }
+        ctx.fillStyle = k ? "#2b1d3d" : "#3b2a5a"; ctx.fillRect(cx + k * ts * 0.22 - ts * 0.09, cy - ts * 0.26, ts * 0.18, ts * 0.27);
+        ctx.strokeStyle = "#e8c066"; ctx.lineWidth = Math.max(1, ts / 32); ctx.strokeRect(cx + k * ts * 0.22 - ts * 0.09, cy - ts * 0.26, ts * 0.18, ts * 0.27); ctx.restore();
+      }
+      ctx.fillStyle = `rgba(255,240,190,${0.6 + 0.4 * glow})`; ctx.beginPath(); ctx.arc(cx, cy - ts * 0.13, ts * 0.035, 0, Math.PI * 2); ctx.fill();
       break;
     }
     case "abyss": {

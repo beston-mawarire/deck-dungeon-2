@@ -23,7 +23,7 @@ export const BASE_DMG_PER = 3;
 /** Intellect points per +1 Max Mana. */
 export const INT_MANA_PER = 3;
 /** Per point (kept small: a level is two points, and a run is many levels). */
-export const PER = { strHp: 2, strBash: 0.5, agiDodge: 1, agiCrit: 0.5, faiRes: 2, vitHeal: 0.03, vitRegen: 0.04, forGold: 0.03, forLuck: 0.02, forShop: 0.01 };
+export const PER = { intDot: 3, intReact: 3, strHp: 2, strBash: 0.5, agiDodge: 1, agiCrit: 0.5, faiRes: 2, vitHeal: 0.03, vitRegen: 0.04, forGold: 0.03, forLuck: 0.02, forShop: 0.01 };
 
 /** What n points give, line by line (shown before you spend, so a build is a plan you can see). */
 export const ATTR_INFO: Record<Attr, { name: string; icon: string; blurb: string; lines: (n: number) => string[] }> = {
@@ -31,8 +31,8 @@ export const ATTR_INFO: Record<Attr, { name: string; icon: string; blurb: string
     lines: n => [`+${PER.strHp * n} Max HP`, `+${pct(n, PER.strBash)}% Bash`] },
   agi: { name: "Agility", icon: "🏹", blurb: "Slip hits, and find the gaps.",
     lines: n => [`+${pct(n, PER.agiDodge)}% Dodge`, `+${pct(n, PER.agiCrit)}% Crit chance`] },
-  int: { name: "Intellect", icon: "📘", blurb: "A deeper well of mana.",
-    lines: n => [`+${Math.floor(n / INT_MANA_PER)} Max Mana (1 for every ${INT_MANA_PER} points)`] },
+  int: { name: "Intellect", icon: "📘", blurb: "Statuses that bite deeper, reactions that burst harder, and more Mana.",
+    lines: n => [`Status damage +${pct(n, PER.intDot)}%`, `Reactions deal +${pct(n, PER.intReact)}%`, `+${Math.floor(n / INT_MANA_PER)} Max Mana (1 for every ${INT_MANA_PER} points)`] },
   fai: { name: "Faith", icon: "✝️", blurb: "Bear what the dark throws at you, and find your curses lifted sooner.",
     lines: n => [`Reactions hit you for ${pct(n, PER.faiRes, RESIST_CAP)}% less`, `Status damage on you −${pct(n, PER.faiRes, RESIST_CAP)}%`, `Altars that lift curses turn up more often`] },
   vit: { name: "Vitality", icon: "❤️", blurb: "Every bit of healing goes further.",
@@ -48,7 +48,7 @@ const attr = (id: Attr, hooks: HookDef["hooks"]): HookDef => ({ id: `attr_${id}`
 export const ATTR_HOOKS: HookDef[] = [
   attr("str", { stats: (s, n) => { s.maxHp += PER.strHp * n; s.bash += PER.strBash * n; } }),
   attr("agi", { stats: (s, n) => { s.dodge += PER.agiDodge * n; s.critChance += PER.agiCrit * n; } }),
-  attr("int", {}),
+  attr("int", { stats: (s, n) => { s.dotAmp = (s.dotAmp ?? 0) + PER.intDot * n; }, reactionMult: (_b, _f, n) => 1 + (PER.intReact / 100) * n }),
   attr("fai", {}),
   attr("vit", { healMult: n => 1 + PER.vitHeal * n }),
   attr("for", {})

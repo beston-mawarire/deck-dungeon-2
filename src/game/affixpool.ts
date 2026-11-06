@@ -15,6 +15,7 @@ import { modValue } from "./gen";
 import { classify, type Family, type Load } from "./families";
 import { AFFIX_FIXES } from "../data/affixfixes";
 
+const KEEP_ABILITY_LINES = false;
 export type Grade = "minor" | "major" | "grand";
 export interface Affix {
   id: string;
@@ -106,7 +107,8 @@ export function affixPool(): Affix[] {
     out.push({ id: m.id, def: m, grade: "major", group: m.group, kinds, gen: m, weight: 0.35 * (m.weight ?? 1), tags: m.tags });
   }
   // ---- Major: abilities on items (the Crawl) ----
-  for (const ab of ABILITY_LINES) out.push({ id: `ab_${ab.skill}`, def: ABILITY_DEFS.find(d => d.id === `ab_${ab.skill}`)!, grade: "major", group: "ability", kinds: ab.kinds, families: ab.families, loads: ab.loads, weight: 1.6, crawlOnly: true, classLayers: ab.layers, tags: [] });
+  // (1.97: the old class skills no longer roll on gear; they come from Legendaries that grant them.)
+  if (KEEP_ABILITY_LINES) for (const ab of ABILITY_LINES) out.push({ id: `ab_${ab.skill}`, def: ABILITY_DEFS.find(d => d.id === `ab_${ab.skill}`)!, grade: "major", group: "ability", kinds: ab.kinds, families: ab.families, loads: ab.loads, weight: 1.6, crawlOnly: true, classLayers: ab.layers, tags: [] });
   // ---- Grand: the old Epic powers ----
   for (const p of EPIC_POWERS) out.push({ id: p.id, def: p, grade: "grand", group: p.id, kinds: ALL_KINDS, weight: 1, tags: p.tags });
   // ---- Hand-made effects ----

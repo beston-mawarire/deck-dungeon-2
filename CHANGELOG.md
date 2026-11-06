@@ -9,6 +9,19 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.97.0
+Phase 3 begins: paths, skills and a new look for the inventory.
+- **Paths.** Each class has two, chosen in the Camp's Paths room before a run: Bulwark or Berserker, Duelist or Assassin, Elementalist or Arcanist, Penitent or Zealot. A path is passive, something gained and something given up. The second path opens once that class beats the 1st Layer.
+- **Skills at level 5.** The old class skills are gone. At level 5 you choose one of your path's two skills (16 new ones in all) in the Attributes tab.
+- **The old skills live on in Legendaries.** War Cry, Crush, Shield Wall, Counter, Envenom, Smoke Bomb, Barrier, Frost Nova, Arcane Bolt, Penance, Smite and Sanctuary each come with one of 12 new Legendary weapons, off-hands and armours. Random "grants a skill" lines no longer roll on gear.
+- **Chests feel special.** Every chest now has at least a 5% Epic and 2% Legendary chance on the first floor, rising to 10% and 7% on the last.
+- **Intellect is back to its old job.** It makes statuses and reactions hit harder, and still gives 1 Max Mana for every 3 points. The base-damage boost from your class's own attribute is passive, so it's no longer listed in the tab.
+- **Attributes tab, on parchment.** Each attribute shows its name, level and a + button; tap the name for what it gives. Your skill choice sits below.
+- **Gear tab.** The portrait has a gold frame, equipped items are plain rows (tap one to see it), and the backpack fills the rest of the screen: full item cards that scroll sideways, two at a time on a phone and more on bigger screens. On a phone the tabs show icons only.
+- **Magik tab.** A new inventory tab shows the Tarot cards you carry (and, in the Abyss, your Omens).
+- **The Tarot Room.** A new Camp room under the night sky, next to Weapon Mastery: all 21 cards, the locked ones face down. Choose and reverse the cards you carry here.
+- **The Passive Tree, updated.** 11 nodes built on a single old skill have left the tree. There are 8 new ones: Deep Well (Mana back each fight), Practised Hand, Steadied, Thrifty Casting, Spark of Insight, Prayerful, Deepening and Windfall (each triggered by using your skill).
+
 ## 1.96.0
 Phase 2 of the endgame rework: loot.
 - **Richer finds, layer by layer.** Every chest, Elite, Champion, guardian and Merchant now rolls on odds that grow with the layer. Rares are common from the 2nd Layer, Epics are a regular find from the 3rd, and by the 5th a full Epic-and-Legendary kit is a real possibility. Normal monsters still drop no gear.

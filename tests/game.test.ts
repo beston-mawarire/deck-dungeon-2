@@ -717,12 +717,11 @@ describe("class actions and new stats", () => {
     const run = newRun("rogue", 51);
     chooseRoom(run, "fight");
     expect(availableActions(run)).not.toContain("guard");
-    // Counter is offered even while Evade already covers the next hit (a wasted turn is the player's call).
-    expect(availableActions(run)).toContain("counter");
+    // (1.97: no class skill until you choose your path's at level 5.)
+    expect(availableActions(run)).not.toContain("counter");
     const w = newRun("warrior", 52);
     chooseRoom(w, "fight");
     expect(availableActions(w)).toContain("guard");
-    expect(availableActions(w)).toContain("warcry");
     delete w.hero.equip.off; recompute(w.hero);
     expect(availableActions(w)).not.toContain("guard");
     equipItem(w.hero, { uid: 700, base: "w_axe", rarity: "common", level: 1, bonuses: {}, revealed: true }, "main");

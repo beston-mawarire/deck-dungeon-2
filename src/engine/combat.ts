@@ -9,7 +9,9 @@ export const COUNTER_DODGE = 35;
 /** Class abilities cost mana; every class starts each fight with this much. */
 export const MANA_COST = 1;
 export const MANA_MAX = 3;
-export const SKILLS = ["counter", "barrier", "penance", "warcry", "crush", "shieldwall", "envenom", "smokebomb", "frostnova", "arcanebolt", "smite", "sanctuary"] as const;
+export const SKILLS = ["counter", "barrier", "penance", "warcry", "crush", "shieldwall", "envenom", "smokebomb", "frostnova", "arcanebolt", "smite", "sanctuary",
+  // The path skills (chosen at level 5).
+  "bastion", "shieldslam", "rampage", "bloodlust", "feint", "flurry", "ambush", "toxicburst", "cataclysm", "prismbolt", "manalance", "arcaneaegis", "atonement", "martyrdom", "consecrate", "judgment"] as const;
 export const PENANCE_RETURN = 1.5;
 export const BASH_CAP = 30;
 import { applyStatus, conductive, endOfRound, heal, loseHp, other, statusLoss, smoulderSoulAction, st, startOfTurn, staticTick } from "./statuses";
@@ -570,6 +572,8 @@ function strike(b: Battle, ctx: AttackCtx) {
   else breakStreak(b, a);
   ctx.dealt = loseHp(b, d, after);
   if (ctx.dealt > 0) a.flags["dealtRound"] = 1;
+  // Martyrdom: this round, every blow you take comes back at the one who struck it.
+  if (ctx.dealt > 0 && d.flags["martyr"] === b.round && a.hp > 0) { const back = loseHp(b, a, ctx.dealt); fx(b, { who: a.id, kind: "dmg", value: back }); log(b, `⛓️ Martyrdom: ${back} comes back at ${a.name}.`); }
   if (ctx.dealt > 0 && !ctx.offhand && a.heavy && d.hp > 0) buildStagger(b, a, d, ctx.kind === "crit");
   // Blessed: your patience pays out — 10% of the enemy's Max HP per stack, then it resets.
   if (ctx.dealt > 0 && st(a, "blessed") > 0 && d.hp > 0) {
@@ -886,7 +890,9 @@ export function beginRound(b: Battle): boolean {
 
 export const isSkill = (a: string): a is Skill => (SKILLS as readonly string[]).includes(a);
 export type Skill = (typeof SKILLS)[number];
-const SKILL_NAME: Record<Skill, string> = { counter: "Counter", barrier: "Barrier", penance: "Penance", warcry: "War Cry", crush: "Crushing Blow", shieldwall: "Shield Wall", envenom: "Envenom", smokebomb: "Smoke Bomb", frostnova: "Frost Nova", arcanebolt: "Arcane Bolt", smite: "Smite", sanctuary: "Sanctuary" };
+const SKILL_NAME: Record<Skill, string> = { counter: "Counter", barrier: "Barrier", penance: "Penance", warcry: "War Cry", crush: "Crushing Blow", shieldwall: "Shield Wall", envenom: "Envenom", smokebomb: "Smoke Bomb", frostnova: "Frost Nova", arcanebolt: "Arcane Bolt", smite: "Smite", sanctuary: "Sanctuary",
+  bastion: "Bastion", shieldslam: "Shield Slam", rampage: "Rampage", bloodlust: "Bloodlust", feint: "Feint", flurry: "Flurry", ambush: "Ambush", toxicburst: "Toxic Burst",
+  cataclysm: "Cataclysm", prismbolt: "Prism Bolt", manalance: "Mana Lance", arcaneaegis: "Arcane Aegis", atonement: "Atonement", martyrdom: "Martyrdom", consecrate: "Consecrate", judgment: "Judgment" };
 
 
 /** A class ability: costs 1 mana (out of mana, you attack instead). Gear can make it free of your turn, count as a Guard, or hit harder. */
@@ -973,6 +979,8 @@ function useSkill(b: Battle, skill: Skill) {
     fx(b, { who: "player", kind: "text", text: "Smite", icon: "⚡" });
     heroAttack(b);
     heal(b, p, Math.ceil(p.maxHp * 0.08), "Smite");
+  } else if (pathSkill(b, skill)) {
+    // (A path skill: see pathSkill.)
   } else if (skill === "sanctuary") {
     // Sanctuary: a moment of grace. Heal a quarter of your Max HP and a Ward against the next status.
     heal(b, p, Math.ceil(p.maxHp * 0.25), "Sanctuary");
@@ -1127,6 +1135,55 @@ export function startBattle(player: Fighter, enemy: Fighter, seed: number, carry
   player.maxMana = MANA_MAX + (player.flags["manaMax"] ?? 0) + Math.floor((player.persist["intPts"] ?? 0) / INT_MANA_PER) + (player.persist["omenMana"] ?? 0);
   player.mana = player.persist["manaSeen"] ? Math.min(player.mana ?? 0, player.maxMana) : player.maxMana;
   player.persist["manaSeen"] = 1;
+  // Some passives give a little Mana back at the start of each fight (Deep Well).
+  if (player.flags["fightMana"]) player.mana = Math.min(player.maxMana, player.mana + player.flags["fightMana"]);
   checkOver(b);
   return b;
+}
+
+/** The path skills (one is chosen at level 5): each a different answer to the same fight. Returns false if it isn't one. */
+function pathSkill(b: Battle, skill: Skill): boolean {
+  const p = b.player, e = b.enemy;
+  const say = (text: string, icon: string, line: string) => { log(b, line); fx(b, { who: "player", kind: "text", text, icon }); };
+  const strike = (pct: number) => { p.dmgDealt = (p.dmgDealt ?? 0) + pct; heroAttack(b); p.dmgDealt = (p.dmgDealt ?? 0) - pct; };
+  const direct = (n: number) => { const got = loseHp(b, e, Math.max(1, Math.round(n))); fx(b, { who: "enemy", kind: "dmg", value: got }); return got; };
+  const guard = () => { p.flags["guarding"] = 1; p.flags["guards"] = (p.flags["guards"] ?? 0) + 1; eachHook(p, "onGuard", (h, s) => h(b, p, s)); };
+  switch (skill) {
+    // Warrior — the Bulwark
+    case "bastion": guard(); applyStatus(b, p, p, "reinforced", 3); applyStatus(b, p, p, "spikes", Math.max(2, Math.floor(armorOf(p) / 2)));
+      say("Bastion", "🏰", `${p.name} becomes a Bastion: Guarding, Reinforced and Spiked.`); return true;
+    case "shieldslam": { const n = direct(p.damage + armorOf(p)); applyStatus(b, p, e, "stun", 1);
+      say("Shield Slam", "🛡️", `${p.name} slams with the shield: ${n}, straight through Armor, and a Stun.`); return true; }
+    // Warrior — the Berserker
+    case "rampage": { const cost = Math.max(1, Math.ceil(p.hp * 0.1)); loseHp(b, p, cost); fx(b, { who: "player", kind: "dmg", value: cost });
+      say("Rampage", "🪓", `${p.name} Rampages (−${cost} HP): two strikes!`); heroAttack(b); if (e.hp > 0) heroAttack(b); return true; }
+    case "bloodlust": { const n = 2 + Math.floor((10 * (p.maxHp - p.hp)) / Math.max(1, p.maxHp)) * 2; applyStatus(b, p, p, "might", n); applyStatus(b, p, p, "haste", 1);
+      say("Bloodlust", "🩸", `${p.name} is gripped by Bloodlust: ${n} Might, and Haste.`); return true; }
+    // Rogue — the Duelist
+    case "feint": applyStatus(b, p, p, "evade", 1); applyStatus(b, p, e, "exposed", 2); p.flags["duelOpen"] = 1;
+      say("Feint", "🤺", `${p.name} Feints: the next blow will miss, the foe is Exposed, and your next attack hits half again harder.`); return true;
+    case "flurry": say("Flurry", "💨", `${p.name} unleashes a Flurry: three quick strikes!`); for (let k = 0; k < 3 && e.hp > 0; k++) strike(-50); return true;
+    // Rogue — the Assassin
+    case "ambush": say("Ambush", "🗡️", `${p.name} strikes from the shadows${b.round <= 1 ? ", before it can react" : ""}!`); strike(b.round <= 1 ? 200 : 100); return true;
+    case "toxicburst": { const n = st(e, "poison") + st(e, "bleed"); const got = n > 0 ? direct(n * 1.5) : 0; applyStatus(b, p, e, "poison", 2);
+      say("Toxic Burst", "🧪", `${p.name}'s poisons boil over: ${got} damage at once, and the wound festers.`); return true; }
+    // Mage — the Elementalist
+    case "cataclysm": { const ids = ["burn", "poison", "bleed", "chill", "shock", "static"] as const; const n = ids.reduce((a, id) => a + st(e, id as never), 0);
+      const got = n > 0 ? direct(n * 1.5) : 0; say("Cataclysm", "🌋", `${p.name} calls a Cataclysm: every status on the foe erupts for ${got}.`); return true; }
+    case "prismbolt": applyStatus(b, p, e, "burn", 2); applyStatus(b, p, e, "chill", 2); applyStatus(b, p, e, "shock", 1);
+      say("Prism Bolt", "🌈", `${p.name} looses a Prism Bolt: fire, frost and lightning at once.`); return true;
+    // Mage — the Arcanist
+    case "manalance": { const got = direct(p.damage + 4 * (p.mana ?? 0) + 2); say("Mana Lance", "🔮", `${p.name} hurls a Mana Lance: ${got}, straight through Armor (stronger with Mana left).`); return true; }
+    case "arcaneaegis": { const n = 4 + 3 * (p.mana ?? 0); applyStatus(b, p, p, "barrier", n); say("Arcane Aegis", "🔷", `${p.name} raises an Arcane Aegis: ${n} Barrier.`); return true; }
+    // Cleric — the Penitent
+    case "atonement": { const cost = Math.max(1, Math.ceil(p.maxHp * 0.15)); loseHp(b, p, cost); fx(b, { who: "player", kind: "dmg", value: cost });
+      const got = direct(2 * cost); say("Atonement", "⛓️", `${p.name} atones (−${cost} HP), and the foe pays double: ${got}.`); return true; }
+    case "martyrdom": guard(); p.flags["martyr"] = b.round;
+      say("Martyrdom", "✝️", `${p.name} offers up Martyrdom: Guarding, and every blow this round comes back at whoever struck it.`); return true;
+    // Cleric — the Zealot
+    case "consecrate": applyStatus(b, p, p, "regen", 5); applyStatus(b, p, e, "burn", isUnholy(e) ? 6 : 3);
+      say("Consecrate", "☀️", `${p.name} Consecrates the ground: Regen for you, holy fire for the foe.`); return true;
+    case "judgment": say("Judgment", "⚖️", `${p.name} brings down Judgment!`); strike(isUnholy(e) ? 100 : 60); heal(b, p, Math.ceil(p.maxHp * 0.1), "Judgment"); return true;
+    default: return false;
+  }
 }

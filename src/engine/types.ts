@@ -260,6 +260,8 @@ export interface HookDef {
 
 /** A base item type the loot system can roll (Iron Sword, Leather Jerkin...). */
 export interface GearBase extends HookDef {
+  /** A Legendary that grants a class skill while you wear it (it costs Mana, like any). */
+  grants?: string;
   kind: "weapon" | "off" | "armour" | "trinket";
   slot: Slot;
   /** Weapons: base damage at item level 1, and the faces. */

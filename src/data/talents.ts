@@ -11,6 +11,7 @@ import { DUAL_TALENTS } from "./dualwield";
 import { MINOR_TALENTS } from "./minors";
 import { PATH_TALENTS } from "./paths";
 import { PATH_TALENTS_2 } from "./paths2";
+import { SKILL_TREE_TALENTS } from "./skilltree";
 
 const talent = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "talent", ...d });
 const rank = (s: number, ...vals: number[]) => vals[Math.min(s, vals.length) - 1];
@@ -158,4 +159,4 @@ export const STORM_TALENTS: HookDef[] = [
     hooks: { modifyAttack: (_b, c, s) => { c.bonus += s * NEG.filter(x => st(c.defender, x) > 0).length; } } })
 ];
 
-export const TALENTS: HookDef[] = [...PATH_TALENTS, ...PATH_TALENTS_2, ...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS, ...MORE_TALENTS, ...GUARD_TALENTS, ...HOLY_TALENTS, ...STORM_TALENTS, ...STREAK_TALENTS, ...BRUTE_TALENTS, ...BUILD_TALENTS, ...DUAL_TALENTS, ...MINOR_TALENTS];
+export const TALENTS: HookDef[] = [...PATH_TALENTS, ...PATH_TALENTS_2, ...SHARED_TALENTS, ...STATUS_TALENTS, ...GEAR_TALENTS, ...MORE_TALENTS, ...GUARD_TALENTS, ...HOLY_TALENTS, ...STORM_TALENTS, ...STREAK_TALENTS, ...BRUTE_TALENTS, ...BUILD_TALENTS, ...DUAL_TALENTS, ...MINOR_TALENTS, ...SKILL_TREE_TALENTS];

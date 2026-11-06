@@ -132,6 +132,40 @@ export const CLASS_LEGENDARIES: GearBase[] = [
     hooks: { onRoundStart: (b, f) => { if (f.hp >= f.maxHp) applyStatus(b, f, f, "barrier", 3); else if (st(f, "regen") > 0) applyStatus(b, f, f, "barrier", 1); } } })
 ];
 
+/** Legendaries that grant the old class skills (each costs Mana to use, like any skill). */
+const G = (d: Omit<GearBase, "rarity">) => L(d);
+export const SKILL_LEGENDARIES: GearBase[] = [
+  G({ id: "lg_warlords_banner", kind: "off", slot: "off", name: "Warlord's Banner", tags: ["Strike"], forClass: "warrior", grants: "warcry",
+    legendary: { minFloor: 1, asBase: "o_war_banner", reveal: "Grants War Cry. Start every fight with 2 Might." }, text: "It has flown over every battle worth winning.",
+    hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "might", 2) } }),
+  G({ id: "lg_skullsplitter", kind: "weapon", slot: "main", name: "Skullsplitter", tags: ["Strike"], damage: 6, forClass: "warrior", grants: "crush", faces: [MISS, HIT, HIT, HIT, HIT, CRIT],
+    legendary: { minFloor: 2, asBase: "w_hammer", reveal: "Grants Crushing Blow. Your crits Fracture." }, text: "The name is a description.",
+    hooks: { onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "fracture", 1) } }),
+  G({ id: "lg_wall_of_ages", kind: "off", slot: "off", shield: true, name: "Wall of Ages", tags: ["Guard"], armor: 5, forClass: "warrior", grants: "shieldwall",
+    legendary: { minFloor: 2, asBase: "o_kite_shield", reveal: "+5 Armor. Grants Shield Wall." }, text: "Older than the keep it once guarded.", hooks: {} }),
+  G({ id: "lg_duelists_parry", kind: "weapon", slot: "main", name: "The Last Parry", tags: ["Crit", "Tempo"], damage: 3, forClass: "rogue", grants: "counter", faces: [GRAZE, HIT, HIT, HIT, CRIT, CRIT],
+    legendary: { minFloor: 1, asBase: "w_rapier", reveal: "Two crit faces. Grants Counter." }, text: "Its owner won every duel but the one against old age.", hooks: {} }),
+  G({ id: "lg_serpent_fang", kind: "weapon", slot: "main", name: "Serpent's Fang", tags: ["Poison"], damage: 3, forClass: "rogue", grants: "envenom", faces: [MISS, HIT, HIT, HIT, HIT, CRIT],
+    legendary: { minFloor: 2, asBase: "w_dagger", reveal: "Grants Envenom. Your crits Poison 2." }, text: "Pulled from the jaw of something that is still alive.",
+    hooks: { onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "poison", 2) } }),
+  G({ id: "lg_veil_of_smoke", kind: "armour", slot: "armour", name: "Veil of Smoke", tags: ["Tempo"], armor: 1, forClass: "rogue", grants: "smokebomb",
+    legendary: { minFloor: 2, asBase: "a_shadow", reveal: "+1 Armor, +5% Dodge. Grants Smoke Bomb." }, text: "Nobody has ever seen it clearly.", hooks: { stats: s => { s.dodge += 5; } } }),
+  G({ id: "lg_elemental_ward", kind: "off", slot: "off", name: "Orb of the Four Winds", tags: ["Arcane"], forClass: "mage", grants: "barrier",
+    legendary: { minFloor: 1, asBase: "o_crystal_orb", reveal: "Grants Elemental Barrier." }, text: "Four storms in a ball of glass, forever circling.", hooks: {} }),
+  G({ id: "lg_rime_heart", kind: "off", slot: "off", name: "Rimeheart", tags: ["Frost"], forClass: "mage", grants: "frostnova",
+    legendary: { minFloor: 2, asBase: "o_frost_orb", reveal: "Grants Frost Nova. Your Chill lands 1 stronger." }, text: "It beats once a winter.",
+    hooks: { onStatusApplied: (b, f, t, status) => { if (t !== f && status === "chill" && !f.flags["rimeBusy"]) { f.flags["rimeBusy"] = 1; applyStatus(b, f, t, "chill", 1); f.flags["rimeBusy"] = 0; } } } }),
+  G({ id: "lg_arcanum_rod", kind: "weapon", slot: "main", name: "Rod of the Arcanum", tags: ["Arcane"], damage: 4, forClass: "mage", grants: "arcanebolt", faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT],
+    legendary: { minFloor: 2, asBase: "w_wand", reveal: "Grants Arcane Bolt." }, text: "The Arcanum's last rector broke it over his knee. It mended overnight.", hooks: {} }),
+  G({ id: "lg_penitents_scourge", kind: "weapon", slot: "main", name: "Penitent's Scourge", tags: ["Blood"], damage: 5, forClass: "cleric", grants: "penance", faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT],
+    legendary: { minFloor: 1, asBase: "w_flail", reveal: "Grants Penance." }, text: "The monks used it on themselves first.", hooks: {} }),
+  G({ id: "lg_sunstrike", kind: "weapon", slot: "main", name: "Sunstrike", tags: ["Holy", "Burn"], damage: 5, forClass: "cleric", grants: "smite", faces: [GRAZE, HIT, HIT, HIT, HIT, CRIT],
+    legendary: { minFloor: 2, asBase: "w_morningstar", reveal: "Grants Smite. Your crits Burn 2." }, text: "Each spike was forged at noon.",
+    hooks: { onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "burn", 2) } }),
+  G({ id: "lg_sanctum_censer", kind: "off", slot: "off", name: "Censer of the Sanctum", tags: ["Holy"], forClass: "cleric", grants: "sanctuary",
+    legendary: { minFloor: 2, asBase: "o_censer", reveal: "Grants Sanctuary." }, text: "Its smoke has never once left the chapel. Until now.", hooks: {} })
+];
+
 /** Epic powers that lean toward a way to play (any class can find them). */
 export const STYLE_EPICS: HookDef[] = [
   epic({ id: "e_rampart", name: "Rampart", affix: "Rampart", tags: ["Guard"], text: "Guarding gives 2 Reinforced", hooks: { onGuard: (b, f) => applyStatus(b, f, f, "reinforced", 2) } }),

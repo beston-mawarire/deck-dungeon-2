@@ -1,3 +1,4 @@
+import { pathsOf } from "../data/classpaths";
 // Between runs: Renown (earned from every run), unlock tiers that add items to the loot pools,
 // and the Codex of everything you've found. Stored in the browser (localStorage), per player.
 import { CAMP_CASTS, FISH } from "./fishing";
@@ -48,6 +49,8 @@ export interface Meta {
   totemSet?: string;
   /** The ability each class takes into its runs (from the Camp's Skills). */
   skillPick?: Record<string, string>;
+  /** Each class's chosen path (Bulwark or Berserker, and so on). */
+  path?: Record<string, string>;
   /** Campaign runs in a row that ended without a Legendary (four, and the next run's first boss offers one). */
   dryRuns?: number;
   renown: number;
@@ -343,4 +346,12 @@ export function payBounties(m: Meta, origin: string, heat: number): { heat: numb
   for (let n = best + 1; n <= top; n++) { const r = bountyReward(n); c.crowns += r.crowns; c.scrolls = (c.scrolls ?? 0) + r.scrolls; out.push({ heat: n, ...r }); }
   m.heatBest = { ...(m.heatBest ?? {}), [origin]: top };
   return out;
+}
+
+/** A class's path for the next run: the one chosen at the Camp (if it's open), else its first. */
+export function chosenPath(m: Meta, origin: string): string {
+  const ps = pathsOf(origin as never);
+  const want = m.path?.[origin];
+  const i = ps.findIndex(p => p.id === want);
+  return i > 0 && (m.layersBeaten?.[origin] ?? 0) < 1 ? ps[0].id : (ps[i]?.id ?? ps[0].id);
 }

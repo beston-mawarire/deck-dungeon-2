@@ -177,3 +177,45 @@ describe("Heat: a pact you make", () => {
     expect(payBounties(m, "rogue", 1).length).toBe(1);
   });
 });
+
+describe("class paths", () => {
+  it("each class has two paths, each with a gain, a loss and two level-5 skills", async () => {
+    const { PATHS, pathsOf } = await import("../src/data/classpaths");
+    expect(PATHS.length).toBe(8);
+    for (const o of ["warrior", "rogue", "mage", "cleric"] as const) expect(pathsOf(o).length).toBe(2);
+    for (const p of PATHS) { expect(p.gain.length).toBeGreaterThan(0); expect(p.lose.length).toBeGreaterThan(0); expect(p.skills.length).toBe(2); }
+  });
+  it("the path's skill is chosen at level 5, and then it's a button in every fight", async () => {
+    const { availableActions, chooseSkill } = await import("../src/game/run");
+    const r = newRun("warrior", 61); startCrawl(r);
+    r.hero.path = "berserker"; recompute(r.hero);
+    expect(chooseSkill(r, "rampage")).toMatch(/level 5/);
+    r.hero.level = 5;
+    expect(chooseSkill(r, "bastion")).toMatch(/isn't one/);
+    expect(chooseSkill(r, "rampage")).toBeNull();
+    fightIn(r, "fight");
+    expect(availableActions(r)).toContain("rampage");
+  });
+  it("the Berserker halves Armor; the Bulwark deals less", () => {
+    const a = newRun("warrior", 62); startCrawl(a); recompute(a.hero);
+    const arm = a.hero.f.armor;
+    a.hero.path = "berserker"; recompute(a.hero);
+    expect(a.hero.f.armor).toBe(Math.floor(arm / 2));
+    a.hero.path = "bulwark"; recompute(a.hero);
+    expect(a.hero.f.dmgDealt ?? 0).toBeLessThan(0);
+  });
+  it("a Legendary can grant one of the old class skills", async () => {
+    const { availableActions } = await import("../src/game/run");
+    const r = newRun("warrior", 63); startCrawl(r);
+    r.hero.equip.off = { uid: 9999, base: "lg_warlords_banner", rarity: "legendary", level: 1, bonuses: {}, revealed: true } as never; recompute(r.hero);
+    fightIn(r, "fight");
+    expect(availableActions(r)).toContain("warcry");
+  });
+  it("the tree's Deep Well gives Mana back at the start of each fight (Mana carries over otherwise)", () => {
+    const r = newRun("mage", 64); startCrawl(r);
+    r.hero.talents["t_deep_well"] = 2; recompute(r.hero);
+    r.hero.f.persist["manaSeen"] = 1; r.hero.f.mana = 0;
+    const b = (fightIn(r, "fight"), (r.scene as unknown as { battle: { player: { mana: number } } }).battle);
+    expect(b.player.mana).toBe(2);
+  });
+});
