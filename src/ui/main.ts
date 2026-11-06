@@ -2297,7 +2297,7 @@ function attrPopup(r: Run) {
   const n = (h.attrs?.[a] ?? 0) + treeAttr(h, a) + gearAttr(h, a);
   const now = shownLines(info.lines(attrPower(n))), next = shownLines(info.lines(attrPower(n + 1)));
   const base = BASE_ATTR[h.origin as keyof typeof BASE_ATTR] === a;
-  return `<div class="overlay popup-wrap" data-attrinfo=""><div class="popup at-pop"><button class="small closex closebtn" data-attrinfo="" aria-label="Close">✕</button>
+  return `<div class="overlay popup-wrap at-wrap" data-attrinfo=""><div class="popup at-pop"><button class="small closex closebtn" data-attrinfo="" aria-label="Close">✕</button>
     <h2 class="center">${info.icon} ${info.name} <span class="at-pop-n">${n}</span></h2><p class="center">${esc(info.blurb)}</p>
     <ul class="at-pop-lines">${now.map((l, i) => `<li>${esc(l)}${l !== next[i] ? ` <i>→ ${esc(/[+−-]?\d+(\.\d+)?%?/.exec(next[i])?.[0] ?? next[i])}</i>` : ""}</li>`).join("")}</ul>
     ${base ? `<p class="sub center">★ The ${esc(ORIGINS[h.origin].name)}'s own attribute: it also strengthens your base Damage, by itself.</p>` : ""}</div></div>`;
@@ -2602,7 +2602,7 @@ function comparePopup(r: Run): string {
     return `<tr class="${d > 0 ? "up" : d < 0 ? "down" : ""}"><td>${label}</td><td>${a}${unit}</td><td>→</td><td><b>${b}${unit}</b></td><td>${d ? `${d > 0 ? "▲" : "▼"} ${Math.abs(d)}${unit}` : "＝"}</td></tr>`;
   }).join("");
   const label = SLOT_LABEL[slot];
-  return `<div class="overlay popup-wrap"><div class="popup compare-pop">
+  return `<div class="overlay popup-wrap cmp-wrap"><div class="popup compare-pop">
     <button class="small closex closebtn" data-compareclose aria-label="Close">✕</button>
     <h1 class="center bigname">⚖️ Compare · ${esc(label)}</h1>
     <div class="cmp-cols">

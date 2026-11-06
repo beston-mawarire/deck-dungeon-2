@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.9
+- Compare equipped opens on top of the Merchant's item popup too, on every browser (the earlier fix relied on CSS that some browsers ignore).
+
 ## 2.0.8
 - The Resplendent Chest has the dungeon look: a wooden sign, studded wooden card backs with a glowing seal, the revealed find shown large, and a Claim plank.
 - "Lost out on" items now sit in their own framed box, each in a dotted frame of its rarity's colour.

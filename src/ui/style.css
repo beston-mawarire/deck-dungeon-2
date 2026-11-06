@@ -2577,7 +2577,7 @@ li.type-line::before { content: none !important; }
 .pc-gain, .pc-lose { margin: 0; padding: 0; list-style: none; font-size: .86rem; display: flex; flex-direction: column; gap: 2px; }
 .pc-gain li { color: #9fe0a8; } .pc-lose li { color: #f0a090; }
 .pc-skills { margin: 0; font-size: .84rem; color: #ead7b3; } .pc-skills b { color: #f3d58a; }
-.popup-wrap:has(> .at-pop) { z-index: 70; }
+.overlay.at-wrap, .popup-wrap:has(> .at-pop) { z-index: 70; }
 body .popup.at-pop { color: #3b2410; background: linear-gradient(180deg, #efe3c8, #e6d5b2) !important; border: 3px solid #8a6a40 !important; box-shadow: 0 0 0 3px #0c0704, 0 16px 40px rgba(0,0,0,.7) !important; }
 body .popup.at-pop :is(h2, p, li, .sub) { color: #3b2410; text-shadow: none; }
 body .popup.at-pop .sub { color: #6e5032; }
@@ -2802,7 +2802,7 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
 .ach-worn button.ach-title { margin: 0 0 0 6px; }
 
 /* 2.0.7: the compare window opens from the found-item popup, the backpack and item popups, so it sits above all of them. */
-.popup-wrap:has(> .compare-pop) { z-index: 90; }
+.overlay.cmp-wrap, .popup-wrap:has(> .compare-pop) { z-index: 90; }
 
 /* 2.0.8: the Resplendent Chest, in the dungeon's look. */
 .rs-screen { z-index: 25; }
