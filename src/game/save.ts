@@ -5,6 +5,7 @@
 import { makeRng, type Rng } from "../engine/rng";
 import { type Hero, recompute } from "./hero";
 import { getDropped, setDropped, setLocked } from "./loot";
+import { affixPool } from "./affixpool";
 import type { Run } from "./run";
 
 const KEY = "dd2-run-v1";
@@ -59,6 +60,8 @@ export function loadRun(): { run: Run; banked: number } | null {
     if (!raw) return null;
     const d = JSON.parse(raw) as SavedRun;
     if (d.v !== 1) return null;
+    // The rolled effect lines (fx_…) register when the affix pool is built: build it before the saved gear is read.
+    affixPool();
     const hero = d.run.hero as Hero;
     hero.f.statuses = {};
     hero.f.flags = {};

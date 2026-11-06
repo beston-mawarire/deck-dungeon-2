@@ -53,6 +53,7 @@ import { applyRework, canAfford, canEmpowerTarget, costText, empower, empowerBlo
 import { applySave, watchBackup, backupCode, backupVault, setPlayerTitle, SUB_BOARDS, type Board, type Scope, type KillerRow, fetchBoard, fetchKillers, fetchVault, flushQueue, leaderboardOn, playerName, reportFloor, type Row, setPlayerName, startSession, submitRun, useBackupCode, vaultDirty } from "./leaderboard";
 import { CROSSROADS_GUISES } from "../data/events";
 import { clearSave, loadRun, saveRun, savedSummary } from "../game/save";
+import { affixPool } from "../game/affixpool";
 import { applyUpdate, updateReady, watchForUpdates } from "./update";
 import { PATCH_NOTES } from "./changes";
 import menuBg from "../assets/menu_bg.png";
@@ -3720,6 +3721,8 @@ render();
 onMusicBlockChange(() => render());
 
 // Check for new builds; reload at the next safe moment, and say so if that has to wait.
+// Rolled effect lines on saved gear (the run, the Camp stash) need the affix pool registered from the start.
+affixPool();
 watchForUpdates(() => { if (run && run.scene.t !== "map" && run.scene.t !== "over") say("✨ An update is ready. It will load at your next path choice (your run is saved).", false); render(); });
 
 // Going offline: tell the player what that means. Coming back: a quick note.

@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.14
+- Fixed "Unknown item: fx_…" after Continue. Rolled effect lines on saved gear are now known from the moment the game starts, not just after the first new loot. This was also what froze the screen after an update reload.
+
 ## 2.0.13
 - Updates mid-run are safer. The game waits until you've stopped walking, saves exactly where you stand, then loads the new version. Continue puts you back on that tile.
 - The dungeon map always answers taps after Continue, even if drawing it hits a problem.
