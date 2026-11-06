@@ -9,6 +9,10 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.2.1
+- Epic and Legendary finds get a page of their own look. A Legendary's page is darker and warms into orange, with an orange edge. An Epic's does the same in violet. This covers chest finds, shop items and gear in the backpack.
+- Scrap no longer shows in the backpack's Gear tab. It's in the Artefacts tab.
+
 ## 2.2.0
 - Scrolls of Revelation are gone. Every Legendary arrives revealed, with its power shown and working from the moment you find it. Hidden Legendaries in an older save are revealed when it loads.
 - No more Scrolls in shops, chests, Resplendent cards, boss rewards or events. The Forge's Reveal tab and the Scrolls tiles are gone too. The Blind Scribe has packed up, and the Card Sharp now wagers a Rare item (sometimes Epic) against your potion.
