@@ -21,7 +21,7 @@ import {
 import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
 import { GEN_MODULE_MAP, modValue } from "../game/gen";
-import { CLASS_SKILLS, ACHIEVEMENTS, currentAbyssMod,  heatOf, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX } from "../game/progress";
+import { ACHIEVEMENTS, currentAbyssMod,  heatOf, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX } from "../game/progress";
 import { chosenPath, carriedTarot, flipTarot, takeTarot, toggleTarot, ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem, abyssUnlocked, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta } from "../game/meta";
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
@@ -490,7 +490,7 @@ function tavernScreen(infoRow: string, cont: string) {
     ${infoRow}${cont}
     <div class="tav-room">
       <div class="tav-bar"><span class="tav-keep">${hasSprite("dwarf_m") ? spriteHtml("dwarf_m", 4) : "🍺"}</span><span class="tav-bottles">🍾 🍷 🍺</span></div>
-      <p class="tav-say">“Pull up a chair. Who's going down tonight?”</p>
+      <p class="tav-say">“Grab a drink before you go.”</p>
       <div class="tav-seats">${order.map(seat).join("")}</div>
     </div>
     <p class="version">${VERSION}</p>
@@ -2319,8 +2319,8 @@ function revealBtn(r: Run, it: GearItem) {
 
 const ORIGIN_ICON: Record<OriginId, string> = { warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" };
 const ORIGIN_PITCH: Record<OriginId, string> = {
-  warrior: "Stand firm, Guard, and hit back harder.",
-  rogue: "Dodge everything, strike first, and Counter.",
+  warrior: "Stand behind your shield, or throw it away and go berserk.",
+  rogue: "Strike first, slip every blow, and make each cut count.",
   mage: "Stack statuses until they explode.",
   cleric: "Outlast them, then return the pain."
 };
@@ -2712,10 +2712,10 @@ function originPopup(o: OriginId) {
     <div class="center bigicon">${ORIGIN_ICON[o]}</div>
     <p class="center op-pitch">${esc(ORIGIN_PITCH[o])}</p>
     <ul class="op-facts">
-      ${(() => { const sk = CLASS_SKILLS[o][0]; return `<li><span>${sk.icon}</span><span><b>${esc(sk.name)}</b> ${esc(sk.text)}</span></li>`; })()}
+      ${(() => { const [a, b] = pathsOf(o); const won = (meta.layersBeaten?.[o] ?? 0) >= 1; return `<li><span>🧭</span><span><b>Two paths</b> The ${esc(a.name)} or the ${esc(b.name)}${won ? "" : " (the second opens once you beat the 1st Layer)"}. Your path picks your skill at level ${SKILL_LEVEL}.</span></li>`; })()}
       <li><span>${ORIGIN_ICON[o]}</span><span><b>${esc(p.name)}</b> ${esc(ORIGIN_PASSIVE[o])}</span></li>
       ${(() => { const ba = BASE_ATTR[o as keyof typeof BASE_ATTR]; if (!ba) return ""; const ai = ATTR_INFO[ba]; return `<li><span>${ai.icon}</span><span><b>${esc(ai.name)}</b> +1 Damage for every ${BASE_DMG_PER} points</span></li>`; })()}
-      <li><span>❤️</span><span><b>${og.hp} HP</b> ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</span></li>
+      <li><span>❤️</span><span><b>${og.hp} HP · ${MANA_MAX} Mana</b> ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}. Only Mana Potions refill your Mana.</span></li>
     </ul>
     ${masteryPanel(o)}
     ${gemPanel(o)}

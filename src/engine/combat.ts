@@ -8,7 +8,7 @@ export const DODGE_CAP = 60;
 export const COUNTER_DODGE = 35;
 /** Class abilities cost mana; every class starts each fight with this much. */
 export const MANA_COST = 1;
-export const MANA_MAX = 3;
+export const MANA_MAX = 2;
 export const SKILLS = ["counter", "barrier", "penance", "warcry", "crush", "shieldwall", "envenom", "smokebomb", "frostnova", "arcanebolt", "smite", "sanctuary",
   // The path skills (chosen at level 5).
   "bastion", "shieldslam", "rampage", "bloodlust", "feint", "flurry", "ambush", "toxicburst", "cataclysm", "prismbolt", "manalance", "arcaneaegis", "atonement", "martyrdom", "consecrate", "judgment"] as const;

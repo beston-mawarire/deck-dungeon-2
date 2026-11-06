@@ -56,7 +56,7 @@ describe("attributes", () => {
     const r = newRun("mage", 9); startCrawl(r);
     r.hero.attrs = { int: 6 }; recompute(r.hero);
     const b1 = startBattle(r.hero.f, newHero("warrior").f, 1);
-    expect(b1.player.maxMana).toBe(5);
+    expect(b1.player.maxMana).toBe(4);
     r.hero.f.mana = 1;
     startBattle(r.hero.f, newHero("warrior").f, 2);
     expect(r.hero.f.mana).toBe(1);

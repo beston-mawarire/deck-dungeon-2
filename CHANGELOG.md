@@ -9,6 +9,12 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.97.1
+- **Every class starts with 2 Mana** (was 3), so Mana Potions, Intellect and Max Mana gear matter more.
+- **Backpack items** now sit in a dotted frame in their rarity's colour, instead of a parchment scroll.
+- **Class cards in the Tavern** match the new rules: your two paths, the level-5 skill, 2 Mana that only potions refill.
+- The Tavern keeper now says "Grab a drink before you go."
+
 ## 1.97.0
 Phase 3 begins: paths, skills and a new look for the inventory.
 - **Paths.** Each class has two, chosen in the Camp's Paths room before a run: Bulwark or Berserker, Duelist or Assassin, Elementalist or Arcanist, Penitent or Zealot. A path is passive, something gained and something given up. The second path opens once that class beats the 1st Layer.
