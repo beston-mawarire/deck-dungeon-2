@@ -10,7 +10,7 @@ export type Board = "floor" | "elites" | "champions" | "damage" | "besthit" | "g
 /** Main tabs: the Campaign's boards, the Daily Dungeon's, the Abyss's, and the Bounty board of deadliest foes. */
 export type Scope = "campaign" | "daily" | "abyss" | "heat" | "bounty";
 const STAT_BOARDS: { id: Board; label: string; icon: string; unit: string }[] = [
-  { id: "floor", label: "Deepest", icon: "🕳️", unit: "layer" },
+  { id: "floor", label: "Deepest", icon: "🕳️", unit: "layer and floor reached" },
   { id: "elites", label: "Elites", icon: "💀", unit: "elites" },
   { id: "champions", label: "Champions", icon: "👹", unit: "champions" },
   { id: "damage", label: "Damage", icon: "⚔️", unit: "damage" },
@@ -20,11 +20,11 @@ const STAT_BOARDS: { id: Board; label: string; icon: string; unit: string }[] = 
 /** The sub-tabs under each main tab. Today's Daily boards reset every day; "All time" keeps the deepest Daily runs ever. */
 export const SUB_BOARDS: Record<Exclude<Scope, "bounty">, { id: Board; label: string; icon: string; unit: string }[]> = {
   campaign: STAT_BOARDS,
-  heat: [{ id: "floor", label: "Deepest", icon: "🔥", unit: "layer reached at Heat 1 or higher" }],
+  heat: [{ id: "floor", label: "Deepest", icon: "🔥", unit: "layer and floor reached at Heat 1 or higher" }],
   abyss: STAT_BOARDS.map(b => (b.id === "floor" ? { ...b, unit: "depth reached in the Abyss" } : { ...b, unit: `${b.unit}, in the Abyss` })),
-  daily: [{ id: "alltime", label: "All time", icon: "🏛️", unit: "layer, deepest Daily runs ever" }, ...STAT_BOARDS.map(b => ({ ...b, unit: `${b.unit}, today` }))]
+  daily: [{ id: "alltime", label: "All time", icon: "🏛️", unit: "layer and floor, deepest Daily runs ever" }, ...STAT_BOARDS.map(b => ({ ...b, unit: `${b.unit}, today` }))]
 };
-export interface Row { rank: number; name: string; title?: string; value: number; origin: string; floor: number; plates?: number; day?: string; heat?: number; you?: boolean }
+export interface Row { rank: number; name: string; title?: string; value: number; origin: string; floor: number; depth?: number; plates?: number; day?: string; heat?: number; you?: boolean }
 export interface KillerRow { rank: number; name: string; kills: number; players: number }
 
 export const leaderboardOn = () => LEADERBOARD_URL.length > 0;

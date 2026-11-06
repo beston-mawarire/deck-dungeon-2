@@ -113,14 +113,14 @@ function crawlGear(run: Run, odds: Partial<Record<Rarity, number>>): GearItem {
   for (let k = 0; k < 8 && !["weapon", "armour"].includes(effectiveBase(it).kind); k++) it = dropItem(run, odds);
   return it;
 }
-/** The Crawl: some finds (about 30%, of any rarity) want a stronger hero than you are when you find them:
- *  from 1 to 5 levels more, with rarer finds reaching higher (a Common asks 1–2 more, a Legendary up to 5). The rest you can use straight away. */
+/** The Crawl: some finds (about 30%, of any rarity) want a slightly stronger hero than you are when you find them:
+ *  one level more, never further. The rest you can use straight away. */
 export const GATE_CHANCE = 0.3;
-export const GATE_MAX: Partial<Record<Rarity, number>> = { common: 2, uncommon: 3, rare: 4 };
+/** The most levels above you a find can ask for. */
+export const GATE_MAX_ABOVE = 1;
 export function gateItem(run: Run, it: GearItem) {
   if (!run.gridMode || run.rng() >= GATE_CHANCE) return;
-  const max = GATE_MAX[it.rarity] ?? 5;
-  it.reqLevel = run.hero.level + 1 + Math.floor(run.rng() * max);
+  it.reqLevel = run.hero.level + GATE_MAX_ABOVE;
 }
 /** A find's odds, after Heat and the Tarot: Heat (and the Devil's curses, and Death's Reaping) make Rare-or-better likelier;
  *  the Wheel of Fortune swings to the extremes. */
@@ -3062,6 +3062,8 @@ export function runSummary(run: Run) {
   trackGold(run);
   return {
     seed: run.seed, origin: run.hero.origin, mode: run.mode, floor: run.mode === "abyss" ? Math.min(run.floor, ABYSS_FLOORS) : run.floor, won: run.scene.t === "over" && run.scene.won,
+    // The walkable dungeon: the floor reached inside the layer (0: the entrance), so the boards can show "Layer 2 · Floor 3".
+    depth: run.mode !== "abyss" && run.gridMode && run.grid ? run.grid.depth : undefined,
     plates: run.hero.plates ?? 0, daily: run.daily, heat: heatOf(run) || undefined,
     level: run.hero.level, kills: run.stats.kills, elites: p["q_elites"] ?? 0, champions: p["q_champions"] ?? 0,
     damage: Math.round(p["t_dmg"] ?? 0), bestHit: Math.round(Math.max(p["t_best"] ?? 0, run.stats.bestHit)), gold: run.goldEarned ?? 0,

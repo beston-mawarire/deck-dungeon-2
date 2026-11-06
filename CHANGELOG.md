@@ -9,6 +9,11 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.1.0
+- The leaderboards know the new dungeon. Deepest ranks by layer, then by the floor reached inside it, and shows it as "2nd Layer · Floor 3" (or the Entrance). Every other board shows how deep each run got under the player's name.
+- A find that asks for a higher level now asks for at most one level above yours (it was up to five). Gear you already carry is capped the same way when a run loads.
+- The retired Vanadium Plates no longer show on the boards.
+
 ## 2.0.17
 - Skeleton Keys no longer show in the backpack's Gear tab. They're in the Artefacts tab.
 

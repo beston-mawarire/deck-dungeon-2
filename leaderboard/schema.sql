@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS runs (
   killer TEXT,
   heat INTEGER NOT NULL DEFAULT 0,
   turbo INTEGER NOT NULL DEFAULT 0,
+  -- The floor reached inside the layer (0: the entrance).
+  depth INTEGER NOT NULL DEFAULT 0,
   UNIQUE (pid, seed)
 );
 CREATE INDEX IF NOT EXISTS runs_pid_time ON runs (pid, created_at);

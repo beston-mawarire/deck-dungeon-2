@@ -2886,3 +2886,8 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
 #break-note { position: fixed; z-index: 999; left: 50%; top: 16px; transform: translateX(-50%); width: min(420px, calc(100% - 24px)); padding: 12px 14px; border-radius: 10px;
   background: #3a1410; border: 2px solid #c0503a; color: #f6e2d0; font-size: .9rem; box-shadow: 0 8px 24px rgba(0,0,0,.6); }
 #break-note button { margin-top: 8px; padding: 6px 14px; border-radius: 8px; background: #5e2820; color: #f6e2d0; border: 1px solid #c0503a; font-weight: 700; }
+/* 2.0.18: the boards show how deep a run got (layer and floor). */
+.lb-reach { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 999px; font-size: .72rem; background: rgba(0,0,0,.3); color: #d8c39a; white-space: nowrap; }
+.lb-val.lb-deep { font-size: .85rem; white-space: nowrap; }
+.lb-list .lb-nm:has(.lb-reach) { white-space: normal; }
+.lb-reach { display: table; margin: 3px 0 0; }

@@ -65,6 +65,8 @@ export function loadRun(): { run: Run; banked: number } | null {
     const hero = d.run.hero as Hero;
     hero.f.statuses = {};
     hero.f.flags = {};
+    // (2.0.18: a find asks at most one level above you; older saves can hold gear that asked for more.)
+    for (const it of [...Object.values(hero.equip), ...hero.backpack]) if (it?.reqLevel && it.reqLevel > hero.level + 1) it.reqLevel = hero.level + 1;
     recompute(hero);
     const run: Run = {
       ...d.run,
