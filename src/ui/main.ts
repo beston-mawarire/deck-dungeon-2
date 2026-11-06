@@ -624,17 +624,33 @@ function infoPopup() {
 /** Achievements: what you've earned, what's left, and the title you show on the leaderboards. */
 function achievementsPopup() {
   const got = new Set(meta.achievements ?? []);
-  let lastGroup: string | undefined = "";
-  const rows = ACHIEVEMENTS.filter(a => (achTab === "earned") === got.has(a.id)).sort((x, y) => (x.group ? 1 : 0) - (y.group ? 1 : 0)).map(a => `${a.group !== lastGroup ? `<h3 class="ach-group">${esc((lastGroup = a.group) ?? "Feats")}</h3>` : ""}<div class="ach ${got.has(a.id) ? "got" : ""}">
-    <div class="row"><b class="grow">${got.has(a.id) ? "🏆" : "🔒"} ${esc(a.name)}</b>${a.title ? `<span class="sub">Title: “${esc(a.title)}”</span>` : ""}</div>
-    <p class="sub">${esc(a.text)}</p>
-    ${a.title ? `<div class="row">${got.has(a.id) ? `<button class="small ${meta.title === a.title ? "primary" : ""}" data-title="${esc(a.title)}">${meta.title === a.title ? "✓ " : ""}Title: “${esc(a.title)}”</button>` : `<span class="sub">Title: “${esc(a.title)}”</span>`}</div>` : ""}
-  </div>`).join("");
-  return `<div class="overlay"><div class="inner ach-pop">
-    <div class="row"><h1 class="grow">🏆 Achievements</h1><button class="closebtn" data-closeach>✕ Close</button></div>
-    <p class="sub">${got.size}/${ACHIEVEMENTS.length} earned. ${meta.title ? `Your title on the leaderboards: <b>“${esc(meta.title)}”</b> <button class="small" data-title="">Remove</button>` : "Pick a title you've earned to show next to your name on the leaderboards."}</p>
-    <div class="row subtabs"><button class="small ${achTab === "todo" ? "primary" : ""}" data-achtab="todo">🔒 To earn (${ACHIEVEMENTS.length - got.size})</button><button class="small ${achTab === "earned" ? "primary" : ""}" data-achtab="earned">🏆 Earned (${got.size})</button></div>
-    ${rows || `<p class="sub center">${achTab === "earned" ? "Nothing yet. Every run is a chance." : "You've earned them all!"}</p>`}
+  const pct = Math.round((got.size / ACHIEVEMENTS.length) * 100);
+  // Grouped as the game lists them: Feats first, then Heat, Drills and the rest.
+  const list = ACHIEVEMENTS.filter(a => (achTab === "earned") === got.has(a.id));
+  const groups = new Map<string, typeof list>();
+  for (const a of list) { const g = a.group ?? "Feats"; if (!groups.has(g)) groups.set(g, []); groups.get(g)!.push(a); }
+  const card = (a: (typeof ACHIEVEMENTS)[number]) => {
+    const has = got.has(a.id), worn = !!a.title && meta.title === a.title;
+    return `<div class="ach-card ${has ? "got" : "todo"} ${worn ? "worn" : ""}">
+      <span class="ach-seal">${has ? "🏆" : "🔒"}</span>
+      <div class="ach-txt"><b>${esc(a.name)}</b><span>${esc(a.text)}</span>
+        ${a.title ? (has ? `<button class="ach-title ${worn ? "on" : ""}" data-title="${worn ? "" : esc(a.title)}">${worn ? "✓ Wearing" : "Wear"} “${esc(a.title)}”</button>` : `<i class="ach-title-lock">Title: “${esc(a.title)}”</i>`) : ""}</div>
+      <em class="ach-renown">+${a.renown}</em>
+    </div>`;
+  };
+  const body = [...groups.entries()].map(([g, as]) => `<h3 class="ach-group">${esc(g)} <span>${as.length}</span></h3><div class="ach-list">${as.map(card).join("")}</div>`).join("");
+  return `<div class="cb-screen grit-screen ach-screen"><div class="mer-inner grit-inner">
+    <div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">Achievements</div></div>
+    <div class="grit-body">
+      <div class="ach-head">
+        <div class="ach-count"><b>${got.size}</b> of ${ACHIEVEMENTS.length} earned</div>
+        <div class="ach-bar"><i style="width:${pct}%"></i></div>
+        <p class="ach-worn">${meta.title ? `On the leaderboards you're <b>“${esc(meta.title)}”</b>. <button class="ach-title" data-title="">Take it off</button>` : "Earn an achievement with a title and wear it beside your name on the leaderboards."}</p>
+      </div>
+      <div class="ach-tabs"><button class="${achTab === "todo" ? "on" : ""}" data-achtab="todo">🔒 To earn <i>${ACHIEVEMENTS.length - got.size}</i></button><button class="${achTab === "earned" ? "on" : ""}" data-achtab="earned">🏆 Earned <i>${got.size}</i></button></div>
+      ${body || `<p class="sub center">${achTab === "earned" ? "Nothing yet. Every run is a chance." : "You've earned them all!"}</p>`}
+    </div>
+    <button class="mer-leave plank-btn" data-closeach>Back</button>
   </div></div>`;
 }
 

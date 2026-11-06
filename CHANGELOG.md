@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.6
+- The Achievements page now matches the dungeon look: a wooden sign, a progress bar, gold tabs, and achievements grouped by kind. Earned ones are parchment cards with a Wear button for their title. Locked ones are dark dotted cards that show the title you'd get.
+
 ## 2.0.5
 **Deck Dungeon 3 goes live.**
 - The game moves from the test link to the main page.
