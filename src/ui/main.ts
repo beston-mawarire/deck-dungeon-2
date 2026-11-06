@@ -1461,7 +1461,7 @@ function pickScene(r: Run) {
     ${ks ? `<div class="item keepsake"><div class="meta">Keepsake · one at a time${r.hero.keepsake ? ` · replaces ${esc(getItem(r.hero.keepsake).name)}` : ""}</div><div class="nm">🕯️ ${esc(ks.name)}</div><p>${esc(ks.text)}.</p><div class="row"><button class="small primary" data-keepsake>Take the Keepsake</button></div><p class="sub">Free: it doesn't count as your pick.</p></div>` : ""}
     ${s.items.length > 1 ? `<div class="toast pick-note">Pick <b>one</b>. Equipping, bagging or scrapping an item is your choice — the others are lost.</div>` : ""}
     <div class="cards">${s.items.map(it => itemCard(it, s.items.length > 1 ? pickButtons(it) : takeButtons(it), true)).join("")}</div>
-    ${s.passed?.length ? `<h2 class="lost-out">Lost out on</h2><div class="cards">${s.passed.map(it => itemCard(it)).join("")}</div>` : ""}
+    ${s.passed?.length ? `<div class="lost-box"><h2 class="lost-out">Lost out on</h2><div class="lost-cards">${s.passed.map(it => itemCard(it)).join("")}</div></div>` : ""}
     <div class="row" style="margin-top:12px"><button class="take-pack take-none" data-finish>🚫 Take nothing</button></div>`;
 }
 
@@ -1469,19 +1469,22 @@ function resplendentScene(r: Run) {
   if (r.scene.t !== "resplendent") return "";
   const s = r.scene;
   const monocle = Object.values(r.hero.equip).some(i => i?.base === "t_monocle");
+  const can = s.picked === null || s.glove;
   const cards = s.cards.map((c, i) => {
     if (s.picked === i) {
-      return `<div class="flip"><div class="front">${c.kind === "scroll" ? `<div class="item r-legendary"><div class="nm">📜 Scroll of Revelation</div><p>Reveals one Legendary.</p></div>` : itemCard(c.item)}</div></div>`;
+      return `<div class="rs-card rs-open"><div class="inv-card">${c.kind === "scroll" ? `<div class="item r-legendary"><div class="nm">📜 Scroll of Revelation</div><p>Reveals one Legendary.</p></div>` : itemCard(c.item, "", false)}</div></div>`;
     }
     const tint = monocle && c.kind === "item" ? `tint-${c.item.rarity}` : "";
-    const can = s.picked === null || s.glove;
-    return `<div class="flip" ${can ? `data-card="${i}"` : ""}><div class="face back ${tint}">✦</div></div>`;
+    return `<div class="rs-card rs-back ${tint} ${can ? "" : "rs-gone"}" ${can ? `data-card="${i}"` : ""}><span class="rs-seal">✦</span><i class="rs-rivet a"></i><i class="rs-rivet b"></i><i class="rs-rivet c"></i><i class="rs-rivet d"></i></div>`;
   }).join("");
-  return `<div class="overlay"><div class="inner">
-    <h1 class="center">Resplendent Chest</h1>
-    <p class="center sub">${s.picked === null ? "Choose one card. The others will be lost." : s.glove ? "Gambler's Glove: give this up and pick another face-down card, or claim it." : "Claim your find."}</p>
-    <div class="flipcards">${cards}</div>
-    ${s.picked !== null ? `<div class="row" style="justify-content:center"><button class="primary" data-claim>Claim</button></div>` : ""}
+  const line = s.picked === null ? "Choose one card. The others will be lost." : s.glove ? "Gambler's Glove: give this up and pick another face-down card, or claim it." : "Claim your find.";
+  return `<div class="cb-screen grit-screen rs-screen"><div class="mer-inner grit-inner">
+    <div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">Resplendent Chest</div></div>
+    <div class="grit-body">
+      <p class="rs-line">${line}</p>
+      <div class="rs-cards ${s.picked !== null ? "rs-picked" : ""}">${cards}</div>
+    </div>
+    ${s.picked !== null ? `<button class="mer-leave plank-btn rs-claim" data-claim>✔ Claim</button>` : ""}
   </div></div>`;
 }
 

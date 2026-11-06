@@ -2803,3 +2803,45 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
 
 /* 2.0.7: the compare window opens from the found-item popup, the backpack and item popups, so it sits above all of them. */
 .popup-wrap:has(> .compare-pop) { z-index: 90; }
+
+/* 2.0.8: the Resplendent Chest, in the dungeon's look. */
+.rs-screen { z-index: 25; }
+.rs-line { text-align: center; color: #e8d6b0; margin: 4px 0 12px; font-size: .95rem; }
+.rs-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; max-width: 820px; margin: 0 auto; }
+.rs-card { min-height: 190px; border-radius: 12px; }
+.rs-back { position: relative; cursor: pointer; display: grid; place-items: center;
+  background: radial-gradient(ellipse at 50% 40%, rgba(240,200,110,.16), transparent 60%), repeating-linear-gradient(90deg, #3a2716 0 22px, #33220f 22px 24px), #33220f;
+  border: 3px solid #a57a3e; box-shadow: inset 0 0 0 2px #1a0f07, inset 0 0 24px rgba(0,0,0,.6), 0 4px 0 #0d0805, 0 8px 18px rgba(0,0,0,.5);
+  transition: transform .15s, box-shadow .15s; }
+.rs-back:hover { transform: translateY(-3px); box-shadow: inset 0 0 0 2px #1a0f07, inset 0 0 24px rgba(0,0,0,.6), 0 4px 0 #0d0805, 0 0 18px rgba(240,200,110,.45); }
+.rs-seal { width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; font-size: 1.9rem; color: #ffe2a0;
+  background: radial-gradient(circle at 35% 30%, #8a6430, #4a3018); border: 2px solid #e2b866; box-shadow: 0 0 14px rgba(240,200,110,.5); text-shadow: 0 0 8px rgba(255,220,140,.9); }
+.rs-rivet { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #f0d49a, #7a5a2c); }
+.rs-rivet.a { top: 8px; left: 8px; } .rs-rivet.b { top: 8px; right: 8px; } .rs-rivet.c { bottom: 8px; left: 8px; } .rs-rivet.d { bottom: 8px; right: 8px; }
+.rs-back.tint-common { border-color: var(--common); } .rs-back.tint-uncommon { border-color: var(--uncommon); } .rs-back.tint-rare { border-color: var(--rare); }
+.rs-back.tint-epic { border-color: var(--epic); } .rs-back.tint-legendary { border-color: var(--legendary); } .rs-back[class*="tint-"][class*="crimson"] { border-color: var(--crimson); }
+.rs-back.rs-gone { cursor: default; opacity: .35; filter: grayscale(.6); }
+.rs-picked .rs-back { min-height: 90px; }
+.rs-picked .rs-back .rs-seal { width: 40px; height: 40px; font-size: 1.2rem; }
+.rs-open { grid-column: 1 / -1; animation: flipin .45s ease; min-height: 0; }
+.rs-open .inv-card { padding: 0; overflow: visible; max-width: 420px; margin: 0 auto; }
+.rs-claim { margin-top: 10px; }
+@media (max-width: 520px) { .rs-cards { grid-template-columns: 1fr 1fr; gap: 10px; } .rs-card { min-height: 150px; } }
+.rs-cards { display: flex; flex-wrap: wrap; justify-content: center; }
+.rs-back { flex: 0 1 170px; }
+.rs-open { flex: 1 1 100%; }
+@media (max-width: 520px) { .rs-back { flex: 0 1 calc(50% - 5px); } }
+
+/* 2.0.8: crawl popups scroll as a whole, so the torn parchment grows with what's in it (nothing spills past its edge). */
+.crawl-pop-wrap { overflow-y: auto; align-items: flex-start; }
+.crawl-pop-wrap > .crawl-pop { max-height: none; overflow: visible; margin: auto 0; }
+/* What the Resplendent Chest held that you didn't pick: framed, dimmed, in dotted rarity colours. */
+.lost-box { margin-top: 14px; padding: 10px; border: 2px dashed #8a6a40; border-radius: 12px; background: rgba(60,35,15,.08); }
+.lost-box h2.lost-out { margin: 0 0 8px; text-align: center; color: #8e2a32; text-shadow: none; font-family: Georgia, "Times New Roman", serif; }
+.lost-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.lost-cards .item { --rk: #7a6a52; position: relative; margin: 0; padding: 8px 10px; font-size: .82rem; opacity: .85; background: rgba(255,250,236,.45) !important; border: 2px dotted var(--rk) !important; border-radius: 10px !important; box-shadow: none !important; min-width: 0; overflow-wrap: anywhere; }
+.lost-cards .item::before, .lost-cards .item::after { content: none !important; }
+.lost-cards .item.r-uncommon { --rk: #2f8a4c; } .lost-cards .item.r-rare { --rk: #2a6fb8; } .lost-cards .item.r-epic { --rk: #7c3fc0; } .lost-cards .item.r-legendary { --rk: #c46a12; }
+.lost-cards .item:is(.r-crimson, .r-epic_crimson, .r-legendary_crimson) { --rk: #b8202f; }
+.lost-cards .item ul { padding-left: 16px; margin: 4px 0 0; }
+.lost-cards .item .tags, .lost-cards .item [class*="tag"] { max-width: 100%; }

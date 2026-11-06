@@ -9,6 +9,11 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.8
+- The Resplendent Chest has the dungeon look: a wooden sign, studded wooden card backs with a glowing seal, the revealed find shown large, and a Claim plank.
+- "Lost out on" items now sit in their own framed box, each in a dotted frame of its rarity's colour.
+- Long popups in the Crawl scroll as a whole, so the parchment always reaches the bottom and nothing spills past its edge.
+
 ## 2.0.7
 - Compare equipped works again. The comparison now opens on top of the found-item popup, the backpack and item popups instead of behind them, and tips stay hidden while it's open.
 
