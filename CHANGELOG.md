@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.16
+- At the Merchant, switching between Equipped and Backpack (or tapping anything) no longer scrolls you back to the top. The backpack screen holds its place too.
+
 ## 2.0.15
 - Starmetal and Orilium live in the backpack's Artefacts tab now, not the Gear tab. Orilium has its own tile beside Starmetal.
 

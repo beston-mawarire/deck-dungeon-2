@@ -3023,7 +3023,7 @@ function render() {
 
 let chestHeard: unknown = null;
 /** Scroll boxes that keep their place across a re-render (the passive tree, mostly). */
-const KEEP_SCROLL = [".ts-scroll"];
+const KEEP_SCROLL = [".ts-scroll", ".shop-body", ".inv-body"];
 function keepScroll(): () => void {
   const saved = KEEP_SCROLL.map(sel => { const el = document.querySelector<HTMLElement>(sel); return el ? [sel, el.scrollLeft, el.scrollTop] as const : null; }).filter(x => !!x);
   return () => { for (const [sel, l, t] of saved) { const el = document.querySelector<HTMLElement>(sel); if (el) { el.scrollLeft = l; el.scrollTop = t; } } };
