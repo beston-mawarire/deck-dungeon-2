@@ -78,7 +78,7 @@ export function applyHall(m: Meta, run: Run) {
   // Weapon mastery: each family's level rides along.
   for (const fam of MASTERY_FAMILIES) { const lv = wmLevel(m.weaponXp?.[fam] ?? 0); if (lv) h.f.persist[`wm_${fam}`] = lv; }
   // A totem set at the door is used up as you go in.
-  if (m.totemSet && (m.totems?.[m.totemSet] ?? 0) > 0) { m.totems![m.totemSet]!--; h.f.persist[`totem_${m.totemSet}`] = 1; }
+  // (Totems are retired: class-sorted loot and Weapon Mastery do their job now.)
   m.totemSet = undefined;
   h.f.gold += 25 * hallRank(m, "pockets");
   h.potions += hallRank(m, "belt");

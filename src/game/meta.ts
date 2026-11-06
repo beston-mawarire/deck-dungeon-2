@@ -59,6 +59,8 @@ export interface Meta {
   /** The guided first run: tips already read, and whether tips are switched off. */
   tips?: string[];
   tipsOff?: boolean;
+  /** Don't show the trapdoor explainer after Descend any more. */
+  skipTrapIntro?: boolean;
   /** Drills: the classes that have cleared each one (its medal). */
   drills?: Record<string, import("../engine/types").OriginId[]>;
   /** Campaign runs in a row that ended without a Legendary (four, and the next run's first boss offers one). */
@@ -120,59 +122,6 @@ export const ABYSS_UNLOCK_FLOOR = 15;
 export const abyssUnlocked = (m: Meta) => Object.values(m.layersBeaten ?? {}).some(n => (n ?? 0) >= ABYSS_UNLOCK_LAYERS) || m.bestFloor > ABYSS_UNLOCK_FLOOR;
 export const ABYSS_UNLOCK_LAYERS = 5;
 
-/** Move this run's Ruin Shards and Vanadium Plates to the device as soon as they drop. True if anything changed. */
-export function bankRuin(m: Meta, run: Run): boolean {
-  const r = run.ruin;
-  if (!r) return false;
-  const b = (r.banked = r.banked ?? { shards: 0, plates: 0 });
-  const ds = r.shards - b.shards, dp = r.plates - b.plates, dg = (r.gems ?? 0) - (b.gems ?? 0);
-  if (!ds && !dp && !dg) return false;
-  m.ruinShards = (m.ruinShards ?? 0) + ds;
-  m.plates = (m.plates ?? 0) + dp;
-  m.ruinGems = (m.ruinGems ?? 0) + dg;
-  b.shards = r.shards; b.plates = r.plates; b.gems = r.gems ?? 0;
-  saveMeta(m);
-  return true;
-}
-
-/** Each Ruin Gem on a class: +10% to its base stats (Max HP, Damage, Armor), in the Campaign and the Abyss. */
-export const GEM_BONUS = 0.1;
-/** Put a free Ruin Gem on a class. */
-export function addGem(m: Meta, origin: string): boolean {
-  if ((m.ruinGems ?? 0) <= 0) return false;
-  m.ruinGems = (m.ruinGems ?? 0) - 1;
-  m.classGems = { ...(m.classGems ?? {}), [origin]: (m.classGems?.[origin] ?? 0) + 1 };
-  saveMeta(m);
-  return true;
-}
-/** Take a Ruin Gem back off a class (to put on another). */
-export function removeGem(m: Meta, origin: string): boolean {
-  if ((m.classGems?.[origin] ?? 0) <= 0) return false;
-  m.classGems = { ...(m.classGems ?? {}), [origin]: (m.classGems?.[origin] ?? 0) - 1 };
-  m.ruinGems = (m.ruinGems ?? 0) + 1;
-  saveMeta(m);
-  return true;
-}
-
-/** Give one unassigned plate to a class, for good. */
-export function applyPlate(m: Meta, origin: string): boolean {
-  if ((m.plates ?? 0) <= 0) return false;
-  m.plates = (m.plates ?? 0) - 1;
-  m.classPlates = { ...(m.classPlates ?? {}), [origin]: (m.classPlates?.[origin] ?? 0) + 1 };
-  saveMeta(m);
-  return true;
-}
-
-/** Ruin Shards it costs to enter the Abyss. */
-export const ABYSS_SHARD_COST = 1;
-/** Pay the Ruin Shards to enter the Abyss. */
-export function spendShard(m: Meta): boolean {
-  if ((m.ruinShards ?? 0) < ABYSS_SHARD_COST) return false;
-  m.ruinShards = (m.ruinShards ?? 0) - ABYSS_SHARD_COST;
-  m.abyssRuns = (m.abyssRuns ?? 0) + 1;
-  saveMeta(m);
-  return true;
-}
 
 const KEY = "dd2-meta-v1";
 
@@ -314,7 +263,6 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
   if (run.gridMode && won) (m.layersBeaten ??= {})[run.hero.origin] = Math.max(m.layersBeaten[run.hero.origin] ?? 0, won);
   if (run.gridMode && !alreadyEarned) bankLongRoad(m, run);
   else m.bestFloor = Math.max(m.bestFloor, run.floor);
-  bankRuin(m, run);
   m.found = [...new Set([...m.found, ...run.found])];
   saveMeta(m);
   // Class Mastery: floors reached and bosses beaten (only the part not counted yet, if a won run carried on).

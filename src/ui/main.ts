@@ -21,9 +21,9 @@ import {
 import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
 import { GEN_MODULE_MAP, modValue } from "../game/gen";
-import { ACHIEVEMENTS, currentAbyssMod,  heatOf, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX } from "../game/progress";
+import { ACHIEVEMENTS,  heatOf, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX } from "../game/progress";
 import { DRILL_CROWNS, DRILL_LAYERS, DRILL_MAP, DRILLS, drillMedal, drillsOpen } from "../game/drills";
-import { chosenPath, LEDGER_MARKS, carriedTarot, flipTarot, takeTarot, toggleTarot, ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem, abyssUnlocked, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta } from "../game/meta";
+import { chosenPath, LEDGER_MARKS, carriedTarot, flipTarot, takeTarot, toggleTarot, classOpen, CLASS_UNLOCK, abyssUnlocked, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta } from "../game/meta";
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
@@ -35,7 +35,7 @@ import {
 import { fortunePips } from "../game/loot";
 import { layerFloors } from "../game/grid";
 import { isThrow, readyThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
-import { branchSpent, isTreeRelic, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TOTEMS, totemById, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
+import { branchSpent, isTreeRelic, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR, BASE_DMG_PER } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
@@ -43,7 +43,7 @@ import { mountCampMap, resetCampWalk } from "./campmap";
 import { CAMP_BITE, CAMP_CASTS, CAMP_DEEP, CAMP_EMPTY, type CastPlan, FISH, fishById, planCast, POND_BITE, rollCatch, TANK_CATCHES } from "../game/fishing";
 import { ELITE_ONLY, MONSTERS } from "../data/monsters";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
-import { gearAttr, spendAttr, TYPE_MARK, treeAttr, PLATE_BONUS, plateMult, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
+import { gearAttr, spendAttr, TYPE_MARK, treeAttr, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
 import { INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
@@ -88,8 +88,6 @@ let pendingOrigin: OriginId | null = null;
 /** The title screen's tabs: the Campaign, or an Abyss run. */
 let menuTab: "campaign" | "abyss" = "campaign";
 
-/** Adding a Vanadium Plate is for good: the first tap arms it, the second applies it. */
-let plateArmed = false;
 let restoreOpen = false;
 let infoOpen = false;
 let historyOpen = false;
@@ -199,14 +197,11 @@ const say = (msg: string | null, bad = true) => {
 };
 /** The Abyss tab's explainer (shown the first time you open the tab, and from its "How it works" button). */
 let abyssIntroOpen = false;
-const abyssIntro = () => storyBeat({ icon: "🕳️", title: "The Abyss", text: "A run of its own, far deadlier than the dungeon above, and where your permanent power comes from.", list: [
-  `🔓 Opens once any of your heroes beats the dungeon's last layer. Each run costs ${ABYSS_SHARD_COST} Ruin Shard${ABYSS_SHARD_COST === 1 ? "" : "s"}.`,
-  "☠️ Ten depths. Every fight is a rank tougher, each depth ends with an Uber boss, and your Armor wears down as you go.",
-  "💰 The richest loot in the game, best from Champions, bosses and Uber bosses.",
-  "🪨 Ruin Shards (the entry fee) drop from every guardian from the last layer on.",
-  "⬛ Vanadium Plates sometimes drop from the same guardians. Give them to a class for good: they make it stronger in the Abyss, far more so from the third plate on.",
-  "💎 Ruin Gems drop from Uber bosses. Put them on any class for more Max HP, Damage and Armor in the dungeon and the Abyss, and move them whenever you like.",
-  "🌕 A new twist every week, and a leaderboard for the deepest runs."
+const abyssIntro = () => storyBeat({ icon: "🕳️", title: "The Abyss", text: "One layer below the last, where the torches burn low.", list: [
+  "🔓 Opens once any of your heroes beats the dungeon's last layer. You set out strong, as someone who has walked the whole dungeon.",
+  "🔮 An Omen waits on every floor: a boon and a bane together. Accept it, or turn it away.",
+  "☠️ Its foes are deadlier than the 5th Layer's, and its warden waits at the bottom.",
+  "🃏 Beat the warden and the Abyss gives you a Tarot card: a new one, or a level for one you hold. Carry two into your runs from the Camp's Tarot Room."
 ] }, "data-closeabyssintro");
 
 /** The Great Reset just wiped this device: explain it once, on the splash screen. */
@@ -418,7 +413,6 @@ function titleScreen() {
   const tabs = "";
   const originCards = (abyss: boolean) => `<div class="origin-grid">${(Object.keys(ORIGINS) as OriginId[]).map(o => {
     const og = ORIGINS[o];
-    const pl = meta.classPlates?.[o] ?? 0;
     const lv = masteryLevel(meta.mastery?.[o] ?? 0);
     // Each class is a heraldic crest: its colours on a shield, its emblem in the middle, its name on a ribbon.
     return `<button class="crest crest-${o} ${abyss ? "abyss-card" : ""}" data-origin="${o}" aria-label="${esc(og.name)}">
@@ -426,34 +420,11 @@ function titleScreen() {
       <span class="crest-shield"><span class="crest-field"></span><span class="crest-emblem">${ORIGIN_ICON[o]}</span></span>
       <span class="crest-ribbon"><b>${og.name}</b></span>
       <span class="crest-blurb">${esc(og.blurb)}</span>
-      ${abyss ? `<span class="plate-line">⬛ ${pl} plate${pl === 1 ? "" : "s"}</span>` : ""}
     </button>`;
   }).join("")}</div>`;
   const dailyOpenToday = meta.daily?.day !== utcDay();
   const infoRow = `<div class="menu-btns three info-row"><button class="info-btn" data-info>ℹ️ Info</button><button class="ch-btn" data-challenges>${dailyOpenToday ? `<b class="newdot" title="Today's Daily Dungeon is waiting"></b>` : ""}⚔️ Challenges</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>`;
   const head = `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>`;
-  if ((menuTab as string) === "abyss") {
-    const shards = meta.ruinShards ?? 0;
-    const body = !abyssUnlocked(meta)
-      ? `<div class="panel abyss-locked"><p class="big">🔒 The Abyss is sealed.</p><p>Beat the dungeon's last layer, with any hero, to find the way down.</p><button class="dg-stone small" data-abyssintro>❔ How it works</button></div>`
-      : `<div class="campaign-hero abyss-hero">
-          <div class="ch-text"><b>🕳️ The Abyss</b><span>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. The richest loot comes from the deadliest. Each run costs ${ABYSS_SHARD_COST} Ruin Shards.</span></div>
-          <div class="hero-btns"><button class="dg-stone small" data-abyssintro>❔ How it works</button><button class="story-btn small" data-story="abyss">📖 Story</button></div>
-        </div>
-        <div class="abyss-stock">
-          <div class="stile extra-tile shard-tile"><span>🪨</span><span><b>${shards}</b> Ruin Shard${shards === 1 ? "" : "s"}<span class="sub">From every guardian from the last layer on.</span></span></div>
-          <div class="stile extra-tile plate-tile"><span>⬛</span><span><b>${meta.plates ?? 0}</b> Vanadium Plate${(meta.plates ?? 0) === 1 ? "" : "s"} to give<span class="sub">Rare drops from the same bosses.</span></span></div>
-          <div class="stile extra-tile gem-tile" style="grid-column: 1 / -1"><span>💎</span><span><b>${(meta.ruinGems ?? 0) + Object.values(meta.classGems ?? {}).reduce((a: number, n) => a + (n ?? 0), 0)}</b> Ruin Gem${((meta.ruinGems ?? 0) + Object.values(meta.classGems ?? {}).reduce((a: number, n) => a + (n ?? 0), 0)) === 1 ? "" : "s"} · ${meta.ruinGems ?? 0} free<span class="sub">Every Uber boss drops one. +10% base stats on any class, in every mode; open a class to move them.</span></span></div>
-          <div class="stile extra-tile" style="grid-column: 1 / -1"><span>🏅</span><span>Deepest: <b>${meta.abyssBest ? `depth ${meta.abyssBest}/10` : "not yet"}</b><span class="sub">${meta.abyssRuns ?? 0} Abyss run${(meta.abyssRuns ?? 0) === 1 ? "" : "s"}</span></span></div>
-        </div>
-        ${(() => { const w = currentAbyssMod(); return `<div class="panel abyss-week"><b>${w.icon} This week: ${esc(w.name)}</b><br><span class="sub">${esc(w.text)}. Changes every Monday.</span></div>`; })()}
-        ${shards >= ABYSS_SHARD_COST ? "" : `<div class="panel abyss-warn">You need ${ABYSS_SHARD_COST} Ruin Shard${ABYSS_SHARD_COST === 1 ? "" : "s"} to enter (you have ${shards}). Every guardian from the last layer on drops one.</div>`}
-        <h2 class="bright">Choose a hero</h2>
-        <p class="sub">Vanadium Plates make a hero stronger in the Abyss only. Once given, a plate stays with that hero for good.</p>
-        ${originCards(true)}
-        ${backupPanel()}`;
-    return `${head}${tabs}${infoRow}${cont}${body}<p class="version">${VERSION}</p>`;
-  }
   void head;
   return tavernScreen(infoRow, cont);
   return `${head}${tabs}${infoRow}
@@ -914,19 +885,8 @@ const CAMP_TABS: { id: CampTab; icon: string; name: string }[] = [
 /** One Camp option's content (it sits inside that option's archway). */
 function campBody(o: OriginId, tab: CampTab): string {
   const og = ORIGINS[o];
-  if (tab === "expedition") {
-    return `<p>The dungeon waits. Each layer is a Dungeon Entrance, five floors to explore and a sixth where its guardian waits, with a treasure room beyond. Find the trapdoor on every floor: there's no climbing back up.</p>
-      <p class="sub">You go in with ${og.hp} HP, your class's kit, 20 Gold and nothing to drink.</p>
-      ${campQuest !== null && campOffers?.[campQuest] ? `<p class="camp-quest-note">📋 Contract: ${esc(bountyText(campOffers[campQuest], o))}</p>` : `<p class="sub">No contract taken. The Quest Board has work, if you want it.</p>`}
-      ${liveSave() ? `<p class="sub warn">Setting out replaces your saved run.</p>` : ""}
-      ${(() => {
-        const held = TOTEMS.filter(t => (meta.totems?.[t.id] ?? 0) > 0);
-        if (!held.length) return "";
-        return `<div class="totem-row"><p class="sub">Set a totem at the door (it's used up as you go in):</p><div class="mer-list">${held.map(t => `<button class="mer-chip ${meta.totemSet === t.id ? "on" : ""}" data-totem="${t.id}" title="${esc(t.text)}"><b>${t.icon} ${esc(t.name)}</b><span>×${meta.totems![t.id]} · ${esc(t.text)}</span></button>`).join("")}</div></div>`;
-      })()}
-      <button class="primary camp-go" data-descend>⬇️ Descend</button>
-      ${masteryPanel(o)}${gemPanel(o)}${heatPanel()}`;
-  }
+  // (Enter Dungeon has its own screen: expeditionScreen.)
+  if (tab === "expedition") return "";
   if (tab === "quests") {
     if (!campOffers) { const h = newHero(o); campOffers = makeOffers(h, makeRng(Date.now() & 0x7fffffff), 1, heroTags(h)); }
     const offers = campOffers;
@@ -1157,13 +1117,24 @@ function fishResolve(ok: boolean, miss: string) {
 }
 
 /** Enter Dungeon: a dungeon archway, pitch black inside, with what you need to set out in its mouth. */
-let expPop: "heat" | "totem" | "layer" | "tarot" | null = null;
+let expPop: "heat" | "layer" | "tarot" | null = null;
 /** The layer the next run starts on (any layer up to the one after the class's best). */
 let startLayer = 1;
 const maxStartLayer = (o: OriginId) => Math.min(FLOORS, (meta.layersBeaten?.[o] ?? 0) + 1);
+/** After Descend: the trapdoor, big, and what to do with it. */
+let trapIntro = false;
+function trapIntroPopup() {
+  return `<div class="overlay popup-wrap trap-pop"><div class="popup trap-in">
+    <div class="trap-art"><span class="trap-box">${hasSprite("floor_stairs") ? spriteHtml("floor_stairs", 9, "trap-spr") : "🕳️"}</span></div>
+    <h2 class="center">The trapdoor</h2>
+    <p class="center">Every floor has one, glowing in the dark. <b>Walk into it</b> to drop to the next floor.</p>
+    <p class="center sub">There's no climbing back up, so look around first. At the bottom of each layer, its guardian waits.</p>
+    <label class="trap-skip"><input type="checkbox" data-trapskip ${meta.skipTrapIntro ? "checked" : ""}> Don't show this again</label>
+    <div class="row plank-row" style="justify-content:center"><button class="plank-btn exp-go" data-descend>Into the dark</button><button class="plank-btn" data-trapclose>Not yet</button></div>
+  </div></div>`;
+}
 function expeditionScreen(o: OriginId) {
   void o;
-  const tot = meta.totemSet ? totemById(meta.totemSet) : undefined;
   const heat = meta.wins ? pactHeat(meta.pact ?? {}) + tarotHeat(carriedTarot(meta)) : 0;
   const pop = expPop === "tarot" ? `<div class="overlay popup-wrap exp-pop"><div class="popup tarot-pop"><button class="small closex closebtn" data-exppop="" aria-label="Close">✕</button><h2 class="center">🃏 Tarot</h2>${tarotPanel()}<div class="row plank-row" style="justify-content:center"><button class="plank-btn" data-exppop="">Done</button></div></div></div>`
     : expPop === "heat" ? `<div class="overlay popup-wrap exp-pop"><div class="popup"><button class="small closex closebtn" data-exppop="" aria-label="Close">✕</button><h2 class="center">🔥 Heat</h2>${heatPanel()}<div class="row plank-row" style="justify-content:center"><button class="plank-btn" data-exppop="">Done</button></div></div></div>`
@@ -1171,11 +1142,7 @@ function expeditionScreen(o: OriginId) {
       <p class="sub center">Start from any layer up to the one after the deepest the ${esc(ORIGINS[o].name)} has beaten. Starting deeper, you set out stronger: a few levels, a little Gold and some gear in your pack.</p>
       <div class="layer-picks">${Array.from({ length: maxStartLayer(o) }, (_, i) => i + 1).map(n => `<button class="plank-btn ${Math.min(startLayer, maxStartLayer(o)) === n ? "on" : ""}" data-startlayer="${n}">The ${ordinal(n)} Layer${n > 1 ? ` <span>from level ${layerStartLevel(n)}</span>` : ""}</button>`).join("")}</div>
       ${maxStartLayer(o) < FLOORS ? `<p class="sub center">Beat the ${ordinal(maxStartLayer(o))} Layer to start from the next one.</p>` : ""}</div></div>`
-    : expPop === "totem" ? `<div class="overlay popup-wrap exp-pop"><div class="popup"><button class="small closex closebtn" data-exppop="" aria-label="Close">✕</button><h2 class="center">🗿 Totems</h2>
-      ${(() => { const held = TOTEMS.filter(t => (meta.totems?.[t.id] ?? 0) > 0); return held.length
-        ? `<p class="sub center">Set one at the door: it leans the loot its way, and it's used up as you go in.</p><div class="mer-list totem-list">${held.map(t => `<button class="mer-chip ${meta.totemSet === t.id ? "on" : ""}" data-totem="${t.id}"><b>${t.icon} ${esc(t.name)}</b><span>×${meta.totems![t.id]} · ${esc(t.text)}</span></button>`).join("")}</div>`
-        : `<p class="sub center">You hold no totems yet. From the third layer down, a guardian sometimes leaves one.</p>`; })()}
-      <div class="row plank-row" style="justify-content:center"><button class="plank-btn" data-exppop="">Done</button></div></div></div>` : "";
+    : "";
   return `<div class="cb-screen exp-screen"><div class="exp-inner">
     <div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">Enter Dungeon</div></div>
     <div class="exp-gate">
@@ -1183,16 +1150,15 @@ function expeditionScreen(o: OriginId) {
       <div class="cb-torch r"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
       <div class="exp-arch"><div class="exp-dark">
         <div class="exp-btns">
-          <button class="plank-btn exp-go" data-descend>Descend</button>
+          <button class="plank-btn exp-go" data-descend><span class="eg-arrow">▼</span>Descend<span class="eg-arrow">▼</span></button>
           <button class="plank-btn" data-exppop="layer">Layer · ${ordinal(Math.min(startLayer, maxStartLayer(o)))}</button>
           <button class="plank-btn" data-exppop="heat">Heat${heat ? ` · ${heat}` : ""}</button>
-          <button class="plank-btn" data-exppop="totem">Totem${tot ? ` · ${esc(tot.name)}` : ""}</button>
           ${Object.keys(meta.tarot ?? {}).length ? `<button class="plank-btn" data-exppop="tarot">Tarot${carriedTarot(meta).length ? ` · ${carriedTarot(meta).map(c => TAROT_MAP.get(c.id)!.icon).join("")}` : ""}</button>` : ""}
         </div>
       </div></div>
     </div>
     <button class="mer-leave plank-btn" data-closeroom>Back to the Camp</button>
-  </div></div>${pop}`;
+  </div></div>${pop}${trapIntro ? trapIntroPopup() : ""}`;
 }
 
 /** The Passive Tree's room: the whole tree under a night sky, scrolling both ways. Branches side by side; each row
@@ -2522,9 +2488,7 @@ function helpGlossary() {
     row("🎯", "Drills", "Ten short challenge runs from the Camp's Drills yard, one rule each, on the same footing for everyone. Medals and titles"),
   ].join(""))}
   ${group("🕳️ The Abyss", [
-    row("🔓", "Opening it", `Beat the dungeon's last layer with any hero. Then each Abyss run costs ${ABYSS_SHARD_COST} Ruin Shard${ABYSS_SHARD_COST === 1 ? "" : "s"}`),
-    row("🪨", "Ruin Shards", "Every guardian from the last layer on drops one"),
-    row("⬛", "Vanadium Plates", "Those same bosses sometimes drop one. Give it to a class (for good): in the Abyss only, that class gets more Max HP, Armor and Damage for every plate"),
+    row("🔓", "Opening it", "Beat the dungeon's last layer with any hero"),
     row("☠️", "One layer", "Below the last: darker, deadlier, with an Omen on every floor (a boon and a bane, if you accept it) and the Abyss's warden at the bottom. Beat it for a Tarot card"),
     row("💰", "The loot", "Much richer than the dungeon above, and richest from Champions, bosses and Uber bosses. Playing safe won't find the gear you need")
   ].join(""))}`;
@@ -2747,38 +2711,8 @@ function kitPopup(o: OriginId, slot: KitSlot) {
   </div></div>`;
 }
 
-/** Ruin Gems on this run's class: +10% base stats each (Campaign and Abyss; the Daily stays a level field). */
-/** The Ruin Gems panel in a class popup: what's on this class, and moving gems on or off. */
-function gemPanel(o: OriginId) {
-  const on = meta.classGems?.[o] ?? 0, free = meta.ruinGems ?? 0;
-  const total = free + Object.values(meta.classGems ?? {}).reduce((a: number, n) => a + (n ?? 0), 0);
-  if (!total) return "";
-  return `<div class="panel gem-panel"><p class="big">💎 <b>${on}</b> Ruin Gem${on === 1 ? "" : "s"} on the ${ORIGINS[o].name}</p>
-    <p class="sub">${on ? `+${Math.round(GEM_BONUS * on * 100)}% Max HP, Damage and Armor in the dungeon and the Abyss (not the Daily).` : "None yet."} Each gem adds ${Math.round(GEM_BONUS * 100)}%. Gems move freely between classes.</p>
-    <div class="row">${free ? `<button class="small primary" data-addgem="${o}">＋ Add a gem (${free} free)</button>` : ""}${on ? `<button class="small" data-removegem="${o}">− Take one back</button>` : ""}</div></div>`;
-}
-
 function originPopup(o: OriginId) {
   const og = ORIGINS[o];
-  if (menuTab === "abyss") {
-    const pl = meta.classPlates?.[o] ?? 0;
-    const free = meta.plates ?? 0;
-    const shards = meta.ruinShards ?? 0;
-    return `<div class="overlay popup-wrap"><div class="popup abyss-pop">
-    <button class="small closex closebtn" data-closeorigin aria-label="Close">✕</button>
-    <h1 class="center bigname">${og.name}</h1>
-    <div class="center bigicon">${ORIGIN_ICON[o]}</div>
-    <p class="center">Into the Abyss as the ${og.name}.</p>
-    ${masteryPanel(o)}
-    ${gemPanel(o)}
-    <div class="panel plate-panel"><p class="big">⬛ <b>${pl}</b> Vanadium Plate${pl === 1 ? "" : "s"} on the ${og.name}</p>
-      <p class="sub">${pl ? `+${Math.round((plateMult(pl) - 1) * 100)}% Max HP, Armor and Damage in the Abyss.` : "No plates yet."} The first two plates add ${Math.round(PLATE_BONUS * 100)}% each; from the 3rd on, each adds 30%.</p>
-      ${free ? `<button class="small ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : `＋ Give a plate (${free} to give)`}</button>` : `<p class="sub">No plates to give. Guardians from the last layer on sometimes drop one.</p>`}</div>
-    ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
-    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary abyss-go" data-startabyss ${shards >= ABYSS_SHARD_COST ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 ${ABYSS_SHARD_COST}</button><button data-closeorigin>Back</button></div>
-    ${shards >= ABYSS_SHARD_COST ? `<p class="sub center">You have ${shards} Ruin Shard${shards === 1 ? "" : "s"}.</p>` : `<p class="sub center warn">You need ${ABYSS_SHARD_COST} Ruin Shards (you have ${shards}).</p>`}
-  </div></div>`;
-  }
   return `<div class="overlay popup-wrap"><div class="popup">
     <button class="small closex closebtn" data-closeorigin aria-label="Close">✕</button>
     <h1 class="center bigname">${og.name}</h1>
@@ -2790,7 +2724,6 @@ function originPopup(o: OriginId) {
       <li><span>❤️</span><span><b>${og.hp} HP · ${MANA_MAX} Mana</b> ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}. Only Mana Potions refill your Mana.</span></li>
     </ul>
     ${masteryPanel(o)}
-    ${gemPanel(o)}
     ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
     <div class="row plank-row" style="justify-content:center;margin-top:12px"><button class="plank-btn" data-tocamp>🏕️ To the Camp</button><button class="plank-btn" data-closeorigin>Back</button></div>
   </div></div>`;
@@ -3041,7 +2974,7 @@ function render3() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title", musicPlace());
   if (!run) {
-    app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${tipBubble(null)}${treeNode ? treeNodePopup(camp) : ""}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${tipBubble(null)}${treeNode ? treeNodePopup(camp) : ""}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "Deck Dungeon 3 is here, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     if (camp) mountCampMap({ open: id => { campRoom = id as CampTab; campTab = id as CampTab; render(); }, origin: () => camp ?? "warrior", locked: id => id === "abyss" && !abyssUnlocked(meta), sfx: k => sfx(k as never) });
     return;
@@ -3065,10 +2998,9 @@ function render3() {
   }
   trackGold(r);
   trackMarks(r);
-  // Ruin Shards and Vanadium Plates go to the device (and the online backup) the moment they drop.
-  if (bankRuin(meta, r)) backupVault(vaultOf(meta));
+
   // Crown Shards and Camp materials go to the Camp the moment they're found.
-  if (bankCamp(meta, r)) saveMeta(meta);
+  if (!r.drill && bankCamp(meta, r)) saveMeta(meta);
   // The leaderboard server keeps its own record of how far this run has got.
   if (r.sid && r.floor !== r.reportedFloor && s.t !== "over") void reportFloor(r);
   if (s.t === "over" && !recorded && r.endRecord) recorded = r.endRecord;
@@ -3378,8 +3310,7 @@ function bind() {
     fetchVault().then(v => {
       if (!v) { useBackupCode(prevCode); restoreMsg = "Nothing is backed up under that code. (Codes from before the Great Reset don't restore anything: everyone started afresh.)"; render(); return; }
       if (v.save && applySave(v.save)) { restoreMsg = "Restored everything. Reloading…"; render(); setTimeout(() => location.reload(), 600); return; }
-      meta.ruinShards = v.shards; meta.plates = v.plates; meta.classPlates = v.classPlates; saveMeta(meta);
-      restoreOpen = false; restoreMsg = `Restored: ${v.shards} Ruin Shard${v.shards === 1 ? "" : "s"}, ${v.plates + Object.values(v.classPlates).reduce((a: number, n) => a + (n ?? 0), 0)} Vanadium Plate(s).`;
+      restoreOpen = false; restoreMsg = "That code has no saved progress to restore.";
       render();
     }).catch(() => { useBackupCode(prevCode); restoreMsg = "Couldn't reach the server. Try again when you're online."; render(); });
   });
@@ -3427,13 +3358,13 @@ function bind() {
       try { localStorage.removeItem("dd2-meta-v1"); } catch { /* ignore */ }
       clearSave();
       meta = loadMeta();
-      meta.ruinShards = 0; meta.plates = 0; meta.classPlates = {}; saveMeta(meta);
+      saveMeta(meta);
       backupVault(vaultOf(meta));
       resetArmed = false;
       optionsOpen = false;
       say("All progress has been reset.", false);
     });
-    on("[data-origin]", el => { const o = el.dataset.origin as OriginId; if (!classOpen(meta, o)) return; pendingOrigin = o; plateArmed = false; });
+    on("[data-origin]", el => { const o = el.dataset.origin as OriginId; if (!classOpen(meta, o)) return; pendingOrigin = o; });
     on("[data-menutab]", el => {
       menuTab = el.dataset.menutab as typeof menuTab; restoreOpen = false; restoreMsg = "";
       // The first visit to the Abyss tab explains it.
@@ -3441,13 +3372,6 @@ function bind() {
     });
     on("[data-abyssintro]", () => { abyssIntroOpen = true; });
     on("[data-closeabyssintro]", () => { abyssIntroOpen = false; try { localStorage.setItem("dd2-abyss-intro", "1"); } catch { /* ignore */ } });
-    on("[data-addgem]", el => { if (addGem(meta, el.dataset.addgem!)) { backupVault(vaultOf(meta)); sfx("chest"); } });
-    on("[data-removegem]", el => { if (removeGem(meta, el.dataset.removegem!)) backupVault(vaultOf(meta)); });
-    on("[data-addplate]", el => {
-      if (!plateArmed) { plateArmed = true; return; }
-      plateArmed = false;
-      if (applyPlate(meta, el.dataset.addplate!)) { backupVault(vaultOf(meta)); sfx("chest"); }
-    });
     on("[data-daily]", () => {
       const today = utcDay();
       if (meta.daily?.day === today) return;
@@ -3456,7 +3380,7 @@ function bind() {
       meta.daily = { day: today, floor: 1, won: false };
       saveMeta(meta);
       mode = "campaign"; lbResult = null; lbNaming = false; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
-      const nr = newDailyRun(today); // (no Ruin Gems or Camp upgrades: the Daily stays a level field)
+      const nr = newDailyRun(today); // (no Camp upgrades: the Daily stays a level field)
       startCrawl(nr);
       // A Daily walks its class's first path (a level field).
       nr.hero.path = pathsOf(nr.hero.origin)[0].id; recompute(nr.hero);
@@ -3470,13 +3394,13 @@ function bind() {
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
     on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; campTab = "expedition"; campRoom = null; resetCampWalk(); campOffers = null; campQuest = null; });
-    on("[data-closeroom]", () => { campRoom = null; expPop = null; fishCaught = null; fishNote = ""; if (fishLine) { for (const t of fishLine.timers) clearTimeout(t); fishLine = null; } });
+    on("[data-closeroom]", () => { campRoom = null; expPop = null; trapIntro = false; fishCaught = null; fishNote = ""; if (fishLine) { for (const t of fishLine.timers) clearTimeout(t); fishLine = null; } });
     on("[data-fishcast]", () => fishStart());
     on("[data-fishstrike]", () => fishStrike());
     on("[data-exppop]", el => { expPop = (el.dataset.exppop || null) as typeof expPop; });
     on("[data-startlayer]", el => { startLayer = Number(el.dataset.startlayer); expPop = null; });
     on("[data-campback]", () => { camp = null; kitPick = null; });
-    on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; plateArmed = false; });
+    on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; });
     on("[data-learn]", el => { const err = learn(meta, el.dataset.learn!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });
     on("[data-sow]", el => { const k = el.dataset.sow as Plant; sowing = sowing === k ? null : k; });
     on("[data-plot]", el => {
@@ -3492,11 +3416,13 @@ function bind() {
     on("[data-nodeinfo]", el => { treeNode = el.dataset.nodeinfo!; });
     on("[data-closenode]", () => { treeNode = null; });
     on("[data-treereset]", () => { if (!camp) return; resetTree(meta, camp); saveMeta(meta); });
-    on("[data-totem]", el => { const id = el.dataset.totem!; meta.totemSet = meta.totemSet === id ? undefined : id; saveMeta(meta); });
     on("[data-hallbuy]", el => { const err = buyHall(meta, el.dataset.hallbuy!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });
     on("[data-cquest]", el => { const i = Number(el.dataset.cquest); campQuest = i < 0 || campQuest === i ? null : i; });
     on("[data-campabyss]", () => { pendingOrigin = camp; startAbyss(); });
-    on("[data-descend]", () => { if (!camp) return; pendingOrigin = camp; startCampaign(); });
+    // Descend: first, a word about trapdoors (until you say you've got it).
+    on("[data-descend]", () => { if (!camp) return; if (!meta.skipTrapIntro && !trapIntro) { trapIntro = true; return; } trapIntro = false; pendingOrigin = camp; startCampaign(); });
+    on("[data-trapclose]", () => { trapIntro = false; });
+    on("[data-trapskip]", () => { meta.skipTrapIntro = !meta.skipTrapIntro; saveMeta(meta); });
     on("[data-start]", () => startCampaign());
     on("[data-drill]", el => { if (camp) startDrillRun(camp, el.dataset.drill!); });
     /** A Drill: a level field (no Hall, Heat, Tarot or Passive Tree), the class's path, and the Drill's one rule. */
@@ -3739,12 +3665,6 @@ setPlayerTitle(meta.title ?? "");
 // Backup: resend one that didn't make it, keep the online copy fresh; on a device that has never held any Shards, adopt the online copy.
 watchBackup(() => vaultOf(meta));
 if (vaultDirty()) backupVault(vaultOf(meta));
-else if (meta.ruinShards === undefined && meta.plates === undefined && meta.classPlates === undefined) {
-  fetchVault().then(v => {
-    if (!v || (meta.ruinShards ?? 0) + (meta.plates ?? 0) > 0) return;
-    meta.ruinShards = v.shards; meta.plates = v.plates; meta.classPlates = v.classPlates; saveMeta(meta); render();
-  }).catch(() => { /* offline: try again next time */ });
-}
 if (typeof navigator !== "undefined" && navigator.onLine === false) { offlineOpen = true; render(); }
 
 // Play time: while a run is open and the page is visible, tell the server once a minute.

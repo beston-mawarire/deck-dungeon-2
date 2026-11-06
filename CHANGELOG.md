@@ -9,6 +9,15 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.1
+- **The trapdoor, explained.** Pressing Descend now shows the trapdoor up close, with a line on how it works: walk into it to drop a floor, and there's no way back up. Tick "Don't show this again" to skip it.
+- **Descend stands out.** A deep red plank with gold lettering, a soft ember glow and bobbing arrows.
+- **The Camp's Enter Dungeon ribbon** is red, with gold letters.
+- **Totems are retired.** Class-sorted loot and Weapon Mastery already lean your finds. Guardians no longer drop totems, and the Totem button is gone from Enter Dungeon.
+- **Ruin Shards, Vanadium Plates and Ruin Gems are gone,** with their panels and buttons. The Abyss explainer now describes the Abyss as it is: one layer, Omens and Tarot cards.
+- **Drills give the Camp nothing:** no Crown Shards, materials, Scrolls of Knowledge or seeds.
+- The Great Reset notice now welcomes players to Deck Dungeon 3.
+
 ## 2.0.0
 Deck Dungeon 3 is now version 2.
 - **Merchant popups** now have the dungeon's wood-and-brass buttons (no more yellow, blue and pink), and so does the popup for gear you're wearing.

@@ -34,12 +34,6 @@ export const SIGIL_BAG_SIZE = 12;
 /** Talisman slots: 2, then one more on floors 3, 6, 10 and 15. */
 export const SIGIL_FLOORS = [3, 6, 10, 15];
 export const sigilSlots = (h: Hero) => 2 + SIGIL_FLOORS.filter(f => (h.f.persist["floor"] ?? 1) >= f).length;
-/** Each Vanadium Plate on a class (Abyss runs only): Max HP, Armor and Damage this much stronger. */
-export const PLATE_BONUS = 0.06;
-/** Vanadium Plates: the first two add 6% each; from the 3rd plate on, each adds 30% (they're what keeps you alive deep in the Abyss). */
-export const plateMult = (n: number) => 1 + PLATE_BONUS * Math.min(n, 2) + 0.3 * Math.max(0, n - 2);
-/** Ruin Gems on this class: +10% base stats each, in every mode. */
-export const GEM_STAT = 0.1;
 /** Healing Potions: 3 slots to start (potion gear adds more). */
 export const BASE_POTION_CAP = 3;
 /** Potion slots: how many Healing Potions you can carry, and also how many you can drink in one fight. */
@@ -401,18 +395,7 @@ export function recompute(h: Hero) {
     s.dodge = up(s.dodge); s.bash = up(s.bash); s.spellAmp = up(s.spellAmp); s.critChance = up(s.critChance);
     s.critDmg = up(s.critDmg ?? 0); s.dotAmp = up(s.dotAmp ?? 0); s.dmgDealt = up(s.dmgDealt ?? 0);
   }
-  // Vanadium Plates (Abyss runs only): Max HP, Armor and Damage grow with every plate.
-  // Ruin Gems: every mode.
-  if (h.gems) {
-    const m = 1 + GEM_STAT * h.gems;
-    const up = (n: number) => (n > 0 ? Math.round(n * m) : n);
-    s.maxHp = up(s.maxHp); s.armor = up(s.armor); s.damage = up(s.damage); s.offDamage = up(s.offDamage);
-  }
-  if (h.plates) {
-    const m = plateMult(h.plates);
-    const up = (n: number) => (n > 0 ? Math.round(n * m) : n);
-    s.maxHp = up(s.maxHp); s.armor = up(s.armor); s.damage = up(s.damage); s.offDamage = up(s.offDamage);
-  }
+  // (Vanadium Plates and Ruin Gems are retired.)
   // Hollow Vessel: Max HP can't go above 20, but the off-hand's effects fire twice.
   const vessel = (items["ep_hollow_vessel"] ?? 0) > 0;
   if (vessel) s.maxHp = Math.min(20, s.maxHp);

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
 import { recompute, potionCap } from "../src/game/hero";
-import { availableActions, chooseRoom, chooseSkill, descend, gainXp, gridStep, makeGrid, newRun, runLayers, startCrawl, startDrill, type Run } from "../src/game/run";
+import { availableActions, campGain, chooseRoom, chooseSkill, descend, gainXp, gridStep, makeGrid, newRun, runLayers, startCrawl, startDrill, type Run } from "../src/game/run";
 import { type Meta, recordRun } from "../src/game/meta";
 import { CLOCK_STEPS, DRILLS, drillsOpen, drillMedal, GLASS_HP, PILGRIM_CURSES } from "../src/game/drills";
 import { isFloor } from "../src/game/grid";
@@ -92,5 +92,10 @@ describe("Drills", () => {
     expect(m.ledger).toBeUndefined();
     expect(m.achievements).toContain("drill_glass");
     expect(m.achievements ?? []).not.toContain("campaign_win");
+  });
+  it("Drills give the Camp nothing: no Crown Shards, materials, scrolls or seeds", () => {
+    const r = drill("glass");
+    campGain(r, "bone", 3, 2, 1);
+    expect(r.campLoot).toBeUndefined();
   });
 });

@@ -93,11 +93,10 @@ describe("weapon mastery and totems", () => {
     applyHall(m, r2);
     expect(r2.hero.f.persist["wm_shortblade"]).toBe(2);
   });
-  it("a totem set at the door is used up going in", () => {
+  it("totems are retired: one left set at the door does nothing", () => {
     const m = meta(); m.totems = { giant: 1 }; m.totemSet = "giant";
     const r = newRun("warrior", 6); startCrawl(r); applyHall(m, r);
-    expect(r.hero.f.persist["totem_giant"]).toBe(1);
-    expect(m.totems.giant).toBe(0);
+    expect(r.hero.f.persist["totem_giant"]).toBeUndefined();
     expect(m.totemSet).toBeUndefined();
   });
 });

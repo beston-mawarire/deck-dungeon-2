@@ -2726,3 +2726,25 @@ body .tip-bubble button.tb-off { background: transparent !important; color: #6e5
 :is(.shop-pop, .inv-eqpop) button:is(.shop-x, .inv-eqx) { min-width: 140px; padding: 8px 28px; }
 :is(.shop-pop, .inv-eqpop) button:is(.shop-x, .inv-eqx)::before, :is(.shop-pop, .inv-eqpop) button:is(.shop-x, .inv-eqx)::after { content: ""; position: absolute; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #b8aea2, #4a433c 70%); }
 :is(.shop-pop, .inv-eqpop) button:is(.shop-x, .inv-eqx)::before { left: 10px; } :is(.shop-pop, .inv-eqpop) button:is(.shop-x, .inv-eqx)::after { right: 10px; }
+/* ===== 2.0: Descend, and the trapdoor explainer ===== */
+.exp-btns button.plank-btn.exp-go, .trap-pop button.plank-btn.exp-go { font-family: Georgia, "Times New Roman", serif; font-size: 1.25rem !important; letter-spacing: .08em; color: #ffd56a !important; padding: 15px 30px !important;
+  background: radial-gradient(ellipse at 50% 120%, rgba(255,120,40,.45), transparent 60%), repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 2px, transparent 2px 8px), linear-gradient(180deg, #6a1e16, #4a120c 55%, #300a06) !important;
+  border: 2px solid #1a0603 !important; text-shadow: 0 1px 0 #000, 0 0 10px rgba(255,170,60,.6);
+  box-shadow: inset 0 1px 0 rgba(255,190,120,.25), inset 0 -3px 0 rgba(0,0,0,.4), 0 0 0 2px #b8862a, 0 4px 0 #120402, 0 0 22px rgba(255,120,40,.35) !important; animation: descendGlow 2.4s ease-in-out infinite; }
+.exp-go .eg-arrow { display: inline-block; font-size: .7em; margin: 0 10px; color: #ffb84a; animation: egBob 1.2s ease-in-out infinite; }
+@keyframes descendGlow { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.12); } }
+@keyframes egBob { 0%, 100% { transform: translateY(-2px); } 50% { transform: translateY(3px); } }
+.trap-pop { z-index: 80; }
+body .popup.trap-in { max-width: 380px; text-align: center; }
+.trap-art { display: flex; justify-content: center; margin: 4px 0 10px; }
+.trap-art .trap-spr { border-radius: 6px; box-shadow: 0 0 0 3px #1a0f06, 0 0 30px rgba(255,200,80,.55), 0 0 60px rgba(255,170,60,.25); animation: trapPulse 2s ease-in-out infinite; }
+@keyframes trapPulse { 0%, 100% { box-shadow: 0 0 0 3px #1a0f06, 0 0 22px rgba(255,200,80,.4), 0 0 50px rgba(255,170,60,.18); } 50% { box-shadow: 0 0 0 3px #1a0f06, 0 0 36px rgba(255,210,90,.7), 0 0 70px rgba(255,170,60,.3); } }
+.trap-in h2 { margin: 4px 0 8px; }
+.trap-in p b { color: #ffd56a; }
+.trap-skip { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 12px; font-size: .85rem; color: #b39a74; cursor: pointer; }
+.trap-skip input { width: 18px; height: 18px; accent-color: #b8862a; }
+.trap-box { display: block; width: 144px; height: 144px; overflow: hidden; border-radius: 6px; background: #070504; box-shadow: 0 0 0 3px #1a0f06, 0 0 30px rgba(255,200,80,.55); animation: trapPulse 2s ease-in-out infinite; position: relative; }
+.trap-box::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 70%, rgba(255,200,80,.3), transparent 70%); mix-blend-mode: screen; pointer-events: none; }
+.trap-art .trap-spr { box-shadow: none; animation: none; border-radius: 0; }
+.exp-btns button.plank-btn.exp-go, .trap-pop button.plank-btn.exp-go { white-space: nowrap; letter-spacing: .05em; padding-left: 34px !important; padding-right: 34px !important; }
+.exp-go .eg-arrow { margin: 0 8px; vertical-align: middle; }

@@ -284,25 +284,29 @@ export function drawCamp() {
     const sc2 = s.tiles.map(([a, b]) => toScreen(a, b));
     const cs = sc2.map(t => t[0]), rs = sc2.map(t => t[1]);
     const cx = ox + ((Math.min(...cs) + Math.max(...cs)) / 2 + 0.5) * ts, cy = oy + (Math.max(...rs) + 1.05) * ts;
-    ribbon(ctx, cx, cy, ctx.measureText(s.name).width + fs * 1.1, fs * 1.45, !!s.locked);
-    ctx.fillStyle = s.locked ? "#5a4a36" : "#2a1708"; ctx.fillText(s.name, cx, cy + 1);
+    // (Enter Dungeon's ribbon is red, with gold letters.)
+    const red = s.id === "expedition";
+    ribbon(ctx, cx, cy, ctx.measureText(s.name).width + fs * 1.1, fs * 1.45, !!s.locked, red);
+    if (red) { ctx.lineWidth = Math.max(2, fs / 7); ctx.strokeStyle = "#3a0604"; ctx.strokeText(s.name, cx, cy + 1); }
+    ctx.fillStyle = s.locked ? "#5a4a36" : red ? "#ffd56a" : "#2a1708"; ctx.fillText(s.name, cx, cy + 1);
   }
   if (hint) bubble(ctx, pcx, pcy - ts * 0.95, "Tap a tile to walk there", ts);
 }
 
 /** A gold ribbon with notched tails (a dull bronze one for rooms still locked). */
-function ribbon(ctx: CanvasRenderingContext2D, cx: number, cy: number, w: number, h: number, locked: boolean) {
+function ribbon(ctx: CanvasRenderingContext2D, cx: number, cy: number, w: number, h: number, locked: boolean, red = false) {
   const x0 = cx - w / 2, x1 = cx + w / 2, t = h * 0.55, y0 = cy - h / 2, y1 = cy + h / 2;
   // Tails, folded behind.
-  ctx.fillStyle = locked ? "#4a3c2c" : "#8a5a14";
+  ctx.fillStyle = locked ? "#4a3c2c" : red ? "#6a1410" : "#8a5a14";
   for (const [a, d] of [[x0, -1], [x1, 1]] as const) {
     ctx.beginPath(); ctx.moveTo(a, y0 + h * 0.18); ctx.lineTo(a + d * t, y0 + h * 0.18); ctx.lineTo(a + d * t * 0.6, cy + h * 0.09); ctx.lineTo(a + d * t, y1 + h * 0.18); ctx.lineTo(a, y1 + h * 0.18); ctx.closePath(); ctx.fill();
   }
   const g = ctx.createLinearGradient(0, y0, 0, y1);
   if (locked) { g.addColorStop(0, "#8a7458"); g.addColorStop(1, "#5e4c38"); }
+  else if (red) { g.addColorStop(0, "#e2584a"); g.addColorStop(0.45, "#b8281e"); g.addColorStop(1, "#7a1410"); }
   else { g.addColorStop(0, "#ffe9a6"); g.addColorStop(0.45, "#e2b866"); g.addColorStop(1, "#a8761f"); }
   ctx.fillStyle = g; ctx.fillRect(x0, y0, w, h);
-  ctx.strokeStyle = locked ? "#3a2e22" : "#5a3a0c"; ctx.lineWidth = Math.max(1, h / 14); ctx.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
+  ctx.strokeStyle = locked ? "#3a2e22" : red ? "#d8a84a" : "#5a3a0c"; ctx.lineWidth = Math.max(1, h / 14); ctx.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
   ctx.fillStyle = "rgba(255,255,255,.25)"; ctx.fillRect(x0 + 2, y0 + 2, w - 4, Math.max(1, h * 0.12));
 }
 

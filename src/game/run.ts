@@ -29,7 +29,7 @@ import { affixById, rescaleAffixes } from "./affixpool";
 import { MATS, matOfFamily, PLANTS, type Mat, type Plant } from "./camp";
 import { ATTR_PER_LEVEL, PER } from "../data/attributes";
 import { type Fish, fishById, POND_CASTS, rollCatch } from "./fishing";
-import { MASTERY_FAMILIES, TOTEM_DROP, TOTEM_LAYER, TOTEMS, WM_XP } from "./longroad";
+import { MASTERY_FAMILIES, WM_XP } from "./longroad";
 import { classify } from "./families";
 import { tarotOf, tarotHeat, TAROT_MAP } from "./tarot";
 import { OMENS, OMEN_MAP } from "./omens";
@@ -1155,6 +1155,7 @@ const randomThrow = (run: Run): Throw => FINDABLE_THROWS[Math.floor(run.rng() * 
 
 /** Something for the Camp: a material (and how many), or Crown Shards. */
 export function campGain(run: Run, mat: Mat | null, n: number, crowns = 0, scrolls = 0) {
+  if (run.drill) return;
   const l = (run.campLoot ??= { crowns: 0, mats: {} });
   if (scrolls) l.scrolls = (l.scrolls ?? 0) + scrolls;
   if (mat && n) l.mats[mat] = (l.mats[mat] ?? 0) + n;
@@ -2011,16 +2012,13 @@ function afterFight(run: Run) {
     // The Crawl: the rest of the boss's hoard waits in a chest in its treasure room, beside the way down.
     if (run.gridMode && !then) {
       // Crown Shards for the Camp's Hall (more from deeper layers), and a handful of its family's material.
-      const crowns = 1 + Math.floor((run.floor - 1) / 2);
-      campGain(run, null, 0, crowns, 1);
-      const bm = matOfFamily(b.enemy.family);
-      if (bm) campGain(run, bm, 3);
-      run.message = `👑 +${crowns} Crown Shard${crowns === 1 ? "" : "s"} · 📜 a Scroll of Knowledge${bm ? ` · +3 ${MATS[bm].icon} ${MATS[bm].name}` : ""}. ${run.message}`;
-      // Totems: from the third layer down, a guardian sometimes leaves one (for the Camp, to set before a run).
-      if (run.floor >= TOTEM_LAYER && run.rng() < TOTEM_DROP) {
-        const tt = TOTEMS[Math.floor(run.rng() * TOTEMS.length)];
-        h.f.persist[`totf_${tt.id}`] = (h.f.persist[`totf_${tt.id}`] ?? 0) + 1;
-        run.message = `${tt.icon} ${tt.name}! It goes back to the Camp with you. ${run.message}`;
+      // (Drills give the Camp nothing.)
+      if (!run.drill) {
+        const crowns = 1 + Math.floor((run.floor - 1) / 2);
+        campGain(run, null, 0, crowns, 1);
+        const bm = matOfFamily(b.enemy.family);
+        if (bm) campGain(run, bm, 3);
+        run.message = `👑 +${crowns} Crown Shard${crowns === 1 ? "" : "s"} · 📜 a Scroll of Knowledge${bm ? ` · +3 ${MATS[bm].icon} ${MATS[bm].name}` : ""}. ${run.message}`;
       }
       // Layers this class has beaten (it unlocks other classes, and more of this class's loot).
       if (run.mode !== "abyss") {
@@ -2048,11 +2046,11 @@ function afterFight(run: Run) {
     const emp = 1 + 0.6 * tarotOf(h, "empress").boon;
     const cn = (!cm ? 0 : rank === "normal" ? (run.rng() < Math.min(0.9, 0.35 * emp) ? 1 : 0) : rank === "elite" ? (run.rng() < Math.min(0.95, 0.7 * emp) ? 1 + (run.rng() < 0.4 ? 1 : 0) : 0) : 2 + Math.floor(run.rng() * 2))
       + (cm && emp > 1 && run.rng() < (emp - 1) / 2 ? 1 : 0);
-    if (cm && cn) { campGain(run, cm, cn); mats += `${mats ? " · " : ""}+${cn} ${MATS[cm].icon} ${MATS[cm].name}`; }
+    if (cm && cn && !run.drill) { campGain(run, cm, cn); mats += `${mats ? " · " : ""}+${cn} ${MATS[cm].icon} ${MATS[cm].name}`; }
     // Scrolls of Knowledge, for the Camp's Knowledge Table: Champions sometimes carry one.
-    if (rank === "champion" && run.rng() < 0.25) { campGain(run, null, 0, 0, 1); mats += `${mats ? " · " : ""}+1 📜 Scroll of Knowledge`; }
+    if (rank === "champion" && !run.drill && run.rng() < 0.25) { campGain(run, null, 0, 0, 1); mats += `${mats ? " · " : ""}+1 📜 Scroll of Knowledge`; }
     // Seeds for the Camp's Garden: only Champions carry them, and not often.
-    if (rank === "champion" && run.rng() < CHAMPION_SEED) { const pl = seedDrop(run); mats += `${mats ? " · " : ""}${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}`; }
+    if (rank === "champion" && !run.drill && run.rng() < CHAMPION_SEED) { const pl = seedDrop(run); mats += `${mats ? " · " : ""}${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}`; }
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (run.gridMode) relic = undefined;
