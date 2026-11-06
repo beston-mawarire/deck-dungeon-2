@@ -9,7 +9,7 @@ import { allItems } from "../src/engine/registry";
 import { makeRng } from "../src/engine/rng";
 import { applyStatus, endOfRound, heal, st } from "../src/engine/statuses";
 import { TAGS } from "../src/engine/types";
-import { baseOf, equipItem, itemName, newHero, recompute, reveal, salvage, slotsFor, weaponDamage } from "../src/game/hero";
+import { baseOf, equipItem, itemName, newHero, recompute, salvage, slotsFor, weaponDamage } from "../src/game/hero";
 import { resetDropped, resplendentCards, rollItem, setGenEnabled } from "../src/game/loot";
 import { advance, chooseRoom, chooseTalent, combatAction, confirmRisk, continueEndless, finishLoot, genChoices, newRun, settleCombat, STEPS_PER_FLOOR, takeItem, rerollShop, drinkPotion, lockGold, restore, chooseEvent, smithUpgrade, buyTonic, useTonic } from "../src/game/run";
 
@@ -137,16 +137,11 @@ describe("origins and gear", () => {
     }
   });
 
-  it("an unrevealed Legendary acts as a Common of its base; a Scroll reveals it", () => {
+  it("a Legendary is always shown and works in full, even one saved as unrevealed", () => {
     const h = newHero("warrior");
     const leg = { uid: 50, base: "l_kingsbane", rarity: "legendary" as const, level: 1, bonuses: {}, revealed: false };
     equipItem(h, leg);
-    expect(itemName(leg)).toContain("???");
-    expect(h.f.damage).toBe(4);
-    expect(h.f.items["l_kingsbane"]).toBeUndefined();
-    expect(reveal(h, 50)).toBe("You need a Scroll of Revelation.");
-    h.scrolls = 1;
-    expect(reveal(h, 50)).toBeNull();
+    expect(leg.revealed).toBe(true);
     expect(itemName(leg)).toBe("Kingsbane");
     expect(h.f.damage).toBe(8); // 7 base + 1 for Legendary
     expect(h.f.items["l_kingsbane"]).toBe(1);
@@ -358,7 +353,7 @@ describe("forge: offering, combine, transmute", () => {
     expect(lost).toBeGreaterThan(3);
   });
 
-  it("transmuting turns a Common into an unrevealed Legendary for 4 Starmetal; scrapping a Legendary gives Starmetal", async () => {
+  it("transmuting turns a Common into a Legendary for 4 Starmetal; scrapping a Legendary gives Starmetal", async () => {
     const { forgeTransmute } = await import("../src/game/run");
     const run = newRun("warrior", 23);
     const sword = run.hero.equip.main!;
@@ -370,7 +365,7 @@ describe("forge: offering, combine, transmute", () => {
     expect(typeof out).toBe("object");
     if (typeof out === "object") {
       expect(out.rarity).toBe("legendary");
-      expect(out.revealed).toBe(false);
+      expect(out.revealed).toBe(true);
       expect(run.hero.equip.main?.uid).toBe(out.uid);
       expect(salvage(run.hero, out.uid)).toBeGreaterThan(0);
       expect(run.hero.starmetal).toBe(2);

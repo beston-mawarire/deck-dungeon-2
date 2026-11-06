@@ -140,10 +140,10 @@ export const baseOf = (id: string) => {
   return b;
 };
 
-/** An unrevealed Legendary works like a Common of its base type. */
+/** The base an item works as. (Legendaries used to hide as a Common until revealed; now they never hide.) */
 export function effectiveBase(item: GearItem): GearBase {
   const b = baseOf(item.base);
-  return b.legendary && !item.revealed ? baseOf(b.legendary.asBase) : b;
+  return b;
 }
 
 /** Heavy gear's pay-off: heavy weapons deal this much more, heavy armour and shields carry this much more Armor. */
@@ -170,7 +170,7 @@ export function weaponDamage(item: GearItem, offhand = false): number {
   const base = effectiveBase(item);
   const thrown = !!base.weaponType && THROWN_TYPES.includes(base.weaponType);
   const d = offhand ? base.offDamage ?? 0 : thrown ? Math.max(1, (base.offDamage ?? base.damage ?? 0) - 1) : base.damage ?? 0;
-  const hidden = !!baseOf(item.base).legendary && !item.revealed;
+  const hidden = false;
   // Heavy weapons pay for losing Dodge, Evade and Haste: they hit harder.
   const full = Math.round((d + (item.level - 1) + (hidden ? 0 : RARITY_DAMAGE[item.rarity])) * (isHeavy(base) ? HEAVY_DAMAGE : 1));
   return offhand && offhandPenalty(item) ? Math.max(1, Math.floor(full * 0.6)) : full;
@@ -178,7 +178,6 @@ export function weaponDamage(item: GearItem, offhand = false): number {
 
 export function itemName(item: GearItem): string {
   const b = baseOf(item.base);
-  if (b.legendary && !item.revealed) return `??? (unrevealed ${effectiveBase(item).name})`;
   if (b.legendary) return b.name;
   if (item.gen) { const g = genTopGrade(item.gen); return `${item.gen.name}${g ? ` ${GRADE_MARK[g]}` : ""}`; }
   // A Grand power names the item up front ("Echoing …"); the first stat line with a title names it at the back ("… of Might").
@@ -215,7 +214,6 @@ export function itemLines(item: GearItem): string[] {
   if (eb.barrierElement) lines.push(`🔮 Mage: lets you raise an Elemental Barrier (${(eb.barrierElements ?? [eb.barrierElement]).join(", ")}).`);
   if (itemDodge(item)) lines.push(`💨 ${itemDodge(item)}% Dodge`);
   if (item.bash) lines.push(`💥 ${item.bash}% Bash (Stuns and deals +50%)`);
-  if (b.legendary && !item.revealed) lines.push("✦ A Legendary power, waiting to be revealed. Use a Scroll of Revelation.");
   else if (b.legendary) lines.push(`✦ ${b.legendary.reveal}`);
   else if (isSpecialTier(item.rarity) && eb.text) lines.push(`✦ ${eb.text}`);
   else if (eb.text && !item.bare) lines.push(eb.text);
@@ -260,6 +258,9 @@ export function spendAttr(h: Hero, a: Attr): string | null {
 }
 
 export function recompute(h: Hero) {
+  // (2.2: Legendaries are always revealed: gear from older saves, the Camp or anywhere else is shown in full.)
+  for (const it of [...Object.values(h.equip), ...h.backpack]) if (it && !it.revealed) it.revealed = true;
+  h.scrolls = 0;
   // Older saves held the Crucible as a relic: it's an artefact now.
   if (h.relics["transmuter"]) { delete h.relics["transmuter"]; h.crucible = true; }
   const f = h.f;

@@ -17,12 +17,12 @@ describe("attributes", () => {
     expect(r.pendingTalents).toBe(0);
     expect(r.popup?.title).toMatch(/Level 2/);
   });
-  it("a level-up changes nothing by itself: no Max HP, no healing, only points", () => {
+  it("a level-up adds no Max HP, heals a fifth of it, and gives points", () => {
     const r = newRun("warrior", 5); startCrawl(r);
     r.hero.f.hp = 5;
     const max = r.hero.f.maxHp;
     gainXp(r, xpToLevel(1));
-    expect(r.hero.f.hp).toBe(5);
+    expect(r.hero.f.hp).toBe(5 + Math.round(max * 0.2));
     expect(r.hero.f.maxHp).toBe(max);
     expect(r.hero.attrPoints).toBe(ATTR_PER_LEVEL);
   });

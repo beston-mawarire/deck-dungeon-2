@@ -298,7 +298,7 @@ function rollItemRaw(h: Hero, rarity: Rarity, floor: number, rng: () => number):
       // (A class's own Legendaries turn up more often: they're what its ways to play are built on.)
       const base = weighted(rng, pool, b => (1 + 0.15 * b.tags.reduce((s, t) => s + Math.min(tags.get(t) ?? 0, 3), 0)) * elementalW(b.tags) * (b.forClass ? 3 : 1));
       DROPPED.add(base.id);
-      return { uid: h.nextUid++, base: base.id, rarity: "legendary", level: floor, bonuses: affixesFor(h, base, "legendary", floor, rng), revealed: false, bash: rollBash("legendary", base, rng) };
+      return { uid: h.nextUid++, base: base.id, rarity: "legendary", level: floor, bonuses: affixesFor(h, base, "legendary", floor, rng), revealed: true, bash: rollBash("legendary", base, rng) };
     }
   }
   const fav = new Set(AFFINITY[h.lootAs ?? h.origin]);
@@ -385,8 +385,7 @@ export function resplendentCards(h: Hero, floor: number, loot: LootState, rng: (
   const count = 3 + (Object.values(h.equip).some(i => i?.base === "t_prospector") ? 1 : 0);
   const cards: ResplendentCard[] = [];
   for (let i = 0; i < count; i++) {
-    if (rng() < 0.015) cards.push({ kind: "scroll" });
-    else cards.push({ kind: "item", item: rollItem(h, rollRarity(rng, base, floor), floor, rng) });
+    cards.push({ kind: "item", item: rollItem(h, rollRarity(rng, base, floor), floor, rng) });
   }
   const great = cards.some(c => c.kind === "item" && rank(c.item.rarity) >= rank("epic"));
   loot.pity = great ? 0 : loot.pity + 3;

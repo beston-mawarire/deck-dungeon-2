@@ -162,13 +162,13 @@ export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
   elite: { name: "Elite", icon: "💀", text: "A tougher fight. Always drops an item." },
-  champion: { name: "Champion", icon: "👹", text: "Very dangerous. Rare loot and often a Scroll of Revelation." },
+  champion: { name: "Champion", icon: "👹", text: "Very dangerous. Rare loot, often better." },
   wooden: { name: "Wooden Chest", icon: "📦", text: "An old wooden chest." },
   iron: { name: "Iron Chest", icon: "🧰", text: "A heavy chest, bound in iron." },
   vault: { name: "Guarded Vault", icon: "🏛️", text: "Beat a Champion, then open a Resplendent chest." },
   altar: { name: "Blood Altar", icon: "🩸", text: "Pay 25% of your Max HP for a Resplendent chest." },
   shrine: { name: "Cursed Shrine", icon: "🕯️", text: "Take a curse for a Resplendent chest." },
-  shop: { name: "Merchant", icon: "🪙", text: "Buy gear, potions and scrolls." },
+  shop: { name: "Merchant", icon: "🪙", text: "Buy gear and potions." },
   forge: { name: "Forge", icon: "🔨", text: "Spend Scrap to upgrade gear, make an Offering or transmute." },
   masterwork: { name: "Masterwork", icon: "⚒️", text: "Rework a line, extract a Scroll of Power, empower or refine a Common." },
   rest: { name: "Campfire", icon: "🔥", text: "Rest and heal." },
@@ -2039,7 +2039,7 @@ function afterFight(run: Run) {
     // Keepsakes are a rare find: about one boss in ten after floor 5 leaves one behind.
     const keepsake = run.floor > FLOORS && run.rng() < 0.1 ? KEEPSAKES.filter(k => k.id !== h.keepsake)[Math.floor(run.rng() * (KEEPSAKES.length - (h.keepsake ? 1 : 0)))]?.id : undefined;
     run.scene = { t: "pick", title: run.gridMode ? `${b.enemy.name}'s hoard` : `${b.enemy.name} falls! Choose one`, items: offer, keepsake, sigils: bossSigil ? [bossSigil] : undefined };
-    run.message = `+${bossGold} Gold${run.relicChoice ? " · a relic to choose" : relic ? ` · relic: ${getItem(relic).name}` : ""}${scrolls ? " · a Scroll of Revelation" : ""}${ruinNote}${run.gridMode ? "" : " · healed 30%"}${curseNote ? ` ${curseNote}` : ""}`;
+    run.message = `+${bossGold} Gold${run.relicChoice ? " · a relic to choose" : relic ? ` · relic: ${getItem(relic).name}` : ""}${ruinNote}${run.gridMode ? "" : " · healed 30%"}${curseNote ? ` ${curseNote}` : ""}`;
     // The Crawl: the rest of the boss's hoard waits in a chest in its treasure room, beside the way down.
     if (run.gridMode && !then) {
       // Crown Shards for the Camp's Hall (more from deeper layers), and a handful of its family's material.
@@ -2148,6 +2148,8 @@ export function randomRelic(run: Run, quality = 1): string {
   return pool[0].id;
 }
 
+/** A level-up heals this share of Max HP. */
+export const LEVEL_HEAL = 0.2;
 export function gainXp(run: Run, n: number) {
   const h = run.hero;
   // (Sage's Tea, from the Brewery.)
@@ -2156,14 +2158,16 @@ export function gainXp(run: Run, n: number) {
   while (h.xp >= xpToLevel(h.level)) {
     h.xp -= xpToLevel(h.level);
     h.level++;
+    // Every level-up heals a little: a fifth of Max HP (healing curses still apply).
+    const healed = restore(h, Math.round(h.f.maxHp * LEVEL_HEAL));
     // The Crawl: attribute points instead of talents.
     if (run.gridMode) {
       // A level changes nothing by itself: it's the points you spend that make you stronger.
       h.attrPoints = (h.attrPoints ?? 0) + ATTR_PER_LEVEL * (run.drill === "silent" ? 2 : 1);
       const skillNow = h.level >= SKILL_LEVEL && !h.skill && !!h.path && run.drill !== "silent";
       run.popup = skillNow
-        ? { icon: PATH_MAP.get(h.path!)?.icon ?? "⭐", title: `Level ${h.level}: choose your skill!`, text: `The ${PATH_MAP.get(h.path!)?.name ?? ""} path offers you a skill. Open your inventory's Attributes tab to choose it (and spend your ${h.attrPoints} attribute point${h.attrPoints === 1 ? "" : "s"}).` }
-        : { icon: "⭐", title: `Level ${h.level}!`, text: `You have ${h.attrPoints} attribute point${h.attrPoints === 1 ? "" : "s"} to spend. Open your inventory's Attributes tab to put them to use.` };
+        ? { icon: PATH_MAP.get(h.path!)?.icon ?? "⭐", title: `Level ${h.level}: choose your skill!`, text: `${healed ? `+${healed} HP. ` : ""}The ${PATH_MAP.get(h.path!)?.name ?? ""} path offers you a skill. Open your inventory's Attributes tab to choose it (and spend your ${h.attrPoints} attribute point${h.attrPoints === 1 ? "" : "s"}).` }
+        : { icon: "⭐", title: `Level ${h.level}!`, text: `${healed ? `+${healed} HP. ` : ""}You have ${h.attrPoints} attribute point${h.attrPoints === 1 ? "" : "s"} to spend. Open your inventory's Attributes tab to put them to use.` };
     } else run.pendingTalents++;
   }
 }
@@ -2308,7 +2312,6 @@ function shopStock(run: Run): ShopEntry[] {
   if (shopRelic) stock.push({ kind: "relic", relic: shopRelic, price: Math.round((({ common: 70, uncommon: 100, rare: 150, legendary: 280 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 90) * shopMult(run)) });
   stock.push({ kind: "potion", price: Math.round(15 * shopMult(run)) });
   stock.push({ kind: "mana", price: Math.round(35 * shopMult(run)) });
-  if (run.rng() < 0.12) stock.push({ kind: "scroll", price: Math.round(100 * shopMult(run)) });
   // The Crawl's Merchants also sell something to throw (one or two kinds).
   if (run.gridMode) {
     const kinds = [...FINDABLE_THROWS].sort(() => run.rng() - 0.5).slice(0, run.rng() < 0.5 ? 3 : 2);
@@ -2366,7 +2369,7 @@ export function sellItem(run: Run, uid: number): string | null {
   recompute(h);
   h.f.gold += price;
   lockGold(run);
-  s.soldItem = `${baseOf(found.item.base).legendary && !found.item.revealed ? "an unrevealed Legendary" : baseName(found.item)} for ${price} Gold`;
+  s.soldItem = `${baseName(found.item)} for ${price} Gold`;
   if (["legendary", "crimson", "epic_crimson", "legendary_crimson"].includes(found.item.rarity)) h.f.persist["ach_sell_leg"] = 1;
   if (found.where !== "backpack" && EQUIP_SLOTS.every(sl => !h.equip[sl])) h.f.persist["ach_sell_all"] = 1;
   return null;
@@ -2707,7 +2710,7 @@ export function forgeCombine(run: Run, a: number, b: number): GearItem | string 
 
 export const TRANSMUTE_COST = 4;
 
-/** With the Transmuter's Crucible: a Common item + 4 Starmetal becomes an (unrevealed) Legendary of the same kind. */
+/** With the Transmuter's Crucible: a Common item + 4 Starmetal becomes a Legendary of the same kind. */
 export function forgeTransmute(run: Run, uid: number): GearItem | string {
   const h = run.hero;
   const found = findItem(h, uid);
@@ -2721,7 +2724,7 @@ export function forgeTransmute(run: Run, uid: number): GearItem | string {
   h.starmetal -= TRANSMUTE_COST;
   const where = found.where;
   removeGear(h, uid);
-  const out: GearItem = { uid: h.nextUid++, base: choice.id, rarity: "legendary", level: Math.max(found.item.level, depth(run)), bonuses: {}, revealed: false };
+  const out: GearItem = { uid: h.nextUid++, base: choice.id, rarity: "legendary", level: Math.max(found.item.level, depth(run)), bonuses: {}, revealed: true };
   if (where !== "backpack") equipItem(h, out, where);
   else if (h.backpack.length < packSize(h)) h.backpack.push(out);
   markFound(run, out);
@@ -2946,7 +2949,6 @@ export function jewelCheck(run: Run): string | null {
     if (!JEWEL_RARITIES.includes(it.rarity)) return "Only Rare, Epic and Legendary pieces can go on this bench.";
     if ((it.upgrades ?? 0) > 0) return `"Someone's already worked on this ${baseOf(it.base).name}. I won't touch it." (Upgraded items can't be fused or infused.)`;
     if (baseOf(it.base).noJewel) return `The ${baseOf(it.base).name} resists. It can't be fused or infused.`;
-    if (it.rarity === "legendary" && !it.revealed) return "Reveal that Legendary first.";
   }
   if (s.mode === "infuse") {
     if (A.rarity !== B.rarity) return `The rarities must match (a ${A.rarity} needs a ${A.rarity} trinket).`;
@@ -3118,10 +3120,8 @@ export function chooseRelic(run: Run, id: string) {
 }
 
 /** Give the hero Scrolls of Revelation and queue their popup. */
-export function grantScrolls(run: Run, n: number) {
-  if (n <= 0) return;
-  run.hero.scrolls += n;
-  (run.relicNews ??= []).push(`scroll:${n}`);
+export function grantScrolls(_run: Run, _n: number) {
+  // (2.2: Scrolls of Revelation are retired: every Legendary arrives revealed.)
 }
 
 /** Heal the hero outside a fight. Curses that cut healing (Withered, Unhealing) apply here too. */

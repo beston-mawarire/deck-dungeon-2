@@ -9,6 +9,11 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.2.0
+- Scrolls of Revelation are gone. Every Legendary arrives revealed, with its power shown and working from the moment you find it. Hidden Legendaries in an older save are revealed when it loads.
+- No more Scrolls in shops, chests, Resplendent cards, boss rewards or events. The Forge's Reveal tab and the Scrolls tiles are gone too. The Blind Scribe has packed up, and the Card Sharp now wagers a Rare item (sometimes Epic) against your potion.
+- Levelling up heals you a little: a fifth of your Max HP. Curses that cut healing still apply, and the level-up note says how much you got.
+
 ## 2.1.0
 - The leaderboards know the new dungeon. Deepest ranks by layer, then by the floor reached inside it, and shows it as "2nd Layer · Floor 3" (or the Entrance). Every other board shows how deep each run got under the player's name.
 - A find that asks for a higher level now asks for at most one level above yours (it was up to five). Gear you already carry is capped the same way when a run loads.

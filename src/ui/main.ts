@@ -347,7 +347,7 @@ const itemRarity = (it: GearItem) => (it.gen && it.rarity === "crimson" ? "Crims
 
 function itemCard(it: GearItem, buttons = "", compare: boolean | { hero: Hero; slot: EquipSlot } = false, equippedAs = "") {
   const b = baseOf(it.base);
-  const hidden = b.legendary && !it.revealed;
+  const hidden = false;
   const grade = it.gen ? Math.max(0, ...it.gen.mods.map(m => m[2])) : 0;
   return `<div class="item r-${it.rarity} ${it.refine ? "refined" : ""} ${hidden ? "unrevealed" : ""} ${equippedAs ? "is-equipped" : ""} ${it.gen?.broken ? "overcharged" : ""} ${grade ? `grade-${grade}` : ""} ${it.gen && it.rarity === "crimson" ? "veined" : ""}">
     ${equippedAs ? `<div class="eqbadge">⚔️ Equipped · ${esc(equippedAs)}</div>` : ""}
@@ -1586,7 +1586,7 @@ function forgeScene(r: Run, altar = false) {
   if (altar) forgeTab = "offer";
   else if (forgeTab === "offer" || (forgeTab === "transmute" && !h.crucible)) forgeTab = "upgrade";
   // (Transmuting: once the Camp's Knowledge Table has taught the Crucible's Secret.)
-  const tabs = [["upgrade", "⚒️ Upgrade"], ["scrap", "⚙️ Scrap"], ...(r.gridMode ? [["reveal", "📜 Reveal"]] : []), ...(h.crucible ? [["transmute", "⚗️ Transmute"]] : [])];
+  const tabs = [["upgrade", "⚒️ Upgrade"], ["scrap", "⚙️ Scrap"], ...(h.crucible ? [["transmute", "⚗️ Transmute"]] : [])];
   const eq = EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x);
   const exists = (u: number) => !!findItem(h, u);
   for (const u of [...offerSel]) if (!exists(u)) offerSel.delete(u);
@@ -1641,7 +1641,7 @@ function forgeScene(r: Run, altar = false) {
     body = `<div class="panel locked-tool"><p><b>🔒 You're missing an artefact.</b></p>
       <p class="sub">${r.gridMode ? "Transmuting is something you have to learn first: the Camp's Knowledge Table can teach it." : "Transmuting needs the Transmuter's Crucible. It's said to lie with the Campaign's fifth boss."}</p></div>`;
   } else {
-    body = `<p class="sub">The Transmuter's Crucible turns a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} ✴️ Starmetal (you have ${h.starmetal}). It arrives unrevealed.</p>
+    body = `<p class="sub">The Transmuter's Crucible turns a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} ✴️ Starmetal (you have ${h.starmetal}).</p>
       ${sides(i => i.rarity === "common", it => itemCard(it, `<button class="small primary" data-transmute="${it.uid}" ${h.starmetal >= TRANSMUTE_COST ? "" : "disabled"}>Transmute · ${TRANSMUTE_COST} ✴️</button>`, false, slotOf(it)), () => false, "No Common items here.")}`;
   }
   if (altar) return `<h2>Offering Altar</h2><div class="forge-body bm-page">${body}</div>
@@ -1706,7 +1706,7 @@ function masterworkScene(r: Run) {
       ${scrollsHtml(h, true)}
       ${s ? `<h3>Onto which ${esc(FAMILY_NAME[s.family])} item?</h3>${list(all.filter(it => canEmpowerTarget(it) && baseOf(it.base).kind === s.kind && classify(baseOf(it.base)).family === s.family), it => { const why = empowerBlock(it, s, [...mwKeep]); return `<button class="small ${why ? "" : "primary"}" data-mwempower="${it.uid}" ${why ? `disabled title="${esc(why)}"` : ""}>✨ Empower</button>${why ? `<span class="sub"> ${esc(why)}</span>` : ""}`; }, `You have no Common ${FAMILY_NAME[s.family]} items.`)}` : ""}`;
   } else if (mwTab === "transmute") {
-    body = `<p class="sub">Turn a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} ✴️ Starmetal (you have ${h.starmetal}). It arrives unrevealed.</p>
+    body = `<p class="sub">Turn a Common item into a Legendary of the same kind for ${TRANSMUTE_COST} ✴️ Starmetal (you have ${h.starmetal}).</p>
       ${list(all.filter(i => i.rarity === "common"), it => `<button class="small primary" data-transmute="${it.uid}" ${h.starmetal >= TRANSMUTE_COST ? "" : "disabled"}>Transmute · ${TRANSMUTE_COST} ✴️</button>`, "You have no Common items.")}`;
   } else {
     body = `<p class="sub">Refine a Common so it can hold more lines: 2 at •, 3 at ••, 4 at •••. Legendaries can't be refined.</p>
@@ -2142,7 +2142,7 @@ function bag(r: Run, bodyOnly = false) {
   const tile = (icon: string, label: string, value: string, tip = "") => `<div class="stile" title="${esc(tip)}"><span class="si">${icon}</span><span class="sl">${label}</span><b>${value}</b></div>`;
   const stats = `<div class="panel">
       <div class="row stat"><span>❤️ <b>${Math.max(0, f.hp)}</b>/${f.maxHp}</span><span>Lv <b>${h.level}</b> (${h.xp}/${xpToLevel(h.level)} XP)</span>
-        <span>🪙 ${f.gold}</span><span>⚙️ ${h.scrap}</span>${h.azure ? `<span>💠 ${h.azure}</span>` : ""}${h.orilium ? `<span>🔶 ${h.orilium}</span>` : ""}<span>✴️ ${h.starmetal}</span><span>📜 ${h.scrolls}</span><span>🧪 ${h.potions}</span>${h.manaPotions ? `<span>🔷 ${h.manaPotions}</span>` : ""}</div>
+        <span>🪙 ${f.gold}</span><span>⚙️ ${h.scrap}</span>${h.azure ? `<span>💠 ${h.azure}</span>` : ""}${h.orilium ? `<span>🔶 ${h.orilium}</span>` : ""}<span>✴️ ${h.starmetal}</span><span>🧪 ${h.potions}</span>${h.manaPotions ? `<span>🔷 ${h.manaPotions}</span>` : ""}</div>
       <div class="stiles">
         ${tile("⚔️", "Damage", `${f.damage}${f.offDamage !== undefined ? ` + ${f.offDamage}` : ""}`, "Main die damage (+ off-hand die)")}
         ${f.critDmg ? tile("💥", "Crit damage", `+${f.critDmg}%`, "Your Crits deal this much more") : ""}
@@ -2186,7 +2186,6 @@ function bag(r: Run, bodyOnly = false) {
   const extras = `${keepsakeHtml}${heartHtml}
     <div class="bag-extras">
       <div class="stile extra-tile key-tile"><span>🗝️</span><span><b>${h.crimsonKeys}</b> Crimson Key${h.crimsonKeys === 1 ? "" : "s"}<span class="sub">${h.crimsonKeys ? "A Crimson Vault will be on your path." : "Dropped by Crimson Elites, deep below."}</span></span></div>
-      <div class="stile extra-tile scroll-tile"><span>📜</span><span><b>${h.scrolls}</b> Scroll${h.scrolls === 1 ? "" : "s"} of Revelation<span class="sub">${h.scrolls ? "Use one on a hidden Legendary in the Gear tab." : "Reveals a hidden Legendary's true power."}</span></span></div>
       ${Object.keys(h.tonics ?? {}).length ? `<div class="stile extra-tile" style="grid-column: 1 / -1"><span>⚗️</span><span><b>Tonics</b><span class="sub">${Object.entries(h.tonics!).map(([id, n]) => `${TONICS[id].icon} ${esc(TONICS[id].name)}${n > 1 ? ` ×${n}` : ""}`).join(", ")}</span></span></div>` : ""}
     </div>
     <h2>Blessings</h2>
@@ -2204,7 +2203,7 @@ function bag(r: Run, bodyOnly = false) {
     ["stats", "📊 Stats", ""],
     ["relics", "💎 Spoils", `${nRelics + (h.crucible ? 1 : 0) ? `<i>${nRelics + (h.crucible ? 1 : 0)}</i>` : ""}`],
     ["talents", "🧿 Aspects", `${nTalents + nCurses ? `<i>${nTalents + nCurses}</i>` : ""}`],
-    ["extras", "✨ Extras", `${blessCount + h.scrolls + h.crimsonKeys ? `<i>${blessCount + h.scrolls + h.crimsonKeys}</i>` : ""}`]
+    ["extras", "✨ Extras", `${blessCount + h.crimsonKeys ? `<i>${blessCount + h.crimsonKeys}</i>` : ""}`]
   ];
   const fresh = newTabs(r);
   r.seenTabs![bagTab] = tabSigs(r)[bagTab];
@@ -2268,7 +2267,7 @@ function crawlBag(r: Run) {
     // Tapping something you wear opens it on its own; the backpack below shows every item in full.
     const eqPop = picked && eqSlot ? `<div class="overlay popup-wrap inv-eqpop" data-invclose><div class="inv-detail">${itemCard(picked, inCombat ? "" : `<button class="small" data-unequip="${eqSlot}">Take it off</button>${revealBtn(r, picked)}`)}<button class="small closebtn inv-eqx" data-invclose>← Back</button></div></div>` : "";
     // Materials and scrolls sit in the backpack too (they take no slot).
-    const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.scrolls, "📜 Scroll of Revelation"], ...THROWS.map(t => [h.f.persist[THROW_INFO[t].key] ?? 0, `${THROW_INFO[t].icon} ${THROW_INFO[t].name}`])].filter(([n]) => (n as number) > 0)
+    const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], ...THROWS.map(t => [h.f.persist[THROW_INFO[t].key] ?? 0, `${THROW_INFO[t].icon} ${THROW_INFO[t].name}`])].filter(([n]) => (n as number) > 0)
       .map(([n, l]) => `<span class="mer-chip mat"><b>${l}</b><span>×${n}</span></span>`).join("");
     const cards = h.backpack.map(it => `<div class="inv-card">${itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(sl => `<button class="small primary" data-equip="${it.uid}" data-slot="${sl}" ${it.reqLevel && h.level < it.reqLevel ? "disabled" : ""}>Equip${slotsFor(it, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, it)}`, !inCombat)}</div>`).join("");
     const hk = CLASS_SPRITE[h.origin];
@@ -2337,7 +2336,6 @@ function crawlArtefacts(r: Run) {
   const tile = (icon: string, name: string, n: number | string | null, text: string, cls = "") =>
     `<div class="af-tile ${cls}"><span class="af-ic">${icon}</span><div class="af-txt"><b>${esc(name)}${n !== null ? ` <em>${typeof n === "number" ? `×${n}` : esc(n)}</em>` : ""}</b><span>${esc(text)}</span></div></div>`;
   const carried = [
-    tile("📜", "Scrolls of Revelation", h.scrolls, h.scrolls ? "Use one on a hidden Legendary, from the Gear tab." : "Reveal a hidden Legendary's power.", h.scrolls ? "" : "dim"),
     tile("🗝️", "Skeleton Keys", p["skelKeys"] ?? 0, "Open a locked door on a floor.", p["skelKeys"] ? "" : "dim"),
     tile("✴️", "Starmetal", h.starmetal, "From scrapped Legendary and Crimson gear. Jewellers and the Crucible want it.", h.starmetal ? "" : "dim"),
     tile("🔶", "Orilium", h.orilium ?? 0, "From scrapped Epic gear. The Masterwork wants it.", h.orilium ? "" : "dim"),
@@ -2387,13 +2385,8 @@ function sideEquip(r: Run) {
   return `<aside class="side-equip"><h2>Equipped</h2>${rows}${relics ? `<h2>Relics</h2><div class="chips">${relics}</div>` : ""}</aside>`;
 }
 
-function revealBtn(r: Run, it: GearItem) {
-  // The Crawl: Legendaries are revealed at a Forge.
-  if (r.gridMode) return "";
-  const b = baseOf(it.base);
-  if (!b.legendary || it.revealed) return "";
-  return `<button class="small primary" data-reveal="${it.uid}" ${r.hero.scrolls ? "" : "disabled"}>📜 Reveal</button>`;
-}
+/** (Retired: Legendaries are always revealed.) */
+function revealBtn(_r: Run, _it: GearItem) { return ""; }
 
 // ---------- Popups: class choice, level up ----------
 
@@ -2515,7 +2508,7 @@ function helpGlossary() {
     row("🔗", "Hit streak", "Only counts while you have a streak relic, talent or trinket. Every Hit or Crit that gets through adds 1, and it carries across fights. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it. Some relics, talents and trinkets grow with it"),
     row("🧱", "Guarding foes", "Some enemies and bosses raise their guard: Armor doubled plus a bit more for that round (you'll see it coming). Crits, spells and statuses ignore Armor, so they still get through"),
     row("🔮", "Barrier lash", "Elemental charms and some off-hands: while you have Barrier (from anything), a hit on it throws the item's elements back at the attacker. 2 stacks of each, or 4 if the Barrier soaked the whole hit; once a round"),
-    row("📜", "Legendaries", "Arrive hidden. Use a Scroll of Revelation to reveal them; until then they act like a plain item"),
+    row("✨", "Legendaries", "The rarest finds: each carries a unique power, shown in full the moment you find it"),
     row("🩸", "Crimson", "Above Legendary. Only from Crimson bosses in Endless (Crimson Vaults need a Crimson Key from Crimson Elites)")
   ].join(""))}
   ${group("👹 Enemy traits", [
@@ -3111,6 +3104,8 @@ function render3() {
   // Story popups can carry their own fanfare (DEATH, the End).
   if (r.popup?.fanfare && !celebratedPopup.has(r.popup)) { celebratedPopup.add(r.popup); celebrate(r.popup.fanfare, r.popup.title, false); }
   // A new relic gets its own popup and a little fanfare (after any level-up popup).
+  // (Scroll popups from older saves: Scrolls of Revelation are retired.)
+  if (r.relicNews?.some(n => n.startsWith("scroll:"))) r.relicNews = r.relicNews.filter(n => !n.startsWith("scroll:"));
   const relicNow = !levelPopup && !winPopup && s.t !== "combat" && r.relicNews?.length ? r.relicNews[0] : undefined;
   if (relicNow) {
     const key = `${relicNow}:${r.hero.relics[relicNow]}:${r.relicNews!.length}:${r.floor}:${r.step}`;
