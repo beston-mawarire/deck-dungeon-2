@@ -2450,7 +2450,15 @@ li.type-line::before { content: none !important; }
 .cz-curse b { position: absolute; right: -4px; bottom: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; font-size: .7rem; line-height: 18px; color: #fff; background: #7a35b8; border: 1px solid #e0c4ff; }
 @keyframes czCurse { 50% { box-shadow: 0 0 20px rgba(190,110,255,.9), 0 2px 6px rgba(0,0,0,.6); } }
 /* Enter Dungeon: Descend in gold, the settings in a cooler stone. */
-.exp-btns button.plank-btn.exp-go { color: #2a1806 !important; text-shadow: 0 1px 0 rgba(255,230,170,.5); background: repeating-linear-gradient(0deg, rgba(0,0,0,.06) 0 2px, transparent 2px 8px), linear-gradient(180deg, #f0c870, #c8913a 55%, #9a6a22) !important; }
-.exp-btns button.plank-btn[data-exppop="layer"] { background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 2px, transparent 2px 8px), linear-gradient(180deg, #5e6470, #454a55 55%, #33373f) !important; }
-.exp-btns button.plank-btn[data-exppop="heat"] { background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 2px, transparent 2px 8px), linear-gradient(180deg, #8e3a24, #6c2816 55%, #511c0e) !important; }
-.exp-btns button.plank-btn[data-exppop="totem"] { background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 2px, transparent 2px 8px), linear-gradient(180deg, #52683a, #3d5128 55%, #2c3b1c) !important; }
+.exp-btns button.plank-btn.exp-go { background: repeating-linear-gradient(0deg, rgba(0,0,0,.06) 0 2px, transparent 2px 8px), linear-gradient(180deg, #a87a42, #7e5326 55%, #5e3a18) !important; box-shadow: inset 0 1px 0 rgba(255,225,160,.35), inset 0 -3px 0 rgba(0,0,0,.35), 0 4px 0 #120a04, 0 0 16px rgba(230,170,80,.25), 0 8px 14px rgba(0,0,0,.5) !important; }
+.exp-btns button.plank-btn[data-exppop="layer"] { background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 2px, transparent 2px 8px), linear-gradient(180deg, #5c5750, #45413c 55%, #34312d) !important; }
+.exp-btns button.plank-btn[data-exppop="heat"] { background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 2px, transparent 2px 8px), linear-gradient(180deg, #5a3a2e, #43291f 55%, #321d16) !important; }
+.exp-btns button.plank-btn[data-exppop="totem"] { background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 2px, transparent 2px 8px), linear-gradient(180deg, #55513f, #403d2f 55%, #302d22) !important; }
+/* 1.94: the class card, short. */
+.op-pitch { font-size: 1.05rem; font-weight: 700; margin: 4px 0 10px; }
+.op-facts { list-style: none; margin: 0 auto; padding: 0; display: flex; flex-direction: column; gap: 6px; max-width: 420px; }
+.op-facts li { display: flex; gap: 10px; align-items: flex-start; padding: 7px 10px; border-radius: 8px; background: rgba(0,0,0,.18); border: 1px solid rgba(160,120,70,.35); font-size: .9rem; line-height: 1.3; }
+.op-facts li > span:first-child { flex: none; width: 1.4em; text-align: center; font-size: 1.1rem; }
+.op-facts li b { display: block; }
+.cb-throw.ready { border-color: #f0c870 !important; box-shadow: 0 0 0 2px #f0c870, 0 0 12px rgba(240,200,112,.6) !important; transform: translateY(-2px); }
+.cb-throw.ready b { color: #ffe2a0 !important; }

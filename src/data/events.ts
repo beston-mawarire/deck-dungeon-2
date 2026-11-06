@@ -90,18 +90,23 @@ const sanguine = (pct: number, label: string, hint: string, run: (c: EventCtx) =
 
 /** A Blood Oath: give up a share of your Max HP for good, and take an item. */
 // The oath cuts your Max HP and binds it there: nothing raises your Max HP again this run.
-const oath = (pct: number, label: string, hint: string, rarity: Rarity): EventOption => ({
-  label: `${label} · ${Math.round(pct * 100)}% Max HP`, hint: `${hint}. Your Max HP is bound where the oath leaves it, for the rest of the run`,
+const oath = (pct: number, label: string, hint: string, rarity: Rarity, curse = false): EventOption => ({
+  label: `${label} · −${Math.round(pct * 100)}% Max HP`, hint: `${hint}. Your Max HP can never rise again this run`,
   can: c => c.maxHp() > 10 && !c.oathBound(),
-  run: c => { const n = Math.max(1, Math.round(c.maxHp() * pct)); c.cutMaxHp(n); c.bindMaxHp(); c.gainItem(rarity); return `🩸 You cut your palm and swear. The stone drinks: −${n} Max HP, and it will never grow back past this.`; }
+  run: c => {
+    const n = Math.max(1, Math.round(c.maxHp() * pct));
+    c.cutMaxHp(n); c.bindMaxHp(); c.gainItem(rarity);
+    const cursed = curse ? ` The stone isn't finished with you: ${c.addCurse()}.` : "";
+    return `🩸 You cut your palm and swear. The stone drinks: −${n} Max HP, and it can never rise again.${cursed}`;
+  }
 });
 
 export const EVENTS: GameEvent[] = [
   { id: "blood_oath", weight: 0, title: "The Blood Oath", icon: "🩸",
     text: "A standing stone, its runes filled in with something dark and dry. A blade lies at its foot. Swear on it, and it will hold you to your word.",
     options: [
-      oath(0.3, "A binding oath", "An Epic item", "epic"),
-      oath(0.7, "A blood-sworn oath", "A Legendary item", "legendary"),
+      oath(0.4, "A binding oath", "An Epic item", "epic"),
+      oath(0.65, "A blood-sworn oath", "A Legendary item, and a random curse with it", "legendary", true),
       leave
     ] },
   { id: "crossroads", unique: true, weight: 0.12, minFloor: 2, title: "The Crossroads", icon: "🌒", text: "", options: [] },
@@ -199,7 +204,7 @@ export const EVENTS: GameEvent[] = [
     options: [{ label: "Trade a random relic for two", can: c => c.relicCount() > 0, run: c => { const lost = c.loseRelic(); const a = c.gainRelic(); const b = c.gainRelic(); return `You gave up ${lost} and received ${a.replace(/^a relic: /, "")} and ${b.replace(/^a relic: /, "")}.`; } }, leave] },
   { id: "fountain", title: "Blood Fountain", icon: "⛲", text: "Red water bubbles from cracked stone. It whispers of treasure for those who bleed.",
     options: [
-      { label: "Bleed into it (lose 8 HP)", hint: "A Rare item", can: c => c.hp() > 8, run: c => { c.hurt(8); const it = c.gainItem("rare"); return `The fountain gives up a treasure (${it.rarity}).`; } },
+      sanguine(0.45, "Bleed into it", "A Rare item", c => { const it = c.gainItem("rare"); return `The fountain gives up a treasure (${it.rarity}).`; }),
       { label: "Drink from it", hint: "Heals you a little, with a chance of a curse", run: c => { c.healPct(0.3); if (c.rng() < 0.4) return `Refreshing… and wrong. Cursed: ${c.addCurse()}.`; return "Refreshing. Nothing else happens."; } },
       leave] },
   { id: "dice", title: "The Gambling Den", icon: "🎲", text: "Bone dice clatter on a crate. \"Double or nothing, friend?\"",

@@ -267,13 +267,7 @@ export function drawCrawl() {
       else if (t.room === "forge") drawAnvil(ctx, cx, cy + ts * 0.12, ts, now, !!t.opened);
       else if (t.room === "pond") drawWater(ctx, cx, cy + ts * 0.08, ts * 0.42, ts * 0.3, now);
       else if (t.room === "event" && hasSprite("doors_leaf_open")) {
-        // A strange door, set in the wall behind it, with a faint glow spilling out.
-        const pulse = 0.55 + 0.45 * Math.sin(now / 700);
-        ctx.save(); ctx.globalCompositeOperation = "lighter";
-        const g = ctx.createRadialGradient(cx, cy - ts * 0.35, 0, cx, cy - ts * 0.35, ts * 0.95);
-        g.addColorStop(0, `rgba(190,140,255,${0.6 * pulse})`); g.addColorStop(0.6, `rgba(130,90,220,${0.22 * pulse})`); g.addColorStop(1, "rgba(120,80,200,0)");
-        ctx.fillStyle = g; ctx.fillRect(cx - ts, cy - ts * 1.3, ts * 2, ts * 2);
-        ctx.restore();
+        // A strange door, set in the wall behind it.
         drawSprite(ctx, "doors_leaf_open", cx, cy + ts * 0.15, ts / 32);
       }
       else if (!sk || !hasSprite(sk) || !drawSprite(ctx, sk, cx, cy + ts * 0.42, big ? scale * 0.7 : scale)) {

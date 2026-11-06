@@ -11,7 +11,7 @@ import { ORIGINS } from "../data/origins";
 import { genHooks, genLines, GRADE_MARK, genTopGrade, GEN_MODULE_MAP, modValue } from "./gen";
 import { SIGIL_SETS } from "../data/talisman";
 import { PLAIN_FACES } from "../engine/combat";
-import { ATTR_INFO, ATTR_MAX, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
+import { ATTR_INFO, ATTR_MAX, ATTRS, attrPower, type Attr, BASE_ATTR, BASE_DMG_PER } from "../data/attributes";
 import { eachHook, getItem } from "../engine/registry";
 import type { Fighter, GearBase, GearItem, OriginId, Rarity, StatBlock } from "../engine/types";
 
@@ -346,7 +346,7 @@ export function recompute(h: Hero) {
   f.arms = { main: kindOf(armMain), off: kindOf(armOff), twoHanded: !!armMain && !!effectiveBase(armMain).twoHanded };
   // Your class's base attribute: each point in it adds +1 to your base Damage.
   const ba = BASE_ATTR[h.origin as keyof typeof BASE_ATTR];
-  if (ba) s.damage += attrOf(h, ba);
+  if (ba) s.damage += Math.floor(attrOf(h, ba) / BASE_DMG_PER);
   // Read by the fight: Faith's resistances, Vitality's Regen, and whether you swing a staff or a wand (Intellect).
   f.persist["faiRes"] = attrOf(h, "fai");
   f.persist["vitRegen"] = attrOf(h, "vit");
@@ -389,6 +389,7 @@ export function recompute(h: Hero) {
   // Read by the fight: Strength feeds War Cry.
   f.persist["strPts"] = attrOf(h, "str");
   f.persist["faiPts"] = attrOf(h, "fai");
+  f.persist["intPts"] = attrOf(h, "int");
   // A Blood Oath binds your Max HP where the oath left it: nothing raises it past that again this run.
   const cap = f.persist["maxHpCap"];
   f.maxHp = Math.max(1, cap ? Math.min(s.maxHp, cap) : s.maxHp);
@@ -566,4 +567,5 @@ export function heroTags(h: Hero): Map<string, number> {
   return tags;
 }
 
-export const xpToLevel = (level: number) => 3 + 2 * (level - 1);
+/** XP for the next level: slow, so a level (two attribute points) is something to look forward to. */
+export const xpToLevel = (level: number) => 8 + 4 * (level - 1);

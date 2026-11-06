@@ -9,6 +9,21 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.94.0
+- Fixed: tapping a node on the passive tree no longer throws you back to the top-left corner.
+- Attributes give much less per point, and levelling is slower (8 XP for level 2, 4 more each level after that). A class's base attribute adds +1 Damage for every 3 points, not every point.
+- Intellect no longer boosts status or reaction damage (that comes from gear and the passive tree now). Instead it gives +1 Max Mana for every 3 points.
+- Mana carries over from fight to fight. Only Mana Potions refill it (a new run starts full).
+- Throwables cost no turn: tap one to ready it, and it flies right after your action. Tap again to put it back.
+- The Jeweller no longer takes relics. It now has an Upgrade tab, and only the Jeweller upgrades trinkets: the Forge and the Blacksmith won't.
+- Blood Oath: −40% Max HP for an Epic, or −65% for a Legendary that brings a random curse with it. Both say your Max HP can never rise again.
+- The Blood Fountain now costs 45% of your Max HP.
+- The class card is short: the skill, the passive, the base attribute, HP and starting kit.
+- Enter Dungeon buttons are in muted dungeon shades (oak, stone, charred wood, old moss).
+- The curse skull sits under your health bars.
+- The class skill button no longer shows a mana cost. The level-up popup lost its "nothing changes until you do" line.
+- Strange doors no longer glow.
+
 ## 1.93.0
 - Class Mastery is gone. Class skills now unlock as you beat layers: the 2nd after the 1st Layer, the 3rd after the 3rd. No more starting-kit swaps.
 - Renown is gone as a mechanic: all loot is in the pools from the start.

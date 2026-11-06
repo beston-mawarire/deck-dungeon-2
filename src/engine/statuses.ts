@@ -1,4 +1,5 @@
 // Status effects (both sides), their reactions, and their per-round ticks.
+import { PER, RESIST_CAP } from "../data/attributes";
 import { eachHook, fx, log } from "./registry";
 import type { Battle, Fighter, StatusId } from "./types";
 import { NEGATIVE_STATUSES } from "./types";
@@ -194,7 +195,7 @@ function reactionMult(b: Battle, source: Fighter | null, target?: Fighter) {
   return target === b.player ? out * faithCut(b.player) : out;
 }
 /** Faith's resistance: 4% less per point, at most 60%. */
-const faithCut = (f: Fighter) => 1 - Math.min(0.6, 0.04 * (f.persist["faiRes"] ?? 0));
+const faithCut = (f: Fighter) => 1 - Math.min(RESIST_CAP / 100, (PER.faiRes / 100) * (f.persist["faiRes"] ?? 0));
 
 /**
  * Put a status on a fighter. Handles Ward, item negation, stacking, reactions and
@@ -453,7 +454,7 @@ export function endOfRound(b: Battle, f: Fighter) {
   const regen = st(f, "regen");
   if (regen > 0) {
     // Vitality: Regen heals more.
-    heal(b, f, Math.round(regen * (1 + 0.1 * (f.persist["vitRegen"] ?? 0))), "Regen");
+    heal(b, f, Math.round(regen * (1 + PER.vitRegen * (f.persist["vitRegen"] ?? 0))), "Regen");
     if (f.flags["bastion"]) f.statuses.barrier = Math.min(st(f, "barrier") + regen, 4 + 4 * (f.persist["floor"] ?? 1));
     f.statuses.regen = regen - 1;
   }

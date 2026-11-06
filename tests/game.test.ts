@@ -739,6 +739,7 @@ describe("class actions and new stats", () => {
       const b = startBattle(h.f, e, seed);
       h.f.statuses = {}; // no starting Evade: test Dodge alone
       h.f.dodge = 40;
+      h.f.mana = 3; // (mana carries over between fights now)
       b.round = 1;
       heroPhase(b, "counter");
       enemyPhase(b);

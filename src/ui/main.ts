@@ -25,14 +25,14 @@ import {
   sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   startCrawl, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
-  abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
+  abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { layerFloors } from "../game/grid";
-import { isThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
+import { isThrow, readyThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
 import { branchSpent, isTreeRelic, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TOTEMS, totemById, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
-import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR } from "../data/attributes";
+import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR, BASE_DMG_PER } from "../data/attributes";
 import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { mountCampMap, resetCampWalk } from "./campmap";
 import { CAMP_CASTS, type CastPlan, FISH, fishById, planCast, rollCatch } from "../game/fishing";
@@ -734,9 +734,9 @@ function crawlCombat(r: Run, msg: string[], bad: boolean) {
     </div>
     ${(p.statuses.stun ?? 0) > 0 ? `<div class="toast err">💫 You're Stunned: your next turn will be skipped.</div>` : ""}
     ${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(m)}</div>`).join("")}
-    ${acts.some(isThrow) ? `<div class="cb-throws">${acts.filter(isThrow).map(a => `<button class="cb-throw" data-act="${a}" ${busy ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}"><span>${THROW_INFO[a].icon}</span><b>${THROW_INFO[a].short}</b><i>×${p.persist[THROW_INFO[a].key] ?? 0}</i></button>`).join("")}</div>` : ""}
+    ${acts.some(isThrow) ? `<div class="cb-throws">${acts.filter(isThrow).map(a => `<button class="cb-throw ${p.flags[`q_${a}`] ? "ready" : ""}" data-ready="${a}" ${busy ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}"><span>${THROW_INFO[a].icon}</span><b>${p.flags[`q_${a}`] ? "Ready" : THROW_INFO[a].short}</b><i>×${(p.persist[THROW_INFO[a].key] ?? 0) + (p.flags[`q_${a}`] ? 1 : 0)}</i></button>`).join("")}</div>` : ""}
     <div class="cb-moves ${busy ? "busy" : ""}">
-      ${acts.filter(a => !isThrow(a)).map(a => `<button class="cb-move ${a === "attack" ? "attack" : a === "flee" ? "flee" : a === "guard" ? "guard" : "skill"}" data-act="${a}" ${busy || (isSkill(a) && (p.mana ?? 0) < MANA_COST) ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(p)}${isSkill(a) ? ` <span class="mana-cost">🔷${MANA_COST}</span>` : ""}</button>`).join("")}
+      ${acts.filter(a => !isThrow(a)).map(a => `<button class="cb-move ${a === "attack" ? "attack" : a === "flee" ? "flee" : a === "guard" ? "guard" : "skill"}" data-act="${a}" ${busy || (isSkill(a) && (p.mana ?? 0) < MANA_COST) ? "disabled" : ""} title="${esc(ACTION_INFO[a].tip)}">${ACTION_INFO[a].label(p)}</button>`).join("")}
     </div>
     <div class="cb-bottom"><div class="cb-pots">${potionCircle(r)}</div><div class="cb-mid"><button class="cb-menubtn" data-menu ${busy ? "disabled" : ""} aria-label="Menu">☰</button></div>${bagCircle(r)}</div>
     <details class="cb-log"><summary>Battle log</summary><div class="log">${b.log.slice().reverse().map(l => `<div class="${l.startsWith("—") ? "round" : ""}">${esc(l)}</div>`).join("")}</div></details>
@@ -1189,13 +1189,12 @@ function crawlScreen(r: Run, msg: string[], bad: boolean) {
   return `<div class="crawl-screen">
     <canvas id="crawl"></canvas>
     <div class="crawl-vignette"></div>
-    <div class="cz cz-tl">${czBars(r)}</div>
+    <div class="cz cz-tl">${czBars(r)}${(() => { const n = Object.values(h.curses).reduce((a, b) => a + b, 0) + (h.f.persist["maxHpCap"] ? 1 : 0); return n ? `<button class="cz-curse" data-cursed title="You're cursed: see Artefacts" aria-label="Cursed (${n})"><span>💀</span>${n > 1 ? `<b>${n}</b>` : ""}</button>` : ""; })()}</div>
     <div class="cz cz-tr">
       <canvas id="minimap" class="cz-mini" aria-label="Map of what you've explored"></canvas>
       <div class="cz-layer">${layer}</div>
       <div class="cz-floor">${m.depth === 0 ? "Dungeon Entrance" : m.depth === TREASURE_DEPTH ? "The Hoard" : `Floor ${m.depth}`}</div>
       ${quests}
-      ${(() => { const n = Object.values(h.curses).reduce((a, b) => a + b, 0) + (h.f.persist["maxHpCap"] ? 1 : 0); return n ? `<button class="cz-curse" data-cursed title="You're cursed: see Artefacts" aria-label="Cursed (${n})"><span>💀</span>${n > 1 ? `<b>${n}</b>` : ""}</button>` : ""; })()}
     </div>
     ${msg.length ? `<div class="cz cz-toasts">${msg.map((x, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(x)}</div>`).join("")}</div>` : ""}
     ${pick}
@@ -1470,8 +1469,8 @@ function forgeScene(r: Run, altar = false) {
       <button class="primary camp-go" data-revealgo ${sel && h.scrolls ? "" : "disabled"}>✨ Reveal</button>
       <div class="mer-list">${hidden.length ? hidden.map(it => `<button class="mer-chip ${revealSel === it.uid ? "on" : ""}" data-revealpick="${it.uid}"><b style="color:${RARITY_INK[it.rarity]}">${esc(itemName(it))}</b><span>${equippedSlot(r, it) || "Backpack"}</span></button>`).join("") : `<span class="mer-none">No hidden Legendaries.</span>`}</div>`;
   } else if (forgeTab === "upgrade") {
-    body = `<p class="sub">Upgrading raises an item's level (more damage, stronger lines).</p>
-    ${sides(() => true, it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>`, false, slotOf(it)))}`;
+    body = `<p class="sub">Upgrading raises an item's level (more damage, stronger lines). Trinkets are upgraded by the Jeweller.</p>
+    ${sides(it => baseOf(it.base).slot !== "trinket", it => itemCard(it, `<button class="small primary" data-up="${it.uid}">Upgrade · ${upgradeCost(it, r.hero)} ⚙️</button>`, false, slotOf(it)), () => false, "Nothing the Forge can work here. (Trinkets go to the Jeweller.)")}`;
   } else if (forgeTab === "scrap") {
     const star: Partial<Record<string, number>> = { legendary: 2, crimson: 4, epic_crimson: 10, legendary_crimson: 25 };
     body = `<p class="sub">Break down items for Scrap. Rarer and higher-level items give more, and the rarest also give Starmetal.</p>
@@ -1692,12 +1691,15 @@ function jewellerScene(r: Run) {
   const trinkets = gear.filter(it => baseOf(it.base).slot === "trinket");
   const infusable = gear.filter(it => ["weapon", "off", "armour"].includes(baseOf(it.base).kind));
   const pick = (it: GearItem) => { const x: JewelSlot = { kind: "item", uid: it.uid }; return `<button class="jpick r-${it.rarity}" data-jpick="item:${it.uid}" ${onBench(x) ? "disabled" : ""}><b class="nm">${esc(itemName(it))}</b><span class="sub">${rarityLabel(it.rarity)}${equippedSlot(r, it) ? " · worn" : ""}${it.upgrades ? " · upgraded" : ""}${it.infused ? " · infused" : ""}</span></button>`; };
-  const relics = Object.entries(h.relics);
   const costTxt = cost ? `${cost.gold} 🪙${cost.scrap ? ` + ${cost.scrap} ⚙️` : ""}${cost.starmetal ? ` + ${cost.starmetal} ✴️` : ""}` : "";
-  const tabs = ""; // (Infusing retired with the loot rework: Extract and Empower at the Masterwork took its place.)
+  const tabs = `<div class="forge-sides jtabs"><button class="forge-side ${s.mode === "fuse" ? "active" : ""}" data-jmode="fuse">💎 Combine</button><button class="forge-side ${s.mode === "upgrade" ? "active" : ""}" data-jmode="upgrade">⬆️ Upgrade</button></div>`;
+  if (s.mode === "upgrade") return `<h2>💍 The Jeweller</h2>${tabs}<div class="forge-body room-body"><div class="panel"><p>"Steel goes to the forge. Anything you wear on a finger or a chain comes to me."</p>
+    <p class="sub">Only the Jeweller upgrades trinkets. Upgrading raises a trinket's level and strengthens its lines. You have ⚙️ ${h.scrap}.</p></div>
+    <div class="cards">${trinkets.map(it => itemCard(it, `<button class="small primary" data-jup="${it.uid}">Upgrade · ${upgradeCost(it, h)} ⚙️</button>`, false, equippedSlot(r, it))).join("") || `<p class="sub">No trinkets to upgrade.</p>`}</div></div>
+    <div class="row" style="margin-top:14px"><button class="primary leave-wide" data-leave>🚪 Leave the Jeweller</button></div>`;
   const intro = s.mode === "fuse"
     ? `<p>"Put two things on my bench. Some of them belong together. Most of them don't. Either way, I get paid."</p>
-       <p class="sub">Two relics, or two Rare-or-better trinkets that haven't been upgraded. Relics cost Gold and Scrap; trinkets also cost ✴️ Starmetal, more for higher rarities. A fusion that doesn't take still costs the fee.</p>`
+       <p class="sub">Two Rare-or-better trinkets that haven't been upgraded. It costs Gold, Scrap and ✴️ Starmetal, more for higher rarities. A fusion that doesn't take still costs the fee.</p>`
     : `<p>"Give me a trinket and something to wear. I'll put the one inside the other. The trinket won't survive it."</p>
        <p class="sub">A weapon, off-hand or armour on the left, a trinket of the <b>same rarity</b> on the right (Rare or better, neither upgraded). The trinket's effects and bonuses move into the gear, and the trinket is gone. Costs Gold and ✴️ Starmetal, more for higher rarities.</p>`;
   return `<h2>💍 The Jeweller</h2>${tabs}<div class="forge-body room-body"><div class="panel">${intro}
@@ -1708,8 +1710,7 @@ function jewellerScene(r: Run) {
     ${s.mode === "infuse" ? `<h3 class="jhead">Weapons, off-hands and armour</h3><div class="jpicks">${infusable.map(pick).join("") || `<p class="sub">Nothing to infuse.</p>`}</div>` : ""}
     <h3 class="jhead">Your trinkets</h3>
     <div class="jpicks">${trinkets.map(pick).join("") || `<p class="sub">No trinkets.</p>`}</div>
-    ${s.mode === "fuse" ? `<h3 class="jhead">Your relics</h3>
-    <div class="jpicks">${relics.length ? relics.map(([id, n]) => { const d = getItem(id); const x: JewelSlot = { kind: "relic", id }; return `<button class="jpick r-${d.rarity ?? "common"}" data-jpick="relic:${id}" ${onBench(x) ? "disabled" : ""}><b class="nm">${esc(d.name)}${n > 1 ? ` ×${n}` : ""}</b><span class="sub">Relic${FUSABLE_RELICS.has(id) ? ` · <span class="fusable-tag">🔗 Fusable</span>` : ""}</span></button>`; }).join("") : `<p class="sub">No relics.</p>`}</div>` : ""}</div>
+    </div>
     <div class="row" style="margin-top:14px"><button class="primary leave-wide" data-leave>🚪 Leave the Jeweller</button></div>`;
 }
 
@@ -1780,7 +1781,7 @@ function smithScene(r: Run) {
   if (r.scene.t !== "smith") return "";
   const s = r.scene;
   return `<h2>⚒️ The Wandering Blacksmith</h2><div class="panel"><p>"Two jobs, free of charge. Pick your pieces."</p><p class="sub"><b>${s.uses}</b> free upgrade${s.uses === 1 ? "" : "s"} left. Each one raises an item's level by 1, like the Forge.</p></div>
-    ${s.uses > 0 ? `${gearGroups(r, it => itemCard(it, `<button class="small primary" data-smith="${it.uid}">Upgrade free · to level ${it.level + 1}</button>`, false, equippedSlot(r, it)))}` : ""}
+    ${s.uses > 0 ? `${gearGroups(r, it => itemCard(it, `<button class="small primary" data-smith="${it.uid}">Upgrade free · to level ${it.level + 1}</button>`, false, equippedSlot(r, it)), it => baseOf(it.base).slot !== "trinket")}` : ""}
     <div class="row" style="margin-top:12px"><button class="${s.uses ? "" : "primary"}" data-leave>${s.uses ? "Leave the rest" : "Thank him and move on"}</button></div>`;
 }
 
@@ -2130,11 +2131,12 @@ function crawlBag(r: Run) {
     const rows = ATTRS.map(a => {
       const info = ATTR_INFO[a], spent = h.attrs?.[a] ?? 0, tree = treeAttr(h, a), gear = gearAttr(h, a), n = spent + tree + gear, isFav = baseA === a;
       // (The class attribute's base Damage shows in your ⚔️ Damage.)
-      const now = shownLines(info.lines(attrPower(n)));
-      const next = shownLines(info.lines(attrPower(n + 1)));
+      const dmgLine = (k: number) => (isFav ? [`+${Math.floor(k / BASE_DMG_PER)} base Damage (1 for every ${BASE_DMG_PER} points)`] : []);
+      const now = [...dmgLine(n), ...shownLines(info.lines(attrPower(n)))];
+      const next = [...dmgLine(n + 1), ...shownLines(info.lines(attrPower(n + 1)))];
       const lines = now.map((l, i) => `<li class="${l !== next[i] ? "grows" : ""}"><span>${esc(l)}</span>${l !== next[i] && pts ? `<i>→ ${esc(/[+−-]?\d+%?/.exec(next[i])?.[0] ?? next[i])}</i>` : ""}</li>`).join("");
       return `<div class="attr-row ${n ? "has" : ""}">
-        <div class="attr-head"><span class="attr-ic">${info.icon}</span><b>${info.name}</b>${isFav ? `<span class="attr-fav" title="Your class's base attribute: every point also adds +1 to your ⚔️ Damage">★ ${esc(ORIGINS[h.origin].name)}</span>` : ""}<span class="grow"></span><span class="attr-n">${n}${gear ? `<em title="From your gear">+${gear} 🛡️</em>` : ""}${tree ? `<em title="From the passive tree">+${tree} 🌳</em>` : ""}</span>
+        <div class="attr-head"><span class="attr-ic">${info.icon}</span><b>${info.name}</b>${isFav ? `<span class="attr-fav" title="Your class's base attribute: every ${BASE_DMG_PER} points also add +1 to your ⚔️ Damage">★ ${esc(ORIGINS[h.origin].name)}</span>` : ""}<span class="grow"></span><span class="attr-n">${n}${gear ? `<em title="From your gear">+${gear} 🛡️</em>` : ""}${tree ? `<em title="From the passive tree">+${tree} 🌳</em>` : ""}</span>
           <button class="attr-plus" data-attr="${a}" ${pts && spent < ATTR_MAX && !inCombat ? "" : "disabled"} aria-label="Put a point into ${info.name}">+</button></div>
         <p class="attr-blurb">${esc(info.blurb)}</p><ul class="attr-lines">${lines}</ul></div>`;
     }).join("");
@@ -2209,10 +2211,17 @@ function revealBtn(r: Run, it: GearItem) {
 
 const ORIGIN_ICON: Record<OriginId, string> = { warrior: "🛡️", rogue: "🗡️", mage: "🔮", cleric: "✨" };
 const ORIGIN_PITCH: Record<OriginId, string> = {
-  warrior: "The Warrior wins by standing firm. Guarding is your craft, with a shield or even a two-handed weapon, and every Guard makes you hit harder; let loose a War Cry for a swell of Might. Your base attribute is Strength: every point raises your Max HP, your Bash and your base Damage. You find swords, axes, maces, hammers, polearms and shields, and the shields can carry Shield Wall.",
-  rogue: "The Rogue wins by never being where the blow lands. Two blades, two dice and the first strike, and Counter: brace, dodge the next attack and strike back with a hit that can't miss. Your base attribute is Agility: every point raises your Dodge, your Crit chance, your crit damage and your base Damage. You find daggers, short blades, bows and throwing weapons, and the daggers can carry Envenom.",
-  mage: "The Mage wins by stacking statuses until they explode. Every face can be a spell; Burn, Chill, Static and more combine into reactions and bursts. With an elemental off-hand, raise an Elemental Barrier that throws your element back at attackers. Your base attribute is Intellect: every point raises your status and reaction damage, your staves' and wands' hits and your base Damage. You find staves, wands, focuses and ritual daggers. Fragile early, devastating later.",
-  cleric: "The Cleric wins by outlasting. Ward and Holy weapons that Smite the wicked, and Penance: kneel, take what they give you, and return it in one blow. Your base attribute is Faith: every point means reactions and statuses hurt you less, curse-lifting altars come sooner, and your base Damage rises. You find maces, hammers, shields and holy focuses."
+  warrior: "Stand firm, Guard, and hit back harder.",
+  rogue: "Dodge everything, strike first, and Counter.",
+  mage: "Stack statuses until they explode.",
+  cleric: "Outlast them, then return the pain."
+};
+/** Each class's passive in a few words (the full text is in the Codex). */
+const ORIGIN_PASSIVE: Record<OriginId, string> = {
+  warrior: "+2 Armor and 2 Might when you Guard",
+  rogue: "Your first attack each fight rolls twice",
+  mage: "Your spell faces add +1 status stack",
+  cleric: "Heal 1 a round for each positive status"
 };
 
 const STORIES: Record<Mode, { icon: string; title: string; text: string }> = {
@@ -2254,7 +2263,7 @@ function helpPopup() {
       "Guardians show their next move. Plan around it."])}
     ${sec("Levels and attributes", [
       "Every level gives <b>2 attribute points</b> to spend in your inventory, and heals you a little. Six attributes: Strength, Agility, Intellect, Faith, Vitality and Fortune. Each shows what its next point gives before you spend it.",
-      "Your class's own attribute (★) also raises your base Damage with every point."])}
+      "Your class's own attribute (★) also adds +1 base Damage for every 3 points."])}
     ${sec("Statuses and reactions", [
       "Burn, Poison, Bleed, Chill, Shock, Static and more pile up on foes (and on you). Two statuses on the same fighter can <b>react</b>: Burn and Poison make Combustion, Static and Shock set off all the Static at once.",
       "Pile up enough Chill, Bleed or Poison and it <b>bursts</b>. Open 🎒 mid-fight to see what's active."])}
@@ -2596,10 +2605,13 @@ function originPopup(o: OriginId) {
     <button class="small closex closebtn" data-closeorigin aria-label="Close">✕</button>
     <h1 class="center bigname">${og.name}</h1>
     <div class="center bigicon">${ORIGIN_ICON[o]}</div>
-    <p>${esc(ORIGIN_PITCH[o])}</p>
-    <p class="sub"><b>${esc(p.name)}:</b> ${esc(p.text)}.</p>
-    <p class="sub">Starts with ${og.hp} HP · ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</p>
-    ${(() => { const ba = BASE_ATTR[o as keyof typeof BASE_ATTR]; if (!ba) return ""; const ai = ATTR_INFO[ba]; return `<div class="class-attr"><span class="ca-ic">${ai.icon}</span><div><b>Base attribute: ${esc(ai.name)}</b><p>Every point you put into ${esc(ai.name)} also adds +1 to your ⚔️ Damage, on top of what it usually gives: ${shownLines(ai.lines(1)).map(esc).join(", ")}.</p></div></div>`; })()}
+    <p class="center op-pitch">${esc(ORIGIN_PITCH[o])}</p>
+    <ul class="op-facts">
+      ${(() => { const sk = CLASS_SKILLS[o][0]; return `<li><span>${sk.icon}</span><span><b>${esc(sk.name)}</b> ${esc(sk.text)}</span></li>`; })()}
+      <li><span>${ORIGIN_ICON[o]}</span><span><b>${esc(p.name)}</b> ${esc(ORIGIN_PASSIVE[o])}</span></li>
+      ${(() => { const ba = BASE_ATTR[o as keyof typeof BASE_ATTR]; if (!ba) return ""; const ai = ATTR_INFO[ba]; return `<li><span>${ai.icon}</span><span><b>${esc(ai.name)}</b> +1 Damage for every ${BASE_DMG_PER} points</span></li>`; })()}
+      <li><span>❤️</span><span><b>${og.hp} HP</b> ${og.kit.map(k => esc(baseOf(k).name)).join(", ")}</span></li>
+    </ul>
     ${masteryPanel(o)}
     ${gemPanel(o)}
     ${liveSave() ? `<p class="sub warn">Starting a new run replaces your saved run.</p>` : ""}
@@ -2685,7 +2697,7 @@ function levelUpPopup(r: Run) {
 }
 
 const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }> = {
-  ...Object.fromEntries(THROWS.map(t => [t, { label: (p: Fighter) => `${THROW_INFO[t].icon} ${THROW_INFO[t].name} ×${p.persist[THROW_INFO[t].key] ?? 0}`, tip: `Uses your turn. ${THROW_INFO[t].text}.` }])) as Record<Throw, { label: (p: Fighter) => string; tip: string }>,
+  ...Object.fromEntries(THROWS.map(t => [t, { label: (p: Fighter) => `${THROW_INFO[t].icon} ${THROW_INFO[t].name} ×${p.persist[THROW_INFO[t].key] ?? 0}`, tip: `Free: tap to ready it, and it flies right after your action this turn. Tap again to put it back. ${THROW_INFO[t].text}.` }])) as Record<Throw, { label: (p: Fighter) => string; tip: string }>,
   attack: { label: () => "Attack", tip: "Roll your die and strike." },
   guard: { label: () => "Guard", tip: "Double your Armor this round; Armor can stop a whole hit. Needs a shield (a Warrior can Guard with a two-hander)." },
   counter: { label: () => "Counter", tip: "Costs 1 Mana. Uses your turn. +35% Dodge this round; if you Dodge an attack, you strike back at once with a Crit (no roll needed). If you're hit, you're a little off-balance for your next attack." },
@@ -2820,7 +2832,18 @@ function render() {
 }
 
 let chestHeard: unknown = null;
+/** Scroll boxes that keep their place across a re-render (the passive tree, mostly). */
+const KEEP_SCROLL = [".ts-scroll"];
+function keepScroll(): () => void {
+  const saved = KEEP_SCROLL.map(sel => { const el = document.querySelector<HTMLElement>(sel); return el ? [sel, el.scrollLeft, el.scrollTop] as const : null; }).filter(x => !!x);
+  return () => { for (const [sel, l, t] of saved) { const el = document.querySelector<HTMLElement>(sel); if (el) { el.scrollLeft = l; el.scrollTop = t; } } };
+}
 function render2() {
+  const restore = keepScroll();
+  render3();
+  restore();
+}
+function render3() {
   // Not in a run: a new build can load straight away.
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title", musicPlace());
@@ -3371,6 +3394,7 @@ function bind() {
     }
   });
   on("[data-claim]", () => say(claimResplendent(r)));
+  on("[data-ready]", el => { if (r.scene.t === "combat" && !busy) readyThrow(r.scene.battle, el.dataset.ready as Throw); });
   on("[data-mana]", () => { say(drinkMana(r)); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-keepsake]", () => { say(takeKeepsake(r), false); sfx("legendary"); });
   on("[data-choosetalent]", () => { ackedTalentScene = r.scene; });
@@ -3388,7 +3412,8 @@ function bind() {
   });
   on("[data-unify]", () => { say(unifyHeart(r)); celebrate("legendary_crimson", "Unified with the Dragon Heart", false); });
   on("[data-jpick]", el => { const [k, v] = el.dataset.jpick!.split(":"); say(jewelPlace(r, k === "relic" ? { kind: "relic", id: v } : { kind: "item", uid: Number(v) })); sfx("status"); });
-  on("[data-jmode]", el => { jewelMode(r, el.dataset.jmode as "fuse" | "infuse"); });
+  on("[data-jmode]", el => { jewelMode(r, el.dataset.jmode as "fuse" | "infuse" | "upgrade"); });
+  on("[data-jup]", el => { const err = jewelUpgrade(r, Number(el.dataset.jup)); say(err); if (!err) sfx("equip"); });
   on("[data-jclear]", el => { jewelClear(r, el.dataset.jclear as "left" | "right"); });
   on("[data-jfuse]", () => { const res = jewelFuse(r); say(res.msg, !res.ok); if (res.ok) celebrate("epic", res.made, true); else sfx("miss"); });
   on("[data-gwalk]", el => { walkToThing(Number(el.dataset.gwalk)); });
@@ -3414,7 +3439,7 @@ function bind() {
   on("[data-tribute]", el => { say(payTribute(r, el.dataset.tribute!)); sfx("heal"); });
   on("[data-tonicbuy]", el => { say(buyTonic(r, Number(el.dataset.tonicbuy))); });
   on("[data-tonic]", el => { say(useTonic(r, el.dataset.tonic!)); sfx("status"); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
-  on("[data-smith]", el => { smithUpgrade(r, Number(el.dataset.smith)); sfx("chest"); });
+  on("[data-smith]", el => { const err = smithUpgrade(r, Number(el.dataset.smith)); say(err); if (!err) sfx("chest"); });
   on("[data-descend]", () => { r.message = ""; advance(r); });
   on("[data-help]", () => { helpOpen = true; });
   on("[data-closehelp]", () => { helpOpen = false; });

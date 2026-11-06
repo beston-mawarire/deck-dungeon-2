@@ -6,7 +6,7 @@ import { getItem } from "../src/engine/registry";
 import type { GearItem, Rarity } from "../src/engine/types";
 import { recompute } from "../src/game/hero";
 import { rollItem } from "../src/game/loot";
-import { type Run, genChoices, grantRelic, jewelCost, jewelFuse, jewelMode, jewelPlace, newRun } from "../src/game/run";
+import { type Run, forgeUpgrade, genChoices, grantRelic, jewelCost, jewelFuse, jewelMode, jewelPlace, jewelUpgrade, newRun, smithUpgrade } from "../src/game/run";
 beforeAll(() => loadLibrary());
 
 const atBench = (seed = 1) => {
@@ -31,16 +31,25 @@ it("every recipe names real things, and fused trinkets never drop", () => {
   for (let i = 0; i < 3000; i++) expect(fusedIds.has(rollItem(run.hero, "epic", 3, Math.random).base)).toBe(false);
 });
 
-it("two matching relics fuse for Gold and Scrap", () => {
+it("relics no longer go on the Jeweller's bench", () => {
   const run = atBench();
   run.hero.relics = { hex_doll: 1, black_candle: 1 }; recompute(run.hero);
-  jewelPlace(run, { kind: "relic", id: "hex_doll" });
-  jewelPlace(run, { kind: "relic", id: "black_candle" });
-  const cost = jewelCost(run)!;
-  expect(cost.starmetal).toBe(0);
-  expect(jewelFuse(run).ok).toBe(true);
-  expect(run.hero.relics["f_witchs_altar"]).toBe(1);
-  expect(run.hero.f.gold).toBe(9999 - cost.gold);
+  expect(jewelPlace(run, { kind: "relic", id: "hex_doll" })).toMatch(/only works on trinkets/);
+  expect(run.scene.t === "jeweller" && run.scene.left).toBeFalsy();
+});
+
+it("only the Jeweller upgrades trinkets; the Forge and the Blacksmith won't", () => {
+  const run = atBench();
+  const t = piece(run, "tj_glass_bead"), w = piece(run, "w_sword");
+  expect(forgeUpgrade(run, t.uid)).toMatch(/Jeweller/);
+  expect(t.level).toBe(1);
+  expect(jewelUpgrade(run, w.uid)).toMatch(/only works on trinkets/);
+  expect(jewelUpgrade(run, t.uid)).toBeNull();
+  expect(t.level).toBe(2);
+  expect(forgeUpgrade(run, w.uid)).toBeNull();
+  expect(w.level).toBe(2);
+  run.scene = { t: "smith", uses: 1 } as never;
+  expect(smithUpgrade(run, t.uid)).toMatch(/Jeweller/);
 });
 
 it("trinket fusion costs Starmetal (more for Epic), and a wrong pair still costs the fee", () => {

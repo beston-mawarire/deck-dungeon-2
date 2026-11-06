@@ -102,7 +102,7 @@ describe("floors with teeth", () => {
     const max = r.hero.f.maxHp;
     r.scene = { t: "event", ev: EVENTS.find(e => e.id === "blood_oath")!, result: null, found: [] };
     chooseEvent(r, 0);
-    const cut = max - Math.round(max * 0.3);
+    const cut = max - Math.round(max * 0.4);
     expect(r.hero.f.maxHp).toBe(cut);
     const sc = r.scene as { t: string; items?: { rarity: string }[] };
     expect(sc.t).toBe("loot");

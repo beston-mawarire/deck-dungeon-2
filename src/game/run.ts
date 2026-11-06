@@ -25,7 +25,7 @@ const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(b
 import { bossOdds, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 import { affixById, rescaleAffixes } from "./affixpool";
 import { MATS, matOfFamily, PLANTS, type Mat, type Plant } from "./camp";
-import { ATTR_PER_LEVEL } from "../data/attributes";
+import { ATTR_PER_LEVEL, PER } from "../data/attributes";
 import { type Fish, fishById, POND_CASTS, rollCatch } from "./fishing";
 import { MASTERY_FAMILIES, TOTEM_DROP, TOTEM_LAYER, TOTEMS, WM_XP } from "./longroad";
 import { classify } from "./families";
@@ -200,7 +200,7 @@ export type Scene =
   /** The Dragon Sanctum: unify with your Dragon Heart. */
   | { t: "sanctum"; done?: boolean }
   /** The Jeweller's bench: two slots, then pay to fuse. */
-  | { t: "jeweller"; mode: "fuse" | "infuse"; left?: JewelSlot; right?: JewelSlot; tries: number }
+  | { t: "jeweller"; mode: "fuse" | "infuse" | "upgrade"; left?: JewelSlot; right?: JewelSlot; tries: number }
   /** The Bounty Board: three contracts to choose from. */
   | { t: "bounty"; offers: Bounty[] }
   | { t: "alchemist"; stock: { id: string; price: number; sold?: boolean }[] }
@@ -664,7 +664,7 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   if (run.gridShop2 === depth) putInHall("shop");
   // (A curse-lifting altar is a landmark like any other: carrying a curse doesn't summon one.)
   // Faith: while you carry a curse, they turn up more often.
-  if (Object.keys(run.hero.curses).length > 0 && rng() < Math.min(0.6, 0.06 * attrOf(run.hero, "fai"))) pois.push("cleansing");
+  if (Object.keys(run.hero.curses).length > 0 && rng() < Math.min(0.4, 0.03 * attrOf(run.hero, "fai"))) pois.push("cleansing");
   const lw = roomWeights(run, false);
   const marks = Object.fromEntries(LANDMARKS.map(k => [k, lw[k] ?? 0]).filter(([, v]) => (v as number) > 0)) as Partial<Record<RoomType, number>>;
   // Blood Oaths: a Crawl landmark of their own.
@@ -1963,7 +1963,7 @@ export function gainXp(run: Run, n: number) {
     if (run.gridMode) {
       // A level changes nothing by itself: it's the points you spend that make you stronger.
       h.attrPoints = (h.attrPoints ?? 0) + ATTR_PER_LEVEL;
-      run.popup = { icon: "⭐", title: `Level ${h.level}!`, text: `You have ${h.attrPoints} attribute point${h.attrPoints === 1 ? "" : "s"} to spend. Open your inventory's Attributes tab to put them to use: nothing changes until you do.` };
+      run.popup = { icon: "⭐", title: `Level ${h.level}!`, text: `You have ${h.attrPoints} attribute point${h.attrPoints === 1 ? "" : "s"} to spend. Open your inventory's Attributes tab to put them to use.` };
     } else run.pendingTalents++;
   }
 }
@@ -2174,7 +2174,7 @@ function rollTransformation(run: Run): boolean {
 /** The Merchant sizes up your purse: +1% per 5 Gold you carry, up to +75%. */
 export const wealthMult = (run: Run) => 1 + Math.min(0.75, Math.max(0, run.hero.f.gold) / 500);
 /** Shop prices: floor and curses (priceMult) times what the Merchant thinks you can afford. */
-export const shopMult = (run: Run) => priceMult(run) * wealthMult(run) * (1 - Math.min(0.2, 0.02 * attrOf(run.hero, "for")));
+export const shopMult = (run: Run) => priceMult(run) * wealthMult(run) * (1 - Math.min(0.15, PER.forShop * attrOf(run.hero, "for")));
 
 export const priceMult = (run: Run) => (run.hero.f.persist["ins_ledger"] ? 0.9 : 1) * (1 + 0.12 * (run.floor - 1)) * gouge(run.hero) * (heatOf(run) >= 2 ? 1.3 : 1) * (run.mode === "abyss" ? ABYSS_PRICE_MULT : 1);
 /** Each reroll at the same Merchant costs triple the last (from 15 Gold, scaled by the floor), up to 5 rerolls per visit. */
@@ -2203,6 +2203,21 @@ export function forgeUpgrade(run: Run, uid: number): string | null {
   const h = run.hero;
   const found = findItem(h, uid);
   if (!found) return null;
+  if (isTrinket(found.item)) return "The Forge is for steel. Trinkets go to the Jeweller.";
+  return upgradeItem(run, found.item, "room:forge");
+}
+
+/** The Jeweller's upgrade: trinkets only (the Forge won't touch them). */
+export function jewelUpgrade(run: Run, uid: number): string | null {
+  const found = findItem(run.hero, uid);
+  if (!found) return null;
+  if (!isTrinket(found.item)) return "\"Steel? Take it to a forge.\" The Jeweller only works on trinkets.";
+  return upgradeItem(run, found.item, "room:jeweller");
+}
+
+function upgradeItem(run: Run, item: GearItem, seen: string): string | null {
+  const h = run.hero;
+  const found = { item };
   const cost = upgradeCost(found.item, h);
   if (h.scrap < cost) return `Needs ${cost} Scrap.`;
   h.scrap -= cost;
@@ -2210,7 +2225,7 @@ export function forgeUpgrade(run: Run, uid: number): string | null {
   found.item.upgrades = (found.item.upgrades ?? 0) + 1;
   rescaleAffixes(found.item, baseOf(found.item.base).kind);
   recompute(h);
-  markEncounter(run, "room:forge");
+  markEncounter(run, seen);
   return null;
 }
 
@@ -2659,7 +2674,7 @@ export function jewelCost(run: Run): { gold: number; scrap: number; starmetal: n
 
 const sameSlot = (a?: JewelSlot, b?: JewelSlot) => !!a && !!b && a.kind === b.kind && (a.kind === "relic" ? a.id === (b as { id: string }).id : a.uid === (b as { uid: number }).uid);
 
-export function jewelMode(run: Run, mode: "fuse" | "infuse") {
+export function jewelMode(run: Run, mode: "fuse" | "infuse" | "upgrade") {
   const s = run.scene;
   if (s.t !== "jeweller" || s.mode === mode) return;
   s.mode = mode;
@@ -2671,10 +2686,8 @@ export function jewelPlace(run: Run, slot: JewelSlot): string | null {
   const s = run.scene;
   if (s.t !== "jeweller") return null;
   if (sameSlot(s.left, slot) || sameSlot(s.right, slot)) return "That's already on the bench.";
-  if (slot.kind === "relic") {
-    if (s.mode === "infuse") return "Only gear can be infused.";
-    if (!run.hero.relics[slot.id]) return null;
-  } else {
+  if (slot.kind === "relic") return "The Jeweller only works on trinkets.";
+  {
     const it = findItem(run.hero, slot.uid)?.item;
     if (!it) return null;
     if (it.gen) return "The Jeweller won't touch gear made by chance (generated items).";
@@ -2683,7 +2696,7 @@ export function jewelPlace(run: Run, slot: JewelSlot): string | null {
       if (isInfusable(it)) { s.left = slot; return null; }
       return "Only weapons, off-hands, armour and trinkets.";
     }
-    if (!isTrinket(it)) return "Only trinkets and relics can be fused.";
+    if (!isTrinket(it)) return "Only trinkets can be fused.";
   }
   if (!s.left) s.left = slot;
   else s.right = slot;
@@ -2702,7 +2715,7 @@ export function jewelCheck(run: Run): string | null {
   if (s.tries >= JEWEL_TRIES) return "\"That's enough for one visit.\" The Jeweller is already packing up.";
   if (!s.left || !s.right) return "Put something in both slots first.";
   if (s.mode === "fuse" && s.left.kind === "relic" && s.right.kind === "relic") return null;
-  if (s.left.kind !== "item" || s.right.kind !== "item") return "Relics only fuse with relics, and trinkets with trinkets.";
+  if (s.left.kind !== "item" || s.right.kind !== "item") return "Only trinkets go on this bench.";
   const A = slotItem(run, s.left)?.item, B = slotItem(run, s.right)?.item;
   if (!A || !B) return "Put something in both slots first.";
   for (const it of [A, B]) {
@@ -2855,10 +2868,10 @@ export function grantRelic(run: Run, id: string) {
 }
 
 /** Heat 2+: less Gold from everything (fights, chests, events, sales). */
-export const goldMult = (run: Run) => (heatOf(run) >= 2 ? 0.5 : 1) * (1 + 0.06 * attrOf(run.hero, "for"));
+export const goldMult = (run: Run) => (heatOf(run) >= 2 ? 0.5 : 1) * (1 + PER.forGold * attrOf(run.hero, "for"));
 
 /** Base luck for generated gear: the Abyss doubles it, every Heat level adds a little. */
-const genLuck = (run: Run) => (run.mode === "abyss" ? 2 : 1) * (1 + 0.15 * heatOf(run)) * (1 + 0.04 * attrOf(run.hero, "for"));
+const genLuck = (run: Run) => (run.mode === "abyss" ? 2 : 1) * (1 + 0.15 * heatOf(run)) * (1 + PER.forLuck * attrOf(run.hero, "for"));
 
 /** A relic reward: sometimes a choice of two instead (the player picks one). */
 function offerRelic(run: Run, relic: string, chance: number, quality = 2) {
@@ -2907,6 +2920,7 @@ export function smithUpgrade(run: Run, uid: number): string | null {
   if (s.t !== "smith" || s.uses <= 0) return null;
   const found = findItem(run.hero, uid);
   if (!found) return null;
+  if (isTrinket(found.item)) return "The Blacksmith shakes his head: trinkets are the Jeweller's work.";
   found.item.level++;
   found.item.upgrades = (found.item.upgrades ?? 0) + 1;
   rescaleAffixes(found.item, baseOf(found.item.base).kind);

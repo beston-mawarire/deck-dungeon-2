@@ -13,6 +13,7 @@ export const SKILLS = ["counter", "barrier", "penance", "warcry", "crush", "shie
 export const PENANCE_RETURN = 1.5;
 export const BASH_CAP = 30;
 import { applyStatus, conductive, endOfRound, heal, loseHp, other, statusLoss, smoulderSoulAction, st, startOfTurn, staticTick } from "./statuses";
+import { INT_MANA_PER } from "../data/attributes";
 import type { AttackCtx, Battle, FaceGroup, FaceKind, FaceSpec, Fighter, StatusId, Statuses } from "./types";
 import { NEGATIVE_STATUSES } from "./types";
 
@@ -774,11 +775,34 @@ export const BREWED_THROWS: Throw[] = ["t_brew"];
 /** How hard a Bomb hits on a layer. */
 export const bombDamage = (floor: number) => 6 + 4 * Math.max(1, floor);
 
-/** Throw something at the foe (it takes your turn). */
-function throwIt(b: Battle, t: Throw) {
+/** Ready a throwable: it costs no turn, and flies right after your action this turn. Tap again to put it back. */
+export function readyThrow(b: Battle, t: Throw): boolean {
+  if (b.over) return false;
+  const p = b.player, key = THROW_INFO[t].key;
+  if (p.flags[`q_${t}`]) { p.flags[`q_${t}`] = 0; p.persist[key] = (p.persist[key] ?? 0) + 1; return true; }
+  if ((p.persist[key] ?? 0) <= 0) return false;
+  p.persist[key]--;
+  p.flags[`q_${t}`] = 1;
+  return true;
+}
+export const readied = (p: Fighter) => THROWS.filter(t => p.flags[`q_${t}`]);
+/** Readied throwables fly (or go back in the bag if the fight is already over). */
+function loose(b: Battle) {
+  const p = b.player;
+  for (const t of readied(p)) {
+    p.flags[`q_${t}`] = 0;
+    if (b.enemy.hp > 0 && p.hp > 0 && !b.over) act(b, p, () => throwIt(b, t, true));
+    else p.persist[THROW_INFO[t].key] = (p.persist[THROW_INFO[t].key] ?? 0) + 1;
+  }
+}
+
+/** Throw something at the foe (as an action, it takes your turn; readied, it's already paid for). */
+function throwIt(b: Battle, t: Throw, paid = false) {
   const p = b.player, e = b.enemy, info = THROW_INFO[t];
-  if ((p.persist[info.key] ?? 0) <= 0) return;
-  p.persist[info.key]--;
+  if (!paid) {
+    if ((p.persist[info.key] ?? 0) <= 0) return;
+    p.persist[info.key]--;
+  }
   const floor = p.persist["floor"] ?? 1;
   if (t === "t_bomb") {
     const lost = loseHp(b, e, bombDamage(floor));
@@ -981,7 +1005,7 @@ export function heroPhase(b: Battle, action: Action) {
   const p = b.player;
   const e = b.enemy;
   startOfTurn(b, p);
-  if (checkOver(b)) return;
+  if (checkOver(b)) { loose(b); return; }
   if (isSkill(action) && (p.mana ?? 0) >= MANA_COST) p.persist["q_skill"] = (p.persist["q_skill"] ?? 0) + 1;
   if (action === "flee") {
     const smoke = !!p.flags["smoke"];
@@ -996,6 +1020,7 @@ export function heroPhase(b: Battle, action: Action) {
       }
       b.over = "fled";
       log(b, `${p.name} ${smoke ? "slips away in the smoke" : "flees"}.`);
+      loose(b);
       return;
     }
   } else if (isThrow(action)) {
@@ -1012,6 +1037,7 @@ export function heroPhase(b: Battle, action: Action) {
   } else if (isSkill(action)) {
     act(b, p, () => useSkill(b, action));
   } else act(b, p, () => heroAttack(b));
+  loose(b);
   checkOver(b);
 }
 
@@ -1087,9 +1113,11 @@ export function startBattle(player: Fighter, enemy: Fighter, seed: number, carry
     log(b, `🪓 ${lost} carried damage lands on ${enemy.name}.`);
   }
   for (const f of [player, enemy]) eachHook(f, "onFightStart", (h, s) => h(b, f, s));
-  // Mana for class abilities: full at the start of every fight (some relics raise it).
-  player.maxMana = MANA_MAX + (player.flags["manaMax"] ?? 0);
-  player.mana = player.maxMana;
+  // Mana for class abilities: it carries over from fight to fight; only Mana Potions refill it. A new run starts
+  // full. Some relics raise the most you can hold, and so does Intellect (1 for every 3 points).
+  player.maxMana = MANA_MAX + (player.flags["manaMax"] ?? 0) + Math.floor((player.persist["intPts"] ?? 0) / INT_MANA_PER);
+  player.mana = player.persist["manaSeen"] ? Math.min(player.mana ?? 0, player.maxMana) : player.maxMana;
+  player.persist["manaSeen"] = 1;
   checkOver(b);
   return b;
 }
