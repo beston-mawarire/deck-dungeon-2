@@ -9,6 +9,13 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.100.0
+Phase 4 begins: first impressions.
+- **The Merchant, redone.** A market stall with the Merchant behind it. Wares are tiles framed in their rarity's colour, potions and throwables sit on a shelf, and your own gear sits below to sell. Tap anything to see it in full in a popup. On wide screens, selling sits beside the stall.
+- **Tips for your first run.** A short tip the first time each thing happens: the Camp, walking, trapdoors, fights, finds, levelling up, your level-5 skill, Mana and throwables, and a cleared layer. Tap "Got it", or "Hide tips"; Options can turn them back on or show them all again.
+- **How to play, rewritten** for the game as it is now: trapdoors, the parting gift, a new Paths and skills section, 2 Mana that carries over, free throwables, 1 attribute point a level, chest odds, the Camp's Tarot Room, Drills, Heat pacts and the Abyss. The reference and the 2.0 patch note are updated too.
+- **Gear built on the old skills no longer drops.** The 80 War Cry / Counter / Barrier / Penance items are retired. Four Legendaries that leaned on old skills now work with any skill: the Horn of Ruin, the Riposte Charm (now on a dodge), the Martyr's Shroud and the Warhorn Bulwark.
+
 ## 1.99.0
 Phase 3, part 3: Drills.
 - **Drills.** A new Camp room, next to the Passive Tree, with ten short challenge runs of one rule each: Boss Rush, Glass Cannon, Bare Hands, Dry Throat, Elite Gauntlet, Cursed Pilgrim, Against the Clock, Silent Hands, Lights Out and Borrowed Steel.

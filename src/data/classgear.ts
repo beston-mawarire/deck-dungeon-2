@@ -9,7 +9,8 @@ import { applyStatus, CRIT, GRAZE, heal, HIT, log, loseHp, st } from "./helpers"
 type Skill = "warcry" | "counter" | "barrier" | "penance";
 type Def = Omit<GearBase, "onlyRarity" | "forClass">;
 const CLASS_OF: Record<Skill, OriginId> = { warcry: "warrior", counter: "rogue", barrier: "mage", penance: "cleric" };
-const mk = (skill: Skill) => (onlyRarity: GearBase["onlyRarity"], d: Def): GearBase => ({ ...d, onlyRarity, forClass: CLASS_OF[skill] });
+// 1.100: the old class skills are gone (they live on only in a few Legendaries), so this gear no longer drops.
+const mk = (skill: Skill) => (onlyRarity: GearBase["onlyRarity"], d: Def): GearBase => ({ ...d, onlyRarity, forClass: CLASS_OF[skill], weight: 0 });
 const WC = mk("warcry"), RC = mk("counter"), MB = mk("barrier"), CP = mk("penance");
 const W = { kind: "weapon" as const, slot: "main" as const };
 const O = { kind: "off" as const, slot: "off" as const };

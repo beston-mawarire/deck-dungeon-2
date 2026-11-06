@@ -14,6 +14,8 @@ const L = (d: Omit<GearBase, "rarity">): GearBase => ({ ...d, rarity: "legendary
 const epic = (d: Omit<HookDef, "kind">): HookDef => ({ kind: "epic", rarity: "epic", ...d });
 const foeOf = (b: { player: Fighter; enemy: Fighter }, f: Fighter) => (f === b.player ? b.enemy : b.player);
 
+/** onSkill also fires for things that aren't a cast (a Counter landing, a Barrier holding, a reaction). */
+const NOT_A_CAST = new Set(["counter_hit", "penance_release", "barrier_block", "barrier_hit", "reaction"]);
 export const CLASS_LEGENDARIES: GearBase[] = [
   // ---------- Warrior: the Bulwark ----------
   L({ id: "lw_aegis_unmoved", kind: "off", slot: "off", shield: true, name: "Aegis of the Unmoved", tags: ["Guard", "Strike"], armor: 4, forClass: "warrior",
@@ -36,9 +38,9 @@ export const CLASS_LEGENDARIES: GearBase[] = [
     text: "Its twin is buried in something that deserved it.",
     hooks: { onHit: (b, c) => { applyStatus(b, c.attacker, c.attacker, "might", 1); }, onCrit: (b, c) => { if (st(c.attacker, "might") >= 6) applyStatus(b, c.attacker, c.defender, "bleed", 3); } } }),
   L({ id: "lw_horn_of_ruin", kind: "trinket", slot: "trinket", name: "Horn of Ruin", tags: ["Strike", "Tempo"], forClass: "warrior",
-    legendary: { minFloor: 2, asBase: "t_brass_amulet", reveal: "Your first War Cry each fight costs no Mana and gives 2 Haste." },
+    legendary: { minFloor: 2, asBase: "t_brass_amulet", reveal: "Your first skill each fight costs no Mana and gives 2 Haste." },
     text: "Every army it called is gone. The horn remembers them all.",
-    hooks: { onSkill: (b, f, skill) => { if (skill === "warcry" && !f.flags["ruinHorn"]) { f.flags["ruinHorn"] = 1; f.mana = Math.min(f.maxMana ?? 3, (f.mana ?? 0) + 1); applyStatus(b, f, f, "haste", 2); log(b, "The Horn of Ruin answers: that War Cry was free."); } } } }),
+    hooks: { onSkill: (b, f, skill) => { if (!NOT_A_CAST.has(skill) && !f.flags["ruinHorn"]) { f.flags["ruinHorn"] = 1; f.mana = Math.min(f.maxMana ?? 3, (f.mana ?? 0) + 1); applyStatus(b, f, f, "haste", 2); log(b, "The Horn of Ruin answers: that one was free."); } } } }),
   L({ id: "lw_berserker_hide", kind: "armour", slot: "armour", name: "Berserker's Hide", tags: ["Strike", "Blood"], armor: 1, forClass: "warrior",
     legendary: { minFloor: 3, asBase: "a_padded", reveal: "+1 Armor. You deal 25% more. Below half HP, gain 2 Might at the start of every round." },
     text: "Whatever wore it first is still angry.",
@@ -55,9 +57,9 @@ export const CLASS_LEGENDARIES: GearBase[] = [
     text: "Spun from the hush before a blade lands.",
     hooks: { stats: s => { s.dodge += 8; }, onDodge: (b, c) => { const f = c.defender; if (f.flags["weave"] !== b.round) { f.flags["weave"] = b.round; applyStatus(b, f, f, "evade", 1); } } } }),
   L({ id: "lr_riposte_charm", kind: "trinket", slot: "trinket", name: "Riposte Charm", tags: ["Tempo", "Crit"], forClass: "rogue",
-    legendary: { minFloor: 3, asBase: "t_lucky_coin", reveal: "Counter's strike back also Blinds the foe and heals you 3." },
+    legendary: { minFloor: 3, asBase: "t_lucky_coin", reveal: "When you dodge a hit, the foe is Blinded and you heal 3 (once a round)." },
     text: "A coin that always lands on the other side.",
-    hooks: { onSkill: (b, f, skill) => { if (skill === "counter_hit") { applyStatus(b, f, foeOf(b, f), "blind", 1); heal(b, f, 3, "Riposte Charm"); } } } }),
+    hooks: { onDodge: (b, c) => { const f = c.defender; if (f.flags["riposte"] === b.round) return; f.flags["riposte"] = b.round; applyStatus(b, f, foeOf(b, f), "blind", 1); heal(b, f, 3, "Riposte Charm"); } } }),
   // ---------- Rogue: the Assassin ----------
   L({ id: "lr_vipers_kiss", kind: "weapon", slot: "main", name: "Viper's Kiss", tags: ["Poison", "Crit"], damage: 3, forClass: "rogue",
     faces: [MISS, HIT, HIT, HIT, CRIT, CRIT],
@@ -109,9 +111,9 @@ export const CLASS_LEGENDARIES: GearBase[] = [
     text: "Every link is a sin someone confessed to it.",
     hooks: { onRoundStart: (b, f) => { if (f.hp > 2) ping(b, f, 2, "Flagellant's Chain"); }, modifyAttack: (_b, c) => { const f = c.attacker; c.bonus += Math.floor((10 * (f.maxHp - f.hp)) / Math.max(1, f.maxHp)); } } }),
   L({ id: "lc_martyrs_shroud", kind: "armour", slot: "armour", name: "Martyr's Shroud", tags: ["Blood", "Thorns"], armor: 2, forClass: "cleric",
-    legendary: { minFloor: 2, asBase: "a_vestments", reveal: "+2 Armor. Penance also gives 4 Spikes, and every hit you take while Spiked heals you 1." },
+    legendary: { minFloor: 2, asBase: "a_vestments", reveal: "+2 Armor. Using your skill gives 4 Spikes, and every hit you take while Spiked heals you 1." },
     text: "It was white, once.",
-    hooks: { onSkill: (b, f, skill) => { if (skill === "penance") applyStatus(b, f, f, "spikes", 4); }, whenHit: (b, c) => { if (st(c.defender, "spikes") > 0 && !c.noDamage && c.defender.hp > 0) heal(b, c.defender, 1, "Martyr's Shroud"); } } }),
+    hooks: { onSkill: (b, f, skill) => { if (!NOT_A_CAST.has(skill)) applyStatus(b, f, f, "spikes", 4); }, whenHit: (b, c) => { if (st(c.defender, "spikes") > 0 && !c.noDamage && c.defender.hp > 0) heal(b, c.defender, 1, "Martyr's Shroud"); } } }),
   L({ id: "lc_thorned_reliquary", kind: "off", slot: "off", name: "Thorned Reliquary", tags: ["Thorns", "Holy"], forClass: "cleric",
     legendary: { minFloor: 3, asBase: "o_holy_symbol", reveal: "Whenever you're hit, the attacker takes a quarter of the damage back." },
     text: "A saint's finger bone. It points at whoever is to blame.",

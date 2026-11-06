@@ -848,48 +848,60 @@ function stockLabel(r: Run, e: ShopEntry): { name: string; icon: string; text: s
   const rel = e.relic ? getItem(e.relic) : null;
   return { name: rel?.name ?? "Relic", icon: "💎", text: rel?.text ?? "", ink: "#f0d28a" };
 }
+/** What kind of thing an item is, as a little picture on its shop tile. */
+const KIND_ICON: Record<string, string> = { weapon: "⚔️", off: "🛡️", armour: "🥋", trinket: "💍" };
+const MER_LINES = ["“Look all you like. Touching costs extra.”", "“Everything's a bargain, if you live long enough to use it.”", "“Gold first, questions never.”", "“Fresh from the floors below. Mostly.”"];
 function merchantScreen(r: Run, msg: string[], bad: boolean) {
   if (r.scene.t !== "shop") return "";
   const sc = r.scene, h = r.hero;
   if (merSeen !== sc) { merSeen = sc; merPick = null; merInv = "equipped"; sellArmed = null; }
   const own = merInv === "equipped" ? EQUIP_SLOTS.map(k => h.equip[k]).filter((x): x is GearItem => !!x) : h.backpack;
-  const detail = (() => {
+  // The tapped thing, in a popup of its own (the stall stays in view behind it).
+  const pop = (() => {
+    let body = "";
     if (merPick?.k === "stock") {
       const e = sc.stock[merPick.i];
       if (!e) return "";
       const full = e.kind === "potion" && !e.sold && h.potions >= potionCap(h);
-      const btn = `<button class="primary mer-act" data-buy="${merPick.i}" ${e.sold || full || h.f.gold < e.price ? "disabled" : ""}>${e.sold ? "Sold" : full ? "Your potion belt is full" : `Buy · ${e.price} 🪙`}</button>`;
-      if (e.kind === "item" && e.item) return itemCard(e.item, btn + (e.sold ? "" : compareBtns(e.item)), !e.sold);
-      const l = stockLabel(r, e);
-      return `<div class="mer-thing"><div class="mer-big">${l.icon}</div><b style="color:${l.ink}">${esc(l.name)}</b><p>${esc(l.text)}</p>${btn}</div>`;
-    }
-    if (merPick?.k === "own") {
+      const btn = `<button class="primary mer-act" data-buy="${merPick.i}" ${e.sold || full || h.f.gold < e.price ? "disabled" : ""}>${e.sold ? "Sold" : full ? "Your potion belt is full" : h.f.gold < e.price ? `Not enough Gold · ${e.price} 🪙` : `Buy · ${e.price} 🪙`}</button>`;
+      if (e.kind === "item" && e.item) body = itemCard(e.item, btn + (e.sold ? "" : compareBtns(e.item)), !e.sold);
+      else { const l = stockLabel(r, e); body = `<div class="mer-thing"><div class="mer-big">${l.icon}</div><b style="color:${l.ink}">${esc(l.name)}</b><p>${esc(l.text)}</p>${btn}</div>`; }
+    } else if (merPick?.k === "own") {
       const it = findItem(h, merPick.uid)?.item;
       if (!it) return "";
       const worn = !!equippedSlot(r, it);
       const btn = `<button class="mer-act ${worn && sellArmed === it.uid ? "danger" : "primary"}" data-sell="${it.uid}">${worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${Math.round(sellPrice(it, h) * goldMult(r))} 🪙`}</button>`;
-      return itemCard(it, btn, false, equippedSlot(r, it));
-    }
-    return `<div class="mer-empty"><span>⚖️</span><p>Tap something for sale, or something of yours, to look at it here.</p><p class="sub">The Merchant buys anything you bring, for 40% of its price.</p></div>`;
+      body = itemCard(it, btn, false, equippedSlot(r, it));
+    } else return "";
+    return `<div class="overlay popup-wrap shop-pop" data-merclose><div class="inv-detail shop-pop-in">${body}<button class="small closebtn shop-x" data-merclose>Close</button></div></div>`;
   })();
-  const chip = (attrs: string, name: string, ink: string, sub: string, on: boolean, dim = false) => `<button class="mer-chip ${on ? "on" : ""} ${dim ? "dim" : ""}" ${attrs}><b style="color:${ink}">${esc(name)}</b>${sub ? `<span>${sub}</span>` : ""}</button>`;
-  const stock = sc.stock.map((e, i) => { const l = stockLabel(r, e); return chip(`data-mpick="s:${i}"`, `${l.icon ? `${l.icon} ` : ""}${l.name}`, l.ink, e.sold ? "Sold" : `${e.price} 🪙`, merPick?.k === "stock" && merPick.i === i, e.sold); }).join("");
-  const reroll = r.shopRerolls >= MAX_SHOP_REROLLS ? "" : `<button class="mer-chip reroll" data-reroll ${h.f.gold < shopRerollCost(r) ? "disabled" : ""}><b>↻ New stock</b><span>${shopRerollCost(r)} 🪙</span></button>`;
-  const mine = own.length ? own.map(it => chip(`data-mpick="o:${it.uid}"`, itemName(it), RARITY_INK[it.rarity] ?? "#e9d6b0", equippedSlot(r, it), merPick?.k === "own" && merPick.uid === it.uid)).join("") : `<span class="mer-none">Nothing here.</span>`;
-  return `<div class="cb-screen mer-screen"><div class="mer-inner">
+  const gearTile = (attrs: string, it: GearItem, sub: string, dim = false) => {
+    const kind = effectiveBase(it).kind;
+    return `<button class="shop-tile r-${it.rarity} ${dim ? "dim" : ""}" ${attrs} style="--rk:${RARITY_INK[it.rarity] ?? "#c9c2b4"}">
+      <span class="st-ic">${KIND_ICON[kind] ?? "✦"}</span><b class="st-nm">${esc(itemName(it))}</b><span class="st-rar">${esc(itemRarity(it))}</span><span class="st-price">${sub}</span></button>`;
+  };
+  const wares = sc.stock.map((e, i) => ({ e, i })).filter(({ e }) => e.kind === "item" && e.item);
+  const shelf = sc.stock.map((e, i) => ({ e, i })).filter(({ e }) => !(e.kind === "item" && e.item));
+  const wareTiles = wares.map(({ e, i }) => gearTile(`data-mpick="s:${i}"`, e.item!, e.sold ? "Sold" : `<i>${e.price}</i> 🪙`, e.sold)).join("");
+  const shelfTiles = shelf.map(({ e, i }) => { const l = stockLabel(r, e); return `<button class="shop-jar ${e.sold ? "dim" : ""}" data-mpick="s:${i}" style="--rk:${l.ink}"><span class="sj-ic">${l.icon}</span><b>${esc(l.name)}</b><span class="st-price">${e.sold ? "Sold" : `<i>${e.price}</i> 🪙`}</span></button>`; }).join("");
+  const reroll = r.shopRerolls >= MAX_SHOP_REROLLS ? "" : `<button class="shop-reroll" data-reroll ${h.f.gold < shopRerollCost(r) ? "disabled" : ""}>↻ New stock · ${shopRerollCost(r)} 🪙</button>`;
+  const mine = own.length ? own.map(it => gearTile(`data-mpick="o:${it.uid}"`, it, `${equippedSlot(r, it) ? `${esc(equippedSlot(r, it))} · ` : ""}sells <i>${Math.round(sellPrice(it, h) * goldMult(r))}</i> 🪙`)).join("") : `<span class="mer-none">Nothing here.</span>`;
+  const line = MER_LINES[(r.seed + r.floor + (r.grid?.depth ?? 0)) % MER_LINES.length];
+  return `<div class="cb-screen mer-screen shop2"><div class="mer-inner">
     <div class="mer-sign" aria-label="Merchant"><i class="chain l"></i><i class="chain r"></i><div class="plank">Merchant</div></div>
-    <div class="mer-gold">🪙 <b>${h.f.gold}</b></div>
+    <div class="shop-purse">🪙 <b>${h.f.gold}</b></div>
     ${msg.length ? `<div class="mer-toasts">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && bad ? "err" : ""}">${esc(m)}</div>`).join("")}</div>` : ""}
-    <div class="mer-main">
-      <div class="mer-panel mer-detail">${detail}</div>
-      <div class="mer-panel mer-stock"><div class="mer-label">For sale</div><div class="mer-list">${stock}${reroll}</div></div>
-    </div>
-    <div class="mer-panel mer-inv">
-      <div class="mer-tabs"><button class="${merInv === "equipped" ? "on" : ""}" data-minv="equipped">🛡️ Equipped</button><button class="${merInv === "backpack" ? "on" : ""}" data-minv="backpack">🎒 Backpack ${h.backpack.length}/${packSize(h)}</button></div>
-      <div class="mer-list">${mine}</div>
+    <div class="shop-body">
+      <div class="shop-stall"><span class="shop-keeper">${hasSprite("dwarf_m") ? spriteHtml("dwarf_m", 4) : "🧔"}</span><p class="shop-say">${line}</p></div>
+      <section class="shop-sec"><h3 class="shop-h">Wares</h3><div class="shop-grid">${wareTiles || `<span class="mer-none">Sold out.</span>`}</div></section>
+      ${shelfTiles ? `<section class="shop-sec"><h3 class="shop-h">Shelf</h3><div class="shop-shelf">${shelfTiles}</div></section>` : ""}
+      ${reroll ? `<div class="shop-rr">${reroll}</div>` : ""}
+      <section class="shop-sec shop-sell"><h3 class="shop-h">Sell <span>The Merchant pays 40% of an item's price</span></h3>
+        <div class="shop-tabs"><button class="${merInv === "equipped" ? "on" : ""}" data-minv="equipped">🛡️ Equipped</button><button class="${merInv === "backpack" ? "on" : ""}" data-minv="backpack">🎒 Backpack ${h.backpack.length}/${packSize(h)}</button></div>
+        <div class="shop-grid">${mine}</div></section>
     </div>
     <button class="mer-leave" data-leave>Leave</button>
-  </div></div>`;
+  </div></div>${pop}`;
 }
 
 /** The Camp's tabs, as stone archways in a row (it scrolls sideways on a phone). */
@@ -2378,7 +2390,7 @@ function helpPopup() {
   // Each section is its own card: an icon, a heading, and one point per line.
   const SECTIONS: Record<string, [string, string]> = {
     "The goal": ["🎯", "gold"], "Getting about": ["👣", "green"], "Your weapon is your die": ["🎲", "blue"], "In a fight": ["⚔️", "red"],
-    "Levels and attributes": ["📈", "orange"], "Statuses and reactions": ["✴️", "purple"], "Loot": ["💎", "green"], "The Camp": ["🔥", "gold"], "Tips": ["💡", "orange"]
+    "Paths and skills": ["🧭", "purple"], "Levels and attributes": ["📈", "orange"], "Statuses and reactions": ["✴️", "purple"], "Loot": ["💎", "green"], "The Camp": ["🔥", "gold"], "Tips": ["💡", "orange"]
   };
   const anchor = (t: string) => `help-${t.toLowerCase().replace(/[^a-z]+/g, "-")}`;
   const sec = (t: string, items: string[]) => {
@@ -2392,35 +2404,41 @@ function helpPopup() {
     <nav class="help-toc">${toc}</nav>
     ${sec("The goal", [
       "Choose a hero at the Tavern, then head to the <b>Camp</b> and <b>Enter Dungeon</b>. The dungeon goes down in <b>5 layers</b> of 6 floors each. At the bottom of every layer waits its guardian: beat the fifth to win.",
-      "After winning you can <b>Delve deeper</b> for harder foes and better loot. Your run saves as you go."])}
+      "After a guardian falls you can carry on down, or go home to the Camp with what you've found. Your run saves as you go."])}
     ${sec("Getting about", [
       "Tap a tile to walk there. Walk into something to deal with it: chests, doors, pools, people, foes.",
-      "Each floor has <b>stairs down</b>, glowing in the dark. Once you go down there's no climbing back up, so look around first. Locked doors need a 🗝️ Skeleton Key; some walls give when you push on them."])}
+      "Each floor has one <b>trapdoor</b> down. Once you drop there's no climbing back up, so look around first. Locked doors need a 🗝️ Skeleton Key; some cracked walls give when you push on them.",
+      "Setting out from the top, the Tavern gives you a parting gift: a Healing Potion, a Mana Potion or a Skeleton Key."])}
     ${sec("Your weapon is your die", [
       "Every weapon has its own die. Each face is a <b>Miss</b>, <b>Graze</b> (half damage), <b>Hit</b> or <b>Crit</b> (double damage, ignores Armor), and some faces cast spells or add effects.",
       "An off-hand weapon gives you a <b>second die</b>. Daggers, throwing knives, kunai and shuriken are built for it; ordinary weapons are clumsy there."])}
+    ${sec("Paths and skills", [
+      "Each class has two <b>paths</b>, chosen in the Camp's Paths room before a run (the second opens once that class beats the 1st Layer). A path is passive: it gives you something and takes something away.",
+      "At <b>level 5</b> your path offers a choice of two <b>skills</b>; pick one in 🎒 → Attributes. A few Legendaries grant a skill of their own."])}
     ${sec("In a fight", [
       "<b>Attack</b>: roll and strike. <b>Guard</b> (needs a shield): your Armor counts double this round.",
-      "Your class's moves cost 🔷 Mana; you start every fight with it full. Gear can add abilities of its own.",
-      "🧪 Potions heal. 💣 Throwables (bombs, firepots, nets, smoke…) are used from the row under your moves, up to three of each.",
+      "Skills cost 1 🔷 <b>Mana</b>. You start a run with 2; Mana carries over from fight to fight, and only Mana Potions (or Intellect and some gear, for more Max Mana) help.",
+      "🧪 Healing Potions heal. 💣 <b>Throwables</b> (bombs, flasks, nets, smoke…) don't take your turn: ready one, and it flies right after your move. You can carry three of each.",
       "You can <b>flee</b> most fights, but the foe gets a free swing as you go. Not from Elites or guardians, unless you've got smoke to hide in.",
       "Guardians show their next move. Plan around it."])}
     ${sec("Levels and attributes", [
-      "Every level gives <b>2 attribute points</b> to spend in your inventory, and heals you a little. Six attributes: Strength, Agility, Intellect, Faith, Vitality and Fortune. Each shows what its next point gives before you spend it.",
-      "Your class's own attribute (★) also adds +1 base Damage for every 3 points."])}
+      "Every level gives <b>1 attribute point</b> to spend in 🎒 → Attributes. Six attributes: Strength, Agility, Intellect, Faith, Vitality and Fortune. Tap one's name to see what it gives, and what one more point would.",
+      "Your class's own attribute (★) also adds +1 base Damage for every 3 points, by itself."])}
     ${sec("Statuses and reactions", [
       "Burn, Poison, Bleed, Chill, Shock, Static and more pile up on foes (and on you). Two statuses on the same fighter can <b>react</b>: Burn and Poison make Combustion, Static and Shock set off all the Static at once.",
       "Pile up enough Chill, Bleed or Poison and it <b>bursts</b>. Open 🎒 mid-fight to see what's active."])}
     ${sec("Loot", [
-      "Rarities: Common, <span style='color:var(--uncommon)'>Uncommon</span>, <span style='color:var(--rare)'>Rare</span>, <span style='color:var(--epic)'>Epic</span>, <span style='color:var(--legendary)'>Legendary</span> and <span style='color:var(--crimson)'>Crimson</span>. Some gear needs a level before you can wear it. Some arrives hidden: a 📜 Scroll of Revelation shows what it does.",
-      "Wooden, iron and vault chests, urns, the Merchant, the Forge and stranger places along the way all give gear. What turns up leans toward your class."])}
+      "Rarities: Common, <span style='color:var(--uncommon)'>Uncommon</span>, <span style='color:var(--rare)'>Rare</span>, <span style='color:var(--epic)'>Epic</span>, <span style='color:var(--legendary)'>Legendary</span> and <span style='color:var(--crimson)'>Crimson</span>. Finds get richer layer by layer; every chest has a small Epic and Legendary chance, growing to its best on the last floor. Some gear needs a level before you can wear it, and some arrives hidden: a 📜 Scroll of Revelation shows what it does.",
+      "Chests, Elites, Champions, named Unique foes, guardians, the Merchant, the Forge and stranger places along the way all give gear. What turns up leans toward your class."])}
     ${sec("The Camp", [
-      "Between runs, the Camp keeps what you bring home: the Hall's upgrades, the Garden and the Brewery, Scrolls of Knowledge, the Bestiary and the Trophy Room, the Still Pool, and Weapon Mastery.",
-      "Once a hero has beaten all five layers, their <b>Passive Tree</b> opens: one point for every layer beaten after that."])}
+      "Between runs, the Camp keeps what you bring home: the Hall's upgrades, the Garden and the Brewery, Scrolls of Knowledge, the Bestiary, the Trophy Room (with the Ledger of every path), the Still Pool and Weapon Mastery.",
+      "Beat the 1st Layer and a class's <b>Passive Tree</b> opens: one point for every layer beaten. Beat the whole dungeon to make a <b>Heat</b> pact (harder runs, richer loot), and to find the <b>Abyss</b>, whose warden gives <b>Tarot</b> cards: carry two into a run from the Tarot Room.",
+      "The <b>Drills</b> yard holds ten short challenge runs with one rule each, for medals and titles."])}
     ${sec("Tips", [
       "Your class is a starting point: you are what you wear. Build around what you find.",
       "Elites and Champions hit hard but drop great gear. Watch for <b>⛓️ Toll</b> foes: every action you take costs HP.",
-      "Read a foe's chips (Unholy, Conductive, Thief…): they tell you what works."])}
+      "Read a foe's chips (Unholy, Conductive, Thief…): they tell you what works.",
+      "Tips pop up the first time each thing happens. Switch them off, or see them again, in Options."])}
     ${helpGlossary()}
     <button class="continue" data-closehelp>Got it</button>
     <p class="version">${VERSION}</p>
@@ -2448,14 +2466,14 @@ function helpGlossary() {
     row("💨", "Dodge", "A % chance to avoid a hit entirely (max 60%). Not the same as Evade: Dodge bonuses and Evade bonuses don't trigger each other"),
     row("💥", "Crit damage", "A % boost to the damage of your Crits (on top of the usual double)"),
     row("🎯", "Crit chance", "A % chance that a Hit becomes a Crit (max 50%), on top of your die's Crit faces"),
-    row("💥", "Bash", "A % chance (from your weapon and rare relics only, max 30%) to Stun and deal +50%"),
+    row("💥", "Bash", "A % chance (from your weapon and some rare gear, max 30%) to Stun and deal +50%"),
     row("🧪", "Status damage", "Burn, Bleed, Poison and Static on the enemy deal this much more each time they tick. Mostly on robes for status builds"),
     row("🔮", "Spell Amp", "Spell faces (from wands, staffs and other magic weapons) deal this much more"),
-    row("❤️", "Max HP", "Each level-up adds +3. Winning a fight heals 15%; beating a boss heals 30%"),
+    row("❤️", "Max HP", "From your class, your gear, Vitality and the Passive Tree. Campfires, potions and healing gear bring it back up"),
     row("🔋", "Static cap", "The most Static you can stack on an enemy (10, or more with certain items)")
   ].join(""))}
   ${group("🗡️ Weapons and gear", [
-    row("🎲", "Faces", "Miss (nothing), Graze (half, and no passive or relic bonus damage), Hit, Crit (double, ignores Armor). Named faces add effects — spells, Bleed, Stun and so on"),
+    row("🎲", "Faces", "Miss (nothing), Graze (half, and no bonus damage from passives), Hit, Crit (double, ignores Armor). Named faces add effects — spells, Bleed, Stun and so on"),
     row("✋", "Off-hand", "A weapon in your off-hand rolls a second die. Daggers, throwing knives, kunai, shuriken and wands are built for it; ordinary weapons deal only 60% there"),
     row("🙌", "Two-handed", "Takes both hands (unless you have Titan's Grip or the War Harness)"),
     row("💣", "Grenades", "Off-hand only. No damage — they apply a status, and are thrown on round 1 and every 3rd round after"),
@@ -2471,8 +2489,7 @@ function helpGlossary() {
     row("⛓️", "Roll cap", "Some heavy gear stops your die rolling above 4 or 5; the Manacles do the same to the enemy's die"),
     row("🔗", "Hit streak", "Only counts while you have a streak relic, talent or trinket. Every Hit or Crit that gets through adds 1, and it carries across fights. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it. Some relics, talents and trinkets grow with it"),
     row("🧱", "Guarding foes", "Some enemies and bosses raise their guard: Armor doubled plus a bit more for that round (you'll see it coming). Crits, spells and statuses ignore Armor, so they still get through"),
-    row("🔮", "Elemental Barrier", "Mage off-hands with an element let the Mage raise a barrier: roll 5–6 to block (attackers get 4 stacks of the element), 3–4 to halve (2 stacks), 1–2 blocks nothing but still gives 2 stacks"),
-    row("🕯️", "Keepsake", "One at a time, from bosses after floor 5. Each grants a powerful passive"),
+    row("🔮", "Elemental Barrier", "A skill from the Elemental Ward Legendary; an off-hand with an element sets what it does: roll 5–6 to block (attackers get 4 stacks of the element), 3–4 to halve (2 stacks), 1–2 blocks nothing but still gives 2 stacks"),
     row("📜", "Legendaries", "Arrive hidden. Use a Scroll of Revelation to reveal them; until then they act like a plain item"),
     row("🩸", "Crimson", "Above Legendary. Only from Crimson bosses in Endless (Crimson Vaults need a Crimson Key from Crimson Elites)")
   ].join(""))}
@@ -2485,22 +2502,22 @@ function helpGlossary() {
   ${group("🧭 The dungeon", [
     row("✦", "Fortune", "Every floor deeper slightly improves your odds of Rare, Epic and Legendary finds"),
     row("💀", "Elites & Champions", "Tougher fights with random traits, and better loot"),
-    row("✴️", "A Strange Presence", "A named, unique foe — once per run — that always drops an Epic or better"),
+    row("✴️", "Unique foes", "Named foes, each once per run. One waits on every 1st Layer (it drops a Rare, often an Epic); deeper ones are rarer and always drop an Epic or better"),
     row("💰", "Thieves", "Kill them within 5 rounds or they escape with 30% of your Gold; kill them and you get 60% on top"),
     row("🕯️", "Curses", "Lasting penalties from shrines, idols and cursing foes. Only something holy can lift them"),
     row("🔨", "Forge", "Upgrade gear with Scrap, break it down, and reveal Legendaries"),
     row("⚒️", "Masterwork", "From floor 2. Rework one line of an item; Extract an item's lines into a Scroll of Power (the item turns Common); Empower a Common of the same family with a scroll; Refine a Common so it holds more lines (up to 4). Materials: Scrap, 💠 Azure dust (scrap Rares), 🔶 Orilium (scrap Epics) and ✴️ Starmetal"),
     row("🩸", "Sanguine Altar", "Pay a share of your Max HP for Gold, Max HP, upgrades, gear or a fresh start from curses; the bigger the price, the better the gift"),
-    row("⛲", "Cleansing", "Only while you carry a curse: the Well of Cleansing or a Holy Tribute, a way to lift your curses for a price"),
-    row("🪙", "Merchant", "Buy gear, potions and scrolls, and sell as much as you like (40% of its price)"),
-    row("💍", "Jeweller", "Takes turns with the Forge; two tries per visit. Fuse: two relics (marked 🔗), or two Rare-or-better trinkets (yours to discover; costs Starmetal). A fusion that doesn't take still costs the fee. Upgraded items can't be fused"),
+    row("⛲", "Cleansing", "The Well of Cleansing or a Holy Tribute: a way to lift your curses, for a price"),
+    row("🪙", "Merchant", "Buy gear, potions and throwables, and sell as much as you like (40% of its price)"),
+    row("💍", "Jeweller", "Takes turns with the Forge. Fuse two Rare-or-better trinkets (costs Starmetal), infuse a trinket into your gear, or upgrade a trinket: the only place that can"),
     row("⚒", "Forged by chance", "Half of all gear is made fresh: a material (Iron, Frost-forged, Dragonscale…), a form, and effects. Rarer items get more effects, and some carry a drawback (⛓️). ✦ Greater, ✦✦ Grand and ✦✦✦ Mythic rolls are much stronger, and ⚡ Overcharged items are rare, wild and very strong"),
     row("🔮", "Talisman", "Sigils sit beside your gear (Gear → Sigils). Wear pieces of the same set for 2-, 3- and 4-piece bonuses. 2 slots to start, more on floors 3, 6, 10 and 15"),
-    row("🧪", "Healing Potions", "Heal 12. You start with 3 potion slots: carry up to 3, and drink up to 3 in one fight. Potion gear and relics add slots (more at higher rarity)")
+    row("🧪", "Healing Potions", `Heal ${CRAWL_POTION_HEAL}. Carry up to 3 to start; potion gear and the Passive Tree add more`)
   ].join(""))}
   ${group("📈 Between runs", [
     row("🏆", "Achievements", "Many give a title to show beside your name on the leaderboards"),
-    row("🔥", "Heat", "After your first win: optional extra difficulty (set it at the Camp's Enter Dungeon). Five levels that stack, each giving slightly better loot"),
+    row("🔥", "Heat", "After your first win: make a pact at Enter Dungeon from 12 conditions you choose yourself. Each adds Heat, and Heat makes better finds likelier. Each class has bounties up to Heat 10"),
     row("📅", "Daily Dungeon", "The same dungeon and class for everyone each day; one attempt, with its own leaderboard"),
     row("😈", "Nemesis", "Whatever kills your run waits in the next one, stronger each time it wins. Beat it for a bounty"),
     row("🌕", "Abyss weekly twist", "Each week the Abyss changes: some twists help, some hurt")
@@ -2509,7 +2526,7 @@ function helpGlossary() {
     row("🔓", "Opening it", `Beat the dungeon's last layer with any hero. Then each Abyss run costs ${ABYSS_SHARD_COST} Ruin Shard${ABYSS_SHARD_COST === 1 ? "" : "s"}`),
     row("🪨", "Ruin Shards", "Every guardian from the last layer on drops one"),
     row("⬛", "Vanadium Plates", "Those same bosses sometimes drop one. Give it to a class (for good): in the Abyss only, that class gets more Max HP, Armor and Damage for every plate"),
-    row("☠️", "Ten depths", "Every plain fight is a rank tougher: monsters are Elites, Elites are Champions, Champions are bosses, and each depth ends with an Uber boss. Each depth is far deadlier than the last"),
+    row("☠️", "One layer", "Below the last: darker, deadlier, with an Omen on every floor (a boon and a bane, if you accept it) and the Abyss's warden at the bottom. Beat it for a Tarot card"),
     row("💰", "The loot", "Much richer than the dungeon above, and richest from Champions, bosses and Uber bosses. Playing safe won't find the gear you need")
   ].join(""))}`;
 }
@@ -2589,6 +2606,27 @@ function comparePopup(r: Run): string {
 }
 
 /** Options as a page of its own (from the title screen). */
+/** The guided first run: a tip the first time each thing happens, one at a time, until read (or switched off in Options). */
+const TIPS: { id: string; icon: string; text: string; when: (r: Run | null) => boolean; top?: boolean }[] = [
+  { id: "camp", icon: "🏕️", text: "This is the Camp. Walk to a room to open it: <b>Enter Dungeon</b> is at the top, and the rooms around the fire keep what you bring home.", when: r => !r && !!camp && !campRoom },
+  { id: "walk", icon: "👣", text: "Tap a tile to walk there, and walk into things to use them: the <b>Merchant</b> sells potions, chests hold gear, foes block the way. Find the <b>trapdoor</b> to go down.", when: r => !!r?.gridMode && r.scene.t === "map" && r.grid?.depth === 0 },
+  { id: "floor", icon: "🕳️", text: "Every floor has one trapdoor down, and there's no climbing back up. Look around first: chests, altars and strange doors are worth the detour.", when: r => !!r?.gridMode && r.scene.t === "map" && (r.grid?.depth ?? 0) >= 1 && r.grid?.depth !== TREASURE_DEPTH },
+  { id: "fight", icon: "🎲", text: "<b>Attack</b> rolls your weapon's die: each face is a Miss, Graze (half), Hit or Crit (double, through Armor). <b>Guard</b> (with a shield) doubles your Armor this round. 🧪 Potions heal.", when: r => r?.scene.t === "combat", top: true },
+  { id: "loot", icon: "🎁", text: "A find! <b>Equip</b> it, put it in your <b>backpack</b>, or leave it. Gear in the backpack can go on any time outside a fight.", when: r => r?.scene.t === "loot" || (r?.scene.t === "pick" && !!r.scene.items.length), top: true },
+  { id: "level", icon: "📈", text: "Level up! Open 🎒 → <b>Attributes</b> and tap <b>+</b> to spend your point. Tap an attribute's name to see what it gives.", when: r => !!r && (r.hero.attrPoints ?? 0) > 0 && r.scene.t === "map" },
+  { id: "skill", icon: "✨", text: "Level 5: your <b>path</b> offers you a choice of two skills. Pick one in 🎒 → Attributes. Skills cost 1 🔷 Mana.", when: r => !!r && r.hero.level >= SKILL_LEVEL && !r.hero.skill && !!r.hero.path && r.drill !== "silent" && r.scene.t === "map" },
+  { id: "mana", icon: "🔷", text: "Mana carries over from fight to fight, and only <b>Mana Potions</b> refill it. Spend it when it counts.", when: r => r?.scene.t === "combat" && !!r.hero.skill, top: true },
+  { id: "throw", icon: "💣", text: "Throwables don't take your turn: tap one to ready it, and it flies right after your move.", when: r => r?.scene.t === "combat" && THROWS.some(t => (r.hero.f.persist[THROW_INFO[t].key] ?? 0) > 0), top: true },
+  { id: "cleared", icon: "👑", text: "Layer cleared! Carry on down, or head home to the Camp: what you bring back stays, and beating the 1st Layer opens the Passive Tree.", when: r => r?.scene.t === "cleared", top: true }
+];
+function tipBubble(r: Run | null) {
+  if (meta.tipsOff || helpOpen || bagOpen || menuOpen) return "";
+  if (r?.popup) return "";
+  const t = TIPS.find(x => !meta.tips?.includes(x.id) && x.when(r));
+  if (!t) return "";
+  return `<div class="tip-bubble ${t.top ? "top" : ""}" role="note"><span class="tb-ic">${t.icon}</span><p>${t.text}</p><div class="tb-btns"><button class="tb-ok" data-tipok="${t.id}">Got it</button><button class="tb-off" data-tipsoff>Hide tips</button></div></div>`;
+}
+
 function optionsPage() {
   return optionsPopup()
     .replace('<div class="overlay popup-wrap"><div class="popup options-pop">', '<div class="options-page m3-page"><div class="dg-head"><h1 class="grow">Options</h1><button class="plank-btn small" data-closeoptions>Back</button></div><div class="options-pop as-page">')
@@ -2607,7 +2645,8 @@ function optionsPopup() {
       ${opt("Sound effects", "", `<button class="small ${isMuted() ? "" : "primary"}" data-mute>${isMuted() ? "🔇 Off" : "🔊 On"}</button>`)}
       ${musicSliders(undefined, false)}`)}
     ${sec("⚔️", "Gameplay", `
-      ${opt("Combat speed", "How fast dice roll and blows land.", `<div class="seg">${sp(1, "Normal")}${sp(0.5, "Fast")}${sp(0.2, "Very fast")}</div>`)}`)}
+      ${opt("Combat speed", "How fast dice roll and blows land.", `<div class="seg">${sp(1, "Normal")}${sp(0.5, "Fast")}${sp(0.2, "Very fast")}</div>`)}
+      ${opt("Tips", "A short tip the first time each thing happens.", `<div class="seg"><button class="small ${meta.tipsOff ? "" : "primary"}" data-tipstoggle>${meta.tipsOff ? "Off" : "On"}</button><button class="small" data-tipsreset>Show again</button></div>`)}`)}
     ${sec("💾", "Progress & backup", `
       <p class="sub">Your Camp, the Codex and any saved run are kept in this browser${leaderboardOn() ? ", with a copy online" : ""}.</p>
       ${backupPanel()}`)}
@@ -3003,7 +3042,7 @@ function render3() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title", musicPlace());
   if (!run) {
-    app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${treeNode ? treeNodePopup(camp) : ""}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${tipBubble(null)}${treeNode ? treeNodePopup(camp) : ""}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "The loot rework is done, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
     if (camp) mountCampMap({ open: id => { campRoom = id as CampTab; campTab = id as CampTab; render(); }, origin: () => camp ?? "warrior", locked: id => id === "abyss" && !abyssUnlocked(meta), sfx: k => sfx(k as never) });
     return;
@@ -3087,7 +3126,7 @@ function render3() {
   const crawlFight = s.t === "combat" && !!r.gridMode;
   const crawlShop = s.t === "shop" && !!r.gridMode;
   document.body.classList.toggle("crawl-on", crawlView || crawlFight || crawlShop || crawlFrame);
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat(r.gridMode ? { icon: "👑", title: "Victory!", text: "The last guardian lies still, and the dungeon's deepest door stands open behind it. Whatever was waiting down here has met its end. Take what it kept: it's yours now." } : { icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${strange ? `<div class="strange-screen"><div class="strange-room"></div><div class="crawl-pop-wrap strange-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div></div>` : crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat(r.gridMode ? { icon: "👑", title: "Victory!", text: "The last guardian lies still, and the dungeon's deepest door stands open behind it. Whatever was waiting down here has met its end. Take what it kept: it's yours now." } : { icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${strange ? `<div class="strange-screen"><div class="strange-room"></div><div class="crawl-pop-wrap strange-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div></div>` : crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${compareOpen ? comparePopup(r) : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}${levelPopup || winPopup ? "" : tipBubble(r)}`;
   bind();
   // Bookmarks that scroll sideways: keep the open one in view.
   document.querySelectorAll<HTMLElement>(".bm-tabs > .on, .mer-tabs > .on").forEach(el => { const p = el.parentElement!; if (p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, el.offsetLeft - 24); });
@@ -3298,6 +3337,10 @@ function on(sel: string, fn: (el: HTMLElement) => void) {
 
 function bind() {
   on("[data-mute]", () => toggleMute());
+  on("[data-tipok]", el => { (meta.tips ??= []).push(el.dataset.tipok!); saveMeta(meta); });
+  on("[data-tipsoff]", () => { meta.tipsOff = true; saveMeta(meta); });
+  on("[data-tipstoggle]", () => { meta.tipsOff = !meta.tipsOff; saveMeta(meta); });
+  on("[data-tipsreset]", () => { meta.tips = []; meta.tipsOff = false; saveMeta(meta); });
   on("[data-togglemusic]", () => toggleMusic());
   on("[data-startmusic]", () => playMusic(run ? "game" : "title", musicPlace()));
   // Leaderboards (title screen and end of run).
@@ -3605,6 +3648,7 @@ function bind() {
   app.querySelectorAll<HTMLElement>("[data-invclose]").forEach(el => (el.onclick = ev => { if (ev.target !== el) return; ev.stopPropagation(); invPick = null; render(); }));
   on("[data-gift]", el => takeGift(r, el.dataset.gift as GiftId));
   on("[data-invpick]", el => { const [k, v] = el.dataset.invpick!.split(":"); invPick = k === "eq" ? { k: "eq", slot: v as EquipSlot } : { k: "bp", uid: Number(v) }; });
+  app.querySelectorAll<HTMLElement>("[data-merclose]").forEach(el => (el.onclick = ev => { if (ev.target !== el) return; ev.stopPropagation(); merPick = null; sellArmed = null; render(); }));
   on("[data-mpick]", el => { const [k, v] = el.dataset.mpick!.split(":"); merPick = k === "s" ? { k: "stock", i: Number(v) } : { k: "own", uid: Number(v) }; sellArmed = null; });
   on("[data-minv]", el => { merInv = el.dataset.minv as typeof merInv; merPick = merPick?.k === "own" ? null : merPick; sellArmed = null; });
   on("[data-potnote]", el => { say(el.dataset.potnote!, false); });
@@ -3629,14 +3673,14 @@ function bind() {
   on("[data-closewin]", () => { winSeen = true; });
   on("[data-talent]", el => chooseTalent(r, el.dataset.talent!));
   on("[data-skiptalent]", () => skipTalent(r));
-  on("[data-buy]", el => say(buy(r, Number(el.dataset.buy))));
+  on("[data-buy]", el => { const err = buy(r, Number(el.dataset.buy)); say(err); if (!err) { merPick = null; sfx("chest"); } });
   on("[data-reroll]", () => say(rerollShop(r)));
   on("[data-sell]", el => {
     const u = Number(el.dataset.sell);
     const w = findItem(r.hero, u)?.where;
     if (w && w !== "backpack" && sellArmed !== u) { sellArmed = u; return; }
     sellArmed = null;
-    const err = sellItem(r, u); say(err); if (!err) sfx("chest");
+    const err = sellItem(r, u); say(err); if (!err) { sfx("chest"); merPick = null; }
   });
   on("[data-bulksell]", el => {
     const k = el.dataset.bulksell as "common" | "uncommon";

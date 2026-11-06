@@ -56,6 +56,9 @@ export interface Meta {
   path?: Record<string, string>;
   /** The Camp Ledger: the marks each path has earned (see LEDGER_MARKS). */
   ledger?: Record<string, string[]>;
+  /** The guided first run: tips already read, and whether tips are switched off. */
+  tips?: string[];
+  tipsOff?: boolean;
   /** Drills: the classes that have cleared each one (its medal). */
   drills?: Record<string, import("../engine/types").OriginId[]>;
   /** Campaign runs in a row that ended without a Legendary (four, and the next run's first boss offers one). */
