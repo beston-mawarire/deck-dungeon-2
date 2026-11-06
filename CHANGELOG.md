@@ -9,6 +9,10 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.2.2
+- Charms no longer promise an Elemental Barrier button (that old Mage skill was retired with the move to paths). They now say what they really do: "Barrier lash: a foe that hits your Barrier takes 2 Burn (4 each if the Barrier stops the whole hit)". This works with any Barrier you have.
+- Spell faces show their effect on the item, e.g. the Apprentice Staff reads "1 Spark (1 Burn) · 2 Fire Bolt (3 Burn) · … · 6 Arc (1 Shock)". So a Burn on a 1 is no longer a mystery.
+
 ## 2.2.1
 - Epic and Legendary finds get a page of their own look. A Legendary's page is darker and warms into orange, with an orange edge. An Epic's does the same in violet. This covers chest finds, shop items and gear in the backpack.
 - Scrap no longer shows in the backpack's Gear tab. It's in the Artefacts tab.

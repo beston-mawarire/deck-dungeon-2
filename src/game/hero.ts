@@ -206,12 +206,13 @@ export function itemLines(item: GearItem): string[] {
   const armor = itemArmor(eb, item.level);
   if (armor) lines.push(`Armor ${armor}`);
   if (item.attr) lines.push(`${ATTR_INFO[item.attr.a].icon} +${item.attr.n} ${ATTR_INFO[item.attr.a].name}`);
-  if (eb.faces) lines.push(`Faces: ${eb.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind[0].toUpperCase() + f.kind.slice(1)}`).join(" · ")}`);
+  if (eb.faces) lines.push(`Faces: ${eb.faces.map((f, i) => `${i + 1} ${f.name ?? f.kind[0].toUpperCase() + f.kind.slice(1)}${f.fx ? ` (${f.fx})` : ""}`).join(" · ")}`);
   if (eb.kind === "weapon" && eb.tags.includes("Holy")) lines.push("✝️ Holy: +15% to Undead, vampires, Crimson foes and anything that curses or Dooms. When your Ward stops an enemy's status, your next hit Smites (20% of its Max HP, once per fight).");
   if (eb.faces?.some(f => f.cleanse)) lines.push("✨ Purify: strips every negative status from the enemy and deals 2× Damage for each one (ignores Armor). Nothing on them, no damage.");
   if (eb.shield) lines.push("🛡️ Shield: lets you Guard.");
   if (eb.heavy) lines.push("🔨 Heavy: every hit builds Stagger (2 on a Crit). Fill it and the enemy loses its next action and takes double from your next hit.");
-  if (eb.barrierElement) lines.push(`🔮 Mage: lets you raise an Elemental Barrier (${(eb.barrierElements ?? [eb.barrierElement]).join(", ")}).`);
+  // Barrier lash (from any Barrier you have: skills, talents, gear): a foe that hits it takes this charm's elements.
+  if (eb.barrierElement) { const els = (eb.barrierElements ?? [eb.barrierElement]).map(e => e[0].toUpperCase() + e.slice(1)); lines.push(`🔮 Barrier lash: a foe that hits your Barrier takes 2 ${els.join(" and 2 ")} (4 each if the Barrier stops the whole hit).`); }
   if (itemDodge(item)) lines.push(`💨 ${itemDodge(item)}% Dodge`);
   if (item.bash) lines.push(`💥 ${item.bash}% Bash (Stuns and deals +50%)`);
   else if (b.legendary) lines.push(`✦ ${b.legendary.reveal}`);

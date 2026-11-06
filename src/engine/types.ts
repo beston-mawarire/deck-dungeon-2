@@ -41,6 +41,8 @@ export interface FaceSpec {
   cleave?: boolean;
   /** Spells cast by Arcane weapons ignore Armor. */
   magic?: boolean;
+  /** What a spell face does, for the item text (e.g. "1 Burn"). */
+  fx?: string;
   /** Purify (Holy cleansing weapons): no normal damage; strips the enemy's negative statuses and deals 2× Damage per status removed. */
   cleanse?: boolean;
 }

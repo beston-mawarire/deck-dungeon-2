@@ -39,8 +39,9 @@ export const purify = (kind: FaceSpec["kind"] = "hit", name = "Purify"): FaceSpe
 /** The negative statuses, for "random status" effects. */
 export const HEXES: StatusId[] = ["burn", "poison", "chill", "bleed", "weak", "exposed"];
 /** A spell from an Arcane weapon: ignores Armor. */
-export const cast = (name: string, kind: FaceSpec["kind"], run: FaceSpec["run"]): FaceSpec => ({ kind, name, run, magic: true });
-export const hex = (status: StatusId, n: number) => (b: Battle, ctx: AttackCtx) => applyStatus(b, ctx.attacker, ctx.defender, status, n);
+/** A spell face. Its effect, when it's a plain status (hex), is shown on the item: "Spark (1 Burn)". */
+export const cast = (name: string, kind: FaceSpec["kind"], run: FaceSpec["run"]): FaceSpec => ({ kind, name, run, magic: true, fx: (run as { fx?: string } | undefined)?.fx });
+export const hex = (status: StatusId, n: number) => Object.assign((b: Battle, ctx: AttackCtx) => applyStatus(b, ctx.attacker, ctx.defender, status, n), { fx: `${n} ${status[0].toUpperCase()}${status.slice(1)}` });
 export const self = (status: StatusId, n: number) => (b: Battle, ctx: AttackCtx) => applyStatus(b, ctx.attacker, ctx.attacker, status, n);
 
 /** How deep the run is (set by the run each fight). Early-game defensive effects scale with it. */
