@@ -3059,7 +3059,8 @@ function render3() {
   // A relic popup is (or is about to be) up: hold every fanfare until it's closed.
   fanfareHold = s.t !== "combat" && !!r.relicNews?.length;
   celebrateScene(r);
-  const msg = [r.message, note].filter(Boolean);
+  // (The end-of-run screen shows no leftover toasts: the last message of the run is stale by then.)
+  const msg = s.t === "over" ? [note].filter(Boolean) : [r.message, note].filter(Boolean);
   // Level up: once the rewards are picked, a fanfare and a popup before the talent choice.
   const levelPopup = s.t === "talent" && ackedTalentScene !== s;
   if (levelPopup && !celebratedLevel.has(s)) { celebratedLevel.add(s); celebrate("legendary", "LEVEL UP!"); }

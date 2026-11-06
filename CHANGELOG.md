@@ -9,6 +9,12 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.4
+- **A softer start.**
+  - **Catch your breath:** each trapdoor drop restores 25% of your Max HP on the 1st Layer, and 10% deeper down.
+  - **A sure first find:** the first chest you open on the 1st Layer always holds a weapon or armour, Uncommon or better, that you can wear straight away (and it's never a Mimic).
+- The end-of-run screen no longer shows the run's last leftover message.
+
 ## 2.0.3
 - **Where seeds come from:** Champions (30%) and Elites (8%) as before, plain Beasts now and then (5%), urns rarely (3%), and the Merchant, who often has one on the shelf (rarer plants cost more). Chests no longer hold seeds, and the "tucked in a corner" message is gone.
 - **Special foes glow** instead of wearing a thin ring: a pulsing aura and a lit outline in their colour. Elites are violet, Champions orange, Crimson foes red-magenta, named Uniques gold, your Nemesis blood-red, Treasure Goblins green-gold and the Changeling cyan.

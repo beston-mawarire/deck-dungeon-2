@@ -254,5 +254,18 @@ describe("the 1st Layer and the Ledger (1.98)", () => {
     const m = fresh(); recordRun(m, r);
     expect(m.ledger?.arcanist).toContain("win");
   });
+  it("the 1st Layer's first chest always holds Uncommon-or-better gear you can wear, and every drop restores some HP", async () => {
+    const { chooseRoom, descend, DROP_HEAL_FIRST } = await import("../src/game/run");
+    for (let seed = 1; seed < 15; seed++) {
+      const r = newRun("mage", 300 + seed); startCrawl(r);
+      r.step = 1; r.scene = { t: "map" } as never; r.choices = ["wooden"]; chooseRoom(r, "wooden");
+      const it = (r.scene as { items: { rarity: string; reqLevel?: number }[] }).items[0];
+      expect(it.rarity).not.toBe("common"); expect(it.reqLevel).toBeUndefined();
+    }
+    const r = newRun("warrior", 77); startCrawl(r); r.grid = makeGrid(r, 1);
+    r.hero.f.hp = 10;
+    descend(r);
+    expect(r.hero.f.hp).toBe(10 + Math.round(r.hero.f.maxHp * DROP_HEAL_FIRST));
+  });
 });
 

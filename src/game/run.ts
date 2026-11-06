@@ -95,6 +95,19 @@ function dropItem(run: Run, odds: Partial<Record<Rarity, number>>): GearItem {
 }
 /** Crawl Elites (and Champions) sometimes drop a weapon or a piece of armour. */
 export const CRAWL_ELITE_GEAR = 0.22, CRAWL_CHAMPION_GEAR = 0.45;
+/** The first chest you open on the 1st Layer always holds a weapon or armour, Uncommon or better (a run shouldn't reach
+ *  its second floor empty-handed). */
+/** HP back (a share of Max HP) for each trapdoor drop: on the 1st Layer, and deeper. */
+export const DROP_HEAL_FIRST = 0.25, DROP_HEAL = 0.1;
+export const FIRST_FIND_ODDS: Partial<Record<Rarity, number>> = { uncommon: 0.75, rare: 0.25 };
+function firstFind(run: Run): GearItem | null {
+  const p = run.hero.f.persist;
+  if (!run.gridMode || run.mode === "abyss" || run.floor !== 1 || p["firstFind"]) return null;
+  p["firstFind"] = 1;
+  const it = crawlGear(run, FIRST_FIND_ODDS);
+  it.reqLevel = undefined;
+  return it;
+}
 function crawlGear(run: Run, odds: Partial<Record<Rarity, number>>): GearItem {
   let it = dropItem(run, odds);
   for (let k = 0; k < 8 && !["weapon", "armour"].includes(effectiveBase(it).kind); k++) it = dropItem(run, odds);
@@ -1239,11 +1252,14 @@ export function descend(run: Run) {
     return;
   }
   tickDraughts(run);
+  // Catch your breath: each drop through a trapdoor restores a little HP (more on the 1st Layer).
+  const hf2 = run.hero.f, back = Math.min(hf2.maxHp - hf2.hp, Math.round(hf2.maxHp * (run.floor === 1 && run.mode !== "abyss" ? DROP_HEAL_FIRST : DROP_HEAL)));
+  if (back > 0 && hf2.hp > 0) hf2.hp += back;
   run.grid = makeGrid(run, m.depth + 1, m.explored);
   if (run.floor === 1) run.hero.f.persist["l1depth"] = Math.max(run.hero.f.persist["l1depth"] ?? 0, m.depth + 1);
   // Still burning from the floor above: it carries on down.
   if (m.burn) { run.grid.burn = m.burn; run.grid.burnKind = m.burnKind; }
-  run.message = `🕳️ You drop through the trapdoor to floor ${m.depth + 1}. There's no climbing back up.`;
+  run.message = `🕳️ You drop through the trapdoor to floor ${m.depth + 1}. There's no climbing back up.${back > 0 ? ` You catch your breath: +${back} HP.` : ""}`;
   // The Abyss: Omens wait on every floor.
   if (run.mode === "abyss") { if (run.hero.omens?.["sight"]) run.grid.seen.fill(1); offerOmens(run); }
 }
@@ -1353,7 +1369,7 @@ function enterRoom(run: Run, room: RoomType) {
       // The Crawl: a chest holds one item and nothing else.
       const sg = run.gridMode ? null : rollSigilDrop(run, 0.06, 0.1);
       const woodOdds = chestOdds(run, useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden);
-      run.scene = { t: "loot", title: "Wooden Chest", items: [dropItem(run, woodOdds)], gold: run.gridMode ? 0 : (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: !run.gridMode && run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
+      run.scene = { t: "loot", title: "Wooden Chest", items: [firstFind(run) ?? dropItem(run, woodOdds)], gold: run.gridMode ? 0 : (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: !run.gridMode && run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
       return;
     }
     case "iron": {
@@ -1361,7 +1377,9 @@ function enterRoom(run: Run, room: RoomType) {
       const sg = run.gridMode ? null : rollSigilDrop(run, 0.12, 0.15);
       const key = (h.relics["skeleton_key"] ?? 0) > 0;
       const moon = tarotOf(h, "moon");
-      if (!key && run.rng() < (!moon.on ? 1 / 6 : moon.boon >= 2 ? 1 / 2 : moon.boon > 1 ? 2 / 5 : 1 / 3)) {
+      // (Never a Mimic while the 1st Layer's first find is still to come.)
+      const firstPending = run.gridMode && run.mode !== "abyss" && run.floor === 1 && !h.f.persist["firstFind"];
+      if (!key && !firstPending && run.rng() < (!moon.on ? 1 / 6 : moon.boon >= 2 ? 1 / 2 : moon.boon > 1 ? 2 / 5 : 1 / 3)) {
         run.message = "The chest bites! It's a Mimic.";
         // A Mimic isn't a chest: once it's dealt with, nothing stays behind.
         if (run.gridMode && run.grid?.last !== undefined) run.grid.things[run.grid.last].opened = undefined;
@@ -1369,7 +1387,7 @@ function enterRoom(run: Run, room: RoomType) {
         return fight(run, run.gridMode && run.grid?.depth === 1 && !moon.on ? "normal" : "elite", "mimic");
       }
       const ironOdds = chestOdds(run, useClover(run) ? luckyOdds(tables(run).iron) : tables(run).iron);
-      const items = [dropItem(run, ironOdds)];
+      const items = [firstFind(run) ?? dropItem(run, ironOdds)];
       if (key && !run.gridMode) items.push(dropItem(run, ironOdds));
       run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: run.gridMode ? 0 : (5 + run.floor * 2) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: 0, sigils: sg ? [sg] : undefined };
       return;
