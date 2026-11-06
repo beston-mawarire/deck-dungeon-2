@@ -2259,7 +2259,7 @@ function crawlBag(r: Run) {
     // Tapping something you wear opens it on its own; the backpack below shows every item in full.
     const eqPop = picked && eqSlot ? `<div class="overlay popup-wrap inv-eqpop" data-invclose><div class="inv-detail">${itemCard(picked, inCombat ? "" : `<button class="small" data-unequip="${eqSlot}">Take it off</button>${revealBtn(r, picked)}`)}<button class="small closebtn inv-eqx" data-invclose>← Back</button></div></div>` : "";
     // Materials and scrolls sit in the backpack too (they take no slot).
-    const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.orilium ?? 0, "🔶 Orilium"], [h.starmetal, "✴️ Starmetal"], [h.scrolls, "📜 Scroll of Revelation"], [h.f.persist["skelKeys"] ?? 0, "🗝️ Skeleton Key"], ...THROWS.map(t => [h.f.persist[THROW_INFO[t].key] ?? 0, `${THROW_INFO[t].icon} ${THROW_INFO[t].name}`])].filter(([n]) => (n as number) > 0)
+    const mats = [[h.scrap, "⚙️ Scrap"], [h.azure ?? 0, "💠 Azure"], [h.scrolls, "📜 Scroll of Revelation"], [h.f.persist["skelKeys"] ?? 0, "🗝️ Skeleton Key"], ...THROWS.map(t => [h.f.persist[THROW_INFO[t].key] ?? 0, `${THROW_INFO[t].icon} ${THROW_INFO[t].name}`])].filter(([n]) => (n as number) > 0)
       .map(([n, l]) => `<span class="mer-chip mat"><b>${l}</b><span>×${n}</span></span>`).join("");
     const cards = h.backpack.map(it => `<div class="inv-card">${itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(sl => `<button class="small primary" data-equip="${it.uid}" data-slot="${sl}" ${it.reqLevel && h.level < it.reqLevel ? "disabled" : ""}>Equip${slotsFor(it, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, it)}`, !inCombat)}</div>`).join("");
     const hk = CLASS_SPRITE[h.origin];
@@ -2331,6 +2331,7 @@ function crawlArtefacts(r: Run) {
     tile("📜", "Scrolls of Revelation", h.scrolls, h.scrolls ? "Use one on a hidden Legendary, from the Gear tab." : "Reveal a hidden Legendary's power.", h.scrolls ? "" : "dim"),
     tile("🗝️", "Skeleton Keys", p["skelKeys"] ?? 0, "Open a locked door on a floor.", p["skelKeys"] ? "" : "dim"),
     tile("✴️", "Starmetal", h.starmetal, "From scrapped Legendary and Crimson gear. Jewellers and the Crucible want it.", h.starmetal ? "" : "dim"),
+    tile("🔶", "Orilium", h.orilium ?? 0, "From scrapped Epic gear. The Masterwork wants it.", h.orilium ? "" : "dim"),
     tile("⚙️", "Scrap", h.scrap, "Upgrades at the Forge.", h.scrap ? "" : "dim"),
     ...(h.azure ? [tile("💠", "Azure", h.azure, "A rare crystal from Elites and Champions.")] : []),
     ...(h.crimsonKeys ? [tile("🩸", "Crimson Keys", h.crimsonKeys, "A Crimson Vault waits somewhere below.", "crimson")] : []),

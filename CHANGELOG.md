@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.15
+- Starmetal and Orilium live in the backpack's Artefacts tab now, not the Gear tab. Orilium has its own tile beside Starmetal.
+
 ## 2.0.14
 - Fixed "Unknown item: fx_…" after Continue. Rolled effect lines on saved gear are now known from the moment the game starts, not just after the first new loot. This was also what froze the screen after an update reload.
 
