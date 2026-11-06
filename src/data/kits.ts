@@ -36,8 +36,8 @@ export const KIT_UPGRADES: GearBase[] = [
     hooks: { onFightStart: (b, f) => { applyStatus(b, f, f, "evade", 1); applyStatus(b, f, f, "focus", 1); }, onCrit: (b, c) => applyStatus(b, c.attacker, c.defender, "exposed", 1) } }),
 
   // ---------- Mage: Apprentice Staff, Ember Charm, Cloth Robes ----------
-  g(U, { id: "k_adepts_staff", kind: "weapon", slot: "main", name: "Adept's Staff", tags: ["Arcane", "Burn", "Frost", "Storm"], text: "A greater Apprentice Staff. No Fizzle: even a 1 is a spark, and its spells hit harder.", damage: 5,
-    faces: [cast("Spark", "graze", hex("burn", 1)), cast("Fire Bolt", "hit", hex("burn", 4)), HIT, cast("Frost Lance", "hit", hex("chill", 3)), HIT, cast("Arc", "crit", (b, c) => { applyStatus(b, c.attacker, c.defender, "static", 2); applyStatus(b, c.attacker, c.defender, "shock", 1); })], hooks: {} }),
+  g(U, { id: "k_adepts_staff", kind: "weapon", slot: "main", name: "Adept's Staff", tags: ["Arcane", "Burn", "Frost", "Storm"], text: "A greater Apprentice Staff: its spells hit harder.", damage: 5,
+    faces: [GRAZE, cast("Fire Bolt", "hit", hex("burn", 4)), HIT, cast("Frost Lance", "hit", hex("chill", 3)), HIT, cast("Arc", "crit", (b, c) => { applyStatus(b, c.attacker, c.defender, "static", 2); applyStatus(b, c.attacker, c.defender, "shock", 1); })], hooks: {} }),
   g(R, { id: "k_archmages_staff", kind: "weapon", slot: "main", name: "Archmage's Staff", tags: ["Arcane", "Burn", "Frost", "Storm"], text: "The finest Apprentice Staff. Every face is a spell.", damage: 6,
     faces: [cast("Venom Dart", "graze", hex("poison", 3)), cast("Fire Bolt", "hit", hex("burn", 4)), cast("Frost Lance", "hit", hex("chill", 3)), cast("Arc", "hit", hex("static", 3)), cast("Hex Bolt", "hit", hex("exposed", 2)),
       cast("Starfire", "crit", (b, c) => { applyStatus(b, c.attacker, c.defender, "burn", 5); applyStatus(b, c.attacker, c.defender, "shock", 1); })], hooks: {} }),

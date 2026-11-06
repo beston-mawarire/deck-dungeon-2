@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.2.3
+- Common and Uncommon staves no longer cast a spell on a 1. The Apprentice Staff, Greatstaff, Adept's Staff and Bogwood Staff now Graze on a 1. Spells on a 1 stay on the better staves (Rare and up).
+
 ## 2.2.2
 - Charms no longer promise an Elemental Barrier button (that old Mage skill was retired with the move to paths). They now say what they really do: "Barrier lash: a foe that hits your Barrier takes 2 Burn (4 each if the Barrier stops the whole hit)". This works with any Barrier you have.
 - Spell faces show their effect on the item, e.g. the Apprentice Staff reads "1 Spark (1 Burn) · 2 Fire Bolt (3 Burn) · … · 6 Arc (1 Shock)". So a Burn on a 1 is no longer a mystery.

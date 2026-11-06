@@ -21,8 +21,8 @@ export const ONE_HANDED_STAFFS: GearBase[] = [
     faces: [GRAZE, cast("Crackle", "hit", hex("static", 2)), HIT, cast("Crackle", "hit", hex("static", 2)), HIT, cast("Bolt", "crit", hex("shock", 1))],
     text: "One-handed staff. A 2 or 4 Crackles (2 Static); a 6 calls a Bolt (Shock).", hooks: {} }),
   only("uncommon", { id: "s1_bogwood_staff", name: "Bogwood Staff", tags: ["Arcane", "Poison"], damage: 4,
-    faces: [cast("Miasma", "graze", hex("poison", 2)), HIT, HIT, cast("Spit", "hit", hex("poison", 2)), HIT, CRIT],
-    text: "One-handed staff. A 1 still lands a Miasma (2 Poison); a 4 Spits venom (2 Poison).", hooks: {} }),
+    faces: [GRAZE, HIT, HIT, cast("Spit", "hit", hex("poison", 2)), HIT, CRIT],
+    text: "One-handed staff. A 4 Spits venom (2 Poison).", hooks: {} }),
   // Rare
   only("rare", { id: "s1_prism_scepter", name: "Prism Scepter", tags: ["Arcane", "Burn", "Frost", "Storm"], damage: 4,
     faces: [GRAZE, cast("Fire Bolt", "hit", hex("burn", 3)), cast("Frost Lance", "hit", hex("chill", 2)), HIT, cast("Spark", "hit", hex("static", 3)), CRIT],
