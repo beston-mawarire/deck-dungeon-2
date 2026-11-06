@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
 import { abandonRun, chooseRoom, newRun, settleCombat, STEPS_PER_FLOOR, type Run } from "../src/game/run";
 import { type Meta, recordRun } from "../src/game/meta";
-import { applyKit, currentAbyssMod, kitOptions, masteryLevel, MASTERY_XP } from "../src/game/progress";
+import { applyKit, kitOptions, masteryLevel, MASTERY_XP } from "../src/game/progress";
 
 beforeAll(() => loadLibrary());
 const mem: Record<string, string> = {};
@@ -39,17 +39,6 @@ describe("mastery, kits, heat, Abyss twists, achievements", () => {
     // Not on this class's list at this level: ignored.
     applyKit(run, { main: "g_bastard_sword" }, 2);
     expect(run.hero.equip.main?.base).toBe(pick);
-  });
-
-  it("Heat makes enemies tougher; an Abyss Crimson Tide turns Champions Crimson", () => {
-    const a = newRun("rogue", 9), b = newRun("rogue", 9);
-    b.heat = 1;
-    const ea = fightIn(a, "fight").battle.enemy, eb = fightIn(b, "fight").battle.enemy;
-    expect(eb.maxHp).toBe(Math.round(Math.round(ea.maxHp * 1.3) * 1.06)); // +30% HP, and each Heat level quietly adds 6% more
-    const ab = newRun("rogue", 10, "abyss");
-    ab.abyssMod = "crimson_tide";
-    expect(fightIn(ab, "elite").rank).toBe("crimson");
-    expect(typeof currentAbyssMod().name).toBe("string");
   });
 
   it("finishing runs grows mastery and earns achievements once", () => {
@@ -107,40 +96,4 @@ describe("mastery, kits, heat, Abyss twists, achievements", () => {
     }
   });
 
-  it("Heat 2 halves Gold; Heat 3 halves healing; Heat 4 removes the after-fight heal", async () => {
-    const { collectLoot } = await import("../src/game/run");
-    const a = newRun("warrior", 51), b = newRun("warrior", 51);
-    b.heat = 2;
-    for (const r of [a, b]) { r.scene = { t: "loot", title: "", items: [], gold: 100, scrolls: 0, potions: 0 } as Run["scene"]; r.hero.f.gold = 0; collectLoot(r); }
-    expect(a.hero.f.gold).toBe(100);
-    expect(b.hero.f.gold).toBe(50);
-    const c = newRun("warrior", 52);
-    c.heat = 4;
-    const sc = fightIn(c, "fight");
-    c.hero.f.hp = 10;
-    sc.battle.enemy.hp = 0; sc.battle.over = "won"; settleCombat(c);
-    expect(c.hero.f.hp).toBe(10);
-    // Heat 3: every heal is halved.
-    const { restore } = await import("../src/game/run");
-    const { recompute } = await import("../src/game/hero");
-    const d = newRun("cleric", 53);
-    d.hero.heat = 3; recompute(d.hero);
-    d.hero.f.hp = 1; restore(d.hero, 20);
-    expect(d.hero.f.hp).toBe(11);
-  });
-
-  it("Heat 5 sometimes swaps the plain fight for an Elite or Champion", async () => {
-    const { genChoices } = await import("../src/game/run");
-    const r = newRun("rogue", 61);
-    r.step = 2;
-    // (Quiet steps offer no fights at all: they're left out here.)
-    const COMBAT = ["fight", "elite", "champion", "vault", "unique", "goblin", "nemesis"];
-    const count = () => { let n = 0, k = 0; while (k < 300) { const c = genChoices(r); if (!c.some(x => COMBAT.includes(x))) continue; k++; if (c.includes("fight")) n++; } return n; };
-    let plain = count();
-    expect(plain).toBe(300);
-    r.heat = 5;
-    plain = count();
-    expect(plain).toBeLessThan(270);
-    expect(plain).toBeGreaterThan(120);
-  });
 });

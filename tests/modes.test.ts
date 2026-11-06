@@ -23,8 +23,8 @@ describe("the Abyss and the Daily, walked", () => {
       expect(r.floor).toBeGreaterThanOrEqual(1);
     }
   }, 60000);
-  it("the Abyss's depths are shorter than the dungeon's layers", () => {
-    expect(layerFloors({ mode: "abyss" })).toBeLessThan(LAYER_FLOORS);
+  it("the Abyss is one layer as long as the dungeon's", () => {
+    expect(layerFloors({ mode: "abyss" })).toBe(LAYER_FLOORS);
     expect(layerFloors({ mode: "campaign" })).toBe(LAYER_FLOORS);
   });
   it("a Daily run is a walkable dungeon too, the same for everyone that day", () => {

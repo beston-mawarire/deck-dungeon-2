@@ -1,3 +1,6 @@
+import { BOUNTY_CAP, bountyReward, HEAT_LOOT_CAP, HEAT_LOOT_PER, PACT, PACT_MAP, pactHeat } from "../game/pact";
+import { baneOf, boonOf, REVERSE_LEVEL, TAROT, TAROT_MAP, TAROT_MAX_LEVEL, TAROT_SLOTS, tarotHeat } from "../game/tarot";
+import { OMEN_MAP, OMENS_FOR_FOUR } from "../game/omens";
 // Deck Dungeon 2 — the playable game.
 import { justReset } from "./reset"; // first: the Great Reset wipes old saves before anything loads them
 import { BONUSES, CRIMSON, CURSES, KEEPSAKES, TRAITS, EPIC_POWERS, FUSION_RELICS, GEAR_BASES, LEGENDARIES, RELICS, TALENTS, loadLibrary } from "../data";
@@ -17,15 +20,15 @@ import {
 import { LEGENDARY_LORE } from "../data/lore";
 import { SIGIL_SETS } from "../data/talisman";
 import { GEN_MODULE_MAP, modValue } from "../game/gen";
-import { CLASS_SKILLS, skillLayers, ABYSS_MODS, ACHIEVEMENTS, currentAbyssMod, HEAT_LEVELS, HEAT_MAX, heatOf, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX } from "../game/progress";
-import { ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem, abyssUnlocked, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta, spendShard } from "../game/meta";
+import { CLASS_SKILLS, skillLayers, ACHIEVEMENTS, currentAbyssMod,  heatOf, kitOptions, type KitSlot, masteryLevel, MASTERY_MAX } from "../game/progress";
+import { carriedTarot, flipTarot, takeTarot, toggleTarot, ABYSS_SHARD_COST, addGem, classOpen, CLASS_UNLOCK, GEM_BONUS, removeGem, abyssUnlocked, applyPlate, bankRuin, HISTORY_SIZE, lockedIds, loadMeta, type Meta, recordRun, saveMeta } from "../game/meta";
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
-  ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, ABYSS_FLOORS, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
+  ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   startCrawl, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
-  abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
+  abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, chooseOmen, omensTaken, setOut, ABYSS_LAYER, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { layerFloors } from "../game/grid";
@@ -363,9 +366,9 @@ function itemCard(it: GearItem, buttons = "", compare: boolean | { hero: Hero; s
 }
 
 const nextMilestone = (f: number) => (f < WALL_FLOOR ? ` · a Horror at ${WALL_FLOOR}` : f < DEATH_FLOOR ? ` · DEATH at ${DEATH_FLOOR}` : f < END_FLOOR ? ` · the End at ${END_FLOOR}` : "");
-const runChips = (r: Run) => `${heatOf(r) ? ` <span class="heat-chip" title="Heat ${heatOf(r)}">🔥${heatOf(r)}</span>` : ""}${r.mode === "abyss" && r.abyssMod ? (() => { const m = ABYSS_MODS.find(x => x.id === r.abyssMod); return m ? ` <span class="heat-chip" title="${esc(`${m.name}: ${m.text}`)}">${m.icon}</span>` : ""; })() : ""}${r.daily ? ` <span class="heat-chip" title="Daily Dungeon">📅</span>` : ""}`;
+const runChips = (r: Run) => `${heatOf(r) ? ` <span class="heat-chip" title="Heat ${heatOf(r)}">🔥${heatOf(r)}</span>` : ""}${(r.hero.tarot ?? []).map(t => ` <span class="heat-chip" title="${esc(TAROT_MAP.get(t.id)!.name)}${t.rev ? " (Reversed)" : ""}">${TAROT_MAP.get(t.id)!.icon}</span>`).join("")}${r.daily ? ` <span class="heat-chip" title="Daily Dungeon">📅</span>` : ""}`;
 const themeChip = (r: Run) => { const th = themeOf(r); return th ? `<span class="theme-chip" title="${esc(`${th.name}: ${th.hint}`)}">${th.icon} ${esc(th.name.replace(/^The /, ""))}</span>` : ""; };
-const floorLabel = (r: Run) => themeChip(r) + runChips(r) + (r.mode === "abyss" ? `Depth <b>${Math.min(r.floor, ABYSS_FLOORS)}</b>/${ABYSS_FLOORS}` : r.mode === "endless" ? `Floor <b>${r.floor}</b>${nextMilestone(r.floor)}` : `Floor <b>${Math.min(r.floor, FLOORS)}</b>/${FLOORS}`);
+const floorLabel = (r: Run) => themeChip(r) + runChips(r) + (r.mode === "abyss" ? `<b>The Abyss</b>` : r.mode === "endless" ? `Floor <b>${r.floor}</b>${nextMilestone(r.floor)}` : `Floor <b>${Math.min(r.floor, FLOORS)}</b>/${FLOORS}`);
 
 /** The current bounty's tracker button (📋 progress/target). */
 function bountyBtn(r: Run) {
@@ -494,14 +497,53 @@ function tavernScreen(infoRow: string, cont: string) {
 }
 
 function heatPanel() {
-  if (!meta.wins) return `<div class="panel heat-panel locked"><b>🔥 Heat</b> <span class="sub">— beat the dungeon's last layer once to unlock harder runs with better loot.</span></div>`;
-  const h = meta.heat ?? 0;
+  if (!meta.wins) return `<div class="panel heat-panel locked"><b>🔥 Heat</b> <span class="sub">— beat the dungeon's last layer once to make a pact: harder runs, better loot, and bounties for each class.</span></div>`;
+  const pact = meta.pact ?? {}, total = pactHeat(pact) + tarotHeat(carriedTarot(meta));
+  const o = camp ?? pendingOrigin ?? "warrior";
+  const best = meta.heatBest?.[o] ?? 0;
+  const next = best < BOUNTY_CAP ? bountyReward(best + 1) : null;
   return `<div class="panel heat-panel">
-    <div class="row"><b class="grow">🔥 Heat ${h ? h : "off"}</b><span class="sub">${h ? "Harder foes · better loot" : "Harder runs, better loot"}</span></div>
-    <div class="heat-btns">${Array.from({ length: HEAT_MAX + 1 }, (_, i) => `<button class="small ${h === i ? "primary" : ""}" data-heat="${i}">${i === 0 ? "Off" : `🔥${i}`}</button>`).join("")}</div>
-    ${h ? `<ul class="heat-list">${HEAT_LEVELS.filter(l => l.level <= h).map(l => `<li><b>${esc(l.name)}:</b> ${esc(l.text)}</li>`).join("")}</ul>` : ""}
-    <p class="sub">🔥 <b>Heatforged gear</b> only drops at Heat 1 or more${h >= 5 ? "" : h >= 3 ? ". Its finest pieces need Heat 5" : ". Stronger pieces need Heat 3 and 5"}.</p>
+    <div class="row"><b class="grow">🔥 Heat ${total}</b><span class="sub">${total ? `Rare-or-better finds +${Math.round(HEAT_LOOT_PER * 100 * Math.min(HEAT_LOOT_CAP, total))}%` : "Pick conditions to make a pact"}</span></div>
+    <div class="pact-list">${PACT.map(p => { const r = Math.min(p.max, pact[p.id] ?? 0); return `<div class="pact-row ${r ? "on" : ""}">
+      <span class="pr-ic">${p.icon}</span><span class="pr-txt"><b>${esc(p.name)}${p.max > 1 ? ` <i>${r}/${p.max}</i>` : ""}</b><span>${esc(p.text(Math.max(1, r)))}</span></span>
+      <span class="pr-cost">🔥${p.cost}</span>
+      <span class="pr-btns"><button class="small" data-pact="${p.id}" data-pd="-1" ${r ? "" : "disabled"} aria-label="Less">−</button><button class="small" data-pact="${p.id}" data-pd="1" ${r < p.max ? "" : "disabled"} aria-label="More">＋</button></span>
+    </div>`; }).join("")}</div>
+    ${tarotHeat(carriedTarot(meta)) ? `<p class="sub">Your Tarot Edicts add 🔥${tarotHeat(carriedTarot(meta))}.</p>` : ""}
+    <p class="sub">🏅 <b>Bounties</b> (the ${esc(ORIGINS[o as OriginId]?.name ?? o)}): beaten at Heat ${best}/${BOUNTY_CAP}.${next ? ` Beat the dungeon at Heat ${best + 1} or more for 👑 ${next.crowns} Crown Shards${next.scrolls ? " and a 📜 Scroll of Knowledge" : ""} (and every level between).` : " Every bounty claimed."}</p>
+    <p class="sub">🔥 <b>Heatforged gear</b> drops from Heat 2; its finest pieces need Heat 6 and 10.</p>
   </div>`;
+}
+
+/** The Tarot cards you own: carry two into a run (and, from level II, turn them over). */
+function tarotPanel(compact = false) {
+  const owned = TAROT.filter(t => (meta.tarot?.[t.id] ?? 0) > 0);
+  const eq = carriedTarot(meta);
+  if (!owned.length) return `<p class="sub center">${abyssUnlocked(meta) ? "You hold no Tarot cards yet. Beat the Abyss's warden for your first." : "Tarot cards come from the Abyss, below the dungeon's last layer."}</p>`;
+  return `<p class="sub center">Carry up to ${TAROT_SLOTS} into a normal run (${eq.length}/${TAROT_SLOTS}). From level II, a card can be Reversed: twice the boon, twice the bane.</p>
+    <div class="tarot-grid ${compact ? "compact" : ""}">${owned.map(t => tarotCard(t.id, meta.tarot![t.id]!, eq.find(e => e.id === t.id))).join("")}</div>`;
+}
+function tarotCard(id: string, lvl: number, slot?: { rev?: boolean }, offer = false) {
+  const t = TAROT_MAP.get(id)!;
+  const s = { id, lvl, rev: slot?.rev };
+  const m = boonOf(s), n = baneOf(s);
+  const owned = meta.tarot?.[id] ?? 0;
+  return `<div class="tarot-card ${slot ? "on" : ""} ${slot?.rev ? "rev" : ""} lvl${lvl} ${t.kind}">
+    <div class="tc-top"><span class="tc-num">${t.num}</span><span class="tc-lvl">${"I".repeat(lvl)}</span></div>
+    <div class="tc-art">${t.icon}</div>
+    <b class="tc-name">${esc(t.name)}${slot?.rev ? " <i>(Reversed)</i>" : ""}</b>
+    <p class="tc-boon">✦ ${esc(t.boon(m))}</p>
+    <p class="tc-bane">✖ ${esc(t.bane(n))}${t.heat ? ` · 🔥+${t.heat * (slot?.rev ? 2 : 1)} Heat` : ""}</p>
+    ${offer ? `<button class="small primary" data-tarottake="${id}">${owned ? `Level up to ${"I".repeat(Math.min(TAROT_MAX_LEVEL, owned + 1))}` : "Take this card"}</button>`
+      : `<div class="tc-btns"><button class="small ${slot ? "primary" : ""}" data-tarotequip="${id}">${slot ? "✔ Carrying" : "Carry"}</button>${lvl >= REVERSE_LEVEL && !t.noReverse && slot ? `<button class="small" data-tarotflip="${id}">${slot.rev ? "Upright" : "Reverse"}</button>` : ""}</div>`}
+  </div>`;
+}
+/** An Abyss clear's reward, waiting: pick one. */
+function tarotOfferPanel() {
+  const off = meta.tarotOffer;
+  if (!off?.length) return "";
+  return `<div class="panel tarot-offer"><h2 class="center">🃏 The Abyss offers a card</h2><p class="sub center">Take one${off.length > 3 ? " (four to choose from: your Omens paid off)" : ""}.</p>
+    <div class="tarot-grid">${off.map(id => tarotCard(id, Math.min(TAROT_MAX_LEVEL, (meta.tarot?.[id] ?? 0) + 1), undefined, true)).join("")}</div></div>`;
 }
 
 
@@ -510,7 +552,6 @@ function challengesPopup() {
   const today = utcDay();
   const d = dailyFor(today);
   const dailyDone = meta.daily?.day === today ? meta.daily : undefined;
-  const w = currentAbyssMod();
   return `<div class="overlay popup-wrap"><div class="popup ch-pop">
     <button class="small closex closebtn" data-closechallenges aria-label="Close">✕</button>
     <h1 class="center bigname">⚔️ Challenges</h1>
@@ -518,10 +559,9 @@ function challengesPopup() {
     <div class="mini-row daily-row"><span class="mr-ic">📅</span><span class="grow"><b>Daily Dungeon</b><span class="sub">${dailyDone ? `${dailyDone.done ? `Done today: floor ${dailyDone.floor}${dailyDone.won ? " · won" : ""}` : "Today's attempt has begun"}` : `Everyone's run today, as the ${ORIGIN_ICON[d.origin]} ${ORIGINS[d.origin].name}. One try.`}</span></span>
       ${dailyDone ? `<span class="sub mr-side">${(() => { const ms = Date.parse(`${today}T00:00:00Z`) + 864e5 - Date.now(); return `${Math.floor(ms / 3600e3)}h ${Math.floor((ms % 3600e3) / 60e3)}m`; })()}</span>` : `<button class="small primary daily-go" data-daily>${dailyArmed ? "Replace save?" : "Play"}</button>`}</div>
     ${meta.nemesis ? `<div class="mini-row nemesis-row"><span class="mr-ic">😈</span><span class="grow"><b>Your Nemesis: ${esc(meta.nemesis.name)}</b><span class="sub">${meta.nemesis.level > 1 ? `Beaten you ${meta.nemesis.level}×. ` : ""}Waits in your next Campaign run. Bounty on its head.</span></span></div>` : ""}
-    <div class="mini-row heat-row"><span class="mr-ic">🔥</span><span class="grow"><b>Heat ${meta.wins ? (meta.heat ? meta.heat : "off") : "locked"}</b><span class="sub">${meta.wins ? "Set it when you pick your class." : "Win the Campaign once to unlock harder, richer runs."}</span></span></div>
+    <div class="mini-row heat-row"><span class="mr-ic">🔥</span><span class="grow"><b>Heat ${meta.wins ? pactHeat(meta.pact ?? {}) || "off" : "locked"}</b><span class="sub">${meta.wins ? "Make your pact at the Enter Dungeon door. Each class has bounties up to Heat 10." : "Beat the dungeon's last layer once to make a pact: harder, richer runs."}</span></span></div>
+    <div class="mini-row week-row ${abyssUnlocked(meta) ? "" : "locked"}"><span class="mr-ic">${abyssUnlocked(meta) ? "🃏" : "🔒"}</span><span class="grow"><b>The Abyss</b><span class="sub">${abyssUnlocked(meta) ? `Cleared ${meta.abyssWins ?? 0}× · ${Object.keys(meta.tarot ?? {}).length}/${TAROT.length} Tarot cards. Enter it from the Camp.` : "Locked: beat the dungeon's last layer to open it."}</span></span></div>
   </div>
-    ${abyssUnlocked(meta) ? `<div class="mini-row week-row"><span class="mr-ic">${w.icon}</span><span class="grow"><b>Abyss this week: ${esc(w.name)}</b><span class="sub">${esc(w.text)}.</span></span></div>`
-      : `<div class="mini-row week-row locked"><span class="mr-ic">🔒</span><span class="grow"><b>Abyss weekly twist</b><span class="sub">Locked: beat the dungeon's last layer to open the Abyss.</span></span></div>`}
   </div></div>`;
 }
 
@@ -559,7 +599,7 @@ function achievementsPopup() {
 function historyPopup() {
   const list = meta.history ?? [];
   const ago = (t: number) => { const m = Math.round((Date.now() - t) / 60000); return m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
-  const where = (e: NonNullable<Meta["history"]>[number]) => e.mode === "abyss" ? `Abyss depth ${Math.min(e.floor, ABYSS_FLOORS)}` : `Floor ${e.floor}`;
+  const where = (e: NonNullable<Meta["history"]>[number]) => e.mode === "abyss" ? (e.won ? "The Abyss · cleared" : "The Abyss") : `Floor ${e.floor}`;
   const body = list.length ? list.map(e => `<div class="hist ${e.won ? "won" : "lost"} ${e.mode === "abyss" ? "abyss" : ""}">
       <div class="row"><b class="grow">${ORIGIN_ICON[e.origin as OriginId] ?? ""} ${esc(ORIGINS[e.origin as OriginId]?.name ?? e.origin)} · ${where(e)}</b><span class="sub">${ago(e.at)}</span></div>
       <div class="hist-tags">${e.daily ? `<span class="chip">📅 Daily ${esc(e.daily)}</span>` : ""}${e.mode === "abyss" ? `<span class="chip">🕳️ Abyss${e.plates ? ` · ⬛${e.plates}` : ""}</span>` : ""}${e.mode === "endless" ? `<span class="chip">Deeper Still</span>` : ""}
@@ -834,13 +874,12 @@ function campBody(o: OriginId, tab: CampTab): string {
       ${campQuest !== null ? `<button class="small camp-drop" data-cquest="-1">Tear up the contract</button>` : ""}`;
   }
   if (tab === "abyss") {
-    const shards = meta.ruinShards ?? 0;
-    if (!abyssUnlocked(meta)) return `<p>The way down is sealed. Beat the dungeon's last layer, with any hero, to find it.</p>`;
-    return `<p>Ten depths, every foe a rank tougher, and an Uber boss at the bottom of each. Each run costs ${ABYSS_SHARD_COST} Ruin Shard${ABYSS_SHARD_COST === 1 ? "" : "s"}: every guardian from the last layer on leaves one.</p>
-      <p class="sub">🪨 ${shards} Ruin Shard${shards === 1 ? "" : "s"} · ⬛ ${meta.classPlates?.[o] ?? 0} plate${(meta.classPlates?.[o] ?? 0) === 1 ? "" : "s"} on the ${og.name} · ${meta.plates ?? 0} to give</p>
-      ${(() => { const w = currentAbyssMod(); return `<p class="sub">${w.icon} This week: <b>${esc(w.name)}</b>. ${esc(w.text)}.</p>`; })()}
-      ${meta.plates ? `<button class="small camp-drop ${plateArmed ? "danger" : ""}" data-addplate="${o}">${plateArmed ? `Give it to the ${og.name} for good?` : "＋ Give a Vanadium Plate"}</button>` : ""}
-      <button class="primary camp-go" data-campabyss ${shards >= ABYSS_SHARD_COST ? "" : "disabled"}>🕳️ Enter the Abyss · 🪨 ${ABYSS_SHARD_COST}</button>`;
+    if (!abyssUnlocked(meta)) return `<p>The way down is sealed. Beat the dungeon's last layer, with any hero, to find it.</p>${tarotPanel()}`;
+    return `<p>One layer below the last, where the torches burn low: its foes deadlier than the 5th Layer's, an Omen on every floor (a boon and a bane, if you accept it), and the Abyss's warden at the bottom. You set out strong: as someone who has walked the whole dungeon.</p>
+      <p class="sub">🏅 Abyss cleared ${meta.abyssWins ?? 0}× · 🃏 ${Object.keys(meta.tarot ?? {}).length}/${TAROT.length} Tarot cards. Each clear gives one (a new card, or a level for one you hold).</p>
+      ${tarotOfferPanel()}
+      <button class="primary camp-go" data-campabyss>🕳️ Enter the Abyss</button>
+      <h3 class="center">Your Tarot</h3>${tarotPanel(true)}`;
   }
   if (tab === "skills") {
     const won = meta.layersBeaten?.[o] ?? 0;
@@ -1048,15 +1087,16 @@ function fishResolve(ok: boolean, miss: string) {
 }
 
 /** Enter Dungeon: a dungeon archway, pitch black inside, with what you need to set out in its mouth. */
-let expPop: "heat" | "totem" | "layer" | null = null;
+let expPop: "heat" | "totem" | "layer" | "tarot" | null = null;
 /** The layer the next run starts on (any layer up to the one after the class's best). */
 let startLayer = 1;
 const maxStartLayer = (o: OriginId) => Math.min(FLOORS, (meta.layersBeaten?.[o] ?? 0) + 1);
 function expeditionScreen(o: OriginId) {
   void o;
   const tot = meta.totemSet ? totemById(meta.totemSet) : undefined;
-  const heat = meta.heat ?? 0;
-  const pop = expPop === "heat" ? `<div class="overlay popup-wrap exp-pop"><div class="popup"><button class="small closex closebtn" data-exppop="" aria-label="Close">✕</button><h2 class="center">🔥 Heat</h2>${heatPanel()}<div class="row plank-row" style="justify-content:center"><button class="plank-btn" data-exppop="">Done</button></div></div></div>`
+  const heat = meta.wins ? pactHeat(meta.pact ?? {}) + tarotHeat(carriedTarot(meta)) : 0;
+  const pop = expPop === "tarot" ? `<div class="overlay popup-wrap exp-pop"><div class="popup tarot-pop"><button class="small closex closebtn" data-exppop="" aria-label="Close">✕</button><h2 class="center">🃏 Tarot</h2>${tarotPanel()}<div class="row plank-row" style="justify-content:center"><button class="plank-btn" data-exppop="">Done</button></div></div></div>`
+    : expPop === "heat" ? `<div class="overlay popup-wrap exp-pop"><div class="popup"><button class="small closex closebtn" data-exppop="" aria-label="Close">✕</button><h2 class="center">🔥 Heat</h2>${heatPanel()}<div class="row plank-row" style="justify-content:center"><button class="plank-btn" data-exppop="">Done</button></div></div></div>`
     : expPop === "layer" ? `<div class="overlay popup-wrap exp-pop"><div class="popup"><button class="small closex closebtn" data-exppop="" aria-label="Close">✕</button><h2 class="center">Choose a layer</h2>
       <p class="sub center">Start from any layer up to the one after the deepest the ${esc(ORIGINS[o].name)} has beaten. Starting deeper, you set out stronger: a few levels, a little Gold and some gear in your pack.</p>
       <div class="layer-picks">${Array.from({ length: maxStartLayer(o) }, (_, i) => i + 1).map(n => `<button class="plank-btn ${Math.min(startLayer, maxStartLayer(o)) === n ? "on" : ""}" data-startlayer="${n}">The ${ordinal(n)} Layer${n > 1 ? ` <span>from level ${layerStartLevel(n)}</span>` : ""}</button>`).join("")}</div>
@@ -1077,6 +1117,7 @@ function expeditionScreen(o: OriginId) {
           <button class="plank-btn" data-exppop="layer">Layer · ${ordinal(Math.min(startLayer, maxStartLayer(o)))}</button>
           <button class="plank-btn" data-exppop="heat">Heat${heat ? ` · ${heat}` : ""}</button>
           <button class="plank-btn" data-exppop="totem">Totem${tot ? ` · ${esc(tot.name)}` : ""}</button>
+          ${Object.keys(meta.tarot ?? {}).length ? `<button class="plank-btn" data-exppop="tarot">Tarot${carriedTarot(meta).length ? ` · ${carriedTarot(meta).map(c => TAROT_MAP.get(c.id)!.icon).join("")}` : ""}</button>` : ""}
         </div>
       </div></div>
     </div>
@@ -1172,7 +1213,7 @@ const thingInfo = (r: Run, room: string) => (room === "trapdoor" ? TRAPDOOR_INFO
 function crawlScreen(r: Run, msg: string[], bad: boolean) {
   const m = r.grid!;
   const h = r.hero;
-  const layer = r.mode === "abyss" ? `The Abyss · Depth ${r.floor}` : `${ordinal(r.floor)} Layer`;
+  const layer = r.mode === "abyss" ? "The Abyss" : `${ordinal(r.floor)} Layer`;
   const sel = m.sel !== undefined && !m.things[m.sel]?.done ? m.sel : undefined;
   const pick = (() => {
     if (sel === undefined) return "";
@@ -1359,6 +1400,19 @@ function resplendentScene(r: Run) {
     <div class="flipcards">${cards}</div>
     ${s.picked !== null ? `<div class="row" style="justify-content:center"><button class="primary" data-claim>Claim</button></div>` : ""}
   </div></div>`;
+}
+
+/** The Abyss's Omens: three on offer as you land on a floor. Accept one (its boon and its bane, for the rest of the run), or none. */
+function omenScene(r: Run) {
+  if (r.scene.t !== "omen") return "";
+  const taken = omensTaken(r.hero);
+  return `<div class="omen-screen"><h2 class="center">👁️ Omens</h2>
+    <p class="sub center">Three shapes stir in the dark. Accept one: its boon and its bane hold for the rest of the Abyss. ${taken >= OMENS_FOR_FOUR ? "You've accepted enough: the warden's card offer is four." : `Accept ${OMENS_FOR_FOUR} (you have ${taken}) and the Tarot offer at the bottom grows to four cards.`}</p>
+    <div class="omen-cards">${r.scene.options.map(id => { const o = OMEN_MAP.get(id)!; const n = r.hero.omens?.[id] ?? 0; return `<button class="omen-card" data-omen="${id}">
+      <span class="om-ic">${o.icon}</span><b>${esc(o.name)}${n ? ` <i>×${n + 1}</i>` : ""}</b><span class="om-boon">✦ ${esc(o.boon)}</span><span class="om-bane">✖ ${esc(o.bane)}</span></button>`; }).join("")}</div>
+    <div class="row center"><button class="plank-btn" data-omen="">Turn away from them all</button></div>
+    ${Object.keys(r.hero.omens ?? {}).length ? `<p class="sub center">Accepted: ${Object.entries(r.hero.omens!).map(([id, n]) => `${OMEN_MAP.get(id)!.icon} ${esc(OMEN_MAP.get(id)!.name)}${n > 1 ? ` ×${n}` : ""}`).join(" · ")}</p>` : ""}
+  </div>`;
 }
 
 function talentScene(r: Run) {
@@ -1615,18 +1669,19 @@ function crawlOver(r: Run) {
   const stage = won || r.retired
     ? endStage("won", `<div class="es-boss">${spriteHtml("chest_gold_open", 4, "es-chest")}${hero}${spriteHtml("coin", 3, "es-coin c1")}${spriteHtml("coin", 3, "es-coin c2")}${spriteHtml("coin", 3, "es-coin c3")}</div>`)
     : endStage("fallen", `<div class="es-boss">${hero}${spriteHtml("skull", 3, "es-skull")}</div>${killer ? `<div class="es-killer">${killer}</div>` : ""}`);
-  const title = r.finale ? "Nothing remains. You won everything." : won && r.mode === "abyss" ? "You reached the bottom of the Abyss!" : won ? "The last guardian falls. You win!" : r.retired ? `Home from the ${ordinal(r.floor)} Layer, victorious.` : r.abandoned ? "You gave up the run." : "You have fallen.";
+  const title = r.finale ? "Nothing remains. You won everything." : won && r.mode === "abyss" ? "The Abyss's warden falls. The Abyss gives you a card." : won ? "The last guardian falls. You win!" : r.retired ? `Home from the ${ordinal(r.floor)} Layer, victorious.` : r.abandoned ? "You gave up the run." : "You have fallen.";
   const gear = EQUIP_SLOTS.map(sl => h.equip[sl]).filter((x): x is GearItem => !!x);
   return `${stage}
     <h2 class="end-title ${won || r.retired ? "won" : "lost"}">${title}</h2>
     ${!won && k && !r.abandoned ? `<p class="end-line">Slain by <b class="cl-boss">${esc(k.name)}</b>${k.title ? ` <span class="sub">${esc(k.title)}</span>` : ""}, with ${big(k.hp)}/${big(k.maxHp)} HP left.</p>` : ""}
     ${endStats(r)}
     ${recorded?.achievements.length ? `<div class="end-box">${recorded.achievements.map(id => { const a = ACHIEVEMENTS.find(x => x.id === id)!; return `<p>🏆 <b>${esc(a.name)}</b>: ${esc(a.text)}${a.title ? ` <span class="sub">(title “${esc(a.title)}”)</span>` : ""}</p>`; }).join("")}</div>` : ""}
-    ${r.ruin?.shards || r.ruin?.plates ? `<p class="end-line">Kept for good: ${r.ruin.shards ? `🪨 ${r.ruin.shards} Ruin Shard${r.ruin.shards === 1 ? "" : "s"}` : ""}${r.ruin.shards && r.ruin.plates ? " · " : ""}${r.ruin.plates ? `⬛ ${r.ruin.plates} Vanadium Plate${r.ruin.plates === 1 ? "" : "s"}` : ""}</p>` : ""}
+    ${r.bounties?.length ? `<div class="end-box bounty-box"><p>🏅 <b>Heat bounties</b> for the ${esc(ORIGINS[h.origin].name)}: ${r.bounties.map(b => `Heat ${b.heat} (👑 ${b.crowns}${b.scrolls ? " · 📜 1" : ""})`).join(", ")}. Sent to the Camp.</p></div>` : ""}
+    ${r.mode === "abyss" && won ? tarotOfferPanel() || `<p class="end-line">🃏 Your card is in the Camp's Abyss room.</p>` : ""}
     ${(() => { const lb = runStatsPanel(r).replace(/<div class="lb-stats">[\s\S]*?<\/div>/, "").trim(); return lb ? `<div class="end-box lb-box">${lb}</div>` : ""; })()}
     <p class="end-sub">What you carried at the end</p>
     <div class="end-gear">${gear.map(it => `<span class="eg-chip" style="--ink:${RARITY_INK[it.rarity] ?? "#e9d6b0"}"><b>${esc(itemName(it))}</b><i>${esc(it.rarity)} · ${esc(equippedSlot(r, it))}</i></span>`).join("")}</div>
-    <div class="end-btns">${won && !r.finale && r.mode !== "abyss" ? `<button class="plank-btn" data-endless>🌀 Delve deeper</button>` : ""}<button class="plank-btn" data-newrun>Back to the Camp</button></div>`;
+    <div class="end-btns"><button class="plank-btn" data-newrun>Back to the Camp</button></div>`;
 }
 
 function clearedScene(r: Run) {
@@ -1899,7 +1954,7 @@ function overScene(r: Run) {
   const abyss = r.mode === "abyss";
   return `<div class="banner ${won ? "won" : "lost"}">${r.finale ? "Nothing remains. You won everything." : won && abyss ? "You reached the bottom of the Abyss!" : won ? "The Hollow King falls. You win!" : r.abandoned ? "You gave up the run." : "You have fallen."}</div>
   ${!won && r.killer && !r.abandoned ? killerPanel(r) : ""}
-  <div class="panel"><p>${abyss ? `Abyss · Depth ${Math.min(r.floor, ABYSS_FLOORS)}/${ABYSS_FLOORS}${r.hero.plates ? ` · ⬛ ${r.hero.plates} plates` : ""}` : `${r.daily ? `📅 Daily ${r.daily} · ` : ""}${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor}`} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses</p>
+  <div class="panel"><p>${abyss ? "The Abyss" : `${r.daily ? `📅 Daily ${r.daily} · ` : ""}${r.mode === "endless" ? "Endless · " : ""}Floor ${r.floor}`} · Level ${h.level} · ${r.stats.kills} kills · ${r.stats.bosses} bosses</p>
   ${recorded?.achievements.length ? `<div class="ach-earned">${recorded.achievements.map(id => { const a = ACHIEVEMENTS.find(x => x.id === id)!; return `<p>🏆 <b>${esc(a.name)}</b> — ${esc(a.text)}${a.title ? ` <span class="sub">(title “${esc(a.title)}”)</span>` : ""}</p>`; }).join("")}</div>` : ""}
   ${runStatsPanel(r)}
   <p class="sub">Final build:</p><div class="cards">${EQUIP_SLOTS.map(s => h.equip[s]).filter((x): x is GearItem => !!x).map(it => itemCard(it)).join("")}</div></div>
@@ -2565,10 +2620,6 @@ function kitPopup(o: OriginId, slot: KitSlot) {
 }
 
 /** Ruin Gems on this run's class: +10% base stats each (Campaign and Abyss; the Daily stays a level field). */
-function withGems(r: Run) {
-  r.hero.gems = meta.classGems?.[r.hero.origin] ?? 0;
-  recompute(r.hero); r.hero.f.hp = r.hero.f.maxHp;
-}
 /** The Ruin Gems panel in a class popup: what's on this class, and moving gems on or off. */
 function gemPanel(o: OriginId) {
   const on = meta.classGems?.[o] ?? 0, free = meta.ruinGems ?? 0;
@@ -2892,6 +2943,7 @@ function render3() {
     s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r)
     : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r) : s.t === "offering" ? forgeScene(r, true) : s.t === "fishing" ? `${fishingPanel("run")}<div class="fish-btns" style="margin:10px auto 0"><button class="plank-btn" data-leave>Leave the pool</button></div>` : s.t === "masterwork" ? masterworkScene(r)
     : s.t === "cleared" ? clearedScene(r)
+    : s.t === "omen" ? omenScene(r)
     : s.t === "smith" ? smithScene(r)
     : s.t === "alchemist" ? alchemistScene(r)
     : s.t === "tribute" ? tributeScene(r)
@@ -2922,7 +2974,8 @@ function render3() {
   // The Crawl: finds and encounters pop up over the map; every other scene sits in the dungeon's stone frame.
   const POPS = ["loot", "pick", "event", "confirm", "rest", "tribute"];
   // Something Strange: its event plays in a dark room of its own, not over the map.
-  const strange = s.t === "event" && !!s.strange && !!r.gridMode;
+  // (The Abyss's Omens play in a dark room too.)
+  const strange = (s.t === "event" && !!s.strange && !!r.gridMode) || s.t === "omen";
   const crawlPop = !!r.gridMode && !!r.grid && POPS.includes(s.t) && !strange;
   const crawlView = (s.t === "map" || s.t === "resplendent" || crawlPop) && !!r.gridMode && !!r.grid;
   const FRAMED: Record<string, string> = { forge: "Forge", offering: "Offering Altar", fishing: "Still Pool", masterwork: "Masterwork", jeweller: "Jeweller", alchemist: "Alchemist", smith: "Blacksmith", sanctum: "Dragon Sanctum", bounty: "Bounty Board", talent: "Level Up", cleared: "Layer Conquered", over: r.scene.t === "over" && (r.scene.won || r.retired) ? "Victory" : "Fallen" };
@@ -3200,7 +3253,10 @@ function bind() {
     on("[data-closeach]", () => { achOpen = false; });
     on("[data-achtab]", el => { achTab = el.dataset.achtab as typeof achTab; });
     on("[data-title]", el => { meta.title = el.dataset.title || undefined; saveMeta(meta); setPlayerTitle(meta.title ?? ""); });
-    on("[data-heat]", el => { meta.heat = Number(el.dataset.heat) || 0; saveMeta(meta); });
+    on("[data-pact]", el => { const p = PACT_MAP.get(el.dataset.pact!); if (!p) return; const r = Math.max(0, Math.min(p.max, (meta.pact?.[p.id] ?? 0) + Number(el.dataset.pd))); meta.pact = { ...(meta.pact ?? {}), [p.id]: r }; meta.heat = pactHeat(meta.pact); saveMeta(meta); });
+    on("[data-tarotequip]", el => { say(toggleTarot(meta, el.dataset.tarotequip!)); });
+    on("[data-tarotflip]", el => { flipTarot(meta, el.dataset.tarotflip!); });
+    on("[data-tarottake]", el => { const id = el.dataset.tarottake!; if (takeTarot(meta, id)) { sfx("legendary"); say(`🃏 ${TAROT_MAP.get(id)!.name}: ${(meta.tarot?.[id] ?? 1) > 1 ? `level ${"I".repeat(meta.tarot![id]!)}` : "yours"}. Carry it from the Enter Dungeon door.`, false); } });
     on("[data-kitpick]", el => { kitPick = el.dataset.kitpick as KitSlot; });
     on("[data-kitclose]", () => { kitPick = null; });
     on("[data-kitset]", el => {
@@ -3296,26 +3352,26 @@ function bind() {
     on("[data-start]", () => startCampaign());
     function startAbyss() {
       const o = pendingOrigin; if (!o) return;
-      if (!spendShard(meta)) { say(`You need ${ABYSS_SHARD_COST} Ruin Shards.`); pendingOrigin = null; return; }
+      meta.abyssRuns = (meta.abyssRuns ?? 0) + 1; saveMeta(meta);
       backupVault(vaultOf(meta));
       mode = "abyss"; lbResult = null; lbNaming = false; pendingOrigin = null; camp = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false;
       const nr = newRun(o, Date.now() & 0x7fffffff, "abyss", lockedIds(meta));
-      nr.abyssMod = currentAbyssMod().id;
-      
-      // The Abyss is walked too: ten depths, each a layer of floors with an Uber boss at the bottom.
+      // The Abyss is walked too: one layer below the last, its warden at the bottom.
       startCrawl(nr);
       applyHall(meta, nr);
-      nr.hero.plates = meta.classPlates?.[o] ?? 0;
-      withGems(nr);
+      beginAtLayer(nr, ABYSS_LAYER);
+      setOut(nr, {}, []);
       run = nr; void startSession(nr);
     }
-    function startCampaign() { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; nr.heat = meta.heat || undefined; nr.hero.heat = nr.heat; recompute(nr.hero);  withGems(nr); nr.legendaryDue = (meta.dryRuns ?? 0) >= 4;
+    function startCampaign() { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; recompute(nr.hero); nr.legendaryDue = (meta.dryRuns ?? 0) >= 4;
       // The Crawl is the game now; it sets out with the Hall's upgrades.
       startCrawl(nr);
       applyHall(meta, nr);
       // Starting deeper: the layer chosen at Enter Dungeon (never past the one after the class's best).
       const from = Math.min(startLayer, maxStartLayer(o));
       if (from > 1) beginAtLayer(nr, from);
+      // The Heat pact and the Tarot cards carried (once the dungeon has been beaten, and once there are cards).
+      setOut(nr, meta.wins ? meta.pact ?? {} : {}, carriedTarot(meta));
       // The ability picked at the Camp's Skills (if it's still open to this class).
       const sk = meta.skillPick?.[o];
       if (sk && CLASS_SKILLS[o].some(k => k.id === sk && (meta.layersBeaten?.[o] ?? 0) >= skillLayers(k)) && sk !== CLASS_SKILLS[o][0].id) nr.hero.skill = sk;
@@ -3394,6 +3450,7 @@ function bind() {
     }
   });
   on("[data-claim]", () => say(claimResplendent(r)));
+  on("[data-omen]", el => { chooseOmen(r, el.dataset.omen || null); sfx(el.dataset.omen ? "reaction" : "click"); });
   on("[data-ready]", el => { if (r.scene.t === "combat" && !busy) readyThrow(r.scene.battle, el.dataset.ready as Throw); });
   on("[data-mana]", () => { const n = r.hero.manaPotions ?? 0; say(drinkMana(r)); if ((r.hero.manaPotions ?? 0) < n) sfx("drink"); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-keepsake]", () => { say(takeKeepsake(r), false); sfx("legendary"); });

@@ -17,6 +17,8 @@ export interface EventCtx {
   /** Blood Oath: bind your Max HP where it is now (it can't rise again this run). */
   bindMaxHp: () => void;
   oathBound: () => boolean;
+  /** A carried Tarot card's strength (0 if it isn't carried). */
+  tarot: (id: string) => number;
   loseRelic: () => string | null;
   relicCount: () => number;
   addCurse: () => string;
@@ -95,7 +97,11 @@ const oath = (pct: number, label: string, hint: string, rarity: Rarity, curse = 
   can: c => c.maxHp() > 10 && !c.oathBound(),
   run: c => {
     const n = Math.max(1, Math.round(c.maxHp() * pct));
-    c.cutMaxHp(n); c.bindMaxHp(); c.gainItem(rarity);
+    c.cutMaxHp(n); c.bindMaxHp();
+    // The Hanged Man: every Oath gives one rarity better (and, from II, a second, lesser item).
+    const hanged = c.tarot("hanged");
+    c.gainItem(hanged ? (rarity === "epic" ? "legendary" : rarity) : rarity);
+    if (hanged > 1) c.gainItem("rare");
     const cursed = curse ? ` The stone isn't finished with you: ${c.addCurse()}.` : "";
     return `🩸 You cut your palm and swear. The stone drinks: −${n} Max HP, and it can never rise again.${cursed}`;
   }

@@ -13,7 +13,9 @@ import { SIGIL_SETS } from "../data/talisman";
 import { PLAIN_FACES } from "../engine/combat";
 import { ATTR_INFO, ATTR_MAX, ATTRS, attrPower, type Attr, BASE_ATTR, BASE_DMG_PER } from "../data/attributes";
 import { eachHook, getItem } from "../engine/registry";
-import type { Fighter, GearBase, GearItem, OriginId, Rarity, StatBlock } from "../engine/types";
+import { baneOf, boonOf, TAROT_HOOKED } from "./tarot";
+import { cast, hex } from "../data/helpers";
+import type { FaceSpec, Fighter, GearBase, GearItem, OriginId, Rarity, StatBlock } from "../engine/types";
 
 export type EquipSlot = "main" | "off" | "armour" | "trinket1" | "trinket2" | "trinket3";
 /** trinket3 only opens with the Keepsake of the Collector. */
@@ -41,9 +43,11 @@ export const GEM_STAT = 0.1;
 export const BASE_POTION_CAP = 3;
 /** Potion slots: how many Healing Potions you can carry, and also how many you can drink in one fight. */
 export function potionCap(h: Hero): number {
-  let n = BASE_POTION_CAP;
+  // (The Lovers' bane, and Heat's Short Supply: fewer.)
+  const lov = h.tarot?.find(t => t.id === "lovers");
+  let n = BASE_POTION_CAP - (lov ? (lov.rev ? 2 : 1) : 0) - (h.pact?.["supply"] ? 1 : 0);
   for (const [id, slots] of Object.entries(POTION_SLOTS)) n += slots * Math.max(0, (h.f.items[id] ?? 0) + (h.f.items[`fx_${id}`] ?? 0));
-  return n;
+  return Math.max(1, n);
 }
 export const potionsPerFight = potionCap;
 /** Mana Potions: carry 2 (some relics add more). */
@@ -104,8 +108,14 @@ export interface Hero {
   crucible?: boolean;
   /** Torn from a slain dragon. Each further dragon slain raises its level. Unified at a Dragon Sanctum: every stat +50%. */
   dragonHeart?: { level: number; unified?: boolean };
-  /** The run's Heat level (Heat 3+ halves all healing). */
+  /** The run's Heat (the pact's total, plus any Edict cards). */
   heat?: number;
+  /** The Heat pact: each condition's rank. */
+  pact?: Partial<Record<string, number>>;
+  /** Tarot cards carried (from the Abyss). */
+  tarot?: import("./tarot").TarotSlot[];
+  /** The Abyss's Omens accepted (Abyss runs only). */
+  omens?: Record<string, number>;
   /** The Talisman: sigils worn (outside the gear slots) and sigils carried. */
   sigils?: Sigil[];
   sigilBag?: Sigil[];
@@ -330,7 +340,11 @@ export function recompute(h: Hero) {
     const n = set.pieces.filter(p => worn.has(p)).length;
     for (const [need, id] of set.bonuses) if (n >= need) add(id);
   }
-  if ((h.heat ?? 0) >= 3) add("heat_dim");
+  // Heat: Dim Fires (each rank, healing −20%).
+  if (h.pact?.["dim"]) add("heat_dim", h.pact["dim"]);
+  // Tarot cards that work through the fight's own rules.
+  for (const t of h.tarot ?? []) if (TAROT_HOOKED.has(t.id)) add(`tarot_${t.id}`, t.rev ? 2 : 1);
+  for (const [id, n] of Object.entries(h.omens ?? {})) if (n && (id === "ironwill" || id === "whetstone")) add(`omen_${id}`, n);
   f.items = items;
   // What you're swinging: some foes are weak to blunt, bladed or two-handed weapons.
   const kindOf = (it?: GearItem): "blunt" | "sharp" | "other" | undefined => {
@@ -360,6 +374,10 @@ export function recompute(h: Hero) {
     const it = h.equip[slot];
     if (it?.revealed && baseOf(it.base).legendary && baseOf(it.base).faces) f.faces = baseOf(it.base).faces!;
   }
+  // Tarot: each card's strength where the fight can read it, then the cards that rewrite your die.
+  for (const k of Object.keys(f.persist)) if (k.startsWith("tb_") || k.startsWith("tn_")) delete f.persist[k];
+  for (const t of h.tarot ?? []) { f.persist[`tb_${t.id}`] = Math.round(boonOf(t) * 100); f.persist[`tn_${t.id}`] = Math.round(baneOf(t) * 100); }
+  f.faces = tarotFaces(h, f.faces);
   eachHook(f, "stats", (hk, n) => hk(s, n, f));
   if (items["l_mountain"]) s.armor *= 2;
   // Unified with a Dragon Heart: every stat +50%.
@@ -568,3 +586,19 @@ export function heroTags(h: Hero): Map<string, number> {
 }
 
 export const xpToLevel = (level: number) => 3 + 2 * (level - 1);
+
+/** The Magician turns plain hits into spells (and others into grazes); Justice turns misses into grazes and crits into hits. */
+function tarotFaces(h: Hero, faces: FaceSpec[]): FaceSpec[] {
+  let out = faces;
+  const mag = h.tarot?.find(t => t.id === "magician");
+  if (mag) {
+    out = [...out];
+    const m = boonOf(mag), spells = m >= 2 ? 2 : 1;
+    const hits = out.map((f, i) => (f.kind === "hit" && !f.run && !f.magic && !f.cleanse ? i : -1)).filter(i => i >= 0);
+    const made = [cast("Fire Bolt", "hit", hex("burn", m > 1 && m < 2 ? 4 : 3)), cast("Frost Lance", "hit", hex("chill", 2))];
+    for (let k = 0; k < spells && hits.length; k++) out[hits.shift()!] = made[k];
+    for (let k = 0; k < spells && hits.length; k++) out[hits.pop()!] = { kind: "graze" };
+  }
+  if (h.tarot?.some(t => t.id === "justice")) out = out.map(f => (f.kind === "miss" ? { ...f, kind: "graze" } : f.kind === "crit" ? { ...f, kind: "hit" } : f));
+  return out;
+}

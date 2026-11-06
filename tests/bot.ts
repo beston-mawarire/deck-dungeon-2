@@ -2,7 +2,7 @@
 import { RARITIES, type GearItem } from "../src/engine/types";
 import { effectiveBase, equipItem, type Hero, reveal, slotsFor, upgradeCost, weaponDamage } from "../src/game/hero";
 import {
-  advance, availableActions, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, combatAction, drinkPotion, eventOptionAvailable, finishLoot,
+  advance, availableActions, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, chooseOmen, combatAction, drinkPotion, eventOptionAvailable, finishLoot,
   forgeUpgrade, fuse, rest, type Run, takeItem
 } from "../src/game/run";
 
@@ -52,6 +52,7 @@ export function botStep(run: Run) {
     if (card.kind === "scroll") { h.scrolls++; advance(run); }
     else { run.scene = { t: "pick", title: "", items: [card.item] }; }
   } else if (s.t === "talent") chooseTalent(run, s.options[0]);
+  else if (s.t === "omen") chooseOmen(run, s.options[0]);
   else if (s.t === "rest") { if (!s.done) rest(run, "heal"); advance(run); }
   else if (s.t === "shop") {
     s.stock.forEach((e, i) => {

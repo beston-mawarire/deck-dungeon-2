@@ -1833,16 +1833,17 @@ describe("deep rares and forge golems", () => {
 
 
 describe("Heatforged gear", () => {
-  it("only drops at Heat 1 or more, with the strongest pieces needing Heat 3 and 5", () => {
+  it("only drops at Heat 2 or more, with the strongest pieces needing Heat 6 and 10", () => {
     const seen = (heat: number) => {
       const h = newHero("warrior"); h.heat = heat || undefined; const out = new Set<number>(); const rng = makeRng(90 + heat);
       for (let i = 0; i < 6000; i++) { resetDropped(); const m = baseOf(rollItem(h, (["common", "uncommon", "rare", "epic", "legendary"] as const)[i % 5], 6, rng).base).heatMin; if (m) out.add(m); }
       return out;
     };
     expect(seen(0).size).toBe(0);
-    expect([...seen(1)]).toEqual([1]);
-    expect(seen(3).has(3) && !seen(3).has(5)).toBe(true);
-    expect(seen(5).has(5)).toBe(true);
+    expect(seen(1).size).toBe(0);
+    expect([...seen(2)]).toEqual([1]);
+    expect(seen(6).has(3) && !seen(6).has(5)).toBe(true);
+    expect(seen(10).has(5)).toBe(true);
   }, 20000);
   it("Hearthfall's Burn carries from a kill into the next fight", () => {
     const h = newHero("warrior");

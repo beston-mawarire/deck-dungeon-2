@@ -742,6 +742,15 @@ function checkOver(b: Battle) {
     fx(b, { who: "player", kind: "text", text: "Reborn!", icon: "🔥" });
     applyStatus(b, b.player, b.enemy, "burn", 15);
   }
+  // Judgement (Tarot): once a run, rise again; it costs every coin you carry.
+  if (b.player.hp <= 0 && (b.player.persist["tb_judgement"] ?? 0) > 0 && !b.player.persist["judged"]) {
+    const p = b.player;
+    p.persist["judged"] = 1;
+    p.hp = Math.max(1, Math.round(p.maxHp * Math.min(1, 0.5 * (p.persist["tb_judgement"] ?? 100) / 100)));
+    p.gold = 0;
+    log(b, "📯 Judgement sounds: you rise again, and every coin you carried is gone.");
+    fx(b, { who: "player", kind: "text", text: "Judgement", icon: "📯" });
+  }
   // At 0 HP you're down, even if the enemy falls in the same moment: no healing or life steal from there.
   if (b.player.hp <= 0) {
     b.over = "lost";
@@ -1115,7 +1124,7 @@ export function startBattle(player: Fighter, enemy: Fighter, seed: number, carry
   for (const f of [player, enemy]) eachHook(f, "onFightStart", (h, s) => h(b, f, s));
   // Mana for class abilities: it carries over from fight to fight; only Mana Potions refill it. A new run starts
   // full. Some relics raise the most you can hold, and so does Intellect (1 for every 3 points).
-  player.maxMana = MANA_MAX + (player.flags["manaMax"] ?? 0) + Math.floor((player.persist["intPts"] ?? 0) / INT_MANA_PER);
+  player.maxMana = MANA_MAX + (player.flags["manaMax"] ?? 0) + Math.floor((player.persist["intPts"] ?? 0) / INT_MANA_PER) + (player.persist["omenMana"] ?? 0);
   player.mana = player.persist["manaSeen"] ? Math.min(player.mana ?? 0, player.maxMana) : player.maxMana;
   player.persist["manaSeen"] = 1;
   checkOver(b);

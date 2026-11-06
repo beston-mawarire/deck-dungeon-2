@@ -182,8 +182,10 @@ export function drawCrawl() {
     };
     each((x, y, i, sx, sy) => { if (m.tiles[i] === 1) drawFloor(lc, x, y, sx, sy, ts); else drawWall(lc, m, x, y, sx, sy, ts); if (m.haz?.[i] === "spike") drawTile(lc, "floor_spikes", sx, sy, ts); });
     // Each layer has its own colour of stone.
-    const tint = r.mode === "abyss" ? LAYER_TINT[4] : LAYER_TINT[layerOf(m.floor)];
+    const tint = r.mode === "abyss" ? "rgba(60,30,110,.55)" : LAYER_TINT[layerOf(m.floor)];
     if (tint) { lc.save(); lc.globalCompositeOperation = "color"; lc.fillStyle = tint; lc.fillRect(0, 0, W, H); lc.restore(); }
+    // The Abyss: the stone itself is darker, and colder.
+    if (r.mode === "abyss") { lc.save(); lc.globalCompositeOperation = "multiply"; lc.fillStyle = "rgba(118,104,150,1)"; lc.fillRect(0, 0, W, H); lc.restore(); }
     // Torchlight: what's in sight is lit, brighter close by; what you only remember sits in the gloom.
     each((x, y, i, sx, sy) => { lc.fillStyle = gloom(m, lit, x, y); lc.fillRect(sx, sy, ts + 0.5, ts + 0.5); });
     if (target) { layerKey = key; ctx.drawImage(target, 0, 0, W, H); }

@@ -176,7 +176,7 @@ export function fits(a: Affix, base: GearBase, ctx?: Pick<RollCtx, "origin" | "h
   if (a.loads && !a.loads.includes(c.load)) return false;
   if (ctx) {
     if (a.forClass && a.forClass !== ctx.origin) return false;
-    if ((a.heatMin ?? 0) > ctx.heat) return false;
+    if (2 * (a.heatMin ?? 0) > ctx.heat) return false;
     if (a.needsCurse && !ctx.everCursed) return false;
     if ((a.floorMin ?? 0) > ctx.floor) return false;
     if (a.crawlOnly && !ctx.crawl) return false;

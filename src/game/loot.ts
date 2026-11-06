@@ -259,7 +259,7 @@ function rollItemRaw(h: Hero, rarity: Rarity, floor: number, rng: () => number):
     return { uid: h.nextUid++, base: base.id, rarity: "crimson", level: floor, bonuses: affixesFor(h, base, "crimson", floor, rng), revealed: true, bash: rollBash("crimson", base, rng) };
   }
   if (rarity === "legendary") {
-    const pool = LEGENDARIES.filter(l => classFits(h, l) && minOK(h, floor, legFloor(l)) && (h.heat ?? 0) >= (l.heatMin ?? 0) && unlocked(h, l) && !LOCKED.has(l.id) && !DROPPED.has(l.id));
+    const pool = LEGENDARIES.filter(l => classFits(h, l) && minOK(h, floor, legFloor(l)) && (h.heat ?? 0) >= 2 * (l.heatMin ?? 0) && unlocked(h, l) && !LOCKED.has(l.id) && !DROPPED.has(l.id));
     if (pool.length === 0) rarity = "epic";
     else {
       // A gentle lean toward your build; Legendaries should feel like a surprise, not a fixed path.
@@ -270,7 +270,7 @@ function rollItemRaw(h: Hero, rarity: Rarity, floor: number, rng: () => number):
   }
   const fav = new Set(AFFINITY[h.origin]);
   const tw = totemWeigher(h);
-  const base: GearBase = weighted(rng, GEAR_BASES.filter(g => classFits(h, g) && (!LOCKED.has(g.id) || (g.deep && floor > 5)) && minOK(h, floor, g.floorMin ?? 0) && (h.heat ?? 0) >= (g.heatMin ?? 0) && (!g.needsCurse || (h.f.persist["everCursed"] ?? 0) > 0) && (!g.forClass || g.forClass === h.origin) && (g.weight ?? 1) > 0 && (!g.onlyRarity || g.onlyRarity === rarity || (CONVERTED.has(g.id) && rank(rarity) >= rank(g.onlyRarity))) && rank(rarity) >= rank(g.minItemRarity ?? "common")), b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1) * elementalW(b.tags) * (tw ? tw(b) : 1));
+  const base: GearBase = weighted(rng, GEAR_BASES.filter(g => classFits(h, g) && (!LOCKED.has(g.id) || (g.deep && floor > 5)) && minOK(h, floor, g.floorMin ?? 0) && (h.heat ?? 0) >= 2 * (g.heatMin ?? 0) && (!g.needsCurse || (h.f.persist["everCursed"] ?? 0) > 0) && (!g.forClass || g.forClass === h.origin) && (g.weight ?? 1) > 0 && (!g.onlyRarity || g.onlyRarity === rarity || (CONVERTED.has(g.id) && rank(rarity) >= rank(g.onlyRarity))) && rank(rarity) >= rank(g.minItemRarity ?? "common")), b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1) * elementalW(b.tags) * (tw ? tw(b) : 1));
   // Rarity is the number of affix lines: Uncommon 1, Rare 2, Epic 3.
   const bonuses = affixesFor(h, base, rarity, floor, rng);
   return { uid: h.nextUid++, base: base.id, rarity, level: floor, bonuses, revealed: true, bash: rollBash(rarity, base, rng), bare: CONVERTED.has(base.id) || undefined };
@@ -285,7 +285,7 @@ export const setGenEnabled = (on: boolean) => { GEN_ON = on; };
 export function rollGenerated(h: Hero, rarity: Rarity, floor: number, rng: () => number, depth = floor): GearItem | null {
   const tags = heroTags(h);
   const fav = new Set(AFFINITY[h.origin]);
-  const pool = GEAR_BASES.filter(g => classFits(h, g) && !g.legendary && (!LOCKED.has(g.id) || (g.deep && floor > 5)) && minOK(h, floor, g.floorMin ?? 0) && (h.heat ?? 0) >= (g.heatMin ?? 0) && (!g.needsCurse || (h.f.persist["everCursed"] ?? 0) > 0) && (!g.forClass || g.forClass === h.origin)
+  const pool = GEAR_BASES.filter(g => classFits(h, g) && !g.legendary && (!LOCKED.has(g.id) || (g.deep && floor > 5)) && minOK(h, floor, g.floorMin ?? 0) && (h.heat ?? 0) >= 2 * (g.heatMin ?? 0) && (!g.needsCurse || (h.f.persist["everCursed"] ?? 0) > 0) && (!g.forClass || g.forClass === h.origin)
     && (g.weight ?? 1) > 0 && !g.noJewel && (!g.onlyRarity || g.onlyRarity === rarity || (rank(rarity) >= rank("rare") && rank(g.onlyRarity) <= rank("rare"))));
   if (!pool.length) return null;
   const base = weighted(rng, pool, b => tagWeight(tags, b.tags) * (fav.has(b.id) ? 2.2 : 1) * (b.weight ?? 1) * elementalW(b.tags));

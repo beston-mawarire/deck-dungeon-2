@@ -4,6 +4,11 @@ import { CAMP_CASTS, FISH } from "./fishing";
 import { MASTERY_FAMILIES, TOTEMS, treeOf, treeOpen, treePointsFor } from "./longroad";
 import { trackMarks, type Run } from "./run";
 import { EQUIP_SLOTS, itemName } from "./hero";
+import { BOUNTY_CAP, bountyReward } from "./pact";
+import { TAROT_MAP, TAROT_MAX_LEVEL, TAROT_SLOTS, tarotOffer, type TarotSlot } from "./tarot";
+import { OMENS_FOR_FOUR } from "./omens";
+import { makeRng } from "../engine/rng";
+import { omensTaken } from "./run";
 import { ACHIEVEMENTS, heatOf, HEAT_RENOWN, type Kit, masteryFor, masteryLevel, MASTERY_MAX } from "./progress";
 
 /** One finished run, for the Run history. */
@@ -59,6 +64,16 @@ export interface Meta {
   /** Ruin Gems not on any class, and the gems on each class. Gems move freely between classes. */
   ruinGems?: number;
   classGems?: Partial<Record<string, number>>;
+  /** Tarot cards owned (each at level 1–3), the two carried into normal runs (Reversed or not), and an Abyss
+   *  clear's offer still waiting to be taken. */
+  tarot?: Partial<Record<string, number>>;
+  tarotEquip?: { id: string; rev?: boolean }[];
+  tarotOffer?: string[];
+  /** The Heat pact (each condition's rank), and each class's best Heat with the dungeon beaten (bounties paid to it). */
+  pact?: Partial<Record<string, number>>;
+  heatBest?: Partial<Record<string, number>>;
+  /** Abyss runs won. */
+  abyssWins?: number;
   /** The deepest Abyss depth reached, and how many Abyss runs. */
   abyssBest?: number;
   abyssRuns?: number;
@@ -216,7 +231,18 @@ export function recordRun(m: Meta, run: Run, alreadyEarned = 0): { earned: numbe
     const again = k.nemesis || m.nemesis?.name === k.name;
     m.nemesis = { name: k.name, family: k.family, traits: (k.traitIds ?? []).filter(t => /^(m_|x_)/.test(t) && t !== "m_death" && t !== "m_the_end" && t !== "m_goblin" && t !== "m_thief"), level: again ? (m.nemesis?.level ?? 1) + 1 : 1 };
   }
-  if (run.mode === "abyss") m.abyssBest = Math.max(m.abyssBest ?? 0, Math.min(run.floor, 10));
+  // The Abyss: a clear offers a Tarot card (three to choose from; four after four or more Omens accepted).
+  const runWon = run.scene.t === "over" && run.scene.won;
+  if (run.mode === "abyss" && runWon && !alreadyEarned && !run.tarotOffered) {
+    run.tarotOffered = true;
+    m.abyssWins = (m.abyssWins ?? 0) + 1;
+    m.tarotOffer = tarotOffer(m.tarot ?? {}, makeRng(run.seed ^ 0x7a307), omensTaken(run.hero) >= OMENS_FOR_FOUR ? 4 : 3);
+  }
+  // Heat bounties: the dungeon beaten at a Heat this class hasn't beaten it at before (up to the cap).
+  if (run.mode === "campaign" && runWon && !run.daily && !run.bountyPaid) {
+    run.bountyPaid = true;
+    run.bounties = payBounties(m, run.hero.origin, heatOf(run));
+  }
   const won = run.hero.f.persist["layersWon"] ?? 0;
   if (run.gridMode && won) (m.layersBeaten ??= {})[run.hero.origin] = Math.max(m.layersBeaten[run.hero.origin] ?? 0, won);
   if (run.gridMode && !alreadyEarned) bankLongRoad(m, run);
@@ -275,4 +301,46 @@ export function bankLongRoad(m: Meta, run: Run) {
     const e = ((m.bestiary ??= {})[name] ??= { kills: 0, hp: 0, power: 0 });
     e.kills += k.n; e.hp = Math.max(e.hp, k.hp); e.power = Math.max(e.power, k.power); e.family = k.family ?? e.family; e.boss = e.boss || k.boss || undefined;
   }
+}
+
+// ---------- Tarot ----------
+/** Take a card from an Abyss clear's offer: a new card at level I, or one you own a level up (to III at most). */
+export function takeTarot(m: Meta, id: string): boolean {
+  if (!m.tarotOffer?.includes(id)) return false;
+  m.tarot = { ...(m.tarot ?? {}), [id]: Math.min(TAROT_MAX_LEVEL, (m.tarot?.[id] ?? 0) + 1) };
+  m.tarotOffer = undefined;
+  saveMeta(m);
+  return true;
+}
+/** Carry a card into normal runs (or set it down). Two at most. */
+export function toggleTarot(m: Meta, id: string): string | null {
+  if (!m.tarot?.[id]) return null;
+  const eq = m.tarotEquip ?? [];
+  if (eq.some(e => e.id === id)) m.tarotEquip = eq.filter(e => e.id !== id);
+  else if (eq.length >= TAROT_SLOTS) return `You can carry ${TAROT_SLOTS} cards. Set one down first.`;
+  else m.tarotEquip = [...eq, { id }];
+  saveMeta(m);
+  return null;
+}
+/** Turn a carried card over (Reversed: twice the boon, twice the bane). From level II. */
+export function flipTarot(m: Meta, id: string): boolean {
+  const e = m.tarotEquip?.find(x => x.id === id);
+  if (!e || (m.tarot?.[id] ?? 0) < 2 || TAROT_MAP.get(id)?.noReverse) return false;
+  e.rev = !e.rev;
+  saveMeta(m);
+  return true;
+}
+/** The cards carried, as the run takes them. */
+export const carriedTarot = (m: Meta): TarotSlot[] => (m.tarotEquip ?? []).filter(e => (m.tarot?.[e.id] ?? 0) > 0 && TAROT_MAP.has(e.id)).map(e => ({ id: e.id, lvl: m.tarot![e.id]!, rev: e.rev && (m.tarot![e.id] ?? 0) >= 2 && !TAROT_MAP.get(e.id)?.noReverse ? true : undefined }));
+
+// ---------- Heat bounties ----------
+/** Pay the bounties for beating the dungeon at Heat n with a class: one for each Heat level above its best (up to the cap). */
+export function payBounties(m: Meta, origin: string, heat: number): { heat: number; crowns: number; scrolls: number }[] {
+  const best = m.heatBest?.[origin] ?? 0, top = Math.min(BOUNTY_CAP, heat);
+  if (top <= best) return [];
+  const out: { heat: number; crowns: number; scrolls: number }[] = [];
+  const c = (m.camp ??= { crowns: 0, mats: {}, hall: {} });
+  for (let n = best + 1; n <= top; n++) { const r = bountyReward(n); c.crowns += r.crowns; c.scrolls = (c.scrolls ?? 0) + r.scrolls; out.push({ heat: n, ...r }); }
+  m.heatBest = { ...(m.heatBest ?? {}), [origin]: top };
+  return out;
 }

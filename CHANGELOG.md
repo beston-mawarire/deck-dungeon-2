@@ -9,6 +9,18 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.95.0
+Phase 1 of the endgame rework: Tarot, a new Abyss, and Heat as a pact.
+- **Tarot cards.** 21 Major Arcana, from the Fool to Judgement. You can carry two into a normal run (pick them at the Enter Dungeon door, under Tarot). Every card pairs a boon with a bane: the Emperor adds Elites that always drop gear but hit harder; the Moon turns more iron chests into Mimics with richer hoards; the Tower makes layer bosses tougher and their hoards richer; and so on. "Edict" cards (the High Priestess, Judgement) bend a rule and add Heat.
+- Cards level up to III: II strengthens the boon by a quarter and lets the card be **Reversed** (twice the boon, twice the bane); III is a gold frame and adds no further power. No card switches off a class's mana, skills or dice.
+- **The Abyss** is now a single dark layer below the 5th. You set out at a deep level with good gear (whatever beats your kit goes straight on). Its foes are a little deadlier than the 5th Layer's, its warden at the bottom is an Uber boss, and its floors are darker with few torches.
+- **Omens:** on each Abyss floor, three Omens are offered. Accept one (a boon and a bane for the rest of the run) or turn them all away. Accept four or more and the reward offer grows to four cards.
+- **Abyss reward:** each clear offers Tarot cards you don't own yet. Once you own them all, it offers level-ups instead. No currency is involved. Ruin Shards, Vanadium Plates, Ruin Gems and the weekly Abyss twist are gone, and the Abyss costs nothing to enter.
+- **Heat is a pact.** Instead of 5 fixed levels, you pick from 12 conditions (Hardened Foes, Lean Purse, Elite Swarm, Cruel Masters and more), each worth Heat. Total Heat makes Rare-or-better finds likelier (+4% a point, up to 20 points).
+- **Heat bounties:** the first time each class beats the dungeon at a new Heat level (up to Heat 10), the Camp gets Crown Shards, plus a Scroll of Knowledge at every even level.
+- Heatforged gear now drops from Heat 2, and its finest pieces need Heat 6 and 10. Heat achievements are rescaled to match.
+- Beating the 5th Layer ends the run as a win. "Delve deeper" is gone.
+
 ## 1.94.1
 - Levelling is back to its old pace (3 XP for level 2, then 2 more each level), but each level-up now gives 1 attribute point instead of 2.
 - Drinking a potion (healing or mana) makes a sound: a clink, then a few gulps.

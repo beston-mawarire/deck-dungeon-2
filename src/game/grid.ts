@@ -8,7 +8,7 @@ export const MAP_H = 19;
 /** A layer is six floors: five to explore (find the trapdoor down) and the boss's floor at the bottom. */
 export const LAYER_FLOORS = 6;
 /** The Abyss's depths are shorter: three floors and the Uber boss's. */
-export const ABYSS_LAYER_FLOORS = 4;
+export const ABYSS_LAYER_FLOORS = 6;
 /** Floors in a layer (the last is the guardian's) for this run's mode. */
 export const layerFloors = (run: { mode?: string }) => (run.mode === "abyss" ? ABYSS_LAYER_FLOORS : LAYER_FLOORS);
 /** How far you can see, in tiles. */

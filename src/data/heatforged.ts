@@ -30,15 +30,15 @@ export const HEAT_GEAR: GearBase[] = [
     text: "Heatforged. +6 Max HP. Start each fight with 2 Might.", hooks: { onFightStart: (b, f) => applyStatus(b, f, f, "might", 2) } }),
   // ---------- Heat 3 ----------
   hf(3, "rare", { ...O, id: "hf_ember_lantern", name: "Ember Lantern", tags: ["Burn"],
-    text: "Heatforged (Heat 3+). Start each fight: the enemy gets 6 Burn.", hooks: { onFightStart: (b, f) => applyStatus(b, f, other(b, f), "burn", 6) } }),
+    text: "Heatforged (Heat 6+). Start each fight: the enemy gets 6 Burn.", hooks: { onFightStart: (b, f) => applyStatus(b, f, other(b, f), "burn", 6) } }),
   hf(3, "rare", { ...A, id: "hf_cinderweave", name: "Cinderweave Robe", tags: ["Burn", "Hex"], armor: 2,
-    text: "Heatforged (Heat 3+). Light: +2 Armor. Status damage +40%.", hooks: { stats: s => { s.dotAmp = (s.dotAmp ?? 0) + 40; } } }),
+    text: "Heatforged (Heat 6+). Light: +2 Armor. Status damage +40%.", hooks: { stats: s => { s.dotAmp = (s.dotAmp ?? 0) + 40; } } }),
   hf(3, "epic", { ...W, id: "hf_magma_maul", name: "Magma Maul", tags: ["Burn", "Strike"], damage: 12, twoHanded: true, faces: PLAIN,
-    text: "Heatforged (Heat 3+). Two-handed. Every Hit applies 3 Burn; Hits on Burning enemies deal +3.", hooks: { onHit: burns(3), modifyAttack: vsBurning(3) } }),
+    text: "Heatforged (Heat 6+). Two-handed. Every Hit applies 3 Burn; Hits on Burning enemies deal +3.", hooks: { onHit: burns(3), modifyAttack: vsBurning(3) } }),
   hf(3, "epic", { ...A, id: "hf_furnace_plate", name: "Furnace Plate", tags: ["Burn", "Guard"], armor: 6, maxHp: 6,
-    text: "Heatforged (Heat 3+). Heavy: +6 Armor and +6 Max HP. When you Guard, the enemy gets 4 Burn.", hooks: { onGuard: (b, f) => applyStatus(b, f, other(b, f), "burn", 4) } }),
+    text: "Heatforged (Heat 6+). Heavy: +6 Armor and +6 Max HP. When you Guard, the enemy gets 4 Burn.", hooks: { onGuard: (b, f) => applyStatus(b, f, other(b, f), "burn", 4) } }),
   hf(3, "epic", { ...T, id: "hf_phoenix_feather", name: "Phoenix Feather", tags: ["Burn", "Guard"],
-    text: "Heatforged (Heat 3+). Once per fight, a hit that would drop you to 0 leaves you at 1 HP, and the attacker gets 6 Burn.",
+    text: "Heatforged (Heat 6+). Once per fight, a hit that would drop you to 0 leaves you at 1 HP, and the attacker gets 6 Burn.",
     hooks: { whenHit: (b, c) => { const d = c.defender; if (d.hp <= 0 && !d.flags["dead"] && !d.flags["phoenix"]) { d.flags["phoenix"] = 1; d.hp = 1; applyStatus(b, d, c.attacker, "burn", 6); log(b, "🪶 Phoenix Feather: you rise from the ashes at 1 HP."); } } } }),
   // ---------- Heat 5 ----------
   hf(5, "epic", { ...O, id: "hf_infernal_brazier", name: "Infernal Brazier", tags: ["Burn", "Strike"],
@@ -47,7 +47,7 @@ export const HEAT_GEAR: GearBase[] = [
 
 export const HEAT_LEGENDARIES: GearBase[] = [
   { ...T, id: "lx_crown_of_embers", rarity: "legendary", heatMin: 3, name: "Crown of Embers", tags: ["Burn", "Strike"],
-    legendary: { minFloor: 3, asBase: "t_ring_might", reveal: "Heatforged (Heat 3+). Your hits apply 3 Burn and deal extra damage equal to the enemy's Burn (up to 8)." },
+    legendary: { minFloor: 3, asBase: "t_ring_might", reveal: "Heatforged (Heat 6+). Your hits apply 3 Burn and deal extra damage equal to the enemy's Burn (up to 8)." },
     text: "Heavy as a forge, and twice as hot.",
     hooks: { onHit: burns(3), modifyAttack: (b, c) => { if (c.attacker === b.player) c.bonus += Math.min(8, st(c.defender, "burn")); } } },
   { ...W, id: "lx_hearthfall", rarity: "legendary", heatMin: 5, name: "Hearthfall", tags: ["Burn", "Kill", "Strike"], damage: 14, twoHanded: true, faces: PLAIN,

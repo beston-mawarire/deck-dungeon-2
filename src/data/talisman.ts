@@ -143,6 +143,6 @@ export const SIGIL_SETS: SigilSet[] = [
 ];
 /** Heat 3: all your healing is halved (a hidden effect while the run is at Heat 3 or more). */
 export const HEAT_HOOKS: HookDef[] = [
-  { id: "heat_dim", name: "Heat: Dim fires", kind: "curse", tags: ["Blood"], text: "All your healing is halved", hooks: { healMult: () => 0.5 } }
+  { id: "heat_dim", name: "Heat: Dim Fires", kind: "curse", tags: ["Blood"], text: "All your healing −20% (−20%)", hooks: { healMult: n => Math.max(0.2, 1 - 0.2 * n) } }
 ];
 
