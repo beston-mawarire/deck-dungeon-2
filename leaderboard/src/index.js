@@ -41,7 +41,7 @@ const PID = /^[0-9a-f]{24}$/;
 const SID = /^[0-9a-f]{32}$/;
 const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("");
 /** The Great Reset count: bump it (with RESET_EPOCH in the game) to wipe everything and start afresh. */
-const EPOCH = 2;
+const EPOCH = 3;
 const body = async req => { try { return await req.json(); } catch { return null; } };
 
 function validate(b) {

@@ -9,6 +9,11 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.5
+**Deck Dungeon 3 goes live.**
+- The game moves from the test link to the main page.
+- **Everyone starts fresh:** every save, Camp, achievement and leaderboard is wiped once (Great Reset, epoch 3).
+
 ## 2.0.4
 - **A softer start.**
   - **Catch your breath:** each trapdoor drop restores 25% of your Max HP on the 1st Layer, and 10% deeper down.

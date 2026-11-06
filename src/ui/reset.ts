@@ -1,8 +1,8 @@
 // The Great Reset: when RESET_EPOCH goes up, every device wipes everything this game keeps in the browser once
 // (runs, meta, unlocks, shards, plates, gems, the Codex, name, settings, its player id, session storage and any caches)
 // and starts fresh. Imported first, before anything reads a save.
-//   Epoch 1: the Great Reset (1.40.0). Epoch 2: a second, complete wipe to be sure (1.42.0).
-export const RESET_EPOCH = 2;
+//   Epoch 1: the Great Reset (1.40.0). Epoch 2: a second, complete wipe to be sure (1.42.0). Epoch 3: Deck Dungeon 3 goes live (2.0.5).
+export const RESET_EPOCH = 3;
 export let justReset = false;
 try {
   if (Number(localStorage.getItem("dd2-epoch") ?? "0") < RESET_EPOCH) {
