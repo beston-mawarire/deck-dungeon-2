@@ -567,5 +567,4 @@ export function heroTags(h: Hero): Map<string, number> {
   return tags;
 }
 
-/** XP for the next level: slow, so a level (two attribute points) is something to look forward to. */
-export const xpToLevel = (level: number) => 8 + 4 * (level - 1);
+export const xpToLevel = (level: number) => 3 + 2 * (level - 1);

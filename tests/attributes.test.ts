@@ -24,7 +24,7 @@ describe("attributes", () => {
     gainXp(r, xpToLevel(1));
     expect(r.hero.f.hp).toBe(5);
     expect(r.hero.f.maxHp).toBe(max);
-    expect(r.hero.attrPoints).toBe(2);
+    expect(r.hero.attrPoints).toBe(ATTR_PER_LEVEL);
   });
   it("points only go where you have them, and each one shows in your stats", () => {
     const r = newRun("mage", 7); startCrawl(r);
@@ -61,5 +61,5 @@ describe("attributes", () => {
     startBattle(r.hero.f, newHero("warrior").f, 2);
     expect(r.hero.f.mana).toBe(1);
   });
-  it(`each level is worth ${ATTR_PER_LEVEL} points`, () => expect(ATTR_PER_LEVEL).toBe(2));
+  it(`each level is worth ${ATTR_PER_LEVEL} point`, () => expect(ATTR_PER_LEVEL).toBe(1));
 });

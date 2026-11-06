@@ -11,7 +11,7 @@ import drawU from "../assets/sfx/drawKnife2.ogg";
 import clothU from "../assets/sfx/cloth2.ogg";
 import potU from "../assets/sfx/metalPot2.ogg";
 import pageU from "../assets/sfx/bookFlip2.ogg";
-type Sfx = "roll" | "hit" | "graze" | "crit" | "miss" | "block" | "status" | "heal" | "reaction" | "chest" | "epic" | "legendary" | "crimson" | "win" | "lose" | "click" | "step" | "coins" | "equip" | "smash" | "page";
+type Sfx = "roll" | "hit" | "graze" | "crit" | "miss" | "block" | "status" | "heal" | "reaction" | "chest" | "epic" | "legendary" | "crimson" | "win" | "lose" | "click" | "step" | "coins" | "equip" | "smash" | "page" | "drink";
 
 /** Recorded clips, decoded on first use. */
 const CLIPS: Partial<Record<Sfx, { urls: string[]; vol: number }>> = {
@@ -250,6 +250,11 @@ export function sfx(kind: Sfx) {
     case "heal": tone(520, 0.12, "sine", 0.07); tone(780, 0.16, "sine", 0.06, undefined, 0.08); break;
     case "reaction": noise(0.25, 0.2, 2500); tone(180, 0.3, "sawtooth", 0.08, 700); break;
     case "chest": noise(0.08, 0.12, 1200); break;
+    case "drink": // a clink of glass, then three gulps
+      tone(1760, 0.05, "triangle", 0.035);
+      tone(240, 0.09, "sine", 0.14, 430, 0.07); tone(220, 0.09, "sine", 0.14, 400, 0.2); tone(250, 0.1, "sine", 0.13, 470, 0.33);
+      noise(0.05, 0.03, 900);
+      break;
     case "graze": noise(0.08, 0.14, 1600); tone(160, 0.08, "triangle", 0.07, 90); break;
     case "epic": [523, 659, 784].forEach((f, i) => tone(f, 0.22, "triangle", 0.08, undefined, i * 0.08)); break;
     case "legendary":

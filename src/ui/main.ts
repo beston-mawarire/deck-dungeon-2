@@ -3332,7 +3332,7 @@ function bind() {
     chooseRoom(r, el.dataset.room as never);
   });
   app.querySelectorAll<HTMLElement>("[data-act]").forEach(el => (el.onclick = () => { if (!busy) void playTurn(el.dataset.act as Action); }));
-  on("[data-potion]", () => { say(drinkPotion(r)); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
+  on("[data-potion]", () => { const n = r.hero.potions; say(drinkPotion(r)); if (r.hero.potions < n) sfx("drink"); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-bag]", () => { bagOpen = true; bagTab = "gear"; gearSub = "equipped"; });
   on("[data-cursed]", () => { bagOpen = true; bagTab = "extras"; });
   on("[data-closebag]", () => { bagOpen = false; });
@@ -3395,7 +3395,7 @@ function bind() {
   });
   on("[data-claim]", () => say(claimResplendent(r)));
   on("[data-ready]", el => { if (r.scene.t === "combat" && !busy) readyThrow(r.scene.battle, el.dataset.ready as Throw); });
-  on("[data-mana]", () => { say(drinkMana(r)); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
+  on("[data-mana]", () => { const n = r.hero.manaPotions ?? 0; say(drinkMana(r)); if ((r.hero.manaPotions ?? 0) < n) sfx("drink"); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-keepsake]", () => { say(takeKeepsake(r), false); sfx("legendary"); });
   on("[data-choosetalent]", () => { ackedTalentScene = r.scene; });
   on("[data-closepopup]", () => { r.popup = undefined; });

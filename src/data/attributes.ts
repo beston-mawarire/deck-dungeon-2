@@ -6,7 +6,7 @@ import type { HookDef, OriginId } from "../engine/types";
 export type Attr = "str" | "agi" | "int" | "fai" | "vit" | "for";
 export const ATTRS: Attr[] = ["str", "agi", "int", "fai", "vit", "for"];
 /** Points each level-up gives. */
-export const ATTR_PER_LEVEL = 2;
+export const ATTR_PER_LEVEL = 1;
 /** The most points one attribute can hold in a run. */
 export const ATTR_MAX = 20;
 

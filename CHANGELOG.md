@@ -9,6 +9,10 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.94.1
+- Levelling is back to its old pace (3 XP for level 2, then 2 more each level), but each level-up now gives 1 attribute point instead of 2.
+- Drinking a potion (healing or mana) makes a sound: a clink, then a few gulps.
+
 ## 1.94.0
 - Fixed: tapping a node on the passive tree no longer throws you back to the top-left corner.
 - Attributes give much less per point, and levelling is slower (8 XP for level 2, 4 more each level after that). A class's base attribute adds +1 Damage for every 3 points, not every point.
