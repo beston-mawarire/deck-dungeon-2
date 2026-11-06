@@ -833,6 +833,7 @@ function stockLabel(r: Run, e: ShopEntry): { name: string; icon: string; text: s
   if (e.kind === "potion") return { name: "Healing Potion", icon: "🧪", text: `Heals ${r.gridMode ? CRAWL_POTION_HEAL : 12} HP. Drink it from your potion drawer, in a fight or out of one.`, ink: "#f08a7a" };
   if (e.kind === "mana") return { name: "Mana Potion", icon: "🔷", text: `Drink it in a fight to refill your mana. You can carry ${manaPotionCap(r.hero)}.`, ink: "#7ab8ff" };
   if (e.kind === "scroll") return { name: "Scroll of Revelation", icon: "📜", text: "Reveals a Legendary's hidden power.", ink: "#f0d28a" };
+  if (e.kind === "seed" && e.plant) { const pl = PLANTS[e.plant], bw = BREWS[pl.brew]; return { name: pl.seed, icon: pl.seedIcon, text: `For the Camp's Garden: it grows into ${pl.name} in ${pl.runs} run${pl.runs === 1 ? "" : "s"}, and ${pl.name} brews ${bw.name} (${bw.text.toLowerCase()}${bw.floors ? ` for ${bw.floors} floor${bw.floors === 1 ? "" : "s"}` : ""}).`, ink: "#9fd08a" }; }
   if (e.kind === "throw" && e.throw) { const t = THROW_INFO[e.throw]; return { name: t.name, icon: t.icon, text: `${t.text}. Use it in a fight; you can carry ${THROW_CAP}.`, ink: "#f0b070" }; }
   const rel = e.relic ? getItem(e.relic) : null;
   return { name: rel?.name ?? "Relic", icon: "💎", text: rel?.text ?? "", ink: "#f0d28a" };

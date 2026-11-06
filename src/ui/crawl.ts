@@ -124,21 +124,27 @@ function drawWall(ctx: CanvasRenderingContext2D, m: FloorMap, x: number, y: numb
   ctx.stroke();
 }
 
+/** The glow special foes wear (r,g,b). */
+const FOE_GLOW: Record<string, string> = { elite: "190,120,255", champion: "255,130,50", crimson_elite: "255,40,120", unique: "255,205,70", nemesis: "220,30,30", goblin: "200,230,80", doppelganger: "90,220,255" };
 /** The trapdoor: a black square hole with a thin, softly glowing yellow rim, so it stands out. */
 function drawTrapdoor(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number, boss = false) {
   const sz = ts * 0.86, x = cx - sz / 2, y = cy - sz / 2;
   const pulse = 0.65 + 0.35 * Math.sin(performance.now() / 600);
   // Stairs going down, with the same warm (or, for the guardian's, red) glow rising out of them.
   ctx.save();
-  ctx.shadowColor = boss ? `rgba(255,50,40,${0.75 * pulse})` : `rgba(255,214,70,${0.6 * pulse})`;
-  ctx.shadowBlur = ts * 0.3;
+  ctx.shadowColor = boss ? `rgba(255,60,40,${0.95 * pulse})` : `rgba(255,220,80,${0.9 * pulse})`;
+  ctx.shadowBlur = ts * 0.75;
   ctx.fillStyle = "#070504"; ctx.fillRect(x, y, sz, sz);
   ctx.restore();
   if (!drawTile(ctx, "floor_stairs", x, y, sz)) { ctx.fillStyle = "#000"; ctx.fillRect(x, y, sz, sz); }
   ctx.save(); ctx.globalCompositeOperation = "lighter";
   const g = ctx.createRadialGradient(cx, cy + sz * 0.2, 0, cx, cy, sz * 0.7);
-  g.addColorStop(0, boss ? `rgba(255,60,40,${0.35 * pulse})` : `rgba(255,200,80,${0.3 * pulse})`); g.addColorStop(1, "rgba(0,0,0,0)");
+  g.addColorStop(0, boss ? `rgba(255,80,40,${0.7 * pulse})` : `rgba(255,215,100,${0.65 * pulse})`); g.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = g; ctx.fillRect(x, y, sz, sz);
+  // A soft halo of light spilling onto the floor around it.
+  const halo = ctx.createRadialGradient(cx, cy, sz * 0.3, cx, cy, sz * 1.4);
+  halo.addColorStop(0, boss ? `rgba(255,70,40,${0.42 * pulse})` : `rgba(255,210,90,${0.4 * pulse})`); halo.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = halo; ctx.fillRect(cx - sz * 1.4, cy - sz * 1.4, sz * 2.8, sz * 2.8);
   ctx.restore();
 }
 
@@ -258,12 +264,15 @@ export function drawCrawl() {
       // Tall props (a column, a fountain) are shrunk to stand about a tile and a half high.
       const sz = sk ? spriteSize(sk) : null;
       const scale = sz && sz.h > 24 && !big ? Math.min(ts / 16, (ts * 1.45) / sz.h) : ts / 16;
-      // A Crimson foe: a red-magenta glow pulsing round it.
-      if (t.room === "crimson_elite" && !t.done) {
-        const pulse = 0.6 + 0.4 * Math.sin(now / 420);
-        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, ts * 0.85);
-        g.addColorStop(0, `rgba(255,40,120,${0.55 * pulse})`); g.addColorStop(0.55, `rgba(200,20,90,${0.25 * pulse})`); g.addColorStop(1, "rgba(160,0,80,0)");
+      // Special foes glow: an aura behind them, and their outline lit in the same colour (Elites violet, Champions orange,
+      // Crimson foes red-magenta, named Uniques gold, your Nemesis blood-red, Treasure Goblins green-gold, the Changeling cyan).
+      const glow = !t.done ? FOE_GLOW[t.room] : undefined;
+      if (glow) {
+        const pulse = 0.65 + 0.35 * Math.sin(now / 420 + t.x);
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, ts * 0.8);
+        g.addColorStop(0, `rgba(${glow},${0.5 * pulse})`); g.addColorStop(0.55, `rgba(${glow},${0.22 * pulse})`); g.addColorStop(1, `rgba(${glow},0)`);
         ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.fillRect(cx - ts, cy - ts, ts * 2, ts * 2); ctx.restore();
+        ctx.shadowColor = `rgba(${glow},${0.95 * pulse})`; ctx.shadowBlur = ts * 0.28;
       }
       if (t.room === "rest") { if (t.opened) drawEmbers(ctx, cx, cy, ts); else drawCampfire(ctx, cx, cy, ts, now); }
       else if (t.room === "forge") drawAnvil(ctx, cx, cy + ts * 0.12, ts, now, !!t.opened);
@@ -275,8 +284,7 @@ export function drawCrawl() {
       else if (!sk || !hasSprite(sk) || !drawSprite(ctx, sk, cx, cy + ts * 0.42, big ? scale * 0.7 : scale)) {
         ctx.fillStyle = "#fff"; ctx.font = emoji(ts * 0.62); ctx.fillText(h.icon(t.room), cx, cy + ts * 0.02);
       }
-      // Elites and Champions wear a ring of menace.
-      if (t.room === "elite" || t.room === "champion") { ctx.strokeStyle = t.room === "champion" ? "rgba(255,120,60,.9)" : "rgba(200,140,255,.85)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(cx, cy + ts * 0.36, ts * 0.34, ts * 0.11, 0, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
     }
     if (m.sel === k) { ctx.strokeStyle = "#ffd27a"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, ts * 0.47, 0, Math.PI * 2); ctx.stroke(); }
     ctx.globalAlpha = 1;

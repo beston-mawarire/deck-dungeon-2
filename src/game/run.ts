@@ -196,7 +196,7 @@ export const ABYSS_ROOM_INFO: Partial<Record<RoomType, { name: string; icon: str
   boss: { name: "Uber boss", icon: "☠️", text: "The master of this depth, empowered. Its hoard is the richest in the Abyss." }
 };
 
-export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "relic" | "throw"; item?: GearItem; relic?: string; throw?: Throw; price: number; sold?: boolean }
+export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "relic" | "throw" | "seed"; item?: GearItem; relic?: string; throw?: Throw; plant?: Plant; price: number; sold?: boolean }
 
 export type Scene =
   | { t: "map" }
@@ -1170,8 +1170,9 @@ export function campGain(run: Run, mat: Mat | null, n: number, crowns = 0, scrol
 }
 
 /** A seed for the Camp's Garden (Heartleaf most often, then Moonbell, then Blightcap). */
-export function seedDrop(run: Run): Plant {
-  const pl = pickW(run.rng, Object.fromEntries((Object.keys(PLANTS) as Plant[]).map(k => [k, PLANTS[k].weight])) as Record<Plant, number>);
+/** A random seed (common plants likelier), straight to the Camp's Garden store. */
+export function seedDrop(run: Run, pick?: Plant): Plant {
+  const pl = pick ?? pickW(run.rng, Object.fromEntries((Object.keys(PLANTS) as Plant[]).map(k => [k, PLANTS[k].weight])) as Record<Plant, number>);
   const l = (run.campLoot ??= { crowns: 0, mats: {} });
   (l.seeds ??= {})[pl] = (l.seeds[pl] ?? 0) + 1;
   return pl;
@@ -1180,7 +1181,9 @@ export function seedDrop(run: Run): Plant {
 /** How often a Champion carries a seed for the Garden. */
 export const CHAMPION_SEED = 0.3;
 /** Seeds: Elites carry them now and then, and some chests hold one. */
-export const ELITE_SEED = 0.08, CHEST_SEED = 0.06;
+export const ELITE_SEED = 0.08;
+/** Seeds from plain foes of the wilder kinds (Beasts), now and then; from an urn, rarely; and from the Merchant. */
+export const BEAST_SEED = 0.05, URN_SEED = 0.03, SHOP_SEED = 0.45;
 
 /** Urns: mostly a few coins, now and then a Mana Potion, very rarely a Healing Potion. Smashed, they're gone. */
 export const URN_MANA = 0.03, URN_HEAL = 0.01;
@@ -1191,6 +1194,7 @@ export function smashUrn(run: Run, t: number) {
   if (x < URN_HEAL && h.potions < potionCap(h)) { gainPotions(h, 1); run.message = "🏺 The urn shatters. A Healing Potion rolls out! 🧪"; return; }
   if (x < URN_HEAL + URN_MANA && gainManaPotions(h, 1)) { run.message = "🏺 The urn shatters. A Mana Potion! 🔷"; return; }
   if (x < 0.07) { const t = randomThrow(run); if (gainThrow(run, t)) { run.message = `🏺 The urn shatters. Inside: ${THROW_INFO[t].icon} a ${THROW_INFO[t].name}!`; return; } }
+  if (!run.drill && run.rng() < URN_SEED) { const pl = seedDrop(run); run.message = `🏺 The urn shatters. In the dust: ${PLANTS[pl].seedIcon} a ${PLANTS[pl].seed}, for the Camp's Garden.`; return; }
   if (x < 0.68) { const g = 1 + Math.floor(run.rng() * (2 + run.floor)); h.f.gold += g; run.message = `🏺 The urn shatters: ${g} Gold.`; return; }
   run.message = "🏺 The urn shatters. Nothing but dust.";
 }
@@ -1350,7 +1354,6 @@ function enterRoom(run: Run, room: RoomType) {
       const sg = run.gridMode ? null : rollSigilDrop(run, 0.06, 0.1);
       const woodOdds = chestOdds(run, useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden);
       run.scene = { t: "loot", title: "Wooden Chest", items: [dropItem(run, woodOdds)], gold: run.gridMode ? 0 : (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: !run.gridMode && run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
-      if (run.gridMode && !run.drill && run.rng() < CHEST_SEED) { const pl = seedDrop(run); run.message = `${PLANTS[pl].seedIcon} Tucked in a corner of the chest: a ${PLANTS[pl].seed}, for the Camp's Garden.`; }
       return;
     }
     case "iron": {
@@ -1369,7 +1372,6 @@ function enterRoom(run: Run, room: RoomType) {
       const items = [dropItem(run, ironOdds)];
       if (key && !run.gridMode) items.push(dropItem(run, ironOdds));
       run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: run.gridMode ? 0 : (5 + run.floor * 2) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: 0, sigils: sg ? [sg] : undefined };
-      if (run.gridMode && !run.drill && run.rng() < CHEST_SEED * 1.5) { const pl = seedDrop(run); run.message = `${PLANTS[pl].seedIcon} Tucked in a corner of the chest: a ${PLANTS[pl].seed}, for the Camp's Garden.`; }
       return;
     }
     case "altar":
@@ -2061,7 +2063,7 @@ function afterFight(run: Run) {
     // Scrolls of Knowledge, for the Camp's Knowledge Table: Champions sometimes carry one.
     if (rank === "champion" && !run.drill && run.rng() < 0.25) { campGain(run, null, 0, 0, 1); mats += `${mats ? " · " : ""}+1 📜 Scroll of Knowledge`; }
     // Seeds for the Camp's Garden: only Champions carry them, and not often.
-    if ((rank === "champion" || rank === "elite") && !run.drill && run.rng() < (rank === "champion" ? CHAMPION_SEED : ELITE_SEED)) { const pl = seedDrop(run); mats += `${mats ? " · " : ""}${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}`; }
+    if (!run.drill && run.rng() < (rank === "champion" ? CHAMPION_SEED : rank === "elite" ? ELITE_SEED : b.enemy.family === "Beast" ? BEAST_SEED : 0)) { const pl = seedDrop(run); mats += `${mats ? " · " : ""}${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}`; }
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (run.gridMode) relic = undefined;
@@ -2293,6 +2295,11 @@ function shopStock(run: Run): ShopEntry[] {
   if (run.gridMode) {
     const kinds = [...FINDABLE_THROWS].sort(() => run.rng() - 0.5).slice(0, run.rng() < 0.5 ? 3 : 2);
     for (const t of kinds) stock.push({ kind: "throw", throw: t, price: Math.round(THROW_PRICE[t] * shopMult(run)) });
+    // Now and then, a seed for the Camp's Garden (rarer plants cost more).
+    if (!run.drill && run.rng() < SHOP_SEED) {
+      const pl = pickW(run.rng, Object.fromEntries((Object.keys(PLANTS) as Plant[]).map(k => [k, PLANTS[k].weight])) as Record<Plant, number>);
+      stock.push({ kind: "seed", plant: pl, price: Math.round((12 + 120 / PLANTS[pl].weight) * shopMult(run)) });
+    }
   }
   return stock;
 }
@@ -2314,6 +2321,7 @@ export function buy(run: Run, i: number): string | null {
   if (e.kind === "mana") gainManaPotions(h, 1);
   if (e.kind === "scroll") h.scrolls++;
   if (e.kind === "throw" && e.throw) gainThrow(run, e.throw);
+  if (e.kind === "seed" && e.plant) seedDrop(run, e.plant);
   if (e.kind === "item" && e.item) markFound(run, e.item);
   if (e.kind === "relic" && e.relic) grantRelic(run, e.relic);
   h.f.gold -= e.price;

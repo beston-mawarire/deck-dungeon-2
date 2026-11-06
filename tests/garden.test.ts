@@ -74,3 +74,20 @@ describe("the Garden's new plants and the Brewery's draughts", () => {
     expect(r.hero.f.armor).toBe(arm);
   });
 });
+describe("where seeds come from", () => {
+  it("Merchants sometimes sell a seed, and buying one sends it to the Camp", async () => {
+    const { newRun, startCrawl, chooseRoom, buy } = await import("../src/game/run");
+    let found = false;
+    for (let seed = 1; seed < 40 && !found; seed++) {
+      const r = newRun("warrior", 900 + seed); startCrawl(r); r.hero.f.gold = 999;
+      r.step = 1; r.scene = { t: "map" } as never; r.choices = ["shop"]; chooseRoom(r, "shop");
+      const sc = r.scene as { t: string; stock?: { kind: string; plant?: string }[] };
+      const i = sc.stock?.findIndex(e => e.kind === "seed") ?? -1;
+      if (i < 0) continue;
+      found = true;
+      expect(buy(r, i)).toBeNull();
+      expect(Object.values(r.campLoot?.seeds ?? {}).reduce((a, n) => a + (n ?? 0), 0)).toBe(1);
+    }
+    expect(found).toBe(true);
+  });
+});

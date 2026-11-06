@@ -9,6 +9,11 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.3
+- **Where seeds come from:** Champions (30%) and Elites (8%) as before, plain Beasts now and then (5%), urns rarely (3%), and the Merchant, who often has one on the shelf (rarer plants cost more). Chests no longer hold seeds, and the "tucked in a corner" message is gone.
+- **Special foes glow** instead of wearing a thin ring: a pulsing aura and a lit outline in their colour. Elites are violet, Champions orange, Crimson foes red-magenta, named Uniques gold, your Nemesis blood-red, Treasure Goblins green-gold and the Changeling cyan.
+- **The trapdoor glows brighter,** with a halo of light spilling onto the floor around it.
+
 ## 2.0.2
 - **The Garden and the Brewery, grown up.** Nine plants now, up from three, and their seeds turn up more often: Champions (30%), Elites, and now and then a chest. New brews:
   - **Draughts** you carry in your pack and drink outside a fight (🎒 → Artefacts). Each lasts the floor you're on and the next few:
