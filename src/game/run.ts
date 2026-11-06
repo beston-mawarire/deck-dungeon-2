@@ -26,7 +26,7 @@ import { SIGIL_SETS } from "../data/talisman";
 const genNameFor = (base: string, r: Parameters<typeof genName>[1]) => genName(baseOf(base), r);
 import { bossOdds, chestFloorOdds, crawlTables, isLocked, ladderOdds, legendaryDue, noteFind, luckyOdds, type LootState, resetDropped, type ResplendentCard, resplendentCards, makeRewardItem, rollEpicCrimson, rollItem, rollRarity, affixesFor, unlocked, setLocked, TABLES, ABYSS_TABLES } from "./loot";
 import { affixById, rescaleAffixes } from "./affixpool";
-import { MATS, matOfFamily, PLANTS, type Mat, type Plant } from "./camp";
+import { BREWS, type BrewKind, MATS, matOfFamily, PLANTS, type Mat, type Plant } from "./camp";
 import { ATTR_PER_LEVEL, PER } from "../data/attributes";
 import { type Fish, fishById, POND_CASTS, rollCatch } from "./fishing";
 import { MASTERY_FAMILIES, WM_XP } from "./longroad";
@@ -34,7 +34,7 @@ import { classify } from "./families";
 import { tarotOf, tarotHeat, TAROT_MAP } from "./tarot";
 import { OMENS, OMEN_MAP } from "./omens";
 import { HEAT_LOOT_CAP, HEAT_LOOT_PER, PACT_MAP, pactHeat } from "./pact";
-import { openedAt, type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, type Hazard, idx, isFloor, isSeenTile, LAYER_FLOORS, layerFloors, layerOf, look, POOL_STEPS, SPIKE_DMG, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
+import { openedAt, SIGHT, type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, type Hazard, idx, isFloor, isSeenTile, LAYER_FLOORS, layerFloors, layerOf, look, POOL_STEPS, SPIKE_DMG, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -795,6 +795,8 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   m.torches = wallTorches(m, rng, run.drill === "dark" ? 0 : run.mode === "abyss" ? 1 + Math.floor(rng() * 2) : 4 + Math.floor(rng() * 3));
   // Drills: Lights Out sees 1 tile; Against the Clock counts your steps; the Elite Gauntlet has no plain fights.
   if (run.drill === "dark") m.sight = 1;
+  // (A Glowcap Tonic: see a tile further.)
+  if ((run.hero.f.persist["draught_glow"] ?? 0) > 0) m.sight = (m.sight ?? SIGHT) + 1;
   if (run.drill === "clock") m.clock = CLOCK_STEPS;
   if (run.drill === "gauntlet") for (const t of m.things) if (t.room === "fight") t.room = "elite";
   // Each foe is decided now (so the map and the fight show the same monster): each layer has its own. Elites and Champions are sometimes a Tormentor.
@@ -959,14 +961,19 @@ export const GIFTS = {
   mana: { icon: "🔷", name: "A Mana Potion", text: "Fills your Mana: one more skill when it counts." }
 } as const;
 export type GiftId = keyof typeof GIFTS;
-export function tavernGift(run: Run) { run.scene = { t: "gift" }; }
-export function takeGift(run: Run, id: GiftId) {
-  if (run.scene.t !== "gift") return;
+/** The Tavern's parting gift: one of the three, at random (the keeper decides). */
+export function tavernGift(run: Run, rng: () => number = run.rng) {
+  const ids = Object.keys(GIFTS) as GiftId[];
+  run.scene = { t: "map" };
+  takeGift(run, ids[Math.floor(rng() * ids.length)], true);
+}
+export function takeGift(run: Run, id: GiftId, given = false) {
+  if (run.scene.t !== "gift" && !given) return;
   const h = run.hero;
   if (id === "potion") h.potions += 1;
   else if (id === "mana") h.manaPotions += 1;
   else h.f.persist["skelKeys"] = (h.f.persist["skelKeys"] ?? 0) + 1;
-  run.message = `${GIFTS[id].icon} The keeper hands you ${GIFTS[id].name.replace(/^A /, "a ")}. "Come back in one piece."`;
+  run.message = `${GIFTS[id].icon} A parting gift from the Tavern: the keeper presses ${GIFTS[id].name.replace(/^A /, "a ")} into your hand. "Come back in one piece."`;
   run.scene = { t: "map" };
 }
 
@@ -1164,15 +1171,16 @@ export function campGain(run: Run, mat: Mat | null, n: number, crowns = 0, scrol
 
 /** A seed for the Camp's Garden (Heartleaf most often, then Moonbell, then Blightcap). */
 export function seedDrop(run: Run): Plant {
-  const x = run.rng();
-  const pl: Plant = x < 0.55 ? "heartleaf" : x < 0.8 ? "moonbell" : "blightcap";
+  const pl = pickW(run.rng, Object.fromEntries((Object.keys(PLANTS) as Plant[]).map(k => [k, PLANTS[k].weight])) as Record<Plant, number>);
   const l = (run.campLoot ??= { crowns: 0, mats: {} });
   (l.seeds ??= {})[pl] = (l.seeds[pl] ?? 0) + 1;
   return pl;
 }
 
 /** How often a Champion carries a seed for the Garden. */
-export const CHAMPION_SEED = 0.2;
+export const CHAMPION_SEED = 0.3;
+/** Seeds: Elites carry them now and then, and some chests hold one. */
+export const ELITE_SEED = 0.08, CHEST_SEED = 0.06;
 
 /** Urns: mostly a few coins, now and then a Mana Potion, very rarely a Healing Potion. Smashed, they're gone. */
 export const URN_MANA = 0.03, URN_HEAL = 0.01;
@@ -1226,6 +1234,7 @@ export function descend(run: Run) {
     enterRoom(run, "boss");
     return;
   }
+  tickDraughts(run);
   run.grid = makeGrid(run, m.depth + 1, m.explored);
   if (run.floor === 1) run.hero.f.persist["l1depth"] = Math.max(run.hero.f.persist["l1depth"] ?? 0, m.depth + 1);
   // Still burning from the floor above: it carries on down.
@@ -1341,6 +1350,7 @@ function enterRoom(run: Run, room: RoomType) {
       const sg = run.gridMode ? null : rollSigilDrop(run, 0.06, 0.1);
       const woodOdds = chestOdds(run, useClover(run) ? luckyOdds(tables(run).wooden) : tables(run).wooden);
       run.scene = { t: "loot", title: "Wooden Chest", items: [dropItem(run, woodOdds)], gold: run.gridMode ? 0 : (3 + run.floor) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: !run.gridMode && run.rng() < 0.08 ? 1 : 0, sigils: sg ? [sg] : undefined };
+      if (run.gridMode && !run.drill && run.rng() < CHEST_SEED) { const pl = seedDrop(run); run.message = `${PLANTS[pl].seedIcon} Tucked in a corner of the chest: a ${PLANTS[pl].seed}, for the Camp's Garden.`; }
       return;
     }
     case "iron": {
@@ -1359,6 +1369,7 @@ function enterRoom(run: Run, room: RoomType) {
       const items = [dropItem(run, ironOdds)];
       if (key && !run.gridMode) items.push(dropItem(run, ironOdds));
       run.scene = key ? { t: "pick", title: "Iron Chest — choose one", items } : { t: "loot", title: "Iron Chest", items, gold: run.gridMode ? 0 : (5 + run.floor * 2) * (abyssMod(run, "golden_depths") ? 2 : 1), scrolls: 0, potions: 0, sigils: sg ? [sg] : undefined };
+      if (run.gridMode && !run.drill && run.rng() < CHEST_SEED * 1.5) { const pl = seedDrop(run); run.message = `${PLANTS[pl].seedIcon} Tucked in a corner of the chest: a ${PLANTS[pl].seed}, for the Camp's Garden.`; }
       return;
     }
     case "altar":
@@ -2050,7 +2061,7 @@ function afterFight(run: Run) {
     // Scrolls of Knowledge, for the Camp's Knowledge Table: Champions sometimes carry one.
     if (rank === "champion" && !run.drill && run.rng() < 0.25) { campGain(run, null, 0, 0, 1); mats += `${mats ? " · " : ""}+1 📜 Scroll of Knowledge`; }
     // Seeds for the Camp's Garden: only Champions carry them, and not often.
-    if (rank === "champion" && !run.drill && run.rng() < CHAMPION_SEED) { const pl = seedDrop(run); mats += `${mats ? " · " : ""}${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}`; }
+    if ((rank === "champion" || rank === "elite") && !run.drill && run.rng() < (rank === "champion" ? CHAMPION_SEED : ELITE_SEED)) { const pl = seedDrop(run); mats += `${mats ? " · " : ""}${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}`; }
   }
   // Relics are yours the moment the fight ends (and get a popup), not when you leave the loot screen.
   if (run.gridMode) relic = undefined;
@@ -2119,6 +2130,8 @@ export function randomRelic(run: Run, quality = 1): string {
 
 export function gainXp(run: Run, n: number) {
   const h = run.hero;
+  // (Sage's Tea, from the Brewery.)
+  if ((h.f.persist["draught_sage"] ?? 0) > 0) n = Math.round(n * 1.5);
   h.xp += n;
   while (h.xp >= xpToLevel(h.level)) {
     h.xp -= xpToLevel(h.level);
@@ -2752,7 +2765,7 @@ export function advance(run: Run, fromTalent = false) {
       run.hero.f.persist["floor"] = run.floor;
       recompute(run.hero);
       run.step = 0;
-      if (run.gridMode) { run.grid = makeGrid(run, 0); run.gridDescend = false; }
+      if (run.gridMode) { tickDraughts(run); run.grid = makeGrid(run, 0); run.gridDescend = false; }
       // Boss Rush (a Drill): raised a few levels for each guardian.
       if (run.drill === "bossrush" && run.floor <= BOSSRUSH_LAYERS) bossRushLevels(run);
       // The Sun: each new layer begins with full HP and Mana (and, from II, a Healing Potion).
@@ -3053,7 +3066,9 @@ export function grantRelic(run: Run, id: string) {
 }
 
 /** Heat 2+: less Gold from everything (fights, chests, events, sales). */
-export const goldMult = (run: Run) => Math.max(0.1, 1 - 0.25 * pactRank(run, "lean") - 0.25 * tarotOf(run.hero, "priestess").bane) * (1 + PER.forGold * attrOf(run.hero, "for"));
+export const goldMult = (run: Run) => Math.max(0.1, 1 - 0.25 * pactRank(run, "lean") - 0.25 * tarotOf(run.hero, "priestess").bane) * (1 + PER.forGold * attrOf(run.hero, "for"))
+  // (Prospector's Tea, from the Brewery.)
+  * ((run.hero.f.persist["draught_gold"] ?? 0) > 0 ? 1.25 : 1);
 
 /** Base luck for generated gear: the Abyss doubles it, every Heat level adds a little. */
 const genLuck = (run: Run) => (run.mode === "abyss" ? 1.5 : 1) * (1 + 0.05 * Math.min(HEAT_LOOT_CAP, heatOf(run))) * (1 + PER.forLuck * attrOf(run.hero, "for"));
@@ -3220,6 +3235,27 @@ export function newDailyRun(day = utcDay()): Run {
   return run;
 }
 
+/** Drink a draught from the Brewery (not in a fight): it lasts this floor and the next few. */
+export function drinkDraught(run: Run, id: string): string | null {
+  const h = run.hero;
+  if (run.scene.t === "combat") return "Not in the middle of a fight.";
+  if ((h.draughts?.[id] ?? 0) <= 0) return null;
+  const d = BREWS[id as BrewKind];
+  if (!d?.floors) return null;
+  h.draughts![id]--;
+  if (!h.draughts![id]) delete h.draughts![id];
+  h.f.persist[`draught_${id}`] = Math.max(h.f.persist[`draught_${id}`] ?? 0, d.floors);
+  recompute(h);
+  if (id === "glow" && run.grid) { run.grid.sight = (run.grid.sight ?? SIGHT) + 1; look(run.grid); }
+  return null;
+}
+/** A floor down: every draught has a floor less to go. */
+function tickDraughts(run: Run) {
+  const p = run.hero.f.persist;
+  let changed = false;
+  for (const k of Object.keys(p)) if (k.startsWith("draught_") && (p[k] ?? 0) > 0) { p[k]--; changed = true; if (!p[k]) delete p[k]; }
+  if (changed) recompute(run.hero);
+}
 /** How many layers this run goes down before it's won: the dungeon's five, or a Drill's own. */
 export const runLayers = (run: Run) => (run.drill ? drillLayers(run.drill) : FLOORS);
 /** Boss Rush: raised to this layer's level, with Gold for its Merchant. */

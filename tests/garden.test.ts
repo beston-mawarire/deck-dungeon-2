@@ -35,7 +35,7 @@ describe("the Garden and the Brewery", () => {
     const r = newRun("cleric", 3); startCrawl(r);
     applyHall(m, r);
     expect(r.hero.potions).toBe(3);
-    expect(campOf(m).brews!.heal).toBe(0);
+    expect(campOf(m).brews!.heal ?? 0).toBe(0);
   });
 });
 
@@ -53,5 +53,24 @@ describe("the Knowledge Table", () => {
     const g = makeGrid(r, 1);
     const td = g.things.find(t => t.room === "trapdoor")!;
     expect(g.seen[td.y * g.w + td.x]).toBe(1);
+  });
+});
+describe("the Garden's new plants and the Brewery's draughts", () => {
+  it("nine plants; their draughts last floors and wear off as you go down", async () => {
+    const { PLANTS, BREWS, isDraught } = await import("../src/game/camp");
+    const { drinkDraught, newRun, startCrawl, descend, makeGrid } = await import("../src/game/run");
+    expect(Object.keys(PLANTS).length).toBe(9);
+    for (const p of Object.values(PLANTS)) expect(BREWS[p.brew]).toBeDefined();
+    expect(isDraught("iron")).toBe(true); expect(isDraught("heal")).toBe(false);
+    const r = newRun("warrior", 41); startCrawl(r);
+    const arm = r.hero.f.armor;
+    r.hero.draughts = { iron: 1 };
+    expect(drinkDraught(r, "iron")).toBeNull();
+    expect(r.hero.f.armor).toBe(arm + 2);
+    expect(r.hero.draughts.iron).toBeUndefined();
+    r.grid = makeGrid(r, 1); descend(r);
+    expect(r.hero.f.armor).toBe(arm + 2);
+    descend(r);
+    expect(r.hero.f.armor).toBe(arm);
   });
 });

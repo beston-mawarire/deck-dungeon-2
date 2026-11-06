@@ -99,3 +99,19 @@ describe("Drills", () => {
     expect(r.campLoot).toBeUndefined();
   });
 });
+describe("Barrier lash", () => {
+  it("an elemental charm throws its elements at whoever hits your Barrier", async () => {
+    const { startBattle } = await import("../src/engine/combat");
+    const { makeMonster } = await import("../src/data/monsters");
+    const { makeRng } = await import("../src/engine/rng");
+    const { st } = await import("../src/engine/statuses");
+    const { attack } = await import("../src/engine/combat");
+    const r = newRun("mage", 5); startCrawl(r);
+    r.hero.equip.off = { uid: 7001, base: "ch_cinderfrost", rarity: "uncommon", level: 1, bonuses: {}, revealed: true } as never; recompute(r.hero);
+    const e = makeMonster(makeRng(3), 1, "normal"); e.hp = e.maxHp = 200; e.items = {};
+    const b = startBattle(r.hero.f, e, 3);
+    b.player.statuses.barrier = 30; b.player.statuses.evade = 0; b.player.dodge = 0;
+    for (let k = 0; k < 6 && st(b.enemy, "burn") + st(b.enemy, "chill") === 0; k++) { b.round++; attack(b, b.enemy, b.player); }
+    expect(st(b.enemy, "burn") + st(b.enemy, "chill")).toBeGreaterThan(0);
+  });
+});

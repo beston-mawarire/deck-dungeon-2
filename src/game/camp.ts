@@ -14,21 +14,41 @@ export const MATS: Record<Mat, { name: string; icon: string; family: string }> =
 };
 export const matOfFamily = (family?: string): Mat | undefined => (Object.keys(MATS) as Mat[]).find(k => MATS[k].family === family);
 
-/** Seeds found below grow into herbs in the Garden; herbs become potions in the Brewery. */
-export type Plant = "heartleaf" | "moonbell" | "blightcap";
-export type BrewKind = "heal" | "mana" | "vile";
-export const PLANTS: Record<Plant, { name: string; seed: string; icon: string; seedIcon: string; brew: BrewKind; runs: number }> = {
-  heartleaf: { name: "Heartleaf", seed: "Heartleaf Seed", icon: "🌿", seedIcon: "🌰", brew: "heal", runs: 1 },
-  moonbell: { name: "Moonbell", seed: "Moonbell Seed", icon: "🪻", seedIcon: "🫘", brew: "mana", runs: 2 },
-  blightcap: { name: "Blightcap", seed: "Blightcap Spores", icon: "🍄", seedIcon: "🍂", brew: "vile", runs: 2 }
+/** Seeds found below grow into herbs in the Garden; herbs become brews in the Brewery. */
+export type Plant = "heartleaf" | "moonbell" | "blightcap" | "glowcap" | "ironroot" | "swiftfern" | "goldthistle" | "dreamleaf" | "emberroot";
+export type BrewKind = "heal" | "mana" | "vile" | "glow" | "iron" | "swift" | "gold" | "sage" | "ember";
+/** Each plant: its seed, how many runs it takes to grow, how often its seed turns up (weight), and what it brews into. */
+export const PLANTS: Record<Plant, { name: string; seed: string; icon: string; seedIcon: string; brew: BrewKind; runs: number; weight: number }> = {
+  heartleaf: { name: "Heartleaf", seed: "Heartleaf Seed", icon: "🌿", seedIcon: "🌰", brew: "heal", runs: 1, weight: 28 },
+  moonbell: { name: "Moonbell", seed: "Moonbell Seed", icon: "🪻", seedIcon: "🫘", brew: "mana", runs: 2, weight: 18 },
+  blightcap: { name: "Blightcap", seed: "Blightcap Spores", icon: "🍄", seedIcon: "🍂", brew: "vile", runs: 2, weight: 10 },
+  glowcap: { name: "Glowcap", seed: "Glowcap Spores", icon: "🍄‍🟫", seedIcon: "✨", brew: "glow", runs: 1, weight: 10 },
+  ironroot: { name: "Ironroot", seed: "Ironroot Seed", icon: "🪵", seedIcon: "🔩", brew: "iron", runs: 2, weight: 8 },
+  swiftfern: { name: "Swiftfern", seed: "Swiftfern Spores", icon: "🌱", seedIcon: "🍃", brew: "swift", runs: 2, weight: 8 },
+  goldthistle: { name: "Goldthistle", seed: "Goldthistle Seed", icon: "🌼", seedIcon: "🟡", brew: "gold", runs: 1, weight: 7 },
+  dreamleaf: { name: "Dreamleaf", seed: "Dreamleaf Seed", icon: "🍀", seedIcon: "💤", brew: "sage", runs: 2, weight: 6 },
+  emberroot: { name: "Emberroot", seed: "Emberroot Seed", icon: "🌶️", seedIcon: "🔥", brew: "ember", runs: 2, weight: 5 }
 };
+/** What each brew is. Potions and the Blightcap Brew go to their usual places; draughts are drunk out of a fight and last some floors. */
+export const BREWS: Record<BrewKind, { name: string; icon: string; text: string; floors?: number }> = {
+  heal: { name: "Healing Potion", icon: "🧪", text: "A Healing Potion for your belt" },
+  mana: { name: "Mana Potion", icon: "🔷", text: "A Mana Potion" },
+  vile: { name: "Blightcap Brew", icon: "🍄", text: "A throwable: Poison and Weak" },
+  glow: { name: "Glowcap Tonic", icon: "🕯️", text: "See 1 tile further", floors: 3 },
+  iron: { name: "Ironbark Draught", icon: "🪵", text: "+2 Armor", floors: 2 },
+  swift: { name: "Fleetfoot Tonic", icon: "🍃", text: "+5% Dodge", floors: 2 },
+  gold: { name: "Prospector's Tea", icon: "🪙", text: "+25% Gold from foes and urns", floors: 3 },
+  sage: { name: "Sage's Tea", icon: "📖", text: "+50% XP", floors: 2 },
+  ember: { name: "Firebrand Oil", icon: "🔥", text: "Your hits apply 1 Burn", floors: 1 }
+};
+export const isDraught = (k: string) => !!BREWS[k as BrewKind]?.floors;
 export interface Plot { plant: Plant; left: number }
 export interface CampStore {
   crowns: number; mats: Partial<Record<Mat, number>>; hall: Record<string, number>;
   seeds?: Partial<Record<Plant, number>>; herbs?: Partial<Record<Plant, number>>;
   /** Garden plots (null = empty), and potions brewed and waiting to be taken on the next run. */
   plots?: (Plot | null)[];
-  brews?: { heal: number; mana: number; vile?: number };
+  brews?: Partial<Record<BrewKind, number>>;
   /** Scrolls of Knowledge carried home, and the insights learned from them at the Knowledge Table. */
   scrolls?: number;
   insights?: Record<string, number>;
@@ -89,11 +109,12 @@ export function applyHall(m: Meta, run: Run) {
   // Potions brewed at the Camp come along (and the Garden grows a little while you're gone).
   const c = campOf(m);
   if (c.brews) {
-    h.potions += c.brews.heal;
-    h.manaPotions = (h.manaPotions ?? 0) + c.brews.mana;
-    // Blightcap Brews go along to be thrown.
+    h.potions += c.brews.heal ?? 0;
+    h.manaPotions = (h.manaPotions ?? 0) + (c.brews.mana ?? 0);
+    // Blightcap Brews go along to be thrown; draughts go in your pack, to drink when you choose.
     if (c.brews.vile) h.f.persist["c_brew"] = (h.f.persist["c_brew"] ?? 0) + c.brews.vile;
-    c.brews = { heal: 0, mana: 0, vile: 0 };
+    for (const [k, n] of Object.entries(c.brews)) if (isDraught(k) && n) (h.draughts ??= {})[k] = (h.draughts[k] ?? 0) + n;
+    c.brews = {};
   }
   for (const p of gardenPlots(m)) if (p && p.left > 0) p.left--;
   // What the Knowledge Table has taught.
@@ -180,7 +201,7 @@ export function bottle(m: Meta, b: Brew) {
   b.made = b.heat < band.low ? 0 : b.heat >= band.sweetLo && b.heat <= band.sweetHi ? 2 : 1;
   const c = campOf(m);
   const k = PLANTS[b.plant].brew;
-  c.brews = c.brews ?? { heal: 0, mana: 0 };
+  c.brews ??= {};
   c.brews[k] = (c.brews[k] ?? 0) + b.made;
 }
 

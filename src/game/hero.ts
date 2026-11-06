@@ -79,6 +79,8 @@ export interface Hero {
   potions: number;
   /** The class ability taken on this run (from the Camp's Skills); none = the class's own. */
   skill?: string;
+  /** Draughts from the Camp's Brewery, carried to drink (each one lasts some floors; what's active is in persist draught_*). */
+  draughts?: Record<string, number>;
   /** Borrowed Steel (a Drill): the class whose kit and weapons you get. */
   lootAs?: OriginId;
   /** Cursed Pilgrim (a Drill): curses that can never be lifted. */
@@ -274,6 +276,8 @@ export function recompute(h: Hero) {
   for (const [id, n] of Object.entries(h.relics)) add(id, n);
   for (const [id, n] of Object.entries(h.talents)) add(id, n);
   for (const [id, n] of Object.entries(h.curses)) add(id, n);
+  // Draughts being drunk (the Brewery's): each one's effect, while it lasts.
+  for (const k of ["iron", "swift", "ember"]) if ((f.persist[`draught_${k}`] ?? 0) > 0) add(`draught_${k}`, 1);
   // Curse-fed gear reads how many curses you carry; once cursed, the cursed gear can start to drop.
   const curseCount = Object.values(h.curses).reduce((a, n) => a + n, 0);
   f.persist["curseCount"] = curseCount;

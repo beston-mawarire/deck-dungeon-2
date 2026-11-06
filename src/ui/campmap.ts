@@ -190,14 +190,12 @@ function drawSpot(ctx: CanvasRenderingContext2D, s: CampSpot, ts: number, ox: nu
       break;
     }
     case "drills": {
-      // A training dummy: a post, a cross-bar and a sack of straw, with a practice sword stuck in the ground.
-      shadow(0.3);
-      ctx.fillStyle = "#5a3a1e"; ctx.fillRect(cx - ts * 0.04, cy - ts * 0.3, ts * 0.08, ts * 0.72);
-      ctx.fillRect(cx - ts * 0.3, cy - ts * 0.12, ts * 0.6, ts * 0.07);
-      ctx.fillStyle = "#c9a560"; ctx.beginPath(); ctx.ellipse(cx, cy + ts * 0.02, ts * 0.17, ts * 0.2, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#b08a48"; ctx.beginPath(); ctx.arc(cx, cy - ts * 0.3, ts * 0.12, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "#7a2a1a"; ctx.lineWidth = Math.max(1, ts / 24); ctx.beginPath(); ctx.moveTo(cx - ts * 0.08, cy - ts * 0.03); ctx.lineTo(cx + ts * 0.08, cy + ts * 0.08); ctx.moveTo(cx + ts * 0.08, cy - ts * 0.03); ctx.lineTo(cx - ts * 0.08, cy + ts * 0.08); ctx.stroke();
-      ctx.fillStyle = "#c8ccd4"; ctx.fillRect(cx + ts * 0.3, cy - ts * 0.05, ts * 0.04, ts * 0.38); ctx.fillStyle = "#6a4424"; ctx.fillRect(cx + ts * 0.25, cy - ts * 0.08, ts * 0.14, ts * 0.04);
+      // A weapon rack: practice arms from the armoury, standing in a row on a wooden frame.
+      shadow(0.34);
+      ctx.fillStyle = "#4a2e16"; ctx.fillRect(cx - ts * 0.44, by - ts * 0.08, ts * 0.88, ts * 0.08); ctx.fillRect(cx - ts * 0.44, cy - ts * 0.18, ts * 0.88, ts * 0.06);
+      ctx.fillStyle = "#3a2210"; ctx.fillRect(cx - ts * 0.46, cy - ts * 0.26, ts * 0.07, ts * 0.7); ctx.fillRect(cx + ts * 0.39, cy - ts * 0.26, ts * 0.07, ts * 0.7);
+      const arms = ["weapon_spear", "weapon_regular_sword", "weapon_axe", "weapon_big_hammer"].filter(hasSprite);
+      arms.forEach((k, i) => drawSprite(ctx, k, cx + (i - (arms.length - 1) / 2) * ts * 0.21, by - ts * 0.06, sc * 0.75));
       break;
     }
     case "tarot": {

@@ -221,18 +221,20 @@ describe("class paths", () => {
 });
 
 describe("the 1st Layer and the Ledger (1.98)", () => {
-  it("the Tavern's parting gift: a Healing Potion, a Mana Potion or a Skeleton Key, and then you're on the map", async () => {
-    const { tavernGift, takeGift, GIFTS } = await import("../src/game/run");
+  it("the Tavern's parting gift: one of a Healing Potion, a Mana Potion or a Skeleton Key, at random", async () => {
+    const { tavernGift, GIFTS } = await import("../src/game/run");
     expect(Object.keys(GIFTS).sort()).toEqual(["key", "mana", "potion"]);
-    const r = newRun("rogue", 71); startCrawl(r);
-    const p0 = r.hero.potions;
-    tavernGift(r); expect(r.scene.t).toBe("gift");
-    takeGift(r, "potion");
-    expect(r.hero.potions).toBe(p0 + 1); expect(r.scene.t).toBe("map"); expect(r.step).toBe(0);
-    const k = newRun("rogue", 72); startCrawl(k); tavernGift(k); takeGift(k, "key");
-    expect(k.hero.f.persist["skelKeys"]).toBe(1);
-    const p = newRun("rogue", 73); startCrawl(p); tavernGift(p); takeGift(p, "mana");
-    expect(p.hero.manaPotions).toBe(1);
+    const got = new Set<string>();
+    for (let k = 0; k < 30; k++) {
+      const r = newRun("rogue", 80 + k); startCrawl(r);
+      const p0 = r.hero.potions, m0 = r.hero.manaPotions, k0 = r.hero.f.persist["skelKeys"] ?? 0;
+      tavernGift(r);
+      expect(r.scene.t).toBe("map"); expect(r.step).toBe(0);
+      const gained = (r.hero.potions - p0) + (r.hero.manaPotions - m0) + ((r.hero.f.persist["skelKeys"] ?? 0) - k0);
+      expect(gained).toBe(1);
+      got.add(r.hero.potions > p0 ? "potion" : r.hero.manaPotions > m0 ? "mana" : "key");
+    }
+    expect(got.size).toBe(3);
   });
   it("every 1st Layer holds one of its own named foes on a middle floor", () => {
     for (let seed = 1; seed < 20; seed++) {

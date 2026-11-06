@@ -570,8 +570,18 @@ function strike(b: Battle, ctx: AttackCtx) {
   // The hit streak: only a real Hit or Crit that gets through keeps it going.
   if ((ctx.kind === "hit" || ctx.kind === "crit") && after > 0) addStreak(a);
   else breakStreak(b, a);
+  const barBefore = st(d, "barrier");
   ctx.dealt = loseHp(b, d, after);
   if (ctx.dealt > 0) a.flags["dealtRound"] = 1;
+  // Elemental charms: while you hold Barrier (from anything), a hit on it throws the charm's elements back at the attacker:
+  // 2 stacks of each, 4 if the Barrier soaked the whole hit (once a round, and not on top of the old Elemental Barrier skill).
+  if (barBefore > 0 && after > 0 && d.barrierElement && !tier && a.hp > 0 && d.flags["charmLash"] !== b.round) {
+    d.flags["charmLash"] = b.round;
+    const full = ctx.dealt === 0;
+    for (const el of d.barrierElements ?? [d.barrierElement]) if (a.hp > 0) applyStatus(b, d, a, el, full ? 4 : 2);
+    fx(b, { who: d.id, kind: "block", text: full ? "Barrier lashes back" : "Barrier sparks", icon: "🔮" });
+    log(b, `${d.name}'s Barrier ${full ? "soaks the whole hit and lashes back" : "sparks"}: the charm's elements hit ${a.name}.`);
+  }
   // Martyrdom: this round, every blow you take comes back at the one who struck it.
   if (ctx.dealt > 0 && d.flags["martyr"] === b.round && a.hp > 0) { const back = loseHp(b, a, ctx.dealt); fx(b, { who: a.id, kind: "dmg", value: back }); log(b, `⛓️ Martyrdom: ${back} comes back at ${a.name}.`); }
   if (ctx.dealt > 0 && !ctx.offhand && a.heavy && d.hp > 0) buildStagger(b, a, d, ctx.kind === "crit");

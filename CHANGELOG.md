@@ -9,6 +9,25 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.2
+- **The Garden and the Brewery, grown up.** Nine plants now, up from three, and their seeds turn up more often: Champions (30%), Elites, and now and then a chest. New brews:
+  - **Draughts** you carry in your pack and drink outside a fight (🎒 → Artefacts). Each lasts the floor you're on and the next few:
+    - 🕯️ Glowcap Tonic: see 1 tile further, 3 floors
+    - 🪵 Ironbark Draught: +2 Armor, 2 floors
+    - 🍃 Fleetfoot Tonic: +5% Dodge, 2 floors
+    - 🪙 Prospector's Tea: +25% Gold, 3 floors
+    - 📖 Sage's Tea: +50% XP, 2 floors
+    - 🔥 Firebrand Oil: your hits apply 1 Burn, 1 floor
+  - Healing Potions, Mana Potions and Blightcap Brews brew as before.
+  - The Garden has a herbalist's book listing all nine plants.
+- **Barrier lash.** Elemental charms (and a few off-hands) now work with Barrier from any source: while you have Barrier, a hit on it throws the item's elements back at the attacker (2 stacks each, 4 if the Barrier soaked the whole hit; once a round).
+- **The Tavern's parting gift** is now one of the three, at random.
+- **The Tavern keeper** has 15 lines, picked at random each time you walk in.
+- **The Quest Board's notices** are parchment pinned to the post, and readable. The old "Use War Cry 5 times" contract is now "Use your skill 4 times".
+- **When a run ends**, what you carried shows as full item cards in their rarity's dotted frame.
+- **No more tips during fights.** The fight, Mana and throwable tips now come up on the map.
+- The Drills yard has a weapon rack, drawn from the game's own weapon art.
+
 ## 2.0.1
 - **The trapdoor, explained.** Pressing Descend now shows the trapdoor up close, with a line on how it works: walk into it to drop a floor, and there's no way back up. Tick "Don't show this again" to skip it.
 - **Descend stands out.** A deep red plank with gold lettering, a soft ember glow and bobbing arrows.

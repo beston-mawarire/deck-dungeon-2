@@ -44,7 +44,7 @@ export const ICE_FORGE: GearBase[] = [
   only("epic", { kind: "trinket", slot: "trinket", id: "if_rime_heart", name: "Rime Heart of the Ice Forge", tags: ["Frost"], text: "Chill you apply gets +2. The enemy starts every fight with 3 Chill.",
     hooks: { onStatusApplied: moreChill(2), onFightStart: (b, f) => applyStatus(b, f, other(b, f), "chill", 3) } }),
   // Off-hands
-  only("rare", { kind: "off", slot: "off", barrierElement: "chill", id: "if_frost_ward", name: "Frost Ward of the Ice Forge", tags: ["Frost", "Arcane", "Guard"], text: "Elemental Barrier (Chill). On a 2 or a 4: apply 3 Chill.",
+  only("rare", { kind: "off", slot: "off", barrierElement: "chill", id: "if_frost_ward", name: "Frost Ward of the Ice Forge", tags: ["Frost", "Arcane", "Guard"], text: "Barrier lash: Chill. On a 2 or a 4: apply 3 Chill.",
     hooks: { face: [on(2, hex("chill", 3)), on(4, hex("chill", 3))] } }),
   only("epic", { kind: "off", slot: "off", shield: true, id: "if_glacier_shield", name: "Glacier Shield of the Ice Forge", tags: ["Frost", "Guard"], armor: 3, text: "Shield. +3 Armor. Guarding applies 4 Chill to the enemy. Anything that hits you gets 2 Chill.",
     hooks: { onGuard: (b, f) => applyStatus(b, f, other(b, f), "chill", 4), whenHit: (b, c) => { if (!c.noDamage && c.attacker.hp > 0) applyStatus(b, c.defender, c.attacker, "chill", 2); } } })
@@ -68,7 +68,7 @@ export const ICE_FORGE_LEGENDARIES: GearBase[] = [
     text: "Spring isn't coming.", hooks: { onStatusApplied: moreChill(1) } }),
   leg("t_brass_amulet", "Chill you apply is doubled.", { kind: "trinket", slot: "trinket", id: "lx_ice_crown", name: "Crown of the Ice Forge", tags: ["Frost"],
     text: "Forged at the coldest anvil there is.", hooks: { onStatusApplied: (_b, self, t, s, n) => { if (s === "chill" && t !== self) t.statuses.chill = st(t, "chill") + n; } } }),
-  leg("o_frost_orb", "Elemental Barrier (Chill). Every round the enemy gains 3 Chill. Each Frostbitten burst heals you 5.", { kind: "off", slot: "off", barrierElement: "chill", id: "lx_endless_winter_mirror", name: "Mirror of Endless Winter of the Ice Forge", tags: ["Frost", "Arcane"],
+  leg("o_frost_orb", "Barrier lash: Chill. Every round the enemy gains 3 Chill. Each Frostbitten burst heals you 5.", { kind: "off", slot: "off", barrierElement: "chill", id: "lx_endless_winter_mirror", name: "Mirror of Endless Winter of the Ice Forge", tags: ["Frost", "Arcane"],
     text: "Your reflection's breath fogs the glass.", hooks: { onRoundStart: (b, f) => applyStatus(b, f, other(b, f), "chill", 3),
       onStatusApplied: (b, self, t, s) => { if (s === "chill" && t !== self && st(t, "chill") === 0) heal(b, self, 5, "Endless Winter"); } } })
 ];

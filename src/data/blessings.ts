@@ -31,8 +31,8 @@ export const BLESSING_GEAR: GearBase[] = [
   only("epic", { ...O, shield: true, id: "rf_unyielding", name: "The Unyielding Wall", tags: ["Guard", "Strike"], armor: 6, text: "Shield. +6 Armor, +3 more while Guarding. Reinforcing: a full block gives 3 Reinforced.",
     hooks: { ...reinforce(3), onGuard: (_b, f) => { f.flags["guardArmor"] = (f.flags["guardArmor"] ?? 0) + 3; } } }),
   // ---------- Reinforcing barrier off-hands (Mage) ----------
-  only("rare", { ...O, id: "rf_wardstone", barrierElement: "chill", name: "Ward-Stone Focus", tags: ["Arcane", "Frost", "Guard"], text: "Elemental Barrier (Chill). Reinforcing: a barrier that stops a whole hit gives 2 Reinforced.", hooks: reinforce(2) }),
-  only("epic", { ...O, id: "rf_aegis_codex", barrierElement: "static", name: "Aegis Codex", tags: ["Arcane", "Storm", "Guard"], text: "Elemental Barrier (Static). Spell Amp +10%. Reinforcing: a barrier that stops a whole hit gives 3 Reinforced.",
+  only("rare", { ...O, id: "rf_wardstone", barrierElement: "chill", name: "Ward-Stone Focus", tags: ["Arcane", "Frost", "Guard"], text: "Barrier lash: Chill. Reinforcing: a barrier that stops a whole hit gives 2 Reinforced.", hooks: reinforce(2) }),
+  only("epic", { ...O, id: "rf_aegis_codex", barrierElement: "static", name: "Aegis Codex", tags: ["Arcane", "Storm", "Guard"], text: "Barrier lash: Static. Spell Amp +10%. Reinforcing: a barrier that stops a whole hit gives 3 Reinforced.",
     hooks: { ...reinforce(3), stats: s => { s.spellAmp += 10; } } }),
 
   // ---------- Blessing armours and trinkets ----------

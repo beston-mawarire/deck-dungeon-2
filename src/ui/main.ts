@@ -29,7 +29,7 @@ import {
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
   sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
-  startCrawl, startDrill, tavernGift, takeGift, GIFTS, type GiftId, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
+  drinkDraught, startCrawl, startDrill, tavernGift, takeGift, GIFTS, type GiftId, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, chooseOmen, chooseSkill, omensTaken, setOut, ABYSS_LAYER, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
 import { fortunePips } from "../game/loot";
@@ -46,7 +46,7 @@ import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRIT
 import { gearAttr, spendAttr, TYPE_MARK, treeAttr, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
-import { INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
+import { BREWS, type BrewKind, INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
 import { pingSession } from "./leaderboard";
 import { classify, FAMILY_NAME } from "../game/families";
 import { applyRework, canAfford, canEmpowerTarget, costText, empower, empowerBlock, extract, extractBlock, MAX_REFINE, refine, refineBlock, refineCost, rework, reworkBlock, reworkCost, SCROLL_SLOTS, scrapScroll, scrollName, scrollScrapValue } from "../game/masterwork";
@@ -441,6 +441,26 @@ function titleScreen() {
 
 /** The Tavern: where your heroes sit after you press Play. Pick one at its table, then walk out to the Camp.
  *  Locked heroes sit in the shadows, with how to bring them in. */
+/** What the keeper says: a line picked at random each time you walk in (and when the game starts). */
+const TAVERN_LINES = [
+  "Grab a drink before you go.",
+  "Pull up a chair. Who's going down tonight?",
+  "First one's on the house. The rest you earn.",
+  "Mind the trapdoors. Nobody ever climbs back out.",
+  "Back again? The dungeon must like you.",
+  "Drink up. It's cold where you're going.",
+  "I've heard the guardians are restless tonight.",
+  "Leave your coin here, take your courage down there.",
+  "Pay no mind to the empty chairs.",
+  "They say the Rat King's grown fat on adventurers.",
+  "If you see a strange door, think twice. Then open it anyway.",
+  "Every hero who sat there came back. Eventually. Mostly.",
+  "The Merchant down there owes me money. Remind him.",
+  "Sharpen your blade, settle your tab, say your prayers.",
+  "You look like someone who's about to make a bad decision. Good."
+];
+let tavLine: string | null = null;
+const tavernLine = () => (tavLine ??= TAVERN_LINES[Math.floor(Math.random() * TAVERN_LINES.length)]);
 function tavernScreen(infoRow: string, cont: string) {
   const seat = (o: OriginId) => {
     const og = ORIGINS[o];
@@ -462,7 +482,7 @@ function tavernScreen(infoRow: string, cont: string) {
     ${infoRow}${cont}
     <div class="tav-room">
       <div class="tav-bar"><span class="tav-keep">${hasSprite("dwarf_m") ? spriteHtml("dwarf_m", 4) : "🍺"}</span><span class="tav-bottles">🍾 🍷 🍺</span></div>
-      <p class="tav-say">“Grab a drink before you go.”</p>
+      <p class="tav-say">“${esc(tavernLine())}”</p>
       <div class="tav-seats">${order.map(seat).join("")}</div>
     </div>
     <p class="version">${VERSION}</p>
@@ -920,24 +940,28 @@ function campBody(o: OriginId, tab: CampTab): string {
   }
   if (tab === "garden") {
     const c = campOf(meta), plots = gardenPlots(meta);
-    const seeds = (Object.keys(PLANTS) as Plant[]).map(k => `<button class="garden-seed ${sowing === k ? "on" : ""}" data-sow="${k}" ${(c.seeds?.[k] ?? 0) ? "" : "disabled"}>${PLANTS[k].seedIcon} <b>${c.seeds?.[k] ?? 0}</b> ${esc(PLANTS[k].seed)}<span>${PLANTS[k].runs} run${PLANTS[k].runs === 1 ? "" : "s"} to grow</span></button>`).join("");
-    return `<p>Champions sometimes carry seeds. Sow them here: they grow while you're down in the dungeon, a run or two, and give two or three herbs for the Brewery.</p>
-      <div class="garden-seeds">${seeds}</div>
+    const all = Object.keys(PLANTS) as Plant[];
+    const seeds = all.filter(k => (c.seeds?.[k] ?? 0) > 0).map(k => `<button class="garden-seed ${sowing === k ? "on" : ""}" data-sow="${k}">${PLANTS[k].seedIcon} <b>${c.seeds?.[k] ?? 0}</b> ${esc(PLANTS[k].seed)}<span>${PLANTS[k].runs} run${PLANTS[k].runs === 1 ? "" : "s"} · brews ${esc(BREWS[PLANTS[k].brew].name)}</span></button>`).join("");
+    const herbs = all.filter(k => (c.herbs?.[k] ?? 0) > 0).map(k => `${PLANTS[k].icon} ${c.herbs![k]} ${esc(PLANTS[k].name)}`).join(" · ");
+    return `<p>Seeds turn up below: Champions and Elites carry them, and now and then one hides in a chest. Sow them here; they grow while you're down in the dungeon, a run or two, and give two or three herbs for the Brewery.</p>
+      ${seeds ? `<div class="garden-seeds">${seeds}</div>` : `<p class="sub center">No seeds in store. Bring some home from the dungeon.</p>`}
       ${sowing ? `<p class="sub center">Now tap an empty plot to sow your ${esc(PLANTS[sowing].seed)}.</p>` : ""}
       <div class="garden-plots">${plots.map((p, i) => !p
         ? `<button class="plot empty ${sowing ? "ready" : ""}" data-plot="${i}"><span class="soil"></span><b>${sowing ? "Sow here" : "Empty"}</b></button>`
         : `<button class="plot ${p.left ? "growing" : "grown"}" data-plot="${i}"><span class="soil"><span class="sprout">${p.left ? "🌱" : PLANTS[p.plant].icon}</span></span><b>${esc(PLANTS[p.plant].name)}</b><span>${p.left ? `${p.left} more run${p.left === 1 ? "" : "s"}` : "Ready: tap to harvest"}</span></button>`).join("")}</div>
-      <p class="sub">🌿 ${c.herbs?.heartleaf ?? 0} Heartleaf · 🪻 ${c.herbs?.moonbell ?? 0} Moonbell in store. More plots from the Hall's Green Thumb.</p>`;
+      <p class="sub">${herbs ? `In store: ${herbs}.` : "No herbs in store yet."} More plots from the Hall's Green Thumb.</p>
+      <details class="gloss garden-book"><summary>📗 The herbalist's book: all ${all.length} plants</summary>${all.map(k => `<div class="gl"><span class="gi">${PLANTS[k].icon}</span><span class="gt"><b>${esc(PLANTS[k].name)}</b><span>${PLANTS[k].runs} run${PLANTS[k].runs === 1 ? "" : "s"} to grow · ${BREWS[PLANTS[k].brew].icon} ${esc(BREWS[PLANTS[k].brew].name)}: ${esc(BREWS[PLANTS[k].brew].text)}${BREWS[PLANTS[k].brew].floors ? ` for ${BREWS[PLANTS[k].brew].floors} floor${BREWS[PLANTS[k].brew].floors === 1 ? "" : "s"}` : ""}</span></span></div>`).join("")}</details>`;
   }
   if (tab === "brewery") {
     const c = campOf(meta), band = brewBand(meta);
-    const waiting = c.brews && (c.brews.heal || c.brews.mana || c.brews.vile) ? `<p class="camp-quest-note">Bottled and waiting for your next run: ${c.brews.heal ? `🧪 ${c.brews.heal}` : ""} ${c.brews.mana ? `🔷 ${c.brews.mana}` : ""} ${c.brews.vile ? `🍄 ${c.brews.vile} Blightcap Brew${c.brews.vile > 1 ? "s" : ""} (to throw)` : ""}</p>` : "";
+    const ready = Object.entries(c.brews ?? {}).filter(([, n]) => (n ?? 0) > 0) as [BrewKind, number][];
+    const waiting = ready.length ? `<p class="camp-quest-note">Bottled and waiting for your next run: ${ready.map(([k, n]) => `${BREWS[k].icon} ${n} ${esc(BREWS[k].name)}`).join(" · ")}</p>` : "";
     if (!brew || brew.done) {
-      const last = brew?.done === "spoiled" ? `<p class="brew-out bad">💥 Too hot! The brew boils over and spoils.</p>` : brew?.done === "bottled" ? `<p class="brew-out ${brew.made ? "" : "bad"}">${brew.made === 2 ? "✨ The sweet spot! Two potions." : brew.made ? "🧪 A good brew: one potion." : "🥶 Too cold: the herbs never took. Nothing to bottle."}</p>` : "";
-      return `<p>Two herbs make a brew. Each stir heats the pot by a die. Bottle it between <b>${band.low}</b> and <b>${band.high}</b> for a potion, at <b>${band.sweetLo}${band.sweetHi > band.sweetLo ? `–${band.sweetHi}` : ""}</b> for two. Go past ${band.high} and it spoils.</p>
+      const last = brew?.done === "spoiled" ? `<p class="brew-out bad">💥 Too hot! The brew boils over and spoils.</p>` : brew?.done === "bottled" ? `<p class="brew-out ${brew.made ? "" : "bad"}">${brew.made === 2 ? "✨ The sweet spot! Two bottles." : brew.made ? "🧪 A good brew: one bottle." : "🥶 Too cold: the herbs never took. Nothing to bottle."}</p>` : "";
+      return `<p>Two herbs make a brew. Each stir heats the pot by a die. Bottle it between <b>${band.low}</b> and <b>${band.high}</b> for one bottle, at <b>${band.sweetLo}${band.sweetHi > band.sweetLo ? `–${band.sweetHi}` : ""}</b> for two. Go past ${band.high} and it spoils.</p>
         ${last}${waiting}
-        <div class="brew-pick">${(Object.keys(PLANTS) as Plant[]).map(k => `<button class="hu-buy" data-brew="${k}" ${(c.herbs?.[k] ?? 0) >= BREW_HERBS ? "" : "disabled"}>${PLANTS[k].icon} Brew ${PLANTS[k].brew === "heal" ? "Healing" : PLANTS[k].brew === "mana" ? "Mana" : "Blightcap"} · ${BREW_HERBS} ${esc(PLANTS[k].name)} (${c.herbs?.[k] ?? 0})</button>`).join("")}</div>
-        <p class="sub">Brewed potions come with you on your next run.</p>`;
+        <div class="brew-pick">${(Object.keys(PLANTS) as Plant[]).filter(k => (c.herbs?.[k] ?? 0) > 0 || ["heartleaf", "moonbell"].includes(k)).map(k => { const bw = BREWS[PLANTS[k].brew]; return `<button class="hu-buy brew-opt" data-brew="${k}" ${(c.herbs?.[k] ?? 0) >= BREW_HERBS ? "" : "disabled"}><b>${bw.icon} ${esc(bw.name)}</b><span>${esc(bw.text)}${bw.floors ? ` · ${bw.floors} floor${bw.floors === 1 ? "" : "s"}` : ""} · ${BREW_HERBS} ${PLANTS[k].icon} ${esc(PLANTS[k].name)} (you have ${c.herbs?.[k] ?? 0})</span></button>`; }).join("")}</div>
+        <p class="sub">Brews come with you on your next run. Potions go on your belt; <b>draughts</b> go in your pack: drink one outside a fight (🎒 → Artefacts) and it lasts the floor you're on and the next few.</p>`;
     }
     const pct = Math.min(100, (brew.heat / (band.high + 4)) * 100);
     return `<p>The ${esc(PLANTS[brew.plant].name)} brew is on the fire. Bottle between <b>${band.low}</b> and <b>${band.high}</b>; <b>${band.sweetLo}${band.sweetHi > band.sweetLo ? `–${band.sweetHi}` : ""}</b> is the sweet spot.</p>
@@ -1725,7 +1749,7 @@ function crawlOver(r: Run) {
     ${r.mode === "abyss" && won ? tarotOfferPanel() || `<p class="end-line">🃏 Your card is in the Camp's Tarot Room.</p>` : ""}
     ${(() => { const lb = runStatsPanel(r).replace(/<div class="lb-stats">[\s\S]*?<\/div>/, "").trim(); return lb ? `<div class="end-box lb-box">${lb}</div>` : ""; })()}
     <p class="end-sub">What you carried at the end</p>
-    <div class="end-gear">${gear.map(it => `<span class="eg-chip" style="--ink:${RARITY_INK[it.rarity] ?? "#e9d6b0"}"><b>${esc(itemName(it))}</b><i>${esc(it.rarity)} · ${esc(equippedSlot(r, it))}</i></span>`).join("")}</div>
+    <div class="inv-cards end-cards">${gear.map(it => `<div class="inv-card">${itemCard(it, "", false, equippedSlot(r, it))}</div>`).join("")}</div>
     <div class="end-btns"><button class="plank-btn" data-newrun>Back to the Camp</button></div>`;
 }
 
@@ -2300,10 +2324,15 @@ function crawlArtefacts(r: Run) {
     dragon > 0 ? tile("🐲", "Dragon's Blessing", `${dragon} fight${dragon === 1 ? "" : "s"}`, BLESSINGS[p["blessKind"] ?? 0], "bless") : "",
     clover > 0 ? tile("🍀", "Four-Leaf Clover", `${clover} chest${clover === 1 ? "" : "s"}`, "Better odds of Rare, Epic and Legendary from chests.", "bless") : ""
   ].join("");
+  // The Brewery's draughts: carried (with Drink), and the ones working now.
+  const inFight = r.scene.t === "combat";
+  const dCarried = Object.entries(h.draughts ?? {}).filter(([, n]) => n > 0).map(([id, n]) => { const d = BREWS[id as BrewKind]; return `<div class="af-tile draught"><span class="af-ic">${d.icon}</span><div class="af-txt"><b>${esc(d.name)} <em>×${n}</em></b><span>${esc(d.text)} for ${d.floors} floor${d.floors === 1 ? "" : "s"}.</span></div><button class="small af-drink" data-draught="${id}" ${inFight ? "disabled" : ""}>${inFight ? "After the fight" : "Drink"}</button></div>`; }).join("");
+  const dActive = (Object.keys(BREWS) as BrewKind[]).filter(k => (p[`draught_${k}`] ?? 0) > 0).map(k => tile(BREWS[k].icon, BREWS[k].name, `${p[`draught_${k}`]} floor${p[`draught_${k}`] === 1 ? "" : "s"}`, `${BREWS[k].text}.`, "bless")).join("");
   const oath = p["maxHpCap"] ? tile("🩸", "Blood Oath", `${p["maxHpCap"]} Max HP`, "Sworn in blood: your Max HP can't rise above this for the rest of the run. Nothing holy lifts it.", "curse") : "";
   const curses = oath + Object.entries(h.curses).map(([id, n]) => tile("🕯️", getItem(id).name, n > 1 ? n : null, fillText(getItem(id).text, n), "curse")).join("");
   return `<div class="af-list">
     <h3 class="af-head">Carried</h3><div class="af-grid">${carried}</div>
+    ${dCarried || dActive ? `<h3 class="af-head">Draughts</h3><div class="af-grid">${dActive}${dCarried}</div>` : ""}
     ${bless ? `<h3 class="af-head">Blessings</h3><div class="af-grid">${bless}</div>` : ""}
     <h3 class="af-head">Curses</h3>${curses ? `<div class="af-grid">${curses}</div>` : `<p class="af-none">No curses on you. Shrines, cursing foes and dark magic lay them on; something holy lifts them.</p>`}
   </div>`;
@@ -2454,7 +2483,7 @@ function helpGlossary() {
     row("⛓️", "Roll cap", "Some heavy gear stops your die rolling above 4 or 5; the Manacles do the same to the enemy's die"),
     row("🔗", "Hit streak", "Only counts while you have a streak relic, talent or trinket. Every Hit or Crit that gets through adds 1, and it carries across fights. A Miss, Graze, or an attack that's evaded, dodged or fully blocked resets it. Some relics, talents and trinkets grow with it"),
     row("🧱", "Guarding foes", "Some enemies and bosses raise their guard: Armor doubled plus a bit more for that round (you'll see it coming). Crits, spells and statuses ignore Armor, so they still get through"),
-    row("🔮", "Elemental Barrier", "A skill from the Elemental Ward Legendary; an off-hand with an element sets what it does: roll 5–6 to block (attackers get 4 stacks of the element), 3–4 to halve (2 stacks), 1–2 blocks nothing but still gives 2 stacks"),
+    row("🔮", "Barrier lash", "Elemental charms and some off-hands: while you have Barrier (from anything), a hit on it throws the item's elements back at the attacker. 2 stacks of each, or 4 if the Barrier soaked the whole hit; once a round"),
     row("📜", "Legendaries", "Arrive hidden. Use a Scroll of Revelation to reveal them; until then they act like a plain item"),
     row("🩸", "Crimson", "Above Legendary. Only from Crimson bosses in Endless (Crimson Vaults need a Crimson Key from Crimson Elites)")
   ].join(""))}
@@ -2574,17 +2603,18 @@ const TIPS: { id: string; icon: string; text: string; when: (r: Run | null) => b
   { id: "camp", icon: "🏕️", text: "This is the Camp. Walk to a room to open it: <b>Enter Dungeon</b> is at the top, and the rooms around the fire keep what you bring home.", when: r => !r && !!camp && !campRoom },
   { id: "walk", icon: "👣", text: "Tap a tile to walk there, and walk into things to use them: the <b>Merchant</b> sells potions, chests hold gear, foes block the way. Find the <b>trapdoor</b> to go down.", when: r => !!r?.gridMode && r.scene.t === "map" && r.grid?.depth === 0 },
   { id: "floor", icon: "🕳️", text: "Every floor has one trapdoor down, and there's no climbing back up. Look around first: chests, altars and strange doors are worth the detour.", when: r => !!r?.gridMode && r.scene.t === "map" && (r.grid?.depth ?? 0) >= 1 && r.grid?.depth !== TREASURE_DEPTH },
-  { id: "fight", icon: "🎲", text: "<b>Attack</b> rolls your weapon's die: each face is a Miss, Graze (half), Hit or Crit (double, through Armor). <b>Guard</b> (with a shield) doubles your Armor this round. 🧪 Potions heal.", when: r => r?.scene.t === "combat", top: true },
+  { id: "fight", icon: "🎲", text: "Walk into a foe to fight it. <b>Attack</b> rolls your weapon's die: each face is a Miss, Graze (half), Hit or Crit (double, through Armor). <b>Guard</b> (with a shield) doubles your Armor this round. 🧪 Potions heal.", when: r => !!r?.gridMode && r.scene.t === "map" && (r.grid?.depth ?? 0) >= 1 && r.stats.kills === 0 },
   { id: "loot", icon: "🎁", text: "A find! <b>Equip</b> it, put it in your <b>backpack</b>, or leave it. Gear in the backpack can go on any time outside a fight.", when: r => r?.scene.t === "loot" || (r?.scene.t === "pick" && !!r.scene.items.length), top: true },
   { id: "level", icon: "📈", text: "Level up! Open 🎒 → <b>Attributes</b> and tap <b>+</b> to spend your point. Tap an attribute's name to see what it gives.", when: r => !!r && (r.hero.attrPoints ?? 0) > 0 && r.scene.t === "map" },
   { id: "skill", icon: "✨", text: "Level 5: your <b>path</b> offers you a choice of two skills. Pick one in 🎒 → Attributes. Skills cost 1 🔷 Mana.", when: r => !!r && r.hero.level >= SKILL_LEVEL && !r.hero.skill && !!r.hero.path && r.drill !== "silent" && r.scene.t === "map" },
-  { id: "mana", icon: "🔷", text: "Mana carries over from fight to fight, and only <b>Mana Potions</b> refill it. Spend it when it counts.", when: r => r?.scene.t === "combat" && !!r.hero.skill, top: true },
-  { id: "throw", icon: "💣", text: "Throwables don't take your turn: tap one to ready it, and it flies right after your move.", when: r => r?.scene.t === "combat" && THROWS.some(t => (r.hero.f.persist[THROW_INFO[t].key] ?? 0) > 0), top: true },
+  { id: "mana", icon: "🔷", text: "Mana carries over from fight to fight, and only <b>Mana Potions</b> refill it. Spend it when it counts.", when: r => r?.scene.t === "map" && !!r.hero.skill },
+  { id: "throw", icon: "💣", text: "You're carrying a throwable. In a fight it doesn't take your turn: tap it to ready it, and it flies right after your move.", when: r => r?.scene.t === "map" && THROWS.some(t => (r.hero.f.persist[THROW_INFO[t].key] ?? 0) > 0) },
   { id: "cleared", icon: "👑", text: "Layer cleared! Carry on down, or head home to the Camp: what you bring back stays, and beating the 1st Layer opens the Passive Tree.", when: r => r?.scene.t === "cleared", top: true }
 ];
 function tipBubble(r: Run | null) {
   if (meta.tipsOff || helpOpen || bagOpen || menuOpen) return "";
-  if (r?.popup) return "";
+  // (Never during a fight: nothing should cover the dice.)
+  if (r?.popup || r?.scene.t === "combat") return "";
   const t = TIPS.find(x => !meta.tips?.includes(x.id) && x.when(r));
   if (!t) return "";
   return `<div class="tip-bubble ${t.top ? "top" : ""}" role="note"><span class="tb-ic">${t.icon}</span><p>${t.text}</p><div class="tb-btns"><button class="tb-ok" data-tipok="${t.id}">Got it</button><button class="tb-off" data-tipsoff>Hide tips</button></div></div>`;
@@ -3346,7 +3376,7 @@ function bind() {
     });
     on("[data-closehistory]", () => { historyOpen = false; });
     on("[data-back]", () => { view = "title"; });
-    on("[data-play]", () => { view = "title"; });
+    on("[data-play]", () => { view = "title"; tavLine = null; });
     on("[data-home]", () => { view = "splash"; });
     on("[data-closereset]", () => { resetPopup = false; });
     on("[data-options]", () => { optionsOpen = true; resetArmed = false; });
@@ -3393,7 +3423,7 @@ function bind() {
     on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode;
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
-    on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; campTab = "expedition"; campRoom = null; resetCampWalk(); campOffers = null; campQuest = null; });
+    on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; tavLine = null; campTab = "expedition"; campRoom = null; resetCampWalk(); campOffers = null; campQuest = null; });
     on("[data-closeroom]", () => { campRoom = null; expPop = null; trapIntro = false; fishCaught = null; fishNote = ""; if (fishLine) { for (const t of fishLine.timers) clearTimeout(t); fishLine = null; } });
     on("[data-fishcast]", () => fishStart());
     on("[data-fishstrike]", () => fishStrike());
@@ -3572,6 +3602,7 @@ function bind() {
   on("[data-revealgo]", () => { if (revealSel === null) return; const err = reveal(r.hero, revealSel); say(err ?? "The Legendary reveals its true power!", !!err); if (!err) { revealSel = null; celebrate("legendary", "REVEALED"); } });
   app.querySelectorAll<HTMLElement>("[data-invclose]").forEach(el => (el.onclick = ev => { if (ev.target !== el) return; ev.stopPropagation(); invPick = null; render(); }));
   on("[data-gift]", el => takeGift(r, el.dataset.gift as GiftId));
+  on("[data-draught]", el => { const err = drinkDraught(r, el.dataset.draught!); say(err); if (!err) { sfx("drink"); const d = BREWS[el.dataset.draught as BrewKind]; say(`${d.icon} You drink the ${d.name}: ${d.text.toLowerCase()} for ${d.floors} floor${d.floors === 1 ? "" : "s"}.`, false); } });
   on("[data-invpick]", el => { const [k, v] = el.dataset.invpick!.split(":"); invPick = k === "eq" ? { k: "eq", slot: v as EquipSlot } : { k: "bp", uid: Number(v) }; });
   app.querySelectorAll<HTMLElement>("[data-merclose]").forEach(el => (el.onclick = ev => { if (ev.target !== el) return; ev.stopPropagation(); merPick = null; sellArmed = null; render(); }));
   on("[data-mpick]", el => { const [k, v] = el.dataset.mpick!.split(":"); merPick = k === "s" ? { k: "stock", i: Number(v) } : { k: "own", uid: Number(v) }; sellArmed = null; });
