@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.17
+- Skeleton Keys no longer show in the backpack's Gear tab. They're in the Artefacts tab.
+
 ## 2.0.16
 - At the Merchant, switching between Equipped and Backpack (or tapping anything) no longer scrolls you back to the top. The backpack screen holds its place too.
 
