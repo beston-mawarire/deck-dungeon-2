@@ -517,6 +517,8 @@ export const CRAWL_NORMAL_HP = 1.8;
 export const CRAWL_NORMAL_POWER = 2;
 /** How much softer Elites are on the first layer's first two floors. */
 export const FIRST_ELITE_EASE = 0.85;
+/** How often a curse-lifting altar turns up, as a landmark (the same whether or not you're cursed). */
+export const CLEANSING_WEIGHT = 3;
 /** Chance a floor has a Crimson foe's room: this much per layer below the first, up to the cap. */
 export const CRIMSON_ROOM_STEP = 0.1, CRIMSON_ROOM_MAX = 0.5;
 /** Every layer is a stage of its own, harder than the one before; within a layer, each floor down is a little harder.
@@ -660,15 +662,16 @@ export function makeGrid(run: Run, depth = 1, explored = 0): FloorMap {
   // (The Merchant stays put once met, so it stands out in a hall where it can't block a way through.)
   for (const [room, d] of Object.entries(plan) as [RoomType, number][]) if (d === depth) { if (room === "shop") putInHall(room); else pois.push(room); }
   if (run.gridShop2 === depth) putInHall("shop");
-  if (Object.keys(run.hero.curses).length > 0 && !run.seenBosses.has(`cleanse:${run.floor}`)) { run.seenBosses.add(`cleanse:${run.floor}`); pois.push("cleansing"); }
-  // Faith: while you carry a curse, altars that lift curses turn up more often (another on later floors).
-  else if (Object.keys(run.hero.curses).length > 0 && rng() < Math.min(0.6, 0.06 * attrOf(run.hero, "fai"))) pois.push("cleansing");
+  // (A curse-lifting altar is a landmark like any other: carrying a curse doesn't summon one.)
+  // Faith: while you carry a curse, they turn up more often.
+  if (Object.keys(run.hero.curses).length > 0 && rng() < Math.min(0.6, 0.06 * attrOf(run.hero, "fai"))) pois.push("cleansing");
   const lw = roomWeights(run, false);
   const marks = Object.fromEntries(LANDMARKS.map(k => [k, lw[k] ?? 0]).filter(([, v]) => (v as number) > 0)) as Partial<Record<RoomType, number>>;
   // Blood Oaths: a Crawl landmark of their own.
   marks.oath = OATH_WEIGHT;
   marks.offering = OFFERING_WEIGHT;
   if (run.hero.f.persist["ins_angling"]) marks.pond = POND_WEIGHT;
+  marks.cleansing = CLEANSING_WEIGHT;
   for (let n = floorLandmarks(rng()); n > 0 && Object.keys(marks).length; n--) { const room = pickW(rng, marks); delete marks[room]; pois.push(room); }
   for (let n = 1 + (rng() < 0.4 ? 1 : 0); n > 0; n--) pois.push(chest());
   // Crimson foes: from the 2nd layer, now and then (likelier the deeper you go), each in a room of its own.
@@ -873,7 +876,7 @@ function makeEntrance(run: Run, explored: number): FloorMap {
 }
 
 /** What you start a Crawl with: enough Gold for one Healing Potion at the entrance, and no more. */
-export const CRAWL_START_GOLD = 20;
+export const CRAWL_START_GOLD = 16;
 
 /** Turn a fresh run into a Crawl (the prototype). */
 export function startCrawl(run: Run) {
@@ -1950,8 +1953,6 @@ export function randomRelic(run: Run, quality = 1): string {
   return pool[0].id;
 }
 
-/** Levelling up heals a little (a share of Max HP). */
-export const LEVEL_HEAL = 0.15;
 export function gainXp(run: Run, n: number) {
   const h = run.hero;
   h.xp += n;
@@ -1960,11 +1961,9 @@ export function gainXp(run: Run, n: number) {
     h.level++;
     // The Crawl: attribute points instead of talents.
     if (run.gridMode) {
+      // A level changes nothing by itself: it's the points you spend that make you stronger.
       h.attrPoints = (h.attrPoints ?? 0) + ATTR_PER_LEVEL;
-      recompute(h);
-      h.f.hp = Math.min(h.f.maxHp, h.f.hp + 3);
-      const healed = restore(h, Math.round(h.f.maxHp * LEVEL_HEAL));
-      run.popup = { icon: "⭐", title: `Level ${h.level}!`, text: `+3 Max HP${healed > 0 ? `, and you catch your breath (+${healed} HP)` : ""}. You have ${ATTR_PER_LEVEL} attribute points to spend: open your inventory's Attributes tab to put them to use.` };
+      run.popup = { icon: "⭐", title: `Level ${h.level}!`, text: `You have ${h.attrPoints} attribute point${h.attrPoints === 1 ? "" : "s"} to spend. Open your inventory's Attributes tab to put them to use: nothing changes until you do.` };
     } else run.pendingTalents++;
   }
 }
@@ -2284,6 +2283,8 @@ export function chooseEvent(run: Run, i: number) {
     hurt: (n: number) => { h.f.hp = Math.max(1, h.f.hp - n); },
     healPct: (p: number) => { restore(h, Math.round(h.f.maxHp * p)); },
     addMaxHp: (n: number) => { h.f.persist["maxHpLoss"] = (h.f.persist["maxHpLoss"] ?? 0) - n; recompute(h); h.f.hp += n; },
+    bindMaxHp: () => { recompute(h); h.f.persist["maxHpCap"] = h.f.maxHp; recompute(h); },
+    oathBound: () => !!h.f.persist["maxHpCap"],
     cutMaxHp: (n: number) => { h.f.persist["maxHpLoss"] = (h.f.persist["maxHpLoss"] ?? 0) + n; recompute(h); h.f.hp = Math.max(1, Math.min(h.f.hp, h.f.maxHp)); },
     gainItem: (r: Rarity) => { const it = rollItem(h, r, depth(run), run.rng); found.push(it); return it; },
     // (The dungeon has no relics: what would have been one is a purse of Gold.)
@@ -2361,7 +2362,7 @@ export function eventOptionAvailable(run: Run, i: number): boolean {
   const opt = s.ev.options[i];
   if (!opt.can) return true;
   // Only read-only helpers are used by `can`.
-  return opt.can({ gold: () => h.f.gold, hp: () => h.f.hp, maxHp: () => h.f.maxHp, relicCount: () => Object.keys(h.relics).length, potions: () => h.potions, floor: () => run.floor, needGold: () => eventGold(run, s.ev) } as never);
+  return opt.can({ gold: () => h.f.gold, hp: () => h.f.hp, maxHp: () => h.f.maxHp, relicCount: () => Object.keys(h.relics).length, potions: () => h.potions, floor: () => run.floor, needGold: () => eventGold(run, s.ev), oathBound: () => !!h.f.persist["maxHpCap"] } as never);
 }
 
 // ---------- Fusions ----------

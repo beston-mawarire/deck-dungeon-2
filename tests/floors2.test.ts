@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
 import { idx, isFloor, pathTo, POOL_STEPS, SPIKE_DMG, type FloorMap } from "../src/game/grid";
-import { chooseEvent, gridStep, LAYER_FOES, makeGrid, newRun, startCrawl } from "../src/game/run";
+import { chooseEvent, eventOptionAvailable, gridStep, LAYER_FOES, makeGrid, newRun, startCrawl } from "../src/game/run";
+import { recompute } from "../src/game/hero";
 import { MONSTERS } from "../src/data/monsters";
 import { EVENTS } from "../src/data/events";
 
@@ -100,11 +101,18 @@ describe("floors with teeth", () => {
     r.hero.f.hp = r.hero.f.maxHp;
     const max = r.hero.f.maxHp;
     r.scene = { t: "event", ev: EVENTS.find(e => e.id === "blood_oath")!, result: null, found: [] };
-    chooseEvent(r, 1);
-    expect(r.hero.f.maxHp).toBe(max - Math.round(max * 0.2));
+    chooseEvent(r, 0);
+    const cut = max - Math.round(max * 0.3);
+    expect(r.hero.f.maxHp).toBe(cut);
     const sc = r.scene as { t: string; items?: { rarity: string }[] };
     expect(sc.t).toBe("loot");
     expect(sc.items?.[0].rarity).toBe("epic");
+    // The oath binds: Max HP can't rise above the cut, and you can't swear twice.
+    expect(r.hero.f.persist["maxHpCap"]).toBe(cut);
+    r.hero.f.persist["hallHp"] = (r.hero.f.persist["hallHp"] ?? 0) + 20; r.hero.level += 3; recompute(r.hero);
+    expect(r.hero.f.maxHp).toBeLessThanOrEqual(cut);
+    r.scene = { t: "event", ev: EVENTS.find(e => e.id === "blood_oath")!, result: null, found: [] };
+    expect(eventOptionAvailable(r, 0)).toBe(false);
   });
 });
 

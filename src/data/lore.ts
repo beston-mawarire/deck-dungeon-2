@@ -2,6 +2,7 @@
 // ever finds each one. Keyed by gear base id. Pure lore: no mechanics here.
 
 export const LEGENDARY_LORE: Record<string, string> = {
+  lx_warhorn_bulwark: "A horn was riveted to its rim after the siege. Every shout through it rings off the steel like a wall going up.",
   // --- conditional.ts ---
   lx_snake_eyes: "Won in a dice game by a gambler who only ever rolled ones. He kept rolling. Eventually, so did the sword.",
   lx_serpent_coil: "Its pages are scales. Each bad roll turns one, and the serpent beneath grows a little hungrier.",

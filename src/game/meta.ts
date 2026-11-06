@@ -181,7 +181,8 @@ export function saveMeta(m: Meta) {
 /** Item ids still locked at this Renown. */
 export function lockedIds(m: Meta): Set<string> {
   const out = new Set<string>();
-  for (const t of UNLOCK_TIERS) if (m.renown < t.at) for (const id of t.ids) out.add(id);
+  // (Renown is retired: nothing is locked behind it any more.)
+  void m; void UNLOCK_TIERS;
   return out;
 }
 

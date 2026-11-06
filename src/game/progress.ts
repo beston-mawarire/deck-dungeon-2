@@ -43,6 +43,9 @@ export function masteryFor(run: Run): number {
 }
 
 /** Class abilities: the first is the class's own; the others open at these Mastery levels. One goes into each run. */
+/** Layers a class must have beaten before an ability (by its old Mastery level) can be taken: the second after the
+ *  1st Layer, the third after the 3rd. */
+export const skillLayers = (k: { level: number }) => (k.level <= 1 ? 0 : k.level <= 3 ? 1 : 3);
 export const CLASS_SKILLS: Record<string, { id: string; level: number; name: string; icon: string; text: string }[]> = {
   warrior: [
     { id: "warcry", level: 1, name: "War Cry", icon: "📯", text: "Gain a lot of Might, and leave the foe Weak and Exposed" },

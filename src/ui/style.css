@@ -2415,6 +2415,9 @@ li.type-line::before { content: none !important; }
 .m3-foot { margin: 18px 0 0; padding: 6px 16px; border-radius: 6px; background: rgba(20,12,6,.8); border: 1px solid #5a4028; color: #cdbfa9; font-size: .88rem; }
 .menu3 .version { color: #7a6a54; }
 @media (min-width: 1000px) and (min-height: 760px) { .m3-buttons, .m3-title, .m3-tag { zoom: 1.2; } }
+@media (min-width: 1000px) and (min-height: 760px) { .m3-buttons { zoom: 1.2; gap: 8px; margin-top: calc(clamp(60px, 20vh - 50px, 300px) / 1.2); } }
+@media (min-width: 1000px) and (min-height: 900px) { .m3-buttons { zoom: 1.35; margin-top: calc(clamp(100px, 30vh - 70px, 360px) / 1.35); } }
+@media (min-width: 1400px) and (min-height: 1000px) { .m3-buttons { zoom: 1.5; margin-top: calc(clamp(100px, 30vh - 80px, 420px) / 1.5); } .m3-title, .m3-tag { zoom: 1.3; } }
 
 /* Options and Changes, as pages in the same look. */
 .m3-page { min-height: 100dvh; margin: -16px; padding: max(12px, env(safe-area-inset-top)) 16px 28px; color: #ead7b3; background: radial-gradient(ellipse at 50% 0%, rgba(255,150,60,.10), transparent 55%), linear-gradient(180deg, #1c130b, #120c07); }
@@ -2429,3 +2432,25 @@ li.type-line::before { content: none !important; }
 .m3-page button.small.primary:not(.plank-btn) { background: linear-gradient(180deg, #e2b866, #b8862a); color: #24160a; border-color: #f0d28a; }
 .splash.menu3 { overflow: visible; }
 .m3-bg { position: fixed !important; }
+
+/* 1.93: paper sizes to what's on it; the merchant's gear lists get more room. */
+.mer-panel.mer-detail { flex: 0 1 auto; align-self: flex-start; width: 100%; max-height: 100%; overflow-y: auto; }
+@media (max-width: 719px) { .mer-detail { min-height: 0; } .mer-main { flex: 0 1 auto; } .mer-inv { flex: 1 1 auto; } }
+@media (min-width: 720px) { .mer-main { align-items: flex-start; } .mer-stock { max-height: 100%; } .mer-panel.mer-detail { flex: 1.4 1 0; } }
+.mer-inv .mer-list { max-height: 260px !important; overflow-y: auto; }
+@media (max-width: 719px) { .mer-inv .mer-list { max-height: 210px !important; } }
+.inv-detail { min-height: 0 !important; align-self: start; }
+/* The class skill: gilded, with a glow, so it never reads as an ordinary move. */
+.cb-move.skill { position: relative; color: #fff3d6 !important; background: linear-gradient(180deg, #6a3fa0, #3b1f63) !important; border: 2px solid #e6c36a !important; border-left-width: 7px !important; box-shadow: 0 0 0 2px #1a0d2a, 0 0 14px rgba(190,140,255,.45), inset 0 1px 0 rgba(255,255,255,.25) !important; text-shadow: 0 1px 2px #000; }
+.cb-move.skill .sub, .cb-move.skill small, .cb-move.skill span { color: #e9dcff !important; }
+.cb-move.skill:disabled { filter: grayscale(.6) brightness(.8); }
+/* Cursed: a purple skull under the map. */
+.cz-curse { position: relative; display: inline-flex; align-items: center; justify-content: center; margin-top: 6px; width: 40px; height: 40px; min-height: 0; padding: 0; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #5a2c86, #22102f 72%); border: 2px solid #b07ae6; box-shadow: 0 0 12px rgba(170,90,255,.65), 0 2px 6px rgba(0,0,0,.6); animation: czCurse 2.4s ease-in-out infinite; }
+.cz-curse span { font-size: 1.25rem; filter: grayscale(1) brightness(1.1) sepia(1) hue-rotate(225deg) saturate(5); }
+.cz-curse b { position: absolute; right: -4px; bottom: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; font-size: .7rem; line-height: 18px; color: #fff; background: #7a35b8; border: 1px solid #e0c4ff; }
+@keyframes czCurse { 50% { box-shadow: 0 0 20px rgba(190,110,255,.9), 0 2px 6px rgba(0,0,0,.6); } }
+/* Enter Dungeon: Descend in gold, the settings in a cooler stone. */
+.exp-btns button.plank-btn.exp-go { color: #2a1806 !important; text-shadow: 0 1px 0 rgba(255,230,170,.5); background: repeating-linear-gradient(0deg, rgba(0,0,0,.06) 0 2px, transparent 2px 8px), linear-gradient(180deg, #f0c870, #c8913a 55%, #9a6a22) !important; }
+.exp-btns button.plank-btn[data-exppop="layer"] { background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 2px, transparent 2px 8px), linear-gradient(180deg, #5e6470, #454a55 55%, #33373f) !important; }
+.exp-btns button.plank-btn[data-exppop="heat"] { background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 2px, transparent 2px 8px), linear-gradient(180deg, #8e3a24, #6c2816 55%, #511c0e) !important; }
+.exp-btns button.plank-btn[data-exppop="totem"] { background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 2px, transparent 2px 8px), linear-gradient(180deg, #52683a, #3d5128 55%, #2c3b1c) !important; }

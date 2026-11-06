@@ -483,14 +483,16 @@ function strike(b: Battle, ctx: AttackCtx) {
     raw = 0;
   }
   ctx.raw = raw;
-  // Causality Mirror: the first hit it takes comes straight back at the attacker, in full. Evade and Dodge can't stop it.
+  // Causality Mirror: the first hit it takes is stopped, and half of it comes straight back at the attacker. Evade and Dodge can't stop it.
   if (st(d, "causality") > 0 && raw > 0) {
     d.statuses.causality = 0;
     d.flags["mirrorBack"] = b.round + MIRROR_RECHARGE;
-    log(b, `🪞 Causality Mirror! ${a.name}'s blow comes back at them: ${raw}.`);
+    // (Half of it comes back now; it used to be the whole blow.)
+    const back = Math.max(1, Math.round(raw * MIRROR_REFLECT));
+    log(b, `🪞 Causality Mirror! Half of ${a.name}'s blow comes back at them: ${back}.`);
     fx(b, { who: d.id, kind: "block", text: "Reflected", icon: "🪞" });
-    loseHp(b, a, raw);
-    fx(b, { who: a.id, kind: "dmg", value: raw });
+    loseHp(b, a, back);
+    fx(b, { who: a.id, kind: "dmg", value: back });
     breakStreak(b, a);
     return afterStrike(b, ctx);
   }
@@ -715,6 +717,10 @@ function tryRewind(b: Battle): boolean {
 }
 
 export const MIRROR_RECHARGE = 4;
+/** The share of a blow the Causality Mirror sends back. */
+export const MIRROR_REFLECT = 0.5;
+/** Regen a Penance gives (before Faith). */
+export const PENANCE_REGEN = 3;
 function useTrueStrike(a: Fighter): boolean {
   if (a.flags["tsNow"]) return true;
   if (!(st(a, "truestrike") > 0)) return false;
@@ -878,6 +884,8 @@ function useSkill(b: Battle, skill: Skill) {
     log(b, `${p.name} raises an Elemental Barrier: rolls ${r} — ${tier === 2 ? "a full block" : tier === 1 ? "it will take half" : "it won't stop a hit, but attackers still get the element"}.`);
   } else if (skill === "penance") {
     p.flags["penanceRound"] = b.round;
+    // Penance also mends: Regen, more with Faith (+1 for every 2 points).
+    applyStatus(b, p, p, "regen", PENANCE_REGEN + Math.floor((p.persist["faiPts"] ?? 0) / 2));
     log(b, `${p.name} kneels in Penance. What you suffer this round is stored (${p.flags["penanceStore"] ?? 0} so far).`);
     fx(b, { who: "player", kind: "text", text: "Penance", icon: "✝️" });
   } else if (skill === "crush") {
@@ -941,7 +949,8 @@ function useSkill(b: Battle, skill: Skill) {
   } else {
     // War Cry: a big swell of Might (more the deeper you are; half as much for each cry after the first this fight), and the enemy is cowed.
     const n = p.flags["used_warcry"];
-    const base = 3 + Math.floor((2 * (p.persist["floor"] ?? 1)) / 3) + (p.flags["warcryMight"] ?? 0);
+    // (Strength feeds it: +1 Might for every 2 points.)
+    const base = 3 + Math.floor((2 * (p.persist["floor"] ?? 1)) / 3) + (p.flags["warcryMight"] ?? 0) + Math.floor((p.persist["strPts"] ?? 0) / 2);
     applyStatus(b, p, p, "might", n > 1 && !p.flags["warcryFull"] ? Math.max(1, Math.ceil(base / 2)) : base);
     applyStatus(b, p, e, "weak", 3);
     applyStatus(b, p, e, "exposed", 2);

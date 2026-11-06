@@ -351,7 +351,8 @@ export function recompute(h: Hero) {
   f.persist["faiRes"] = attrOf(h, "fai");
   f.persist["vitRegen"] = attrOf(h, "vit");
   f.persist["mainArcane"] = h.equip.main && classify(effectiveBase(h.equip.main)).family === "arcane" ? 1 : 0;
-  s.maxHp += 3 * (h.level - 1); // every level-up: +3 Max HP
+  // Every level-up: +3 Max HP (not in the Crawl, where a level is only attribute points to spend).
+  if (!f.persist["classLoot"]) s.maxHp += 3 * (h.level - 1);
   s.maxHp -= f.persist["maxHpLoss"] ?? 0;
   s.maxHp += f.persist["hallHp"] ?? 0;
   // A revealed trinket with its own faces (Dice of the Damned) replaces your main die.
@@ -385,7 +386,12 @@ export function recompute(h: Hero) {
   if (vessel) s.maxHp = Math.min(20, s.maxHp);
   const offIt = h.equip.off;
   f.offEcho = vessel && offIt ? (baseOf(offIt.base).legendary && offIt.revealed ? offIt.base : effectiveBase(offIt).id) : undefined;
-  f.maxHp = Math.max(1, s.maxHp);
+  // Read by the fight: Strength feeds War Cry.
+  f.persist["strPts"] = attrOf(h, "str");
+  f.persist["faiPts"] = attrOf(h, "fai");
+  // A Blood Oath binds your Max HP where the oath left it: nothing raises it past that again this run.
+  const cap = f.persist["maxHpCap"];
+  f.maxHp = Math.max(1, cap ? Math.min(s.maxHp, cap) : s.maxHp);
   f.hp = Math.min(f.hp, f.maxHp);
   f.armor = Math.max(0, s.armor);
   f.damage = Math.max(0, s.damage);

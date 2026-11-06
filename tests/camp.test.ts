@@ -30,7 +30,7 @@ describe("the Camp: Crown Shards, materials and the Hall", () => {
     const r = newRun("warrior", 4); startCrawl(r);
     const hp = r.hero.f.maxHp;
     applyHall(m, r);
-    expect(r.hero.f.gold).toBe(20 + 100);
+    expect(r.hero.f.gold).toBe(16 + 100);
     expect(r.hero.potions).toBe(2);
     expect(packSize(r.hero)).toBe(24);
     expect(r.hero.f.maxHp).toBe(hp + 20);

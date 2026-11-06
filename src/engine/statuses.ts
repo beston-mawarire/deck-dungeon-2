@@ -24,7 +24,7 @@ export const HERO_STATUS_LAND = 0.5;
 const DOT_STATUSES: StatusId[] = ["burn", "poison", "bleed", "chill", "static", "soaked", "smoulder", "fracture"];
 
 export const STATUS_INFO: Record<StatusId, { name: string; icon: string; text: string }> = {
-  causality: { name: "Causality Mirror", icon: "🪞", text: "The next hit it takes is reflected back in full, past any Evade or Dodge. Reforms 4 rounds after use. It can't be removed" },
+  causality: { name: "Causality Mirror", icon: "🪞", text: "The next hit it takes is stopped, and half of it reflected back, past any Evade or Dodge. Reforms 4 rounds after use. It can't be removed" },
   truestrike: { name: "True Strike", icon: "🎯", text: "Its next attack ignores Blind, Dazzle, Evade and Dodge. Recharges 3 rounds after use. It can't be removed" },
   bleed: { name: "Bleed", icon: "🩸", text: "Lose 1 HP per stack at end of round; stacks fall by 1" },
   burn: { name: "Burn", icon: "🔥", text: "Take damage equal to stacks at start of turn; stacks halve" },

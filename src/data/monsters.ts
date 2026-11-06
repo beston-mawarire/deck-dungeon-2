@@ -84,7 +84,7 @@ export const TRAITS: HookDef[] = [
       if (f.flags["trueUsed"]) { f.flags["trueUsed"] = 0; f.flags["trueBack"] = b.round + 3; }
       if (f.flags["trueBack"] && b.round >= f.flags["trueBack"]) { f.flags["trueBack"] = 0; f.statuses.truestrike = 1; }
     } } }),
-  trait({ id: "x_mirror", name: "Causality Mirror", tags: ["Guard"], text: "The first hit it takes is reflected back at you in full, past Evade and Dodge. It reforms 4 rounds after it's used. It can't be removed",
+  trait({ id: "x_mirror", name: "Causality Mirror", tags: ["Guard"], text: "The first hit it takes is stopped, and half of it is reflected back at you, past Evade and Dodge. It reforms 4 rounds after it's used. It can't be removed",
     hooks: { onFightStart: (_b, f) => { f.statuses.causality = 1; }, onRoundStart: (b, f) => { if (f.flags["mirrorBack"] && b.round >= f.flags["mirrorBack"]) { f.flags["mirrorBack"] = 0; f.statuses.causality = 1; } } } }),
   trait({ id: "x_grievous", name: "Grievous", tags: ["Blood", "Hex"], text: "While you fight it, your healing is halved", hooks: {} }), // statuses.ts heal()
   trait({ id: "x_blighting", name: "Blighting", tags: ["Hex"], text: "Its hits stop your healing until the end of the next round", hooks: { onHit: (b, c) => { if (c.dealt > 0 && c.defender === b.player) c.defender.flags["blighted"] = b.round + 1; } } }),

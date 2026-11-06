@@ -9,6 +9,24 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 1.93.0
+- Class Mastery is gone. Class skills now unlock as you beat layers: the 2nd after the 1st Layer, the 3rd after the 3rd. No more starting-kit swaps.
+- Renown is gone as a mechanic: all loot is in the pools from the start.
+- You start with 16 Gold. Events that ask for Gold now ask for about half as much.
+- Blood Oath is harsher: give up 30% of your Max HP for an Epic, or 70% for a Legendary, and your Max HP can never rise above what's left. It shows under Curses in Artefacts.
+- A level-up changes nothing by itself: no Max HP, no healing. You only get points to spend.
+- War Cry gets stronger with Strength. New Epics (Bannered Wall, Vanguard Plate) and a Legendary (Warhorn Bulwark) make War Cry count as guarding.
+- Penance also gives you Regen (3, +1 for every 2 Faith).
+- The Causality Mirror now reflects half the damage.
+- Cleansing wells no longer appear straight away when you're cursed. The odds are unchanged.
+- When you're cursed, a purple skull shows under the map. Tap it to see your curses.
+- The class skill button has its own look in combat.
+- Enter Dungeon: Descend is gold, and Layer, Heat and Totem each get their own colour.
+- Paper panels (merchant, bag, popups) size to what's on them. The merchant's Equipped and Backpack lists are taller.
+- Main menu buttons scale up on big screens.
+- Passive nodes no longer say they were once a relic or sigil.
+- Sounds: hits, crits and reactions are back to the original punchier sounds. Grazes have their own lighter sound, and chests play an opening sound.
+
 ## 1.92.0
 
 - **Deck Dungeon 3.** A new main menu: a torchlit hall drawn from the dungeon's own tiles, the title on a hanging sign, and plank buttons. Options and Changes match it, and Changes has notes for the new game.

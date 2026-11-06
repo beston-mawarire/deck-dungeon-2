@@ -2,7 +2,6 @@
 import stepA from "../assets/sfx/footstep00.ogg";
 import stepB from "../assets/sfx/footstep02.ogg";
 import stepC from "../assets/sfx/footstep04.ogg";
-import chopU from "../assets/sfx/chop.ogg";
 import sliceA from "../assets/sfx/knifeSlice.ogg";
 import sliceB from "../assets/sfx/knifeSlice2.ogg";
 import creakU from "../assets/sfx/creak1.ogg";
@@ -12,13 +11,13 @@ import drawU from "../assets/sfx/drawKnife2.ogg";
 import clothU from "../assets/sfx/cloth2.ogg";
 import potU from "../assets/sfx/metalPot2.ogg";
 import pageU from "../assets/sfx/bookFlip2.ogg";
-type Sfx = "roll" | "hit" | "crit" | "miss" | "block" | "status" | "heal" | "reaction" | "chest" | "epic" | "legendary" | "crimson" | "win" | "lose" | "click" | "step" | "coins" | "equip" | "smash" | "page";
+type Sfx = "roll" | "hit" | "graze" | "crit" | "miss" | "block" | "status" | "heal" | "reaction" | "chest" | "epic" | "legendary" | "crimson" | "win" | "lose" | "click" | "step" | "coins" | "equip" | "smash" | "page";
 
 /** Recorded clips, decoded on first use. */
 const CLIPS: Partial<Record<Sfx, { urls: string[]; vol: number }>> = {
   step: { urls: [stepA, stepB, stepC], vol: 0.18 },
-  hit: { urls: [chopU, sliceA], vol: 0.5 },
-  crit: { urls: [sliceB], vol: 0.6 },
+  // Hits, crits and reactions are the original punchy synth; only a graze uses a recorded slice.
+  graze: { urls: [sliceA, sliceB], vol: 0.45 },
   chest: { urls: [creakU, latchU], vol: 0.5 },
   coins: { urls: [coinsU], vol: 0.45 },
   equip: { urls: [clothU, drawU], vol: 0.45 },
@@ -238,7 +237,8 @@ function noise(dur: number, vol = 0.15, cutoff = 1800, delay = 0) {
 
 export function sfx(kind: Sfx) {
   if (muted) return;
-  if (CLIPS[kind] && playClip(kind)) { if (kind === "crit") tone(660, 0.15, "square", 0.04, undefined, 0.03); return; }
+  if (kind === "chest") { tone(392, 0.1, "triangle", 0.07); tone(523, 0.12, "triangle", 0.07, undefined, 0.08); tone(659, 0.16, "triangle", 0.06, undefined, 0.16); }
+  if (CLIPS[kind] && playClip(kind)) return;
   switch (kind) {
     case "step": case "coins": case "equip": case "smash": case "page": return;
     case "roll": noise(0.05, 0.08, 3000); break;
@@ -249,7 +249,8 @@ export function sfx(kind: Sfx) {
     case "status": tone(330, 0.12, "sine", 0.07, 260); break;
     case "heal": tone(520, 0.12, "sine", 0.07); tone(780, 0.16, "sine", 0.06, undefined, 0.08); break;
     case "reaction": noise(0.25, 0.2, 2500); tone(180, 0.3, "sawtooth", 0.08, 700); break;
-    case "chest": tone(392, 0.1, "triangle", 0.08); tone(523, 0.12, "triangle", 0.08, undefined, 0.08); break;
+    case "chest": noise(0.08, 0.12, 1200); break;
+    case "graze": noise(0.08, 0.14, 1600); tone(160, 0.08, "triangle", 0.07, 90); break;
     case "epic": [523, 659, 784].forEach((f, i) => tone(f, 0.22, "triangle", 0.08, undefined, i * 0.08)); break;
     case "legendary":
       [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, "triangle", 0.09, undefined, i * 0.1));

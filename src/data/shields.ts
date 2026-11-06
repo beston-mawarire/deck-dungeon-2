@@ -29,6 +29,10 @@ export const SHIELDS: GearBase[] = [
 ];
 
 export const SHIELD_LEGENDARIES: GearBase[] = [
+  { ...sh, id: "lx_warhorn_bulwark", rarity: "legendary", name: "The Warhorn Bulwark", tags: ["Guard", "Strike"], armor: 5, forClass: "warrior",
+    legendary: { minFloor: 2, asBase: "o_tower_shield", reveal: "+5 Armor. Your War Cry counts as Guarding, and every War Cry gives Barrier equal to your Armor." },
+    text: "A horn worked into the rim. Blow it and the wall answers.",
+    hooks: { onFightStart: (_b, f) => { f.flags["guard_warcry"] = (f.flags["guard_warcry"] ?? 0) + 1; }, onSkill: (b, f, skill) => { if (skill === "warcry") applyStatus(b, f, f, "barrier", Math.max(1, f.armor)); } } },
   { ...sh, id: "lx_last_wall", rarity: "legendary", name: "The Last Wall", tags: ["Guard", "Strike", "Thorns"], armor: 5,
     legendary: { minFloor: 3, asBase: "o_tower_shield", reveal: "+5 Armor. While Guarding, every hit you take gives you 2 Might and hits its attacker for 4." },
     text: "Everything behind it is still standing.",

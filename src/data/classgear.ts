@@ -60,6 +60,11 @@ export const CLASS_GEAR: GearBase[] = [
   WC("epic", { ...O, id: "wc_lion_aegis", name: "Lion Aegis", shield: true, tags: ["Guard"], armor: 3,
     text: "Shield. +3 Armor. Your War Cry gives Barrier equal to twice your Might.", hooks: after("warcry", (b, f) => applyStatus(b, f, f, "barrier", 2 * st(f, "might"))) }),
 
+  // A War Cry spends your turn and leaves you open: these let it count as Guarding too.
+  WC("epic", { ...O, id: "wc_bannered_wall", name: "Bannered Wall", shield: true, tags: ["Guard"], armor: 4,
+    text: "Shield. +4 Armor. Your War Cry counts as Guarding as well.", hooks: flag("guard_warcry", 1) }),
+  WC("epic", { ...A, id: "wc_vanguard_plate", name: "Vanguard Plate", tags: ["Guard", "Strike"], armor: 5,
+    text: "Heavy: +5 Armor. Your War Cry counts as Guarding as well.", hooks: flag("guard_warcry", 1) }),
   WC("uncommon", { ...A, id: "wc_rage_hide", name: "Hide of Rage", tags: ["Blood"], armor: 2,
     text: "Medium: +2 Armor. Your War Cry gives 3 Regen.", hooks: after("warcry", (b, f) => applyStatus(b, f, f, "regen", 3)) }),
   WC("uncommon", { ...A, id: "wc_battle_harness", name: "Battle Harness", tags: ["Strike"], armor: 2,

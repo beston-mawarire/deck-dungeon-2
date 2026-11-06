@@ -438,8 +438,6 @@ function nextStep() {
   if (!res.ok) { stopWalk(); if (res.why) h.say(res.why, true); h.render(); return; }
   if (res.entered) {
     stopWalk();
-    const room = r.grid?.things.find(t => t.x === step[0] && t.y === step[1])?.room;
-    if (room === "wooden" || room === "iron") h.sfx("chest");
     h.render();
     return;
   }
