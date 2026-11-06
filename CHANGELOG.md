@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.7
+- Compare equipped works again. The comparison now opens on top of the found-item popup, the backpack and item popups instead of behind them, and tips stay hidden while it's open.
+
 ## 2.0.6
 - The Achievements page now matches the dungeon look: a wooden sign, a progress bar, gold tabs, and achievements grouped by kind. Earned ones are parchment cards with a Wear button for their title. Locked ones are dark dotted cards that show the title you'd get.
 
