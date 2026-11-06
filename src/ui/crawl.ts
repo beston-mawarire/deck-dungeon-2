@@ -39,6 +39,9 @@ const LAYER_TINT: (string | null)[] = [null, "rgba(70,110,50,.42)", "rgba(190,50
 const tileSize = (w: number, h: number) => Math.max(40, Math.min(92, Math.min(w, h) / (Math.min(w, h) > 700 ? 10 : 8)));
 
 /** Stop walking (a new screen, a popup, the menu). */
+/** Is the hero mid-walk right now? */
+export const isWalking = () => walking;
+
 export function stopWalk() {
   walking = false;
   path = [];
@@ -492,7 +495,8 @@ export function mountCrawl(r: Run, h: CrawlHooks) {
   hooks = h;
   const cv = document.getElementById("crawl") as HTMLCanvasElement | null;
   if (!cv || !r.grid) { stopWalk(); return; }
-  drawCrawl();
+  // (Taps are hooked up first: if drawing ever fails, you can still move.)
+  try { drawCrawl(); } catch (err) { console.error(err); }
   cv.onclick = ev => {
     const m = r.grid;
     if (!m || r.scene.t !== "map") return;

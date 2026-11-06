@@ -38,7 +38,7 @@ import { isThrow, readyThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from ".
 import { branchSpent, isTreeRelic, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR, BASE_DMG_PER } from "../data/attributes";
-import { crawlKeys, mountCrawl, stopWalk, walkToThing } from "./crawl";
+import { crawlKeys, isWalking, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { mountCampMap, resetCampWalk } from "./campmap";
 import { CAMP_BITE, CAMP_CASTS, CAMP_DEEP, CAMP_EMPTY, type CastPlan, FISH, fishById, planCast, POND_BITE, rollCatch, TANK_CATCHES } from "../game/fishing";
 import { ELITE_ONLY, MONSTERS } from "../data/monsters";
@@ -2983,6 +2983,16 @@ function celebrateScene(r: Run) {
 }
 
 let lastSceneKey = "";
+/** Something broke while drawing: say so on screen (instead of a frozen page), and log it. */
+function reportBreak(err: unknown) {
+  console.error(err);
+  const msg = err instanceof Error ? err.message : String(err);
+  let el = document.getElementById("break-note");
+  if (!el) { el = document.createElement("div"); el.id = "break-note"; document.body.appendChild(el); }
+  el.innerHTML = `<b>Something went wrong.</b> ${esc(msg).slice(0, 160)}<br><button data-breakfix>Back to the menu</button>`;
+  el.querySelector("button")!.addEventListener("click", () => { el!.remove(); try { if (run) saveRun(run, banked); } catch { /* ignore */ } location.reload(); });
+}
+window.addEventListener("error", e => { if (e.error) reportBreak(e.error); });
 function render() {
   app.classList.toggle("with-side", !!run);
   if (!run) fanfareHold = false;
@@ -2993,7 +3003,8 @@ function render() {
   document.body.classList.toggle("crawl-on", !run && !!camp);
   // Shops, forges and encounters: the dungeon's stone buttons (in any floor theme).
   document.body.classList.toggle("dg-scene", !!run && !(run.gridMode && run.scene.t === "shop") && ["shop", "forge", "jeweller", "event", "smith", "alchemist", "tribute", "sanctum", "bounty", "rest", "confirm"].includes(run.scene.t));
-  render2();
+  try { render2(); }
+  catch (err) { reportBreak(err); }
   // A foe with Ambush strikes before you can do anything.
   if (run && run.scene.t === "combat" && ambushPending(run.scene.battle) && !busy) { const r = run, b = run.scene.battle; setTimeout(() => void playAmbush(r, b), 0); }
   // A new scene (a room, a chest, a fight's rewards) starts at the top of the page, not wherever the last one was scrolled to.
@@ -3038,7 +3049,8 @@ function render3() {
   if (s.t === "map") saveRun(r, banked);
   // A new build is out: install it now that the run is safely saved at a path choice. Never on the end-of-run screen:
   // that would skip the results, the leaderboard post and the chance to delve deeper (it installs back at the menu).
-  if (updateReady() && s.t === "map") { applyUpdate(); }
+  // (Never mid-step: wait until the hero stands still, and save exactly where they stand.)
+  if (updateReady() && s.t === "map" && !isWalking() && !r.popup) { saveRun(r, banked); applyUpdate(); }
 
   if (s.t === "combat" && s.battle !== currentBattle) {
     currentBattle = s.battle;
@@ -3445,7 +3457,7 @@ function bind() {
     on("[data-closeorigin]", () => { pendingOrigin = null; });
     on("[data-help]", () => { helpOpen = true; });
     on("[data-closehelp]", () => { helpOpen = false; });
-    on("[data-continue]", () => { const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode;
+    on("[data-continue]", () => { stopWalk(); const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode;
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
     on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; tavLine = null; campTab = "expedition"; campRoom = null; resetCampWalk(); campOffers = null; campQuest = null; });

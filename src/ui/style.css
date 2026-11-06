@@ -2882,3 +2882,7 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
 @media (max-width: 520px) { .cmp-screen .cmp-foot > button:not(.plank-btn) { flex: 1 1 30%; padding: 0 8px; font-size: .9rem; } }
 /* 2.0.12: on small screens the Descend button keeps only its left arrow. */
 @media (max-width: 520px) { .exp-go .eg-arrow.eg-r { display: none; } }
+/* 2.0.13: if a screen ever fails to draw, say so instead of freezing. */
+#break-note { position: fixed; z-index: 999; left: 50%; top: 16px; transform: translateX(-50%); width: min(420px, calc(100% - 24px)); padding: 12px 14px; border-radius: 10px;
+  background: #3a1410; border: 2px solid #c0503a; color: #f6e2d0; font-size: .9rem; box-shadow: 0 8px 24px rgba(0,0,0,.6); }
+#break-note button { margin-top: 8px; padding: 6px 14px; border-radius: 8px; background: #5e2820; color: #f6e2d0; border: 1px solid #c0503a; font-weight: 700; }

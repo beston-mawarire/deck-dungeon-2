@@ -9,6 +9,11 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.0.13
+- Updates mid-run are safer. The game waits until you've stopped walking, saves exactly where you stand, then loads the new version. Continue puts you back on that tile.
+- The dungeon map always answers taps after Continue, even if drawing it hits a problem.
+- If a screen ever fails to draw, a red note says so (with a button back to the menu) instead of the game silently freezing.
+
 ## 2.0.12
 - On small screens the Descend button keeps only its left arrow.
 
