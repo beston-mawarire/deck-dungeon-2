@@ -2947,3 +2947,45 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
 .throw-card .tc-txt b { font-size: .86rem; color: #f3d58a; }
 .throw-card .tc-txt b em { font-style: normal; color: #ead7b3; font-weight: 700; margin-left: 2px; }
 .throw-card .tc-txt span { font-size: .74rem; line-height: 1.3; color: #c9b48c; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* 2.4.4: small screens: the backpack lists throwables, and the gear lives in the Armoury (a page of its own, full-width cards). */
+.inv-small { display: none; }
+@media (max-width: 520px) {
+  .inv-pack .inv-cards-wide { display: none; }
+  .inv-small { display: flex; flex-direction: column; gap: 8px; }
+  .inv-small .inv-throw-row { height: auto; }
+  .inv-small .inv-throw-row .inv-card.inv-throws { min-height: 210px; }
+}
+.armoury-btn { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 54px; padding: 8px 14px; border-radius: 10px; cursor: pointer;
+  background: linear-gradient(180deg, #4a3320, #36241a); border: 2px solid #a57a3e; color: #f3d58a; box-shadow: inset 0 0 0 1px #1a0f07, 0 3px 0 #0d0805; text-align: left; }
+.armoury-btn span { font-size: 1.4rem; } .armoury-btn b { font-size: 1.05rem; flex: 1; } .armoury-btn em { font-style: normal; color: #c9b48c; font-size: .85rem; }
+.armoury-screen { z-index: 80; }
+.armoury-screen .arm-line { text-align: center; color: #c9b48c; margin: 0 0 10px; font-size: .9rem; }
+.armoury-screen .inv-cards.arm-list { display: flex !important; flex-direction: column; gap: 12px; overflow: visible !important; height: auto !important; grid-auto-flow: unset; max-width: 560px; margin: 0 auto; }
+.armoury-screen .arm-list .inv-card { width: 100% !important; min-width: 0 !important; max-height: none !important; overflow: visible; padding: 0; }
+.armoury-screen .arm-list .item { min-height: 0; }
+.armoury-screen .arm-list .item .row, .armoury-screen .arm-list .item .item-btns { flex-wrap: wrap; gap: 8px; }
+/* (The Armoury's cards keep the backpack's dark look, not the parchment of other framed pages.) */
+.armoury-screen .arm-list .item { color: #ead7b3 !important; background: rgba(0,0,0,.28) !important; }
+.armoury-screen .arm-list .item :is(ul, li, p) { color: #ead7b3 !important; }
+.armoury-screen .arm-list .item :is(.meta, .sub) { color: #b39a74 !important; }
+.armoury-screen .arm-list .item .nm { color: var(--rk) !important; }
+.armoury-screen .arm-list .item.r-common .nm { color: #ead7b3 !important; }
+.armoury-screen .arm-list .item .item-type { color: #d8c39a !important; border-color: #7a5a34 !important; background: rgba(0,0,0,.25) !important; }
+.armoury-screen .arm-list .item .compare { background: rgba(0,0,0,.3) !important; border-color: #5a4028 !important; color: #ead7b3 !important; }
+.armoury-screen .arm-list .item .compare :is(b, span, i) { color: #ead7b3 !important; }
+.armoury-screen .arm-list .item .compare .cmp.up { color: #8fe0a0 !important; background: rgba(80,200,110,.15) !important; border-color: rgba(120,220,140,.45) !important; }
+.armoury-screen .arm-list .item .compare .cmp.down { color: #ff9a9a !important; background: rgba(230,90,90,.15) !important; border-color: rgba(255,120,120,.45) !important; }
+.armoury-screen .arm-list .item.r-uncommon { --rk: #6fd08c; } .armoury-screen .arm-list .item.r-rare { --rk: #6cb4ff; } .armoury-screen .arm-list .item.r-epic { --rk: #c890ff; } .armoury-screen .arm-list .item.r-legendary { --rk: #ffa24a; }
+/* Throwables on small screens: each column as tall as its two blocks. */
+@media (max-width: 520px) {
+  .inv-small .inv-throw-row { overflow-y: visible; align-items: start; }
+  .inv-small .inv-throw-row .inv-card.inv-throws { min-height: 0; height: auto; }
+  .inv-small .inv-throw-row .throw-card { flex: none; }
+}
+@media (max-width: 520px) {
+  .inv-small { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+  .inv-small .inv-throw-row { display: grid !important; grid-auto-flow: row !important; grid-template-columns: 1fr 1fr; grid-auto-columns: unset; overflow: visible !important; flex: none; }
+  .inv-small .inv-throw-row .inv-card.inv-throws { display: contents; }
+  .inv-small .inv-throw-row .throw-card { min-height: 92px; }
+}

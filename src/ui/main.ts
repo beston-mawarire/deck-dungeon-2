@@ -1993,6 +1993,16 @@ function runStatsPanel(r: Run) {
   return tiles + box;
 }
 
+/** The Armoury (small screens): your backpack gear on a page of its own, one card to a row, full width. */
+let armouryOpen = false;
+function armouryPage(h: Hero, cards: string) {
+  return `<div class="cb-screen grit-screen armoury-screen"><div class="mer-inner grit-inner">
+    <div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">🛡️ Armoury</div></div>
+    <div class="grit-body"><p class="arm-line">Your backpack: ${h.backpack.length}/${packSize(h)}</p>
+      <div class="inv-cards arm-list">${cards || `<p class="mer-none">No gear in your pack.</p>`}</div></div>
+    <button class="mer-leave plank-btn" data-armouryclose>← Back</button>
+  </div></div>`;
+}
 /** An item page shows one Epic or Legendary find: its page takes that rarity's colours. */
 function pageTint(items: readonly (GearItem | undefined)[]) {
   if (items.length !== 1 || !items[0]) return "";
@@ -2296,7 +2306,11 @@ function crawlBag(r: Run) {
         <div class="inv-hero">${hk && hasSprite(hk) ? spriteHtml(hk, 6) : `<span class="inv-emoji">${ORIGIN_ICON[h.origin]}</span>`}<b>${esc(ORIGINS[h.origin].name)}</b></div>
       </div>
       <div class="mer-panel inv-pack"><div class="mer-label">Backpack ${h.backpack.length}/${packSize(h)}</div>${mats ? `<div class="inv-mats">${mats}</div>` : ""}
-        <div class="inv-cards">${cards || throwCols ? `${cards}${throwCols}` : `<span class="mer-none">No gear in your pack.</span>`}</div></div>${eqPop}`;
+        <div class="inv-cards inv-cards-wide">${cards || throwCols ? `${cards}${throwCols}` : `<span class="mer-none">No gear in your pack.</span>`}</div>
+        <div class="inv-small">
+          <button class="armoury-btn" data-armoury><span>🛡️</span><b>Armoury</b><em>${h.backpack.length ? `${h.backpack.length} item${h.backpack.length === 1 ? "" : "s"}` : "empty"}</em></button>
+          ${throwCols ? `<div class="mer-label">Throwables</div><div class="inv-cards inv-throw-row">${throwCols}</div>` : ""}
+        </div></div>${eqPop}${armouryOpen ? armouryPage(h, cards) : ""}`;
   } else if (bagTab === "attrs") {
     const baseA = BASE_ATTR[h.origin as keyof typeof BASE_ATTR];
     const rows = ATTRS.map(a => {
@@ -3154,7 +3168,7 @@ function render3() {
   // Compare equipped is a page of its own: nothing else is drawn, so nothing can sit on top of it.
   const cmpPage = compareOpen ? comparePopup(r) : "";
   if (cmpPage) { app.innerHTML = cmpPage; bind(); stopWalk(); window.scrollTo(0, 0); return; }
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat(r.gridMode ? { icon: "👑", title: "Victory!", text: "The last guardian lies still, and the dungeon's deepest door stands open behind it. Whatever was waiting down here has met its end. Take what it kept: it's yours now." } : { icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${strange ? `<div class="strange-screen"><div class="strange-room"></div><div class="crawl-pop-wrap strange-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div></div>` : crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap ${s.t === "loot" || s.t === "pick" ? "item-page" : ""}"><div class="crawl-pop ${pageTint(s.t === "loot" || s.t === "pick" ? s.items : [])}">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode && invPick?.k !== "eq" ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}${levelPopup || winPopup || compareOpen ? "" : tipBubble(r)}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat(r.gridMode ? { icon: "👑", title: "Victory!", text: "The last guardian lies still, and the dungeon's deepest door stands open behind it. Whatever was waiting down here has met its end. Take what it kept: it's yours now." } : { icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${strange ? `<div class="strange-screen"><div class="strange-room"></div><div class="crawl-pop-wrap strange-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div></div>` : crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap ${s.t === "loot" || s.t === "pick" ? "item-page" : ""}"><div class="crawl-pop ${pageTint(s.t === "loot" || s.t === "pick" ? s.items : [])}">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode && invPick?.k !== "eq" && !armouryOpen ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}${levelPopup || winPopup || compareOpen ? "" : tipBubble(r)}`;
   bind();
   // Bookmarks that scroll sideways: keep the open one in view.
   document.querySelectorAll<HTMLElement>(".bm-tabs > .on, .mer-tabs > .on").forEach(el => { const p = el.parentElement!; if (p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, el.offsetLeft - 24); });
@@ -3579,7 +3593,7 @@ function bind() {
   on("[data-potion]", () => { const n = r.hero.potions; say(drinkPotion(r)); if (r.hero.potions < n) sfx("drink"); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-bag]", () => { bagOpen = true; bagTab = "gear"; gearSub = "equipped"; });
   on("[data-cursed]", () => { bagOpen = true; bagTab = "extras"; });
-  on("[data-closebag]", () => { bagOpen = false; });
+  on("[data-closebag]", () => { bagOpen = false; armouryOpen = false; });
   on("[data-attr]", el => { const err = spendAttr(r.hero, el.dataset.attr as Attr); if (err) say(err, true); else sfx("equip"); });
   on("[data-bagtab]", el => { bulkArmed = null; bagTab = el.dataset.bagtab as BagTab; talentSub = "talents"; spoilsSub = "relics"; statsSub = "attributes"; });
   on("[data-statssub]", el => { statsSub = el.dataset.statssub as typeof statsSub; });
@@ -3627,6 +3641,8 @@ function bind() {
   on("[data-take]", el => { compareOpen = null; const err = takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack", el.dataset.slot as EquipSlot | undefined); say(err); if (!err) lootDone(); });
   on("[data-compare]", el => { compareOpen = { uid: Number(el.dataset.compare), slot: el.dataset.slot as EquipSlot | undefined }; });
   on("[data-compareclose]", () => { compareOpen = null; });
+  on("[data-armoury]", () => { armouryOpen = true; });
+  on("[data-armouryclose]", () => { armouryOpen = false; });
   on("[data-scrapfound]", el => { compareOpen = null; scrapFound(r, Number(el.dataset.scrapfound)); lootDone(); });
   on("[data-finish]", () => { r.message = ""; finishLoot(r); });
   on("[data-card]", el => {

@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.4.4
+- On small screens the backpack has room to breathe. The Gear tab's backpack area lists your throwables, and your backpack gear moves to the 🛡️ Armoury: a page of its own, one full-width card per row, each with Equip and ⚖️ Compare, and Back to return. Wider screens are unchanged.
+
 ## 2.4.3
 - Backpack gear has a ⚖️ Compare button. It opens the Compare page with the item beside what you wear in that slot, your stats before and after, and what changes. You can equip it from there, or go Back to the backpack. In a fight you can still compare, just not equip.
 
