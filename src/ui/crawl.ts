@@ -152,6 +152,16 @@ function drawTrapdoor(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts:
 }
 
 /** Draw the floor around the player. */
+/** Torchlight for a run: about one run in three burns the catacomb kind (cold, white-blue). Fixed for the whole run. */
+const TORCH_TONES = {
+  warm: { pool: ["rgba(255,150,60,.30)", "rgba(255,110,30,.10)", "rgba(255,110,30,0)"], flame: ["#fff4c0", "#ffc850", "#ff7a20", "rgba(255,80,10,0)"] },
+  catacomb: { pool: ["rgba(150,205,255,.30)", "rgba(90,150,255,.11)", "rgba(90,150,255,0)"], flame: ["#f6fbff", "#cdeaff", "#6fb4ff", "rgba(60,120,255,0)"] },
+} as const;
+export function torchTone(r: Run): keyof typeof TORCH_TONES {
+  // (From the run's seed, so it stays the same on every floor and after a reload.)
+  const x = Math.imul((r.seed ^ 0x9e3779b9) >>> 0, 2654435761) >>> 0;
+  return x % 3 === 0 ? "catacomb" : "warm";
+}
 export function drawCrawl() {
   const r = runRef, h = hooks;
   const cv = document.getElementById("crawl") as HTMLCanvasElement | null;
@@ -200,8 +210,10 @@ export function drawCrawl() {
     if (target) { layerKey = key; ctx.drawImage(target, 0, 0, W, H); }
     else layerKey = "";
   }
-  // Little torches on the walls: a warm pool of light, and a flickering flame.
+  // Little torches on the walls: a pool of light and a flickering flame. Warm firelight in most runs; in some,
+  // the catacomb kind: a cold white-blue fire and a cool blue glow.
   const now = performance.now();
+  const tone = TORCH_TONES[torchTone(r)];
   for (const ti of m.torches ?? []) {
     const tx = ti % m.w, ty = Math.floor(ti / m.w);
     if (!isSeenTile(m, tx, ty)) continue;
@@ -211,7 +223,7 @@ export function drawCrawl() {
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, ts * 2.6 * fl);
-    g.addColorStop(0, "rgba(255,150,60,.30)"); g.addColorStop(0.5, "rgba(255,110,30,.10)"); g.addColorStop(1, "rgba(255,110,30,0)");
+    g.addColorStop(0, tone.pool[0]); g.addColorStop(0.5, tone.pool[1]); g.addColorStop(1, tone.pool[2]);
     ctx.fillStyle = g;
     ctx.fillRect(cx - ts * 3, cy - ts * 3, ts * 6, ts * 6);
     ctx.restore();
@@ -220,7 +232,7 @@ export function drawCrawl() {
     ctx.fillRect(cx - ts * 0.07, cy - ts * 0.02, ts * 0.14, ts * 0.2);
     const fh = ts * 0.28 * fl;
     const fg = ctx.createRadialGradient(cx, cy - fh * 0.3, 0, cx, cy - fh * 0.3, fh);
-    fg.addColorStop(0, "#fff4c0"); fg.addColorStop(0.35, "#ffc850"); fg.addColorStop(0.7, "#ff7a20"); fg.addColorStop(1, "rgba(255,80,10,0)");
+    fg.addColorStop(0, tone.flame[0]); fg.addColorStop(0.35, tone.flame[1]); fg.addColorStop(0.7, tone.flame[2]); fg.addColorStop(1, tone.flame[3]);
     ctx.fillStyle = fg;
     ctx.beginPath(); ctx.ellipse(cx, cy - fh * 0.35, ts * 0.09, fh * 0.75, 0, 0, Math.PI * 2); ctx.fill();
   }

@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.5.1
+- About one run in three, the dungeon's wall torches burn the catacomb kind: a cold white-blue fire with a cool blue glow. Other runs keep the warm firelight. The mood holds for the whole run.
+
 ## 2.5.0
 - Guard is stronger, so a shield is worth carrying for any class. A Guard now doubles your Armor and adds +2 more (shield bonuses still stack on top). With 3 Armor, a Guard stops 40% of a hit, up from 34%.
 - New: Riposte. After you Guard, your next attack deals 25% more damage, so Guarding no longer just costs you a turn.
