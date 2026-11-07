@@ -9,6 +9,10 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.5.0
+- Guard is stronger, so a shield is worth carrying for any class. A Guard now doubles your Armor and adds +2 more (shield bonuses still stack on top). With 3 Armor, a Guard stops 43% of a hit, up from 34%.
+- New: Riposte. After you Guard, your next attack deals 25% more damage, so Guarding no longer just costs you a turn.
+
 ## 2.4.6
 - Small screens: the top half of the backpack area is a dotted box for your throwables (it reads "Throwables" when you have none). The 🛡️ Armoury button sits centred in the bottom half.
 

@@ -150,6 +150,10 @@ function purify(b: Battle, ctx: AttackCtx) {
  * 3 Armor stops 21%, 10 stops 45%, 20 stops 60%, 30 stops 68%, 60 stops 77%. Guarding doubles your Armor.
  */
 export const ARMOR_EFFICIENCY = 0.9;
+/** A Guard: Armor doubled, plus this much. */
+export const GUARD_FLAT = 2;
+/** Riposte: the attack after a Guard deals this much more. */
+export const RIPOSTE = 0.25;
 export function armorReduction(armor: number, _guarding = false): number {
   if (armor <= 0) return 0;
   return ARMOR_EFFICIENCY * armor / (armor + 10);
@@ -446,6 +450,8 @@ function strike(b: Battle, ctx: AttackCtx) {
   if (ctx.kind === "crit" && (a.critDmg ?? 0) !== 0) raw *= Math.max(0.5, 1 + (a.critDmg ?? 0) / 100);
   // A failed Counter leaves you off-balance for one attack (a little).
   if (a.flags["frail"]) { raw *= 0.85; a.flags["frail"] = 0; }
+  // Riposte: the first attack after you Guard deals 25% more.
+  if (a.id === "player" && a.flags["riposte"]) { raw *= 1 + RIPOSTE; a.flags["riposte"] = 0; }
   // Kneeling in Penance, you take the blows a little easier (some gear: much easier).
   if (d.flags["penanceRound"] === b.round) raw *= d.flags["penanceGuard"] ? 0.6 : 0.75;
   // Class gear: a Counter strike that hits harder; a "next hit" bonus waiting after an ability.
@@ -1054,7 +1060,10 @@ export function heroPhase(b: Battle, action: Action) {
     act(b, p, () => throwIt(b, action));
   } else if (action === "guard") {
     p.flags["guarding"] = 1;
-    p.flags["guardArmor"] = 0;
+    // A Guard: Armor doubled, plus a little more (it matters most when your Armor is low).
+    p.flags["guardArmor"] = GUARD_FLAT;
+    // Riposte: your next attack after a Guard hits harder.
+    p.flags["riposte"] = 1;
     p.flags["guards"] = (p.flags["guards"] ?? 0) + 1;
     actionToll(b, p);
     smoulderSoulAction(b, p);

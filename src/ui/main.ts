@@ -34,7 +34,7 @@ import {
 } from "../game/run";
 import { fortunePips } from "../game/loot";
 import { layerFloors } from "../game/grid";
-import { isThrow, readyThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
+import { GUARD_FLAT, isThrow, readyThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
 import { allClassesOpen, branchSpent, isTreeRelic, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR, BASE_DMG_PER } from "../data/attributes";
@@ -2152,7 +2152,7 @@ function bag(r: Run, bodyOnly = false) {
   const hitFaces = f.faces.filter(x => x.kind === "hit").length;
   const critChance = crits / sides + (hitFaces / sides) * ((f.critChance ?? 0) / 100);
   const missChance = (misses + f.faces.filter(x => x.kind === "graze").length * 0.5) / sides;
-  const guardArmor = f.armor * ((f.items["r_fortress_heart"] ?? 0) > 0 ? 3 : 2);
+  const guardArmor = f.armor * ((f.items["r_fortress_heart"] ?? 0) > 0 ? 3 : 2) + GUARD_FLAT;
   let healMul = 1;
   eachHook(f, "healMult", (fn, n) => (healMul *= fn(n)));
   let rxMul = 1;
@@ -2468,7 +2468,7 @@ function helpPopup() {
       "Each class has two <b>paths</b>, chosen in the Camp's Paths room before a run (the second opens once that class beats the 1st Layer). A path is passive: it gives you something and takes something away.",
       "At <b>level 5</b> your path offers a choice of two <b>skills</b>; pick one in 🎒 → Attributes. A few Legendaries grant a skill of their own."])}
     ${sec("In a fight", [
-      "<b>Attack</b>: roll and strike. <b>Guard</b> (needs a shield): your Armor counts double this round.",
+      "<b>Attack</b>: roll and strike. <b>Guard</b> (needs a shield): your Armor counts double (+2) this round, and your next attack hits 25% harder (Riposte).",
       "Skills cost 1 🔷 <b>Mana</b>. You start a run with 2; Mana carries over from fight to fight, and only Mana Potions (or Intellect and some gear, for more Max Mana) help.",
       "🧪 Healing Potions heal. 💣 <b>Throwables</b> (bombs, flasks, nets, smoke…) don't take your turn: ready one, and it flies right after your move. You can carry three of each.",
       "You can <b>flee</b> most fights, but the foe gets a free swing as you go. Not from Elites or guardians, unless you've got smoke to hide in.",
@@ -2514,7 +2514,7 @@ function helpGlossary() {
   ${group("📊 Your stats", [
     row("⚔️", "Damage", "Added to every hit, then multiplied by the face: Graze ×½, Hit ×1, Crit ×2"),
     row("🛡️", "Armor", "Stops part of each hit: 3 Armor stops 21%, 10 stops 45%, 20 stops 60%, 30 stops 68%, 60 stops 77%. No cap, but each extra point counts for a little less. Crits and spells ignore it"),
-    row("🧱", "Guard", "Needs a shield (Warriors can also Guard with a two-hander). Doubles your Armor this round"),
+    row("🧱", "Guard", "Needs a shield (Warriors can also Guard with a two-hander). Doubles your Armor (+2) this round, and your next attack hits 25% harder (Riposte)"),
     row("💨", "Dodge", "A % chance to avoid a hit entirely (max 60%). Not the same as Evade: Dodge bonuses and Evade bonuses don't trigger each other"),
     row("💥", "Crit damage", "A % boost to the damage of your Crits (on top of the usual double)"),
     row("🎯", "Crit chance", "A % chance that a Hit becomes a Crit (max 50%), on top of your die's Crit faces"),
@@ -2665,7 +2665,7 @@ const TIPS: { id: string; icon: string; text: string; when: (r: Run | null) => b
   { id: "camp", icon: "🏕️", text: "This is the Camp. Walk to a room to open it: <b>Enter Dungeon</b> is at the top, and the rooms around the fire keep what you bring home.", when: r => !r && !!camp && !campRoom },
   { id: "walk", icon: "👣", text: "Tap a tile to walk there, and walk into things to use them: the <b>Merchant</b> sells potions, chests hold gear, foes block the way. Find the <b>trapdoor</b> to go down.", when: r => !!r?.gridMode && r.scene.t === "map" && r.grid?.depth === 0 },
   { id: "floor", icon: "🕳️", text: "Every floor has one trapdoor down, and there's no climbing back up. Look around first: chests, altars and strange doors are worth the detour.", when: r => !!r?.gridMode && r.scene.t === "map" && (r.grid?.depth ?? 0) >= 1 && r.grid?.depth !== TREASURE_DEPTH },
-  { id: "fight", icon: "🎲", text: "Walk into a foe to fight it. <b>Attack</b> rolls your weapon's die: each face is a Miss, Graze (half), Hit or Crit (double, through Armor). <b>Guard</b> (with a shield) doubles your Armor this round. 🧪 Potions heal.", when: r => !!r?.gridMode && r.scene.t === "map" && (r.grid?.depth ?? 0) >= 1 && r.stats.kills === 0 },
+  { id: "fight", icon: "🎲", text: "Walk into a foe to fight it. <b>Attack</b> rolls your weapon's die: each face is a Miss, Graze (half), Hit or Crit (double, through Armor). <b>Guard</b> (with a shield) doubles your Armor (+2) this round, and your next attack hits 25% harder. 🧪 Potions heal.", when: r => !!r?.gridMode && r.scene.t === "map" && (r.grid?.depth ?? 0) >= 1 && r.stats.kills === 0 },
   { id: "loot", icon: "🎁", text: "A find! <b>Equip</b> it, put it in your <b>backpack</b>, or leave it. Gear in the backpack can go on any time outside a fight.", when: r => r?.scene.t === "loot" || (r?.scene.t === "pick" && !!r.scene.items.length), top: true },
   { id: "level", icon: "📈", text: "Level up! Open 🎒 → <b>Attributes</b> and tap <b>+</b> to spend your point. Tap an attribute's name to see what it gives.", when: r => !!r && (r.hero.attrPoints ?? 0) > 0 && r.scene.t === "map" },
   { id: "skill", icon: "✨", text: "Level 5: your <b>path</b> offers you a choice of two skills. Pick one in 🎒 → Attributes. Skills cost 1 🔷 Mana.", when: r => !!r && r.hero.level >= SKILL_LEVEL && !r.hero.skill && !!r.hero.path && r.drill !== "silent" && r.scene.t === "map" },
@@ -2901,7 +2901,7 @@ function levelUpPopup(r: Run) {
 const ACTION_INFO: Record<Action, { label: (p: Fighter) => string; tip: string }> = {
   ...Object.fromEntries(THROWS.map(t => [t, { label: (p: Fighter) => `${THROW_INFO[t].icon} ${THROW_INFO[t].name} ×${p.persist[THROW_INFO[t].key] ?? 0}`, tip: `Free: tap to ready it, and it flies right after your action this turn. Tap again to put it back. ${THROW_INFO[t].text}.` }])) as Record<Throw, { label: (p: Fighter) => string; tip: string }>,
   attack: { label: () => "Attack", tip: "Roll your die and strike." },
-  guard: { label: () => "Guard", tip: "Double your Armor this round; Armor can stop a whole hit. Needs a shield (a Warrior can Guard with a two-hander)." },
+  guard: { label: () => "Guard", tip: "Double your Armor (+2) this round; Armor can stop a whole hit. Your next attack hits 25% harder (Riposte). Needs a shield (a Warrior can Guard with a two-hander)." },
   counter: { label: () => "Counter", tip: "Costs 1 Mana. Uses your turn. +35% Dodge this round; if you Dodge an attack, you strike back at once with a Crit (no roll needed). If you're hit, you're a little off-balance for your next attack." },
   barrier: { label: () => "Elemental Barrier", tip: "Costs 1 Mana. Uses your turn. Roll: 5–6 blocks every hit this round and gives attackers 4 stacks of your off-hand's element; 3–4 halves them and gives 2; 1–2 blocks nothing but still gives 2." },
   penance: { label: p => `Penance${p.flags["penanceStore"] ? ` (${p.flags["penanceStore"]})` : ""}`, tip: "Costs 1 Mana. Uses your turn. You take a quarter less this round, and the damage and negative statuses you take are stored; your next attack adds half as much again. A kill with it heals you. It also gives you Regen (3, +1 for every 2 Faith)." },

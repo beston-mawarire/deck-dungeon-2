@@ -622,6 +622,17 @@ describe("smouldering", () => {
     expect(st(h.f, "smoulder_soul")).toBe(2);
   });
 
+  it("Guard: Armor doubled +2, and Riposte (the next attack +25%)", () => {
+    const h = newHero("warrior");
+    const e = foe();
+    const b = startBattle(h.f, e, 21);
+    h.f.statuses = {};
+    const base = armorOf(h.f);
+    heroPhase(b, "guard");
+    expect(armorOf(h.f)).toBeGreaterThanOrEqual(base * 2 + 2); // (the Wooden Shield adds its own +2 while Guarding)
+    expect(h.f.flags["riposte"]).toBe(1);
+  });
+
   it("Boundless Static removes the cap", () => {
     const h = newHero("mage");
     h.talents["t_boundless_static"] = 1;
