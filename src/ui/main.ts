@@ -2066,7 +2066,7 @@ function extractScene(r: Run) {
 /** The gift on a drop: one Face Rune or one Shuffler, to take or leave. */
 function runePopup(r: Run) {
   const h = r.hero, o = r.runeOffer?.[0], shId = r.shuffleOffer?.[0];
-  let card = "", take = "", title = "";
+  let card = "", take = "", title = "", keepLbl = "Leave it", takeLbl = "Accept";
   if (o) {
     const info = RUNE_MAP.get(o.id)!, cur = h.runes?.[o.face], curInfo = cur ? RUNE_MAP.get(cur.id) : undefined;
     const rank = cur && cur.id === o.id ? Math.min(RUNE_MAX_RANK, cur.rank + 1) : 1;
@@ -2076,6 +2076,20 @@ function runePopup(r: Run) {
       <span class="rune-die"><b>${o.face}</b><i>${info.icon}</i></span>
       <span class="rune-txt"><b>${esc(info.name)} Rune${rank > 1 ? ` ${NUMERALS[rank]}` : ""}</b><span>${esc(runeText(info, o.face, rank))}</span><em>${esc(note)}</em></span></div>`;
     take = `data-rune="0"`;
+    // Your die already has another rune on that face: keep it, or replace it with the new one.
+    if (cur && curInfo && cur.id !== o.id) {
+      title = `🎲 A new rune for your ${o.face}s`;
+      card = `<p class="rune-sub rune-clash">Your ${o.face}s already carry a rune. Keep it, or replace it with the new one.</p>
+        <div class="rune-card rune-one rune-now">
+          <span class="rune-die"><b>${o.face}</b><i>${curInfo.icon}</i></span>
+          <span class="rune-txt"><em class="rune-tag">On your die now</em><b>${esc(curInfo.name)} Rune${cur.rank > 1 ? ` ${NUMERALS[cur.rank]}` : ""}</b><span>${esc(runeText(curInfo, o.face, cur.rank))}</span></span></div>
+        <div class="rune-swap">⇅</div>
+        <div class="rune-card rune-one rune-new">
+          <span class="rune-die"><b>${o.face}</b><i>${info.icon}</i></span>
+          <span class="rune-txt"><em class="rune-tag">New</em><b>${esc(info.name)} Rune</b><span>${esc(runeText(info, o.face, 1))}</span></span></div>`;
+      keepLbl = "Keep";
+      takeLbl = `Replace`;
+    } else if (cur && cur.id === o.id) takeLbl = "Rank up";
   } else if (shId) {
     const sh = SHUFFLER_MAP.get(shId)!;
     title = "🔀 A Shuffler";
@@ -2089,7 +2103,7 @@ function runePopup(r: Run) {
     <p class="rune-sub">Something for your die. It stays for the rest of the run, whatever weapon you hold.</p>
     <h3 class="rune-h">${title}</h3>
     <div class="rune-list">${card}</div>
-    <div class="rune-btns"><button class="plank-btn rune-skip" data-runeskip>Leave it</button><button class="plank-btn rune-take" ${take}>Accept</button></div>
+    <div class="rune-btns"><button class="plank-btn rune-skip" data-runeskip>${esc(keepLbl)}</button><button class="plank-btn rune-take" ${take}>${esc(takeLbl)}</button></div>
   </div></div>`;
 }
 /** A great find (Epic, Legendary, any Crimson) lights the screen's edges in its colour, with embers rising from the bottom. */

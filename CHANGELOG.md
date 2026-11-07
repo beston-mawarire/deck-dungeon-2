@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.9.2
+- **Keep or replace**: when a new Face Rune turns up for a face that already has a different rune, the screen shows both (the one on your die now, and the new one) and asks: **Keep** or **Replace**. The same rune again says **Rank up**.
+
 ## 2.9.1
 - 🎒 → Magik now has two tabs: **🎲 Perks** (your die's Face Runes and Shuffler) and **🃏 Tarots** (your Tarot cards, or the Abyss's Omens).
 
