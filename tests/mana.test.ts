@@ -127,3 +127,14 @@ it("Cleansing Potions (rare) wash away your worst negative status, in a fight on
   expect(st(h.f, "might")).toBe(3);    // good statuses are never touched
   expect(h.cleansePotions).toBe(1);
 });
+
+it("with the Merchant's Ledger (30% off), selling back never pays more than buying cost", async () => {
+  const { sellOffer, shopMult } = await import("../src/game/run");
+  const run: Run = newRun("warrior", 9);
+  run.hero.f.persist["ins_ledger"] = 1;
+  for (const rarity of ["common", "uncommon", "rare", "epic", "legendary"] as const) {
+    const it = { uid: 5000, base: "w_sword", rarity, level: 1, bonuses: {}, revealed: true };
+    const prices: Record<string, number> = { common: 10, uncommon: 20, rare: 35, epic: 60, legendary: 120 };
+    expect(sellOffer(run, it)).toBeLessThan(Math.round(prices[rarity] * shopMult(run)));
+  }
+});

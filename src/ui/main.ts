@@ -27,7 +27,7 @@ import { chosenPath, LEDGER_MARKS, carriedTarot, flipTarot, takeTarot, toggleTar
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, drinkCleanse, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
+  sellItem, sellOffer, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, drinkCleanse, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   drinkDraught, startCrawl, startDrill, tavernGift, takeGift, GIFTS, type GiftId, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, chooseOmen, chooseSkill, omensTaken, setOut, ABYSS_LAYER, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
@@ -136,7 +136,7 @@ function bulkSellRow(r: Run) {
   const h = r.hero;
   const c = bulkScrapList(h, "common"), u = bulkScrapList(h, "uncommon");
   if (!c.length && !u.length) return "";
-  const total = (l: GearItem[]) => l.reduce((a, it) => a + Math.round(sellPrice(it, h) * goldMult(r)), 0);
+  const total = (l: GearItem[]) => l.reduce((a, it) => a + sellOffer(r, it), 0);
   const btn = (k: "common" | "uncommon", l: GearItem[], label: string) => l.length ? `<button class="small ${bulkSellArmed === k ? "danger" : ""}" data-bulksell="${k}">${bulkSellArmed === k ? `Tap again: sell ${l.length} for ${total(l)} 🪙` : label}</button>` : "";
   return `<div class="row bulk-row">${btn("common", c, `🪙 Sell all Commons (${c.length})`)}${u.length > c.length ? btn("uncommon", u, `🪙 Commons + Uncommons (${u.length})`) : ""}</div>`;
 }
@@ -879,7 +879,7 @@ function merchantScreen(r: Run, msg: string[], bad: boolean) {
       const it = findItem(h, merPick.uid)?.item;
       if (!it) return "";
       const worn = !!equippedSlot(r, it);
-      const btn = `<button class="mer-act ${worn && sellArmed === it.uid ? "danger" : "primary"}" data-sell="${it.uid}">${worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${Math.round(sellPrice(it, h) * goldMult(r))} 🪙`}</button>`;
+      const btn = `<button class="mer-act ${worn && sellArmed === it.uid ? "danger" : "primary"}" data-sell="${it.uid}">${worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${sellOffer(r, it)} 🪙`}</button>`;
       body = itemCard(it, btn, false, equippedSlot(r, it));
     } else return "";
     const tintIt = merPick?.k === "stock" ? sc.stock[merPick.i]?.item : merPick?.k === "own" ? findItem(h, merPick.uid)?.item : undefined;
@@ -895,7 +895,7 @@ function merchantScreen(r: Run, msg: string[], bad: boolean) {
   const wareTiles = wares.map(({ e, i }) => gearTile(`data-mpick="s:${i}"`, e.item!, e.sold ? "Sold" : `<i>${e.price}</i> 🪙`, e.sold)).join("");
   const shelfTiles = shelf.map(({ e, i }) => { const l = stockLabel(r, e); return `<button class="shop-jar ${e.sold ? "dim" : ""}" data-mpick="s:${i}" style="--rk:${l.ink}"><span class="sj-ic">${l.icon}</span><b>${esc(l.name)}</b><span class="st-price">${e.sold ? "Sold" : `<i>${e.price}</i> 🪙`}</span></button>`; }).join("");
   const reroll = r.shopRerolls >= MAX_SHOP_REROLLS ? "" : `<button class="shop-reroll" data-reroll ${h.f.gold < shopRerollCost(r) ? "disabled" : ""}>↻ New stock · ${shopRerollCost(r)} 🪙</button>`;
-  const mine = own.length ? own.map(it => gearTile(`data-mpick="o:${it.uid}"`, it, `${equippedSlot(r, it) ? `${esc(equippedSlot(r, it))} · ` : ""}sells <i>${Math.round(sellPrice(it, h) * goldMult(r))}</i> 🪙`)).join("") : `<span class="mer-none">Nothing here.</span>`;
+  const mine = own.length ? own.map(it => gearTile(`data-mpick="o:${it.uid}"`, it, `${equippedSlot(r, it) ? `${esc(equippedSlot(r, it))} · ` : ""}sells <i>${sellOffer(r, it)}</i> 🪙`)).join("") : `<span class="mer-none">Nothing here.</span>`;
   const line = MER_LINES[(r.seed + r.floor + (r.grid?.depth ?? 0)) % MER_LINES.length];
   return `<div class="cb-screen mer-screen shop2"><div class="mer-inner">
     <div class="mer-sign" aria-label="Merchant"><i class="chain l"></i><i class="chain r"></i><div class="plank">Merchant</div></div>
@@ -1541,7 +1541,7 @@ function shopScene(r: Run) {
   } else {
     const eq = EQUIP_SLOTS.map(k => h.equip[k]).filter((x): x is GearItem => !!x);
     const items = shopSide === "equipped" ? eq : h.backpack;
-    const card = (it: GearItem) => { const worn = !!equippedSlot(r, it); return itemCard(it, `<button class="small ${worn && sellArmed === it.uid ? "danger" : ""}" data-sell="${it.uid}">${worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${Math.round(sellPrice(it, h) * goldMult(r))} 🪙`}</button>`, false, equippedSlot(r, it)); };
+    const card = (it: GearItem) => { const worn = !!equippedSlot(r, it); return itemCard(it, `<button class="small ${worn && sellArmed === it.uid ? "danger" : ""}" data-sell="${it.uid}">${worn && sellArmed === it.uid ? "Sell what you're wearing?" : `Sell · ${sellOffer(r, it)} 🪙`}</button>`, false, equippedSlot(r, it)); };
     body = `<p class="shop-text">The Merchant buys anything, for 40% of its price.${r.scene.soldItem ? ` Last sold: <b>${esc(r.scene.soldItem)}</b>.` : ""}</p>
     <div class="forge-sides">
       <button class="forge-side ${shopSide === "equipped" ? "active" : ""}" data-shopside="equipped">🛡️ Equipped</button>

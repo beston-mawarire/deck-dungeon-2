@@ -1198,6 +1198,11 @@ export const ELITE_SEED = 0.08;
 /** Seeds from plain foes of the wilder kinds (Beasts), now and then; from an urn, rarely; and from the Merchant. */
 export const BEAST_SEED = 0.05, URN_SEED = 0.03, SHOP_SEED = 0.45;
 
+/** Camp materials from Crawl foes: the chance a normal foe or an Elite drops some, an Elite's chance of a second, and a Champion's least. */
+export const MAT_DROP = {
+  often: { normal: 0.2, elite: 0.45, eliteTwo: 0.25, champ: 1 },
+  rare: { normal: 0.35, elite: 0.7, eliteTwo: 0.4, champ: 2 },
+};
 /** Urns: mostly a few coins, now and then a Mana Potion, very rarely a Healing Potion. Smashed, they're gone. */
 export const URN_MANA = 0.03, URN_HEAL = 0.01, URN_CLEANSE = 0.01;
 /** Cleansing Potions are rare: an Elite or Champion only sometimes carries one. */
@@ -2096,7 +2101,10 @@ function afterFight(run: Run) {
     const cm = matOfFamily(b.enemy.family);
     // (The Empress: materials more often, and a little more of them.)
     const emp = 1 + 0.6 * tarotOf(h, "empress").boon;
-    const cn = (!cm ? 0 : rank === "normal" ? (run.rng() < Math.min(0.9, 0.35 * emp) ? 1 : 0) : rank === "elite" ? (run.rng() < Math.min(0.95, 0.7 * emp) ? 1 + (run.rng() < 0.4 ? 1 : 0) : 0) : 2 + Math.floor(run.rng() * 2))
+    // (Hide, Bone Dust and Cult Sigils come off common foes, so they drop less often than Cogs.)
+    const often = cm === "hide" || cm === "bone" || cm === "sigil";
+    const od = often ? MAT_DROP.often : MAT_DROP.rare;
+    const cn = (!cm ? 0 : rank === "normal" ? (run.rng() < Math.min(0.9, od.normal * emp) ? 1 : 0) : rank === "elite" ? (run.rng() < Math.min(0.95, od.elite * emp) ? 1 + (run.rng() < od.eliteTwo ? 1 : 0) : 0) : od.champ + Math.floor(run.rng() * 2))
       + (cm && emp > 1 && run.rng() < (emp - 1) / 2 ? 1 : 0);
     if (cm && cn && !run.drill) { campGain(run, cm, cn); mats += `${mats ? " · " : ""}+${cn} ${MATS[cm].icon} ${MATS[cm].name}`; }
     // Scrolls of Knowledge, for the Camp's Knowledge Table: Champions sometimes carry one.
@@ -2387,6 +2395,11 @@ export const sellPrice = (item: GearItem, h?: Hero) => {
   return (h?.curses["c_tarnished"] ?? 0) > 0 ? Math.ceil(n / 2) : n;
 };
 
+/** What this Merchant pays for an item: 80% of its value, but never more than 90% of what they'd charge for it
+ *  (with the Merchant's Ledger's discount, buying and selling back must still lose a little). */
+export const sellOffer = (run: Run, item: GearItem) =>
+  Math.max(1, Math.min(Math.round(sellPrice(item, run.hero) * goldMult(run)), Math.floor(PRICE[item.rarity] * shopMult(run) * 0.9)));
+
 /** Sell an item (equipped or in the bag): as many as you like. */
 export function sellItem(run: Run, uid: number): string | null {
   const s = run.scene;
@@ -2394,7 +2407,7 @@ export function sellItem(run: Run, uid: number): string | null {
   const h = run.hero;
   const found = findItem(h, uid);
   if (!found) return null;
-  const price = Math.round(sellPrice(found.item, h) * goldMult(run));
+  const price = sellOffer(run, found.item);
   removeGear(h, uid);
   recompute(h);
   h.f.gold += price;
@@ -2423,7 +2436,9 @@ export const wealthMult = (run: Run) => 1 + Math.min(0.75, Math.max(0, run.hero.
 /** Shop prices: floor and curses (priceMult) times what the Merchant thinks you can afford. */
 export const shopMult = (run: Run) => priceMult(run) * wealthMult(run) * (1 - Math.min(0.15, PER.forShop * attrOf(run.hero, "for")));
 
-export const priceMult = (run: Run) => (run.hero.f.persist["ins_ledger"] ? 0.9 : 1) * (1 + 0.12 * (run.floor - 1)) * gouge(run.hero) * (1 + 0.2 * pactRank(run, "greed")) * (1 + 0.4 * tarotOf(run.hero, "hermit").bane) * (1 + 0.3 * (run.hero.omens?.["quarter"] ?? 0));
+/** The Merchant's Ledger (a Knowledge Table insight): Merchants charge you 30% less. */
+export const LEDGER_DISCOUNT = 0.3;
+export const priceMult = (run: Run) => (run.hero.f.persist["ins_ledger"] ? 1 - LEDGER_DISCOUNT : 1) * (1 + 0.12 * (run.floor - 1)) * gouge(run.hero) * (1 + 0.2 * pactRank(run, "greed")) * (1 + 0.4 * tarotOf(run.hero, "hermit").bane) * (1 + 0.3 * (run.hero.omens?.["quarter"] ?? 0));
 /** Each reroll at the same Merchant costs triple the last (from 15 Gold, scaled by the floor), up to 5 rerolls per visit. */
 export const MAX_SHOP_REROLLS = 5;
 export const shopRerollCost = (run: Run) => Math.round(15 * shopMult(run)) * 3 ** run.shopRerolls;

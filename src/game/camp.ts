@@ -215,7 +215,7 @@ export const INSIGHTS: Insight[] = [
   { id: "transmute", name: "The Crucible's Secret", icon: "⚗️", text: "You can transmute at the dungeon's Forges: a Common item and Starmetal become a Legendary", cost: 3 },
   { id: "herbalism", name: "Herbalism", icon: "🌿", text: "Every Garden harvest gives one more herb", cost: 2 },
   { id: "keeneye", name: "Keen Eye", icon: "👁️", text: "On every floor, you know where the trapdoor is from the start", cost: 2 },
-  { id: "ledger", name: "Merchant's Ledger", icon: "📒", text: "Merchants charge you 10% less", cost: 2 },
+  { id: "ledger", name: "Merchant's Ledger", icon: "📒", text: "Merchants charge you 30% less", cost: 2 },
   { id: "treasure", name: "Treasure Sense", icon: "🧭", text: "On every floor, you can sense where its chests lie", cost: 3 }
 ];
 export function learn(m: Meta, id: string): string | null {

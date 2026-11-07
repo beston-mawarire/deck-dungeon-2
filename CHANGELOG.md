@@ -9,6 +9,11 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.3.3
+- Hide, Bone Dust and Cult Sigils drop less often: a normal foe 20% (was 35%), an Elite 45% (was 70%) with a smaller chance of a second, and a Champion 1–2 (was 2–3). Cogs and the boss handfuls are unchanged.
+- The Merchant's Ledger (Knowledge Table) now takes 30% off Merchants' prices (was 10%).
+- A Merchant never pays more than 90% of what they'd charge for an item, so buying and selling straight back always loses a little.
+
 ## 2.3.2
 - The backpack's Gear tab shows your equipped items on parchment, with names in darker rarity colours so they read well on the light background.
 
