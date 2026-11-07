@@ -128,7 +128,7 @@ function drawWall(ctx: CanvasRenderingContext2D, m: FloorMap, x: number, y: numb
 }
 
 /** The glow special foes wear (r,g,b). */
-const FOE_GLOW: Record<string, string> = { event: "130,205,255", elite: "190,120,255", champion: "255,130,50", crimson_elite: "255,40,120", unique: "255,205,70", nemesis: "220,30,30", goblin: "200,230,80", doppelganger: "90,220,255" };
+const FOE_GLOW: Record<string, string> = { event: "130,205,255", elite: "190,120,255", champion: "255,150,40", crimson_elite: "255,40,120", unique: "255,205,70", nemesis: "220,30,30", goblin: "200,230,80", doppelganger: "90,220,255" };
 /** The trapdoor: a black square hole with a thin, softly glowing yellow rim, so it stands out. */
 function drawTrapdoor(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number, boss = false) {
   const sz = ts * 0.86, x = cx - sz / 2, y = cy - sz / 2;
@@ -273,10 +273,14 @@ export function drawCrawl() {
       const glow = !t.done ? FOE_GLOW[t.room] : undefined;
       if (glow) {
         const pulse = 0.65 + 0.35 * Math.sin(now / 420 + t.x);
-        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, ts * 0.8);
-        g.addColorStop(0, `rgba(${glow},${0.5 * pulse})`); g.addColorStop(0.55, `rgba(${glow},${0.22 * pulse})`); g.addColorStop(1, `rgba(${glow},0)`);
-        ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.fillRect(cx - ts, cy - ts, ts * 2, ts * 2); ctx.restore();
-        ctx.shadowColor = `rgba(${glow},${0.95 * pulse})`; ctx.shadowBlur = ts * 0.28;
+        // (Champions glow brighter and wider: orange is easy to lose against the torchlit floor.)
+        const boost = t.room === "champion" ? 2.1 : 1, reach = t.room === "champion" ? 1 : 0.8;
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, ts * reach);
+        g.addColorStop(0, `rgba(${glow},${Math.min(1, 0.5 * boost * pulse)})`); g.addColorStop(0.55, `rgba(${glow},${Math.min(1, 0.22 * boost * pulse)})`); g.addColorStop(1, `rgba(${glow},0)`);
+        ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.fillRect(cx - ts, cy - ts, ts * 2, ts * 2);
+        if (t.room === "champion") { ctx.strokeStyle = `rgba(255,190,90,${0.35 + 0.35 * pulse})`; ctx.lineWidth = Math.max(1.5, ts * 0.05); ctx.beginPath(); ctx.arc(cx, cy, ts * (0.44 + 0.03 * pulse), 0, Math.PI * 2); ctx.stroke(); }
+        ctx.restore();
+        ctx.shadowColor = `rgba(${glow},${Math.min(1, 0.95 * boost * pulse)})`; ctx.shadowBlur = ts * 0.28 * (t.room === "champion" ? 1.5 : 1);
       }
       if (t.room === "rest") { if (t.opened) drawEmbers(ctx, cx, cy, ts); else drawCampfire(ctx, cx, cy, ts, now); }
       else if (t.room === "forge") drawAnvil(ctx, cx, cy + ts * 0.12, ts, now, !!t.opened);

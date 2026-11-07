@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.3.6
+- Champions glow brighter on the map: a wider, stronger orange aura, a brighter outline and a faint pulsing ring, so they don't blend into the torchlit floor.
+
 ## 2.3.5
 - Two-handed weapons hit 20% harder, to make up for the off-hand they shut out. Their damage line reads "two-handed (+20%)". This is for every two-handed weapon (axes, hammers, greatswords, greatstaves, bows), heavy or not.
 
