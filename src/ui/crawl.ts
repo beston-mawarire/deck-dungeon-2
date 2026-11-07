@@ -128,7 +128,7 @@ function drawWall(ctx: CanvasRenderingContext2D, m: FloorMap, x: number, y: numb
 }
 
 /** The glow special foes wear (r,g,b). */
-const FOE_GLOW: Record<string, string> = { obsidian: "180,110,255", event: "130,205,255", elite: "190,120,255", champion: "255,150,40", crimson_elite: "255,40,120", unique: "255,205,70", nemesis: "220,30,30", goblin: "200,230,80", doppelganger: "90,220,255" };
+const FOE_GLOW: Record<string, string> = { ascent: "255,232,170", obsidian: "180,110,255", event: "130,205,255", elite: "190,120,255", champion: "255,150,40", crimson_elite: "255,40,120", unique: "255,205,70", nemesis: "220,30,30", goblin: "200,230,80", doppelganger: "90,220,255" };
 /** The trapdoor: a black square hole with a thin, softly glowing yellow rim, so it stands out. */
 function drawTrapdoor(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number, boss = false) {
   const sz = ts * 0.86, x = cx - sz / 2, y = cy - sz / 2;

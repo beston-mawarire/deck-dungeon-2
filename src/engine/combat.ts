@@ -1141,6 +1141,8 @@ export function startBattle(player: Fighter, enemy: Fighter, seed: number, carry
   // Kept Barrier (Hollow Crown, Bastion of Ages) is capped by depth so it can't snowball forever.
   const keptBarrier = player.persist["keepBarrier"] ? Math.min(st(player, "barrier"), 10 + 8 * (player.persist["floor"] ?? 1)) : 0;
   player.statuses = keptBarrier ? { barrier: keptBarrier } : {};
+  // (Stoutroot Stew lasts one fight: the extra Max HP goes when the next one starts, if nothing else reset it.)
+  if (player.flags["stout"]) { player.maxHp = Math.max(1, player.maxHp - player.flags["stout"]); player.hp = Math.min(player.hp, player.maxHp); }
   player.flags = {};
   log(b, `${enemy.name} appears: ${enemy.hp} HP, Power ${enemy.damage}${enemy.armor ? `, Armor ${enemy.armor}` : ""}.`);
   if (carry > 0) {

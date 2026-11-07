@@ -12,6 +12,7 @@ import { ORIGINS } from "../data/origins";
 import { genHooks, genLines, GRADE_MARK, genTopGrade, GEN_MODULE_MAP, modValue } from "./gen";
 import { SIGIL_SETS } from "../data/talisman";
 import { PLAIN_FACES } from "../engine/combat";
+import { shuffleFaces } from "../data/runes";
 import { ATTR_INFO, ATTR_MAX, ATTRS, attrPower, type Attr, BASE_ATTR, BASE_DMG_PER } from "../data/attributes";
 import { eachHook, getItem } from "../engine/registry";
 import { baneOf, boonOf, TAROT_HOOKED } from "./tarot";
@@ -118,6 +119,8 @@ export interface Hero {
   keepsake?: string;
   /** Face Runes carved into the die this run: face (1–6) → the rune and its rank. */
   runes?: Record<string, { id: string; rank: number }>;
+  /** A Shuffler: rewrites some faces of a six-sided die for the rest of the run (one at a time). */
+  shuffle?: string;
   /** The Transmuter's Crucible: an artefact (not a relic). With it, the Forge can turn a Common into a Legendary. */
   crucible?: boolean;
   /** Torn from a slain dragon. Each further dragon slain raises its level. Unified at a Dragon Sanctum: every stat +50%. */
@@ -305,6 +308,7 @@ export function recompute(h: Hero) {
   if (h.keepsake) add(h.keepsake);
   // Face Runes: each carved face adds its rune's hook, at its rank.
   for (const [face, rn] of Object.entries(h.runes ?? {})) add(`rune_${rn.id}_${face}`, rn.rank);
+  if (h.shuffle) add(`shuf_${h.shuffle}`);
   // Attributes (the Crawl): each one's passives, at their power.
   for (const a of ATTRS) { const n = attrOf(h, a); if (n > 0) add(`attr_${a}`, n); }
   if (!hasThirdTrinket(h) && h.equip.trinket3) { h.backpack.push(h.equip.trinket3); delete h.equip.trinket3; }
@@ -412,6 +416,8 @@ export function recompute(h: Hero) {
   for (const k of Object.keys(f.persist)) if (k.startsWith("tb_") || k.startsWith("tn_")) delete f.persist[k];
   for (const t of h.tarot ?? []) { f.persist[`tb_${t.id}`] = Math.round(boonOf(t) * 100); f.persist[`tn_${t.id}`] = Math.round(baneOf(t) * 100); }
   f.faces = tarotFaces(h, f.faces);
+  // A Shuffler rewrites a six-sided die.
+  f.faces = shuffleFaces(h.shuffle, f.faces);
   eachHook(f, "stats", (hk, n) => hk(s, n, f));
   if (items["l_mountain"]) s.armor *= 2;
   // Unified with a Dragon Heart: every stat +50%.

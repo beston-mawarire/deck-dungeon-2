@@ -1,5 +1,5 @@
 // The Camp's stores and the Hall: Crown Shards (from the bosses of each layer) and Camp materials (from the foes of
-// each family), kept between runs, even when a run ends in death. The Hall spends them on lasting upgrades.
+// each family), kept between runs once you bring them home (a death brings home nothing). The Hall spends them on lasting upgrades.
 import { MASTERY_FAMILIES, treeOpen, treeTalents, wmLevel } from "./longroad";
 import type { Meta } from "./meta";
 import type { Run } from "./run";
@@ -15,10 +15,10 @@ export const MATS: Record<Mat, { name: string; icon: string; family: string }> =
 export const matOfFamily = (family?: string): Mat | undefined => (Object.keys(MATS) as Mat[]).find(k => MATS[k].family === family);
 
 /** Seeds found below grow into herbs in the Garden; herbs become brews in the Brewery. */
-export type Plant = "heartleaf" | "moonbell" | "blightcap" | "glowcap" | "ironroot" | "swiftfern" | "goldthistle" | "dreamleaf" | "emberroot";
-export type BrewKind = "heal" | "mana" | "vile" | "glow" | "iron" | "swift" | "gold" | "sage" | "ember";
+export type Plant = "heartleaf" | "moonbell" | "blightcap" | "glowcap" | "ironroot" | "swiftfern" | "goldthistle" | "dreamleaf" | "emberroot" | "sweetroot" | "stoutroot" | "frostmoss" | "banewort" | "treadleaf" | "steelvine";
+export type BrewKind = "heal" | "mana" | "vile" | "glow" | "iron" | "swift" | "gold" | "sage" | "ember" | "snack" | "stout" | "salve" | "bane" | "tread";
 /** Each plant: its seed, how many runs it takes to grow, how often its seed turns up (weight), and what it brews into. */
-export const PLANTS: Record<Plant, { name: string; seed: string; icon: string; seedIcon: string; brew: BrewKind; runs: number; weight: number }> = {
+export const PLANTS: Record<Plant, { name: string; seed: string; icon: string; seedIcon: string; brew: BrewKind; runs: number; weight: number; /** Steelvine: grows into a weapon, not herbs. */ weapon?: boolean }> = {
   heartleaf: { name: "Heartleaf", seed: "Heartleaf Seed", icon: "🌿", seedIcon: "🌰", brew: "heal", runs: 1, weight: 28 },
   moonbell: { name: "Moonbell", seed: "Moonbell Seed", icon: "🪻", seedIcon: "🫘", brew: "mana", runs: 2, weight: 18 },
   blightcap: { name: "Blightcap", seed: "Blightcap Spores", icon: "🍄", seedIcon: "🍂", brew: "vile", runs: 2, weight: 10 },
@@ -27,7 +27,14 @@ export const PLANTS: Record<Plant, { name: string; seed: string; icon: string; s
   swiftfern: { name: "Swiftfern", seed: "Swiftfern Spores", icon: "🌱", seedIcon: "🍃", brew: "swift", runs: 2, weight: 8 },
   goldthistle: { name: "Goldthistle", seed: "Goldthistle Seed", icon: "🌼", seedIcon: "🟡", brew: "gold", runs: 1, weight: 7 },
   dreamleaf: { name: "Dreamleaf", seed: "Dreamleaf Seed", icon: "🍀", seedIcon: "💤", brew: "sage", runs: 2, weight: 6 },
-  emberroot: { name: "Emberroot", seed: "Emberroot Seed", icon: "🌶️", seedIcon: "🔥", brew: "ember", runs: 2, weight: 5 }
+  emberroot: { name: "Emberroot", seed: "Emberroot Seed", icon: "🌶️", seedIcon: "🔥", brew: "ember", runs: 2, weight: 5 },
+  // 2.7: food for the fight, wards, a bane for the strong, a tea against hazards, and a vine that grows a weapon.
+  sweetroot: { name: "Sweetroot", seed: "Sweetroot Seed", icon: "🍠", seedIcon: "🟤", brew: "snack", runs: 1, weight: 20 },
+  stoutroot: { name: "Stoutroot", seed: "Stoutroot Seed", icon: "🥔", seedIcon: "🪨", brew: "stout", runs: 2, weight: 9 },
+  frostmoss: { name: "Frostmoss", seed: "Frostmoss Spores", icon: "🧊", seedIcon: "❄️", brew: "salve", runs: 2, weight: 8 },
+  banewort: { name: "Banewort", seed: "Banewort Seed", icon: "🥀", seedIcon: "⚫", brew: "bane", runs: 2, weight: 7 },
+  treadleaf: { name: "Treadleaf", seed: "Treadleaf Seed", icon: "🍃", seedIcon: "👣", brew: "tread", runs: 1, weight: 8 },
+  steelvine: { name: "Steelvine", seed: "Steelvine Seed", icon: "🗡️", seedIcon: "⚙️", brew: "heal", runs: 3, weight: 3, weapon: true }
 };
 /** What each brew is. Potions and the Blightcap Brew go to their usual places; draughts are drunk out of a fight and last some floors. */
 export const BREWS: Record<BrewKind, { name: string; icon: string; text: string; floors?: number }> = {
@@ -39,13 +46,24 @@ export const BREWS: Record<BrewKind, { name: string; icon: string; text: string;
   swift: { name: "Fleetfoot Tonic", icon: "🍃", text: "+5% Dodge", floors: 2 },
   gold: { name: "Prospector's Tea", icon: "🪙", text: "+25% Gold from foes and urns", floors: 3 },
   sage: { name: "Sage's Tea", icon: "📖", text: "+50% XP", floors: 2 },
-  ember: { name: "Firebrand Oil", icon: "🔥", text: "Your hits apply 1 Burn", floors: 1 }
+  ember: { name: "Firebrand Oil", icon: "🔥", text: "Your hits apply 1 Burn", floors: 1 },
+  snack: { name: "Roasted Sweetroot", icon: "🍠", text: "Eat it in a fight: heal 15% of your Max HP (less than a potion, and it doesn't take your turn)" },
+  stout: { name: "Stoutroot Stew", icon: "🍲", text: "In a fight: +25% Max HP (and that much HP) until the fight ends" },
+  salve: { name: "Frostmoss Salve", icon: "🧊", text: "In a fight: immune to Burn, Chill, Poison, Shock and Bleed for 4 rounds" },
+  bane: { name: "Banewort Draught", icon: "🥀", text: "Thrown at an Elite, a Champion or a boss: Weak and Exposed for 2 rounds (lesser foes shrug it off)" },
+  tread: { name: "Treadleaf Tea", icon: "👣", text: "Spikes, lava and sludge can't hurt you", floors: 2 }
 };
+/** Brews carried as fight tonics (drawn from your potion drawer, and they don't use your turn). */
+export const TONIC_BREWS: BrewKind[] = ["snack", "stout", "salve", "bane"];
 export const isDraught = (k: string) => !!BREWS[k as BrewKind]?.floors;
 export interface Plot { plant: Plant; left: number }
 export interface CampStore {
   crowns: number; mats: Partial<Record<Mat, number>>; hall: Record<string, number>;
   seeds?: Partial<Record<Plant, number>>; herbs?: Partial<Record<Plant, number>>;
+  /** Weapons grown on Steelvine (their rarity), waiting to go in your pack on the next run. */
+  sprouts?: ("uncommon" | "rare" | "epic" | "legendary")[];
+  /** The pouch from the dungeon: materials and seeds brought home by climbing out with it, waiting in the Garden to be unpacked. */
+  pouch?: { mats: Partial<Record<Mat, number>>; seeds: Partial<Record<Plant, number>> };
   /** Garden plots (null = empty), and potions brewed and waiting to be taken on the next run. */
   plots?: (Plot | null)[];
   brews?: Partial<Record<BrewKind, number>>;
@@ -114,6 +132,7 @@ export function applyHall(m: Meta, run: Run) {
     // Blightcap Brews go along to be thrown; draughts go in your pack, to drink when you choose.
     if (c.brews.vile) h.f.persist["c_brew"] = (h.f.persist["c_brew"] ?? 0) + c.brews.vile;
     for (const [k, n] of Object.entries(c.brews)) if (isDraught(k) && n) (h.draughts ??= {})[k] = (h.draughts[k] ?? 0) + n;
+    for (const k of TONIC_BREWS) if (c.brews[k]) (h.tonics ??= {})[k] = (h.tonics[k] ?? 0) + c.brews[k]!;
     c.brews = {};
   }
   for (const p of gardenPlots(m)) if (p && p.left > 0) p.left--;
@@ -124,27 +143,45 @@ export function applyHall(m: Meta, run: Run) {
   h.f.hp = h.f.maxHp;
 }
 
-/** What a run has found for the Camp, banked the moment it's found (kept even if the run ends in death). */
+/** What a run found for the Camp, banked when the run ends well; a death brings home nothing.
+ *  Crown Shards and Scrolls of Knowledge come home on any success. Materials and seeds: everything on a victory;
+ *  after climbing out, only if you took the pouch (and then into the Garden's pouch chest, to be unpacked). */
 export function bankCamp(m: Meta, run: Run): boolean {
   const l = run.campLoot;
-  if (!l) return false;
+  if (!l || run.scene.t !== "over") return false;
+  const won = run.scene.won, ok = won || !!run.retired;
+  if (!ok) return false;
+  const toPouch = !won && !!run.extracted;
+  if (toPouch && !run.extracted!.pouch) { l.mats = {}; l.seeds = {}; }
   const b = (l.banked ??= { crowns: 0, mats: {} });
   const c = campOf(m);
   let changed = false;
   if ((l.scrolls ?? 0) > (b.scrolls ?? 0)) { c.scrolls = (c.scrolls ?? 0) + (l.scrolls! - (b.scrolls ?? 0)); b.scrolls = l.scrolls; changed = true; }
   if (l.crowns > b.crowns) { c.crowns += l.crowns - b.crowns; b.crowns = l.crowns; changed = true; }
+  const pouch = toPouch && run.extracted!.pouch ? (c.pouch ??= { mats: {}, seeds: {} }) : undefined;
   for (const k of Object.keys(l.seeds ?? {}) as Plant[]) {
     const d = (l.seeds![k] ?? 0) - (b.seeds?.[k] ?? 0);
-    if (d > 0) { (c.seeds ??= {})[k] = (c.seeds[k] ?? 0) + d; (b.seeds ??= {})[k] = l.seeds![k]; changed = true; }
+    if (d > 0) { const into = pouch ? pouch.seeds : (c.seeds ??= {}); into[k] = (into[k] ?? 0) + d; (b.seeds ??= {})[k] = l.seeds![k]; changed = true; }
   }
   for (const k of Object.keys(l.mats) as Mat[]) {
     const d = (l.mats[k] ?? 0) - (b.mats[k] ?? 0);
-    if (d > 0) { c.mats[k] = (c.mats[k] ?? 0) + d; b.mats[k] = l.mats[k]; changed = true; }
+    if (d > 0) { const into = pouch ? pouch.mats : c.mats; into[k] = (into[k] ?? 0) + d; b.mats[k] = l.mats[k]; changed = true; }
   }
   return changed;
 }
 
 // ---------- The Garden ----------
+
+/** Unpack the dungeon pouch in the Garden: its materials and seeds go into the Camp's stores. */
+export function unpackPouch(m: Meta): boolean {
+  const c = campOf(m), p = c.pouch;
+  if (!p) return false;
+  for (const [k, n] of Object.entries(p.mats) as [Mat, number][]) c.mats[k] = (c.mats[k] ?? 0) + n;
+  for (const [k, n] of Object.entries(p.seeds) as [Plant, number][]) (c.seeds ??= {})[k] = (c.seeds[k] ?? 0) + n;
+  delete c.pouch;
+  return true;
+}
+
 
 export const GARDEN_PLOTS = 2;
 /** The Garden's plots (two, more from Green Thumb). */
@@ -168,6 +205,13 @@ export function harvest(m: Meta, i: number, rng: () => number = Math.random): st
   const c = campOf(m), plots = gardenPlots(m), p = plots[i];
   if (!p) return null;
   if (p.left > 0) return `Still growing: ${p.left} more run${p.left === 1 ? "" : "s"}.`;
+  // Steelvine grows a weapon (usually Uncommon, now and then far better); it goes with you on your next run.
+  if (PLANTS[p.plant].weapon) {
+    const x = rng(), rarity = x < 0.05 ? "legendary" : x < 0.2 ? "epic" : x < 0.5 ? "rare" : "uncommon";
+    (c.sprouts ??= []).push(rarity);
+    plots[i] = null;
+    return `🗡️ The Steelvine has grown into a ${rarity[0].toUpperCase()}${rarity.slice(1)} weapon. It goes in your pack on your next run.`;
+  }
   const n = 2 + (rng() < 0.4 ? 1 : 0) + (campOf(m).insights?.herbalism ? 1 : 0);
   (c.herbs ??= {})[p.plant] = (c.herbs[p.plant] ?? 0) + n;
   plots[i] = null;

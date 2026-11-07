@@ -213,6 +213,11 @@ export function applyStatus(b: Battle, source: Fighter | null, target: Fighter, 
     fx(b, { who: target.id, kind: "block", text: "Steadies itself", icon: "🧍" });
     return;
   }
+  // Frostmoss Salve: a few rounds safe from the elements and bleeding.
+  if (["burn", "chill", "poison", "shock", "bleed"].includes(id) && (target.flags["salveUntil"] ?? -1) >= b.round) {
+    fx(b, { who: target.id, kind: "block", text: "Salved", icon: "🧊" });
+    return;
+  }
   // Angelic Blessing: no negative status can touch you.
   if (isNegative(id) && (target.persist["angelFights"] ?? 0) > 0) {
     log(b, `👼 The Angelic Blessing turns ${STATUS_INFO[id].name} aside.`);

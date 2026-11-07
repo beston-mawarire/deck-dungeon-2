@@ -3,7 +3,7 @@ import { pathsOf } from "../data/classpaths";
 // and the Codex of everything you've found. Stored in the browser (localStorage), per player.
 import { CAMP_CASTS, FISH } from "./fishing";
 import { MASTERY_FAMILIES, TOTEMS, treeOf, treeOpen, treePointsFor } from "./longroad";
-import { trackMarks, type Run } from "./run";
+import { trackMarks, type ObsidianSeal, type Run } from "./run";
 import { EQUIP_SLOTS, itemName } from "./hero";
 import { BOUNTY_CAP, bountyReward } from "./pact";
 import { TAROT_MAP, TAROT_MAX_LEVEL, TAROT_SLOTS, tarotOffer, type TarotSlot } from "./tarot";
@@ -35,8 +35,8 @@ export interface HistoryEntry {
 export const HISTORY_SIZE = 10;
 
 export interface Meta {
-  /** The Obsidian Chest: one item sealed by your last extraction, waiting in the next run's Entrance. */
-  obsidian?: GearItem;
+  /** The Obsidian Chest: the one thing sealed by your last climb out (an item, your potions or your gold), waiting in the next run's Entrance. */
+  obsidian?: ObsidianSeal;
   /** The Camp's stores (Crown Shards, materials) and the Hall's upgrades. */
   camp?: import("./camp").CampStore;
   /** The Crawl: how many layers each class has beaten (its best run). Opens other classes and more of its loot. */
@@ -146,6 +146,8 @@ export function loadMeta(): Meta {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const m: Meta = { renown: 0, runs: 0, wins: 0, bestFloor: 0, found: [], ...JSON.parse(raw) };
+      // (2.7: the Obsidian Chest held a bare item before; now it holds a seal.)
+      if (m.obsidian && "base" in (m.obsidian as object)) m.obsidian = { item: m.obsidian as unknown as GearItem };
       // Mastery reset: every class starts again from Mastery 1 (and its kit choices go back to the class's own).
       if ((m.masteryEpoch ?? 0) < MASTERY_EPOCH) { m.mastery = {}; m.kits = {}; m.masteryEpoch = MASTERY_EPOCH; saveMeta(m); }
       return m;

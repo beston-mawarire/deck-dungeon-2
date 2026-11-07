@@ -52,3 +52,33 @@ describe("a Face Rune in a fight", () => {
     expect(b.fx.some(x => x.kind === "text" && /Ember Rune/.test(x.text ?? ""))).toBe(true);
   });
 });
+
+import { rollShuffleOffer, takeShuffle } from "../src/game/run";
+
+describe("Shufflers", () => {
+  it("rewrite a six-sided die: Low Roller makes 1s Crit and 6s Hit", () => {
+    const r = newRun("warrior", 7); startCrawl(r);
+    expect(r.hero.f.faces).toHaveLength(6);
+    r.shuffleOffer = ["low_roller", "twin_crowns"];
+    takeShuffle(r, "low_roller");
+    expect(r.hero.f.faces[0].kind).toBe("crit");
+    expect(r.hero.f.faces[5].kind).toBe("hit");
+    expect(r.runeOffer).toBeUndefined();
+  });
+  it("Twin Crowns: 2s and 6s Crit, Crits deal 50% less; a new Shuffler replaces the old", () => {
+    const r = newRun("rogue", 8); startCrawl(r);
+    r.shuffleOffer = ["twin_crowns"];
+    takeShuffle(r, "twin_crowns");
+    expect(r.hero.f.faces[1].kind).toBe("crit");
+    expect(r.hero.f.critDmg).toBe(-50);
+    r.shuffleOffer = ["sure_hand"];
+    takeShuffle(r, "sure_hand");
+    expect(r.hero.shuffle).toBe("sure_hand");
+    expect(r.hero.f.critDmg ?? 0).toBe(0);
+  });
+  it("are offered two at a time, never the one you have", () => {
+    const r = newRun("mage", 9); startCrawl(r);
+    r.hero.shuffle = "all_in";
+    for (let k = 0; k < 20; k++) { const o = rollShuffleOffer(r); expect(o).toHaveLength(2); expect(o).not.toContain("all_in"); }
+  });
+});

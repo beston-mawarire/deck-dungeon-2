@@ -67,7 +67,8 @@ export type Track = "title" | "game";
 export type Place = "title" | "camp" | "floor" | "boss";
 const PLAYLIST: Record<Place, string[]> = {
   title: ["music/title.mp3"],
-  camp: ["music/beyond_mist.mp3", "music/white_moss.mp3"],
+  // (The Camp: one song, on loop.)
+  camp: ["music/beyond_mist.mp3"],
   floor: ["music/hollow_vale.mp3", "music/silent_reach.mp3", "music/gameplay.mp3"],
   boss: ["music/moonlight.mp3", "music/pale_waters.mp3"]
 };
@@ -162,9 +163,13 @@ function pickTrack(p: Place): string {
   return list[i];
 }
 /** Switch to a place's music (no-op if it's already playing). Browsers only allow sound after a tap, so we retry then. */
-export function playMusic(k: Track, where: Place = k === "title" ? "title" : "floor") {
+/** The dungeon: each floor gets the next track of the floor playlist, looped while you're on it. */
+let floorKey = "";
+export function playMusic(k: Track, where: Place = k === "title" ? "title" : "floor", key = "") {
   if (typeof Audio === "undefined") return;
-  if (place === where && music) { applyVolume(); if (music.paused) tryPlay(); return; }
+  const newFloor = where === "floor" && key !== "" && key !== floorKey;
+  if (place === where && music && !newFloor) { applyVolume(); if (music.paused) tryPlay(); return; }
+  if (where === "floor" && key) floorKey = key;
   place = where;
   musicKey = PLACE_TRACK[where];
   const url = pickTrack(where);
@@ -178,7 +183,8 @@ export function playMusic(k: Track, where: Place = k === "title" ? "title" : "fl
     // At the end of a track, the place's next one (a playlist of one just loops).
     music.addEventListener("ended", () => { if (!music || !place) return; music.src = pickTrack(place); music.load(); tryPlay(); });
   }
-  music.loop = PLAYLIST[where].length === 1;
+  // (A floor's track loops until you leave the floor; a one-track playlist always loops.)
+  music.loop = PLAYLIST[where].length === 1 || where === "floor";
   applyVolume();
   tryPlay();
   // Browsers (iPhones especially) only allow sound from a real tap or key press, and only some events

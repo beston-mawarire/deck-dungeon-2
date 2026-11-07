@@ -27,17 +27,17 @@ import { chosenPath, LEDGER_MARKS, carriedTarot, flipTarot, takeTarot, toggleTar
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  sellItem, sellOffer, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, drinkCleanse, takeRune, climbOut, retireToExtract, dropDeeper, extractionHaul, stayOnFloor, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
+  sellItem, sellOffer, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, drinkCleanse, takeRune, takeShuffle, type ObsidianSeal, climbOut, retireToExtract, dropDeeper, extractionHaul, stayOnFloor, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   drinkDraught, startCrawl, startDrill, tavernGift, takeGift, GIFTS, type GiftId, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, chooseOmen, chooseSkill, omensTaken, setOut, ABYSS_LAYER, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
 } from "../game/run";
-import { fortunePips } from "../game/loot";
+import { fortunePips, rollItem } from "../game/loot";
 import { layerFloors } from "../game/grid";
 import { GUARD_FLAT, isThrow, readyThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
 import { allClassesOpen, branchSpent, isTreeRelic, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
-import { NUMERALS, RUNE_MAP, RUNE_MAX_RANK, runeText } from "../data/runes";
+import { NUMERALS, RUNE_MAP, RUNE_MAX_RANK, runeText, SHUFFLER_MAP } from "../data/runes";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR, BASE_DMG_PER } from "../data/attributes";
 import { crawlKeys, isWalking, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { mountCampMap, resetCampWalk } from "./campmap";
@@ -47,7 +47,7 @@ import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRIT
 import { gearAttr, setViewLevel, spendAttr, TYPE_MARK, treeAttr, potionCap, potionsPerFight, manaPotionCap, CLEANSE_POTION_CAP, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
-import { BREWS, type BrewKind, INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
+import { unpackPouch, BREWS, type BrewKind, INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
 import { pingSession } from "./leaderboard";
 import { classify, FAMILY_NAME } from "../game/families";
 import { applyRework, canAfford, canEmpowerTarget, costText, empower, empowerBlock, extract, extractBlock, MAX_REFINE, refine, refineBlock, refineCost, rework, reworkBlock, reworkCost, SCROLL_SLOTS, scrapScroll, scrollName, scrollScrapValue } from "../game/masterwork";
@@ -963,16 +963,18 @@ function campBody(o: OriginId, tab: CampTab): string {
   if (tab === "garden") {
     const c = campOf(meta), plots = gardenPlots(meta);
     const all = Object.keys(PLANTS) as Plant[];
-    const seeds = all.filter(k => (c.seeds?.[k] ?? 0) > 0).map(k => `<button class="garden-seed ${sowing === k ? "on" : ""}" data-sow="${k}">${PLANTS[k].seedIcon} <b>${c.seeds?.[k] ?? 0}</b> ${esc(PLANTS[k].seed)}<span>${PLANTS[k].runs} run${PLANTS[k].runs === 1 ? "" : "s"} · brews ${esc(BREWS[PLANTS[k].brew].name)}</span></button>`).join("");
+    const seeds = all.filter(k => (c.seeds?.[k] ?? 0) > 0).map(k => `<button class="garden-seed ${sowing === k ? "on" : ""}" data-sow="${k}">${PLANTS[k].seedIcon} <b>${c.seeds?.[k] ?? 0}</b> ${esc(PLANTS[k].seed)}<span>${PLANTS[k].runs} run${PLANTS[k].runs === 1 ? "" : "s"} · ${PLANTS[k].weapon ? "grows into a weapon" : `brews ${esc(BREWS[PLANTS[k].brew].name)}`}</span></button>`).join("");
     const herbs = all.filter(k => (c.herbs?.[k] ?? 0) > 0).map(k => `${PLANTS[k].icon} ${c.herbs![k]} ${esc(PLANTS[k].name)}`).join(" · ");
-    return `<p>Seeds turn up below: Champions and Elites carry them, and now and then one hides in a chest. Sow them here; they grow while you're down in the dungeon, a run or two, and give two or three herbs for the Brewery.</p>
+    const pouch = c.pouch, pouchList = pouch ? [...Object.entries(pouch.mats).map(([k, n]) => `${MATS[k as Mat].icon} ${n} ${MATS[k as Mat].name}`), ...Object.entries(pouch.seeds).map(([k, n]) => `${PLANTS[k as Plant].seedIcon} ${n} ${PLANTS[k as Plant].seed}`)].join(" · ") : "";
+    const pouchBox = pouch ? `<div class="pouch-box"><span class="pb-ic">👝</span><div class="pb-txt"><b>Your pouch from the dungeon</b><span>${pouchList || "Empty"}</span></div><button class="plank-btn" data-unpack>Unpack</button></div>` : "";
+    return `${pouchBox}<p>Seeds turn up below: Champions and Elites carry them, and now and then one hides in a chest. Sow them here; they grow while you're down in the dungeon, a run or two, and give two or three herbs for the Brewery.</p>
       ${seeds ? `<div class="garden-seeds">${seeds}</div>` : `<p class="sub center">No seeds in store. Bring some home from the dungeon.</p>`}
       ${sowing ? `<p class="sub center">Now tap an empty plot to sow your ${esc(PLANTS[sowing].seed)}.</p>` : ""}
       <div class="garden-plots">${plots.map((p, i) => !p
         ? `<button class="plot empty ${sowing ? "ready" : ""}" data-plot="${i}"><span class="soil"></span><b>${sowing ? "Sow here" : "Empty"}</b></button>`
         : `<button class="plot ${p.left ? "growing" : "grown"}" data-plot="${i}"><span class="soil"><span class="sprout">${p.left ? "🌱" : PLANTS[p.plant].icon}</span></span><b>${esc(PLANTS[p.plant].name)}</b><span>${p.left ? `${p.left} more run${p.left === 1 ? "" : "s"}` : "Ready: tap to harvest"}</span></button>`).join("")}</div>
       <p class="sub">${herbs ? `In store: ${herbs}.` : "No herbs in store yet."} More plots from the Hall's Green Thumb.</p>
-      <details class="gloss garden-book"><summary>📗 The herbalist's book: all ${all.length} plants</summary>${all.map(k => `<div class="gl"><span class="gi">${PLANTS[k].icon}</span><span class="gt"><b>${esc(PLANTS[k].name)}</b><span>${PLANTS[k].runs} run${PLANTS[k].runs === 1 ? "" : "s"} to grow · ${BREWS[PLANTS[k].brew].icon} ${esc(BREWS[PLANTS[k].brew].name)}: ${esc(BREWS[PLANTS[k].brew].text)}${BREWS[PLANTS[k].brew].floors ? ` for ${BREWS[PLANTS[k].brew].floors} floor${BREWS[PLANTS[k].brew].floors === 1 ? "" : "s"}` : ""}</span></span></div>`).join("")}</details>`;
+      <details class="gloss garden-book"><summary>📗 The herbalist's book: all ${all.length} plants</summary>${all.map(k => `<div class="gl"><span class="gi">${PLANTS[k].icon}</span><span class="gt"><b>${esc(PLANTS[k].name)}</b><span>${PLANTS[k].runs} run${PLANTS[k].runs === 1 ? "" : "s"} to grow · ${PLANTS[k].weapon ? "🗡️ Grows into a weapon (no herbs): usually Uncommon, sometimes Rare or Epic, now and then Legendary. It goes in your pack on your next run" : `${BREWS[PLANTS[k].brew].icon} ${esc(BREWS[PLANTS[k].brew].name)}: ${esc(BREWS[PLANTS[k].brew].text)}`}${BREWS[PLANTS[k].brew].floors ? ` for ${BREWS[PLANTS[k].brew].floors} floor${BREWS[PLANTS[k].brew].floors === 1 ? "" : "s"}` : ""}</span></span></div>`).join("")}</details>`;
   }
   if (tab === "brewery") {
     const c = campOf(meta), band = brewBand(meta);
@@ -982,7 +984,7 @@ function campBody(o: OriginId, tab: CampTab): string {
       const last = brew?.done === "spoiled" ? `<p class="brew-out bad">💥 Too hot! The brew boils over and spoils.</p>` : brew?.done === "bottled" ? `<p class="brew-out ${brew.made ? "" : "bad"}">${brew.made === 2 ? "✨ The sweet spot! Two bottles." : brew.made ? "🧪 A good brew: one bottle." : "🥶 Too cold: the herbs never took. Nothing to bottle."}</p>` : "";
       return `<p>Two herbs make a brew. Each stir heats the pot by a die. Bottle it between <b>${band.low}</b> and <b>${band.high}</b> for one bottle, at <b>${band.sweetLo}${band.sweetHi > band.sweetLo ? `–${band.sweetHi}` : ""}</b> for two. Go past ${band.high} and it spoils.</p>
         ${last}${waiting}
-        <div class="brew-pick">${(Object.keys(PLANTS) as Plant[]).filter(k => (c.herbs?.[k] ?? 0) > 0 || ["heartleaf", "moonbell"].includes(k)).map(k => { const bw = BREWS[PLANTS[k].brew]; return `<button class="hu-buy brew-opt" data-brew="${k}" ${(c.herbs?.[k] ?? 0) >= BREW_HERBS ? "" : "disabled"}><b>${bw.icon} ${esc(bw.name)}</b><span>${esc(bw.text)}${bw.floors ? ` · ${bw.floors} floor${bw.floors === 1 ? "" : "s"}` : ""} · ${BREW_HERBS} ${PLANTS[k].icon} ${esc(PLANTS[k].name)} (you have ${c.herbs?.[k] ?? 0})</span></button>`; }).join("")}</div>
+        <div class="brew-pick">${(Object.keys(PLANTS) as Plant[]).filter(k => !PLANTS[k].weapon && ((c.herbs?.[k] ?? 0) > 0 || ["heartleaf", "moonbell"].includes(k))).map(k => { const bw = BREWS[PLANTS[k].brew]; return `<button class="hu-buy brew-opt" data-brew="${k}" ${(c.herbs?.[k] ?? 0) >= BREW_HERBS ? "" : "disabled"}><b>${bw.icon} ${esc(bw.name)}</b><span>${esc(bw.text)}${bw.floors ? ` · ${bw.floors} floor${bw.floors === 1 ? "" : "s"}` : ""} · ${BREW_HERBS} ${PLANTS[k].icon} ${esc(PLANTS[k].name)} (you have ${c.herbs?.[k] ?? 0})</span></button>`; }).join("")}</div>
         <p class="sub">Brews come with you on your next run. Potions go on your belt; <b>draughts</b> go in your pack: drink one outside a fight (🎒 → Artefacts) and it lasts the floor you're on and the next few.</p>`;
     }
     const pct = Math.min(100, (brew.heat / (band.high + 4)) * 100);
@@ -1196,7 +1198,7 @@ function expeditionScreen(o: OriginId) {
       <div class="cb-torch r"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
       <div class="exp-arch"><div class="exp-dark">
         <div class="exp-btns">
-          <p class="exp-deeper">The deeper you go, the more you can climb out with.${meta.obsidian ? `<br>🖤 ${esc(itemName(meta.obsidian))} waits in the Obsidian Chest.` : ""}</p>
+          <p class="exp-deeper">The deeper you go, the better the finds.${meta.obsidian ? `<br>🖤 ${esc(sealName(meta.obsidian))} waits in the Obsidian Chest.` : ""}</p>
           <button class="plank-btn exp-go" data-descend><span class="eg-arrow">▼</span>Descend<span class="eg-arrow eg-r">▼</span></button>
           <button class="plank-btn" data-exppop="layer">Layer · ${ordinal(Math.min(startLayer, maxStartLayer(o)))}</button>
           <button class="plank-btn" data-exppop="heat">Heat${heat ? ` · ${heat}` : ""}</button>
@@ -1769,7 +1771,7 @@ function crawlOver(r: Run) {
     <h2 class="end-title ${won || r.retired ? "won" : "lost"}">${title}</h2>
     ${!won && k && !r.abandoned ? `<p class="end-line">Slain by <b class="cl-boss">${esc(k.name)}</b>${k.title ? ` <span class="sub">${esc(k.title)}</span>` : ""}, with ${big(k.hp)}/${big(k.maxHp)} HP left.</p>` : ""}
     ${endStats(r)}
-    ${r.extracted ? `<div class="end-box ex-end"><p>🧗 <b>Your haul:</b> ${r.extracted.mats} Camp material${r.extracted.mats === 1 ? "" : "s"}${r.extracted.crowns ? ` and ${r.extracted.crowns} 👑 Crown Shard${r.extracted.crowns === 1 ? "" : "s"}` : ""}, sent to the Camp.</p>${r.extracted.item ? `<p>🖤 <b>${esc(itemName(r.extracted.item))}</b> is sealed in the Obsidian Chest. It waits in the Entrance of your next run.</p>` : ""}</div>` : ""}
+    ${r.extracted ? `<div class="end-box ex-end"><p>🧗 <b>You took:</b> ${esc(sealText(r.extracted.seal, r.extracted.pouch))}.</p>${r.extracted.crowns ? `<p>👑 ${r.extracted.crowns} Crown Shard${r.extracted.crowns === 1 ? "" : "s"} for the climb, sent to the Camp.</p>` : ""}</div>` : ""}
     ${recorded?.achievements.length ? `<div class="end-box">${recorded.achievements.map(id => { const a = ACHIEVEMENTS.find(x => x.id === id)!; return `<p>🏆 <b>${esc(a.name)}</b>: ${esc(a.text)}${a.title ? ` <span class="sub">(title “${esc(a.title)}”)</span>` : ""}</p>`; }).join("")}</div>` : ""}
     ${dr && won ? `<div class="end-box"><p>${drillMedal((meta.drills?.[dr.id] ?? []).length)} <b>${esc(dr.name)}</b> cleared with the ${esc(ORIGINS[h.origin].name)}.${r.drillFirst ? ` First clear: 👑 ${DRILL_CROWNS} Crown Shards, sent to the Camp.` : ""}</p></div>` : ""}
     ${r.bounties?.length ? `<div class="end-box bounty-box"><p>🏅 <b>Heat bounties</b> for the ${esc(ORIGINS[h.origin].name)}: ${r.bounties.map(b => `Heat ${b.heat} (👑 ${b.crowns}${b.scrolls ? " · 📜 1" : ""})`).join(", ")}. Sent to the Camp.</p></div>` : ""}
@@ -2006,25 +2008,44 @@ function armouryPage(h: Hero, cards: string) {
     <button class="mer-leave plank-btn" data-armouryclose>← Back</button>
   </div></div>`;
 }
+/** What a climb out took home, in words. */
+function sealText(seal: ObsidianSeal | undefined, pouch?: boolean) {
+  if (pouch) return "your pouch of materials and seeds, waiting in a chest in the Camp's Garden";
+  if (seal?.item) return `${itemName(seal.item)}, sealed in the Obsidian Chest for your next run`;
+  if (seal?.gold !== undefined) return `${seal.gold} Gold, sealed in the Obsidian Chest for your next run`;
+  if (seal?.potions) return `your potions (${seal.potions.heal} 🧪 · ${seal.potions.mana} 🔷 · ${seal.potions.cleanse} 🫧), sealed in the Obsidian Chest for your next run`;
+  return "nothing but your life";
+}
+const sealName = (seal: ObsidianSeal) => seal.item ? itemName(seal.item) : seal.gold !== undefined ? `${seal.gold} Gold` : seal.potions ? "your potions" : "something";
 /** At a trapdoor: drop deeper, climb out with the haul, or not yet. Climbing out picks one item to seal in the Obsidian Chest. */
 function extractScene(r: Run) {
   if (r.scene.t !== "extract") return "";
-  const h = r.hero, haul = extractionHaul(r), next = extractionHaul(r, haul.floors + 1);
-  const haulLine = (x: { mats: number; crowns: number }) => `${x.mats} Camp material${x.mats === 1 ? "" : "s"}${x.crowns ? ` and ${x.crowns} 👑 Crown Shard${x.crowns === 1 ? "" : "s"}` : ""}`;
+  const h = r.hero, haul = extractionHaul(r);
   const sealed = meta.obsidian;
+  const replaces = sealed ? ` <b>It replaces ${esc(sealName(sealed))}</b>, in the Obsidian Chest now.` : "";
   if (r.scene.pick) {
     const gear = [...EQUIP_SLOTS.map(sl => h.equip[sl]), ...h.backpack].filter((x): x is GearItem => !!x);
-    return `<div class="ex-pop"><h2 class="ex-title">🖤 Seal one item</h2>
-      <p class="ex-sub">It waits for you in the Obsidian Chest, in the Entrance of your next run.${sealed ? ` <b>This replaces ${esc(itemName(sealed))}</b>, sealed there now.` : ""}</p>
-      <div class="ex-items">${gear.map(it => `<button class="ex-item r-${it.rarity}" data-climb="${it.uid}"><b>${esc(itemName(it))}</b><span>${esc(itemRarity(it))} · ${esc(SLOT_SHORT[baseOf(it.base).slot as EquipSlot] ?? "")}</span></button>`).join("")}</div>
-      <div class="ex-btns"><button class="plank-btn" data-climb="none">Seal nothing${sealed ? ` (keep ${esc(itemName(sealed))})` : ""}</button><button class="ex-back" data-exback>← Back</button></div></div>`;
+    const mats = Object.values(r.campLoot?.mats ?? {}).reduce((a, n) => a + (n ?? 0), 0) + haul.mats;
+    const seeds = Object.values(r.campLoot?.seeds ?? {}).reduce((a, n) => a + (n ?? 0), 0);
+    const pots = h.potions + h.manaPotions + (h.cleansePotions ?? 0);
+    const opt = (v: string, icon: string, name: string, sub: string, on = true) => `<button class="ex-item ex-big" data-climb="${v}" ${on ? "" : "disabled"}><b>${icon} ${esc(name)}</b><span>${esc(sub)}</span></button>`;
+    return `<div class="ex-pop"><h2 class="ex-title">Take one thing with you</h2>
+      <p class="ex-sub">Everything else stays in the dark.${replaces}</p>
+      <div class="ex-items">
+        ${opt("pouch", "👝", "Your pouch", `${mats} material${mats === 1 ? "" : "s"}${seeds ? ` · ${seeds} seed${seeds === 1 ? "" : "s"}` : ""}: into a chest in the Garden`, mats + seeds > 0)}
+        ${opt("gold", "🪙", `${h.f.gold} Gold`, "Sealed for your next run", h.f.gold > 0)}
+        ${opt("potions", "🧪", "Your potions", `${h.potions} 🧪 · ${h.manaPotions} 🔷 · ${h.cleansePotions ?? 0} 🫧: sealed for your next run`, pots > 0)}
+      </div>
+      <p class="ex-or">Or one piece of gear, sealed for your next run:</p>
+      <div class="ex-items">${gear.map(it => `<button class="ex-item r-${it.rarity}" data-climb="item:${it.uid}"><b>${esc(itemName(it))}</b><span>${esc(itemRarity(it))} · ${esc(SLOT_SHORT[baseOf(it.base).slot as EquipSlot] ?? "")}</span></button>`).join("")}</div>
+      <div class="ex-btns"><button class="plank-btn" data-climb="none">Take nothing${sealed ? ` (keep ${esc(sealName(sealed))})` : ""}</button><button class="ex-back" data-exback>← Back</button></div></div>`;
   }
-  return `<div class="ex-pop"><div class="ex-hole">🕳️</div>
-    <h2 class="ex-title">The trapdoor</h2>
-    <p class="ex-sub">Drop deeper, or climb out with what you've found.</p>
-    <div class="ex-haul"><p><b>🧗 Climb out now:</b> ${haulLine(haul)}, and seal one item for your next run. Dying brings none of it.</p>
-      <p class="ex-more">🕳️ One floor deeper: ${haulLine(next)}.</p></div>
-    <div class="ex-btns"><button class="big dg-gold" data-dropdeeper>🕳️ Descend</button><button class="plank-btn" data-climbout>🧗 Climb out</button><button class="ex-back" data-exstay>Not yet</button></div></div>`;
+  return `<div class="ex-pop"><div class="ex-hole">🧗</div>
+    <h2 class="ex-title">The way up</h2>
+    <p class="ex-sub">A rope back to the surface. Climb out and take one thing with you: a piece of gear, your potions, your Gold, or your pouch of materials.</p>
+    <div class="ex-haul"><p><b>From floor ${haul.floors}:</b> ${haul.mats} more material${haul.mats === 1 ? "" : "s"} for the pouch${haul.crowns ? `, and ${haul.crowns} 👑 Crown Shard${haul.crowns === 1 ? "" : "s"} that come home whatever you take` : ""}.</p>
+      <p class="ex-more">💀 Die down here and you bring home nothing at all.</p><p class="ex-more">🕳️ The deeper you go, the better the finds.</p></div>
+    <div class="ex-btns"><button class="plank-btn" data-climbout>🧗 Climb out</button><button class="ex-back" data-exstay>Not yet</button></div></div>`;
 }
 
 /** The Face Rune offer: three runes, each for one face of your die. */
@@ -2039,10 +2060,15 @@ function runePopup(r: Run) {
       <span class="rune-die"><b>${o.face}</b><i>${info.icon}</i></span>
       <span class="rune-txt"><b>${esc(info.name)} Rune${rank > 1 ? ` ${NUMERALS[rank]}` : ""}</b><span>${esc(runeText(info, o.face, rank))}</span><em>${esc(note)}</em></span></button>`;
   }).join("");
+  const shufs = (r.shuffleOffer ?? []).map(id => { const sh = SHUFFLER_MAP.get(id)!; return `<button class="rune-card shuf-card" data-shuffle="${id}">
+      <span class="rune-die shuf-die">${sh.icon}</span>
+      <span class="rune-txt"><b>${esc(sh.name)}</b><span>${esc(sh.text)}</span><em>${h.shuffle ? `Replaces ${esc(SHUFFLER_MAP.get(h.shuffle)?.name ?? "")}` : "A Shuffler for your die"}</em></span></button>`; }).join("");
   return `<div class="overlay popup-wrap rune-wrap"><div class="popup rune-pop">
-    <h2 class="rune-title">Carve a Face Rune</h2>
-    <p class="rune-sub">It stays on that face of your die for the rest of the run, whatever weapon you hold.</p>
+    <h2 class="rune-title">Deeper down: pick one</h2>
+    <p class="rune-sub">It stays with your die for the rest of the run, whatever weapon you hold.</p>
+    <h3 class="rune-h">🎲 A Face Rune</h3>
     <div class="rune-list">${cards}</div>
+    ${shufs ? `<h3 class="rune-h">🔀 Or a Shuffler</h3><div class="rune-list">${shufs}</div>` : ""}
     <button class="plank-btn rune-skip" data-runeskip>Leave them</button>
   </div></div>`;
 }
@@ -2407,8 +2433,21 @@ function skillSection(r: Run) {
 /** The Magik tab: the Tarot cards you carry this run. */
 function magikTab(r: Run) {
   const h = r.hero, cards = h.tarot ?? [];
-  if (!cards.length) return `<p class="sub center">${r.mode === "abyss" ? "No Tarot in the Abyss: its Omens are your magik down here." : "You carry no Tarot cards this run. They come from the Abyss; carry two from the Camp's Tarot room."}</p>${omenList(r)}`;
-  return `<div class="tarot-grid">${cards.map(c => tarotCardView(c.id, c.lvl, c.rev)).join("")}</div>${omenList(r)}`;
+  const die = dieMagik(r);
+  if (!cards.length) return `${die}<p class="sub center">${r.mode === "abyss" ? "No Tarot in the Abyss: its Omens are your magik down here." : "You carry no Tarot cards this run. They come from the Abyss; carry two from the Camp's Tarot room."}</p>${omenList(r)}`;
+  return `${die}<div class="tarot-grid">${cards.map(c => tarotCardView(c.id, c.lvl, c.rev)).join("")}</div>${omenList(r)}`;
+}
+/** Your die this run: the Face Runes carved into it and its Shuffler. */
+function dieMagik(r: Run) {
+  const h = r.hero, sh = h.shuffle ? SHUFFLER_MAP.get(h.shuffle) : undefined;
+  const faces = [1, 2, 3, 4, 5, 6].map(f => {
+    const rn = h.runes?.[f], info = rn ? RUNE_MAP.get(rn.id) : undefined;
+    return `<div class="dm-face ${info ? "on" : ""}"><span class="rune-die"><b>${f}</b>${info ? `<i>${info.icon}</i>` : ""}</span><span class="dm-txt">${info ? `<b>${esc(info.name)}${rn!.rank > 1 ? ` ${NUMERALS[rn!.rank]}` : ""}</b><span>${esc(runeText(info, f, rn!.rank).replace(/^On a \d: /, ""))}</span>` : `<span class="dm-empty">No rune</span>`}</span></div>`;
+  }).join("");
+  return `<h3 class="center dm-h">🎲 Your die</h3>
+    <div class="dm-grid">${faces}</div>
+    ${sh ? `<div class="af-tile dm-shuf"><span class="af-ic">${sh.icon}</span><div class="af-txt"><b>${esc(sh.name)} <em>Shuffler</em></b><span>${esc(sh.text)}${h.f.faces.length !== 6 ? " (Waiting: your die isn't six-sided.)" : ""}</span></div></div>` : ""}
+    <p class="sub center dm-note">Each drop through a trapdoor offers a Face Rune or a Shuffler.</p>`;
 }
 const omenList = (r: Run) => Object.keys(r.hero.omens ?? {}).length ? `<h3 class="center">👁️ Omens</h3><div class="af-list">${Object.entries(r.hero.omens!).map(([id, n]) => { const o = OMEN_MAP.get(id)!; return `<div class="af-tile"><span class="af-ic">${o.icon}</span><div class="af-txt"><b>${esc(o.name)}${n > 1 ? ` <em>×${n}</em>` : ""}</b><span>✦ ${esc(o.boon)} · ✖ ${esc(o.bane)}</span></div></div>`; }).join("")}</div>` : "";
 
@@ -2422,7 +2461,6 @@ function crawlArtefacts(r: Run) {
     tile("✴️", "Starmetal", h.starmetal, "From scrapped Legendary and Crimson gear. Jewellers and the Crucible want it.", h.starmetal ? "" : "dim"),
     tile("🔶", "Orilium", h.orilium ?? 0, "From scrapped Epic gear. The Masterwork wants it.", h.orilium ? "" : "dim"),
     tile("⚙️", "Scrap", h.scrap, "Upgrades at the Forge.", h.scrap ? "" : "dim"),
-    ...Object.entries(h.runes ?? {}).sort(([a], [b]) => Number(a) - Number(b)).map(([face, rn]) => { const info = RUNE_MAP.get(rn.id); return info ? tile(info.icon, `${info.name} Rune${rn.rank > 1 ? ` ${NUMERALS[rn.rank]}` : ""}`, `on ${face}`, runeText(info, Number(face), rn.rank)) : ""; }),
     ...(h.azure ? [tile("💠", "Azure", h.azure, "A rare crystal from Elites and Champions.")] : []),
     ...(h.cleansePotions ? [tile("🫧", "Cleansing Potions", h.cleansePotions, `Rare. In a fight, drink one to wash away your worst negative status. Carry ${CLEANSE_POTION_CAP}.`)] : []),
     ...(h.crimsonKeys ? [tile("🩸", "Crimson Keys", h.crimsonKeys, "A Crimson Vault waits somewhere below.", "crimson")] : []),
@@ -2509,7 +2547,7 @@ function helpPopup() {
       "After a guardian falls you can carry on down, or go home to the Camp with what you've found. Your run saves as you go."])}
     ${sec("Getting about", [
       "Tap a tile to walk there. Walk into something to deal with it: chests, doors, pools, people, foes.",
-      "Each floor has one <b>trapdoor</b> down. Once you drop there's no climbing back up, so look around first. Locked doors need a 🗝️ Skeleton Key; some cracked walls give when you push on them.",
+      "Each floor has one <b>trapdoor</b> down. Once you drop there's no climbing back up, so look around first. Below the Entrance, most floors also have <b>🧗 The Way Up</b> tucked in a nook of its own: climb out there to go home with some of what you've found. Locked doors need a 🗝️ Skeleton Key; some cracked walls give when you push on them.",
       "Setting out from the top, the Tavern gives you a parting gift: a Healing Potion, a Mana Potion or a Skeleton Key."])}
     ${sec("Your weapon is your die", [
       "Every weapon has its own die. Each face is a <b>Miss</b>, <b>Graze</b> (half damage), <b>Hit</b> or <b>Crit</b> (double damage, ignores Armor), and some faces cast spells or add effects.",
@@ -2564,9 +2602,12 @@ function helpGlossary() {
   ${group("📊 Your stats", [
     row("⚔️", "Damage", "Added to every hit, then multiplied by the face: Graze ×½, Hit ×1, Crit ×2"),
     row("🛡️", "Armor", "Stops part of each hit: 3 Armor stops 21%, 10 stops 45%, 20 stops 60%, 30 stops 68%, 60 stops 77%. No cap, but each extra point counts for a little less. Crits and spells ignore it"),
-    row("🎲", "Face Runes", "Beat an Elite, a Champion or a boss and you're offered three: carve one into a face of your die for the rest of the run. The same rune again on its face ranks it up (to III)"),
-    row("🧗", "Climbing out", "At any trapdoor below the Entrance you can climb out: a Camp material for every floor you've reached, a Crown Shard for every four, and one item sealed for your next run. Dying brings none of it"),
-    row("🖤", "Obsidian Chest", "Holds the item you sealed when you last climbed out. It waits in the Entrance of your next run; opening it empties it"),
+    row("🎲", "Face Runes", "Every drop through a trapdoor (the first one from the Entrance too) offers three: carve one into a face of your die for the rest of the run (Burn, Bleed, Stun chance, +2 Gold, +2 Damage, Mana and more). The same rune again on its face ranks it up (to III). See them in 🎒 → Magik"),
+    row("🔀", "Shufflers", "Offered beside the runes: a Shuffler rewrites which faces of your die Miss, Graze, Hit or Crit (say, 1s Crit too, or 2s and 6s Crit for half damage). One at a time; a new one replaces the old. Only six-sided dice; a Legendary's bigger die keeps its own faces"),
+    row("🧗", "Climbing out", "At The Way Up you can climb out: a Crown Shard for every four floors you've reached, your Scrolls of Knowledge, and one thing sealed in the Obsidian Chest: an item, the Gold you carry, your potions, or your 👝 Pouch. Die down there and you keep none of it"),
+    row("👝", "Pouch", "Seal your Pouch when you climb out and all the materials and seeds you found that run come home, waiting in a pouch in the Garden. Without it they stay down there"),
+    row("🖤", "Obsidian Chest", "Holds what you sealed when you last climbed out (an item, your Gold or your potions). It waits in the Entrance of your next run; opening it empties it, and so does dying before you open it"),
+    row("🌱", "The Garden's harvest", "Grow herbs for the Brewery: potions and draughts, and fight tonics that don't use your turn (Sweetroot heals a little, Stoutroot adds 25% Max HP for the fight, Frostmoss Salve blocks elemental statuses for 4 rounds, Banewort weakens and exposes Elites, Champions and bosses). Treadleaf Tea makes floor hazards harmless for 2 floors. Steelvine grows into a weapon, and sometimes a very good one"),
     row("🧱", "Guard", "Needs a shield (Warriors can also Guard with a two-hander). Doubles your Armor (+2) this round, and your next attack hits 25% harder (Riposte)"),
     row("💨", "Dodge", "A % chance to avoid a hit entirely (max 60%). Not the same as Evade: Dodge bonuses and Evade bonuses don't trigger each other"),
     row("💥", "Crit damage", "A % boost to the damage of your Crits (on top of the usual double)"),
@@ -3129,7 +3170,7 @@ function render2() {
 function render3() {
   // Not in a run: a new build can load straight away.
   if (!run && updateReady()) applyUpdate();
-  playMusic(run ? "game" : "title", musicPlace());
+  playMusic(run ? "game" : "title", musicPlace(), run?.grid ? `${run.floor}:${run.grid.depth}` : "");
   if (!run) {
     app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${tipBubble(null)}${treeNode ? treeNodePopup(camp) : ""}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "Deck Dungeon 3 is here, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
@@ -3160,8 +3201,8 @@ function render3() {
   // Crown Shards and Camp materials go to the Camp the moment they're found.
   if (!r.drill && bankCamp(meta, r)) saveMeta(meta);
   // The Obsidian Chest: opening it empties it; climbing out seals a new item (one at a time).
-  if (r.obsidianTaken && meta.obsidian && r.obsidian && meta.obsidian.uid === r.obsidian.uid) { delete meta.obsidian; saveMeta(meta); }
-  if (r.extracted && !r.extracted.banked) { r.extracted.banked = true; if (r.extracted.item) meta.obsidian = structuredClone(r.extracted.item); saveMeta(meta); }
+  if (r.obsidianTaken && !r.obsidianCleared) { r.obsidianCleared = true; if (meta.obsidian) { delete meta.obsidian; saveMeta(meta); } }
+  if (r.extracted && !r.extracted.banked) { r.extracted.banked = true; if (r.extracted.seal) meta.obsidian = structuredClone(r.extracted.seal); saveMeta(meta); }
   // The leaderboard server keeps its own record of how far this run has got.
   if (r.sid && r.floor !== r.reportedFloor && s.t !== "over") void reportFloor(r);
   if (s.t === "over" && !recorded && r.endRecord) recorded = r.endRecord;
@@ -3572,6 +3613,7 @@ function bind() {
     on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; });
     on("[data-learn]", el => { const err = learn(meta, el.dataset.learn!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });
     on("[data-sow]", el => { const k = el.dataset.sow as Plant; sowing = sowing === k ? null : k; });
+    on("[data-unpack]", () => { if (unpackPouch(meta)) { saveMeta(meta); say("👝 Unpacked: the materials and seeds are in the Camp's stores."); sfx("chest"); } });
     on("[data-plot]", el => {
       const i = Number(el.dataset.plot), p = gardenPlots(meta)[i];
       if (!p && sowing) { const err = sow(meta, i, sowing); if (err) say(err); else { saveMeta(meta); sfx("status"); if (!(campOf(meta).seeds?.[sowing] ?? 0)) sowing = null; } return; }
@@ -3626,6 +3668,8 @@ function bind() {
       // The Crawl is the game now; it sets out with the Hall's upgrades.
       startCrawl(nr);
       applyHall(meta, nr);
+      // Weapons grown on Steelvine go in your pack.
+      { const c = campOf(meta); for (const rar of c.sprouts ?? []) { let w = rollItem(nr.hero, rar, 1, nr.rng); for (let k = 0; k < 40 && baseOf(w.base).kind !== "weapon"; k++) w = rollItem(nr.hero, rar, 1, nr.rng); if (baseOf(w.base).kind === "weapon") nr.hero.backpack.push(w); } if (c.sprouts?.length) { delete c.sprouts; saveMeta(meta); } }
       // Starting deeper: the layer chosen at Enter Dungeon (never past the one after the class's best).
       const from = Math.min(startLayer, maxStartLayer(o));
       if (from > 1) beginAtLayer(nr, from);
@@ -3705,9 +3749,10 @@ function bind() {
   on("[data-climbout]", () => { if (r.scene.t === "extract") r.scene = { t: "extract", pick: true }; });
   on("[data-exback]", () => { if (r.scene.t === "extract") r.scene = r.scene.fromCleared ? { t: "cleared", ...r.scene.fromCleared } : { t: "extract" }; });
   on("[data-exstay]", () => { stayOnFloor(r); });
-  on("[data-climb]", el => { const v = el.dataset.climb; say(climbOut(r, v === "none" ? null : Number(v))); sfx("win"); });
+  on("[data-climb]", el => { const v = el.dataset.climb ?? "none"; say(climbOut(r, v === "none" ? null : v.startsWith("item:") ? { item: Number(v.slice(5)) } : v === "gold" ? { gold: true } : v === "potions" ? { potions: true } : { pouch: true })); sfx("win"); });
   on("[data-rune]", el => { say(takeRune(r, Number(el.dataset.rune))); sfx("epic"); });
   on("[data-runeskip]", () => { takeRune(r, null); });
+  on("[data-shuffle]", el => { say(takeShuffle(r, el.dataset.shuffle!)); sfx("epic"); });
   on("[data-armouryclose]", () => { armouryOpen = false; });
   on("[data-scrapfound]", el => { compareOpen = null; scrapFound(r, Number(el.dataset.scrapfound)); lootDone(); });
   on("[data-finish]", () => { r.message = ""; finishLoot(r); });

@@ -9,6 +9,19 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.7.0
+- **Face Runes or a Shuffler after every descent**, the first drop from the Entrance included. Pick a rune for one face of your die, or a Shuffler that rewrites which faces Miss, Graze, Hit or Crit (Twin Crowns: 2s and 6s Crit for half damage; Low Roller: 1s Crit; and more). One Shuffler at a time; six-sided dice only, so a Legendary's bigger die keeps its own faces.
+- **More rune effects**, and not only elemental: +2 Gold, 2 Bleed, 10% Stun chance, +2 Damage, 2 Spikes, 1 Exposed, +1 Mana, alongside the old ones.
+- **Your die in 🎒 → Magik**: the six faces, their runes and your Shuffler (moved out of Artefacts).
+- **🧗 The Way Up**: climbing out now happens at a ladder in a nook of its own on most floors below the Entrance. Trapdoors only go down.
+- **Take one thing with you**: when you climb out, seal one thing in the Obsidian Chest: a piece of gear, the Gold you carry, your potions, or your 👝 Pouch (every material and seed you found, waiting in a pouch in the Garden).
+- **Die down there and you keep nothing**: no materials, seeds or sealed item. Crown Shards for the climb and Scrolls of Knowledge come home when you climb out.
+- **New Garden plants**: Sweetroot (a small heal in a fight), Stoutroot (+25% Max HP for that fight), Frostmoss (immune to Burn, Chill, Poison, Shock and Bleed for 4 rounds), Banewort (Weak 2 and Exposed 2 on Elites, Champions and bosses), Treadleaf (Treadleaf Tea: floor hazards can't hurt you for 2 floors) and Steelvine, which grows into a weapon: usually Uncommon, sometimes Rare or Epic, now and then Legendary.
+- Fight tonics from the Brewery don't use your turn.
+- Each floor now has its own music, changing as you go down.
+- Enter Dungeon: "The deeper you go, the better the finds."
+- How to play updated.
+
 ## 2.6.0
 - New: Face Runes. Beat an Elite, a Champion or a boss and you're offered three. Carve one into a face of your die for the rest of the run, whatever weapon you hold: Ember, Frost, Venom, Storm, Ward, Focus, Fury or Leech. One rune per face; the same rune again ranks it up to III. A banner shows each time one fires, and the Artefacts tab lists your carved faces.
 - New: climbing out. Every trapdoor below the Entrance asks: descend, or climb out? Climbing out ends the run as a success, with a Camp material for each floor you've reached, a Crown Shard for every four, and one item sealed for your next run. The screen shows what one more floor would add, and dying brings none of it. Heading back to the Camp after a boss works the same way.

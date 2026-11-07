@@ -3058,3 +3058,21 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
 .exp-deeper { margin: 6px 0 2px; text-align: center; color: #f3d58a; font-size: .9rem; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
 .ex-pop .ex-hole { font-size: 3rem; line-height: 1; filter: drop-shadow(0 0 12px rgba(255,200,110,.55)); }
 .exp-btns .exp-deeper { width: 100%; max-width: 260px; margin: 0 auto 8px; line-height: 1.35; }
+/* 2.7.0: the drop's pick (runes or a Shuffler), and your die in the Magik tab. */
+.rune-pop .rune-h { margin: 10px 0 6px; font-size: .82rem; letter-spacing: .1em; text-transform: uppercase; color: #c9b48c; text-align: left; }
+.rune-pop { max-height: calc(100vh - 40px); overflow-y: auto; }
+.shuf-die { font-size: 1.6rem; background: linear-gradient(160deg, #3a2a52, #24183a) !important; }
+.dm-h { margin: 4px 0 8px; }
+.dm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 10px; }
+.dm-face { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; border: 2px dotted #5a4028; background: rgba(0,0,0,.2); min-width: 0; }
+.dm-face.on { border-color: #c49a5a; }
+.dm-face .rune-die { width: 40px; height: 40px; } .dm-face .rune-die b { font-size: 1.2rem; } .dm-face .rune-die i { font-size: 1rem; right: -5px; bottom: -5px; }
+.dm-txt { display: flex; flex-direction: column; min-width: 0; font-size: .78rem; color: #ead7b3; } .dm-txt b { color: #f3d58a; font-size: .86rem; } .dm-empty { color: #7a6248; }
+.dm-shuf { margin: 0 0 8px; } .dm-note { margin: 0 0 12px; }
+/* 2.7.0: climbing out takes one thing; the pouch waits in the Garden. */
+.crawl-pop .ex-items button.ex-item.ex-big { grid-column: 1 / -1; }
+.crawl-pop .ex-items button.ex-item[disabled] { opacity: .45; }
+.ex-pop .ex-or { margin: 4px 0 6px; font-size: .85rem; color: #5a3e22; font-weight: 600; text-align: left; }
+.pouch-box { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; border: 2px dotted #c49a5a; background: rgba(0,0,0,.25); }
+.pouch-box .pb-ic { font-size: 1.8rem; } .pouch-box .pb-txt { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.pouch-box .pb-txt b { color: #f3d58a; } .pouch-box .pb-txt span { font-size: .82rem; color: #ead7b3; }

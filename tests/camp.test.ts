@@ -9,13 +9,14 @@ loadLibrary();
 const meta = (): Meta => ({ renown: 0, runs: 0, wins: 0 } as never);
 
 describe("the Camp: Crown Shards, materials and the Hall", () => {
-  it("banks what a run finds as it's found, once", () => {
+  it("banks what a run found only when it ends well (a victory), and only once", () => {
     const m = meta(), r = newRun("warrior", 3); startCrawl(r);
     campGain(r, "bone", 2); campGain(r, null, 0, 1);
+    expect(bankCamp(m, r)).toBe(false); // still down there
+    campGain(r, "bone", 1);
+    r.scene = { t: "over", won: true };
     expect(bankCamp(m, r)).toBe(true);
     expect(bankCamp(m, r)).toBe(false);
-    campGain(r, "bone", 1);
-    bankCamp(m, r);
     expect(campOf(m).mats.bone).toBe(3);
     expect(campOf(m).crowns).toBe(1);
   });

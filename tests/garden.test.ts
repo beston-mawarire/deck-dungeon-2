@@ -56,10 +56,10 @@ describe("the Knowledge Table", () => {
   });
 });
 describe("the Garden's new plants and the Brewery's draughts", () => {
-  it("nine plants; their draughts last floors and wear off as you go down", async () => {
+  it("fifteen plants; their draughts last floors and wear off as you go down", async () => {
     const { PLANTS, BREWS, isDraught } = await import("../src/game/camp");
     const { drinkDraught, newRun, startCrawl, descend, makeGrid } = await import("../src/game/run");
-    expect(Object.keys(PLANTS).length).toBe(9);
+    expect(Object.keys(PLANTS).length).toBe(15);
     for (const p of Object.values(PLANTS)) expect(BREWS[p.brew]).toBeDefined();
     expect(isDraught("iron")).toBe(true); expect(isDraught("heal")).toBe(false);
     const r = newRun("warrior", 41); startCrawl(r);

@@ -1,6 +1,6 @@
 // A bot that walks the Crawl: it explores, meets what it finds (skipping risky rooms), and heads for the boss once it's ready.
 import { idx, inside, isFloor, isSeenTile, pathTo, type FloorMap } from "../src/game/grid";
-import { confirmRisk, dropDeeper, gridStep, takeRune, type Run } from "../src/game/run";
+import { confirmRisk, gridStep, stayOnFloor, takeRune, type Run } from "../src/game/run";
 import { botStep } from "./bot";
 import { spendAttr } from "../src/game/hero";
 
@@ -59,7 +59,7 @@ export function crawlStep(run: Run, rushAfter = 2) {
     return;
   }
   if (run.scene.t === "confirm") return confirmRisk(run, true);
-  // The trapdoor's choice: the bot always goes deeper. Face Runes: it takes the first.
-  if (run.scene.t === "extract") return dropDeeper(run);
+  // The Way Up: the bot never climbs out (and doesn't come back to it). Face Runes: it takes the first.
+  if (run.scene.t === "extract") { const up = run.grid?.things.find(t => t.room === "ascent"); if (up) up.done = true; return stayOnFloor(run); }
   botStep(run);
 }
