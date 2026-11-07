@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.4.1
+- Throwables have their own blocks in the backpack instead of a chip in the materials row. They're half-height, two stacked per column, after your gear. Each shows its icon, name, how many you hold and what it does. They don't use backpack slots.
+
 ## 2.4.0
 - The Daily Dungeon opens once you've unlocked every class (the Rogue by beating layer 1 as the Warrior, the Cleric by beating it as the Mage). Until then it shows 🔒 in Challenges, with no "new today" dot.
 - The Passive Tree waits for the same thing. A class's tree opens once every class is unlocked and that class has beaten a layer. Its spot in the Camp is shaded as locked until then, and the tree says what's missing.

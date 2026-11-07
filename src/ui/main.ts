@@ -2276,9 +2276,14 @@ function crawlBag(r: Run) {
     // Tapping something you wear opens it on its own; the backpack below shows every item in full.
     const eqPop = picked && eqSlot ? `<div class="overlay popup-wrap inv-eqpop" data-invclose><div class="inv-detail ${pageTint([picked])}">${itemCard(picked, inCombat ? "" : `<button class="small" data-unequip="${eqSlot}">Take it off</button>${revealBtn(r, picked)}`)}<button class="small closebtn inv-eqx" data-invclose>← Back</button></div></div>` : "";
     // Materials and scrolls sit in the backpack too (they take no slot).
-    const mats = [[h.azure ?? 0, "💠 Azure"], ...THROWS.map(t => [h.f.persist[THROW_INFO[t].key] ?? 0, `${THROW_INFO[t].icon} ${THROW_INFO[t].name}`])].filter(([n]) => (n as number) > 0)
+    const mats = [[h.azure ?? 0, "💠 Azure"]].filter(([n]) => (n as number) > 0)
       .map(([n, l]) => `<span class="mer-chip mat"><b>${l}</b><span>×${n}</span></span>`).join("");
     const cards = h.backpack.map(it => `<div class="inv-card">${itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(sl => `<button class="small primary" data-equip="${it.uid}" data-slot="${sl}" ${it.reqLevel && h.level < it.reqLevel ? "disabled" : ""}>Equip${slotsFor(it, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, it)}`, !inCombat)}</div>`).join("");
+    // Throwables: half-height blocks, two to a column, after your gear (they don't take backpack slots).
+    const held = THROWS.filter(t => (h.f.persist[THROW_INFO[t].key] ?? 0) > 0);
+    const throwCard = (t: Throw) => `<div class="throw-card"><span class="tc-ic">${THROW_INFO[t].icon}</span><div class="tc-txt"><b>${esc(THROW_INFO[t].name)} <em>×${h.f.persist[THROW_INFO[t].key]}</em></b><span>${esc(THROW_INFO[t].text)}.</span></div></div>`;
+    let throwCols = "";
+    for (let k = 0; k < held.length; k += 2) throwCols += `<div class="inv-card inv-throws">${held.slice(k, k + 2).map(throwCard).join("")}</div>`;
     const hk = CLASS_SPRITE[h.origin];
     body = `${inCombat ? `<p class="sub center">You can look, but you can't change gear mid-fight.</p>` : ""}
       <div class="inv-main">
@@ -2286,7 +2291,7 @@ function crawlBag(r: Run) {
         <div class="inv-hero">${hk && hasSprite(hk) ? spriteHtml(hk, 6) : `<span class="inv-emoji">${ORIGIN_ICON[h.origin]}</span>`}<b>${esc(ORIGINS[h.origin].name)}</b></div>
       </div>
       <div class="mer-panel inv-pack"><div class="mer-label">Backpack ${h.backpack.length}/${packSize(h)}</div>${mats ? `<div class="inv-mats">${mats}</div>` : ""}
-        <div class="inv-cards">${cards || `<span class="mer-none">No gear in your pack.</span>`}</div></div>${eqPop}`;
+        <div class="inv-cards">${cards || throwCols ? `${cards}${throwCols}` : `<span class="mer-none">No gear in your pack.</span>`}</div></div>${eqPop}`;
   } else if (bagTab === "attrs") {
     const baseA = BASE_ATTR[h.origin as keyof typeof BASE_ATTR];
     const rows = ATTRS.map(a => {
