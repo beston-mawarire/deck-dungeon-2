@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.2.5
+- The mini comparison on item pages is always in colour: green for ▲ gains, red for ▼ losses. This covers chest finds, shop items and the backpack, on parchment and on the Epic and Legendary pages.
+
 ## 2.2.4
 - Barrier lash is for better charms now. No Common off-hand has it, so the Mage's starting Ember Charm just applies its Burn on a 2. Only two Uncommons keep it, Cinderfrost and Marshlight. Rare and better charms keep theirs. A Barrier from anywhere still works as a plain Barrier.
 - Four new Common charms, all without an element: Warding Charm (start each fight with 3 Barrier), Mirror Charm (on a 1: gain 2 Barrier), Quartz Charm (+5% Spell Amp) and Hourstone Charm (on a 6: gain Focus).

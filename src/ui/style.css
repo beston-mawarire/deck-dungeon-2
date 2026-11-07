@@ -2918,3 +2918,8 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
 :is(.crawl-pop, .inv-detail):is(.pg-legendary, .pg-epic) .cmp.up { color: #9be8ac !important; border-color: rgba(120,220,140,.45) !important; }
 :is(.crawl-pop, .inv-detail):is(.pg-legendary, .pg-epic) .cmp.down { color: #ffa0a0 !important; border-color: rgba(255,120,120,.45) !important; }
 :is(.crawl-pop, .inv-detail):is(.pg-legendary, .pg-epic) .cmp-fx li { color: #f3e2c2 !important; }
+/* 2.2.5: the mini comparison on item pages is always in colour: green for ▲ gains, red for ▼ losses. */
+:is(.crawl-pop, .inv-detail, .mer-detail, .grit-body) .compare .cmp.up { color: #1f6e35 !important; background: rgba(60,170,90,.18) !important; border-color: rgba(40,140,70,.6) !important; }
+:is(.crawl-pop, .inv-detail, .mer-detail, .grit-body) .compare .cmp.down { color: #a32424 !important; background: rgba(210,60,60,.15) !important; border-color: rgba(180,50,50,.55) !important; }
+:is(.crawl-pop, .inv-detail):is(.pg-legendary, .pg-epic) .compare .cmp.up { color: #9be8ac !important; background: rgba(80,200,110,.16) !important; border-color: rgba(120,220,140,.5) !important; }
+:is(.crawl-pop, .inv-detail):is(.pg-legendary, .pg-epic) .compare .cmp.down { color: #ffa0a0 !important; background: rgba(230,90,90,.16) !important; border-color: rgba(255,120,120,.5) !important; }
