@@ -9,6 +9,10 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.8.1
+- **Shufflers are dealt at random each run**: the same Shuffler's rule lands on different faces every run. Twin Crowns might Crit on your 2s and 6s one run and your 1s and 4s the next; what was on your 1s could be on your 4s. A run keeps the faces it was dealt, and the text always shows this run's numbers. (A deal always changes something on your die.)
+- Face Runes keep landing on any face of your die.
+
 ## 2.8.0
 - **One gift per drop**: every trapdoor (the first one from the Entrance too) now brings a single gift for your die, either a Face Rune or, now and then, a Shuffler. Accept it or leave it.
 - **📦 The Storehouse**: a new room in the Camp, off the Quest Board, that keeps your materials, seeds, herbs and bottled brews in one place.

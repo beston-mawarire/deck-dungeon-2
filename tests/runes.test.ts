@@ -60,6 +60,7 @@ describe("Shufflers", () => {
     const r = newRun("warrior", 7); startCrawl(r);
     expect(r.hero.f.faces).toHaveLength(6);
     r.shuffleOffer = ["low_roller", "twin_crowns"];
+    r.hero.shuffleDeal = { low_roller: { 1: 1, 6: 6 } };
     takeShuffle(r, "low_roller");
     expect(r.hero.f.faces[0].kind).toBe("crit");
     expect(r.hero.f.faces[5].kind).toBe("hit");
@@ -68,6 +69,7 @@ describe("Shufflers", () => {
   it("Twin Crowns: 2s and 6s Crit, Crits deal 50% less; a new Shuffler replaces the old", () => {
     const r = newRun("rogue", 8); startCrawl(r);
     r.shuffleOffer = ["twin_crowns"];
+    r.hero.shuffleDeal = { twin_crowns: { 2: 2, 6: 6 } };
     takeShuffle(r, "twin_crowns");
     expect(r.hero.f.faces[1].kind).toBe("crit");
     expect(r.hero.f.critDmg).toBe(-50);
@@ -108,5 +110,50 @@ describe("the gift on a drop", () => {
     const r = newRun("warrior", 93); startCrawl(r);
     r.hero.runes = Object.fromEntries([1, 2, 3, 4, 5, 6].map(f => [f, { id: "ember", rank: 3 }]));
     for (let k = 0; k < 200; k++) { rollDescentGift(r); const o = r.runeOffer?.[0]; if (o) expect(o.id).not.toBe("ember"); }
+  });
+});
+
+import { dealShuffler, shufflerFaces, shufflerText, SHUFFLERS } from "../src/data/runes";
+describe("each run deals a Shuffler its own numbers", () => {
+  const REF = ["miss", "graze", "hit", "hit", "hit", "crit"];
+  it("its rule can land on any faces, and the text follows", () => {
+    const seen = new Set<string>(), faces = new Set<number>();
+    for (let k = 0; k < 200; k++) {
+      const d = dealShuffler("twin_crowns", makeRng(k));
+      seen.add(shufflerText("twin_crowns", d)); Object.values(d).forEach(f => faces.add(f));
+    }
+    expect(faces.size).toBe(6);
+    expect(seen.size).toBeGreaterThan(8);
+    for (const t of seen) expect(t).toMatch(/^Your \ds and \ds both Crit, but Crits deal 50% less\.$/);
+  });
+  it("every Shuffler moves around, keeps its own faces, and always changes something", () => {
+    for (const sh of SHUFFLERS) {
+      const where = new Set<string>();
+      for (let k = 0; k < 60; k++) {
+        const d = dealShuffler(sh.id, makeRng(1000 + k)), faces = shufflerFaces(sh.id, d);
+        expect(Object.values(faces).sort()).toEqual(Object.values(sh.faces).sort());
+        expect(Object.entries(faces).some(([f, kind]) => REF[Number(f) - 1] !== kind)).toBe(true);
+        where.add(JSON.stringify(faces));
+      }
+      if (sh.id !== "even_keel") expect(where.size).toBeGreaterThan(3);
+    }
+  });
+  it("a run keeps the numbers it was dealt, and the die uses them", () => {
+    const r = newRun("warrior", 31); startCrawl(r);
+    const o = rollShuffleOffer(r), id = o[0], deal = r.hero.shuffleDeal![id];
+    rollShuffleOffer(r);
+    expect(r.hero.shuffleDeal![id]).toEqual(deal);
+    r.shuffleOffer = [id];
+    takeShuffle(r, id);
+    for (const [f, kind] of Object.entries(shufflerFaces(id, deal))) expect(r.hero.f.faces[Number(f) - 1].kind).toBe(kind);
+  });
+});
+
+describe("Face Runes land on any face", () => {
+  it("over many offers, every face turns up", () => {
+    const r = newRun("warrior", 41); startCrawl(r);
+    const faces = new Set<number>();
+    for (let k = 0; k < 60; k++) for (const o of rollRuneOffer(r)) faces.add(o.face);
+    expect(faces.size).toBe(6);
   });
 });

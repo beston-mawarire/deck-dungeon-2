@@ -37,7 +37,7 @@ import { layerFloors } from "../game/grid";
 import { GUARD_FLAT, isThrow, readyThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
 import { allClassesOpen, branchSpent, isTreeRelic, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
-import { NUMERALS, RUNE_MAP, RUNE_MAX_RANK, runeText, SHUFFLER_MAP } from "../data/runes";
+import { NUMERALS, RUNE_MAP, RUNE_MAX_RANK, runeText, SHUFFLER_MAP, shufflerText } from "../data/runes";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR, BASE_DMG_PER } from "../data/attributes";
 import { crawlKeys, isWalking, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { mountCampMap, resetCampWalk } from "./campmap";
@@ -2081,7 +2081,7 @@ function runePopup(r: Run) {
     title = "🔀 A Shuffler";
     card = `<div class="rune-card shuf-card rune-one">
       <span class="rune-die shuf-die">${sh.icon}</span>
-      <span class="rune-txt"><b>${esc(sh.name)}</b><span>${esc(sh.text)}</span><em>${h.shuffle ? `Replaces ${esc(SHUFFLER_MAP.get(h.shuffle)?.name ?? "")}` : "It rewrites your die's faces"}</em></span></div>`;
+      <span class="rune-txt"><b>${esc(sh.name)}</b><span>${esc(shufflerText(shId, h.shuffleDeal?.[shId]))}</span><em>${h.shuffle ? `Replaces ${esc(SHUFFLER_MAP.get(h.shuffle)?.name ?? "")}` : "It rewrites your die's faces"}</em></span></div>`;
     take = `data-shuffle="${shId}"`;
   } else return "";
   return `<div class="overlay popup-wrap rune-wrap"><div class="popup rune-pop">
@@ -2466,7 +2466,7 @@ function dieMagik(r: Run) {
   }).join("");
   return `<h3 class="center dm-h">🎲 Your die</h3>
     <div class="dm-grid">${faces}</div>
-    ${sh ? `<div class="af-tile dm-shuf"><span class="af-ic">${sh.icon}</span><div class="af-txt"><b>${esc(sh.name)} <em>Shuffler</em></b><span>${esc(sh.text)}${h.f.faces.length !== 6 ? " (Waiting: your die isn't six-sided.)" : ""}</span></div></div>` : ""}
+    ${sh ? `<div class="af-tile dm-shuf"><span class="af-ic">${sh.icon}</span><div class="af-txt"><b>${esc(sh.name)} <em>Shuffler</em></b><span>${esc(shufflerText(sh.id, h.shuffleDeal?.[sh.id]))}${h.f.faces.length !== 6 ? " (Waiting: your die isn't six-sided.)" : ""}</span></div></div>` : ""}
     <p class="sub center dm-note">Each drop through a trapdoor brings a Face Rune or a Shuffler: take it or leave it.</p>`;
 }
 const omenList = (r: Run) => Object.keys(r.hero.omens ?? {}).length ? `<h3 class="center">👁️ Omens</h3><div class="af-list">${Object.entries(r.hero.omens!).map(([id, n]) => { const o = OMEN_MAP.get(id)!; return `<div class="af-tile"><span class="af-ic">${o.icon}</span><div class="af-txt"><b>${esc(o.name)}${n > 1 ? ` <em>×${n}</em>` : ""}</b><span>✦ ${esc(o.boon)} · ✖ ${esc(o.bane)}</span></div></div>`; }).join("")}</div>` : "";
@@ -2623,7 +2623,7 @@ function helpGlossary() {
     row("⚔️", "Damage", "Added to every hit, then multiplied by the face: Graze ×½, Hit ×1, Crit ×2"),
     row("🛡️", "Armor", "Stops part of each hit: 3 Armor stops 21%, 10 stops 45%, 20 stops 60%, 30 stops 68%, 60 stops 77%. No cap, but each extra point counts for a little less. Crits and spells ignore it"),
     row("🎲", "Face Runes", "Every drop through a trapdoor (the first one from the Entrance too) brings one gift for your die: a Face Rune, or now and then a Shuffler. Accept it or leave it. A rune is carved into one face of your die for the rest of the run (Burn, Bleed, Stun chance, +2 Gold, +2 Damage, Mana and more). The same rune again on its face ranks it up (to III). See them in 🎒 → Magik"),
-    row("🔀", "Shufflers", "Sometimes a drop brings a Shuffler instead of a rune: it rewrites which faces of your die Miss, Graze, Hit or Crit (say, 1s Crit too, or 2s and 6s Crit for half damage). One at a time; a new one replaces the old. Only six-sided dice; a Legendary's bigger die keeps its own faces"),
+    row("🔀", "Shufflers", "Sometimes a drop brings a Shuffler instead of a rune: it rewrites which faces of your die Miss, Graze, Hit or Crit (say, 1s Crit too, or 2s and 6s Crit for half damage). Each run deals a Shuffler its own faces at random: what was on your 1s last run could be on your 4s this time. Face Runes land on any face too. One at a time; a new one replaces the old. Only six-sided dice; a Legendary's bigger die keeps its own faces"),
     row("🧗", "Climbing out", "At The Way Up you can climb out: a Crown Shard for every four floors you've reached, your Scrolls of Knowledge, and one thing sealed in the Obsidian Chest: an item, the Gold you carry, your potions, or your 👝 Pouch. Die down there and you keep none of it"),
     row("👝", "Pouch", "Seal your Pouch when you climb out and all the materials and seeds you found that run go home to the Camp's 📦 Storehouse. Without it they stay down there"),
     row("🖤", "Obsidian Chest", "Holds what you sealed when you last climbed out (an item, your Gold or your potions). It waits in the Entrance of your next run; opening it empties it, and so does dying before you open it"),
@@ -2901,7 +2901,7 @@ function campIntroPopup(o: OriginId) {
     { art: `<div class="ci-row">${die(6, ri("ember"))}${die(2, ri("rend"))}${die(4, ri("gild"))}</div>`, title: "🎲 Face Runes",
       text: "Every time you drop through a trapdoor, the dungeon offers your die a gift. A Face Rune gives one face an effect: Burn, Bleed, a Stun chance, +2 Gold, +2 Damage and more. Get the same rune again on that face and it ranks up." },
     { art: `<div class="ci-row"><span class="rune-die shuf-die ci-die">${tw?.icon ?? "🔀"}</span><span class="ci-arrow">→</span>${chip("2", "Crit")}${chip("6", "Crit")}</div>`, title: "🔀 Shufflers",
-      text: "Sometimes the gift is a Shuffler instead. It rewrites your die: 1s that Crit, or 2s and 6s that both Crit for half damage. You get one gift per drop: accept it or leave it." },
+      text: "Sometimes the gift is a Shuffler instead. It rewrites your die: say, 2s and 6s that both Crit for half damage. Each run deals the same Shuffler other numbers, and runes land on any face. One gift per drop: accept it or leave it." },
     { art: `<div class="ci-row ci-glow">${spriteHtml("floor_ladder", 5)}${hero}</div>`, title: "🧗 The Way Up",
       text: "Below the Entrance, most floors have a ladder in a nook of its own. Climb it to end the run and go home with something. Trapdoors only go down." },
     { art: `<div class="ci-row ci-violet">${spriteHtml("chest_arcane", 5)}</div><div class="ci-row">${chip("🗡️", "Gear")}${chip("🪙", "Gold")}${chip("🧪", "Potions")}${chip("👝", "Pouch")}</div>`, title: "🖤 Take one thing",

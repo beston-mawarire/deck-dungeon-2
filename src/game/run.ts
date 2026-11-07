@@ -14,7 +14,7 @@ import { type Action, actionToll, BLESSINGS, BREWED_THROWS, isSkill, isUnholy, M
 import { eachHook, getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
 import { applyStatus, heal as healF, isNegative, STATUS_INFO } from "../engine/statuses";
-import { NUMERALS, RUNE_MAP, RUNE_MAX_RANK, RUNES, SHUFFLER_MAP, SHUFFLERS } from "../data/runes";
+import { dealShuffler, NUMERALS, RUNE_MAP, RUNE_MAX_RANK, RUNES, SHUFFLER_MAP, SHUFFLERS, shufflerText } from "../data/runes";
 import type { Battle, Fighter, GearItem, OriginId, Rarity, StatusId } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { autoBattleWins } from "./auto";
@@ -1868,17 +1868,22 @@ export function rollRuneOffer(run: Run): { id: string; face: number }[] {
 export function rollShuffleOffer(run: Run): string[] {
   const ids = SHUFFLERS.map(x => x.id).filter(id => id !== run.hero.shuffle);
   for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(run.rng() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
-  return ids.slice(0, 2);
+  const out = ids.slice(0, 2);
+  // Each run deals a Shuffler its own numbers (kept for the rest of the run).
+  const deals = (run.hero.shuffleDeal ??= {});
+  for (const id of out) deals[id] ??= dealShuffler(id, run.rng);
+  return out;
 }
 /** Take a Shuffler instead of a rune (it replaces any Shuffler you had). */
 export function takeShuffle(run: Run, id: string): string | null {
   if (!run.shuffleOffer?.includes(id)) return null;
   run.runeOffer = undefined;
   run.shuffleOffer = undefined;
+  (run.hero.shuffleDeal ??= {})[id] ??= dealShuffler(id, run.rng);
   run.hero.shuffle = id;
   recompute(run.hero);
   const sh = SHUFFLER_MAP.get(id)!;
-  return `${sh.icon} ${sh.name}: ${sh.text}${run.hero.f.faces.length !== 6 ? " (Your die isn't six-sided: it waits until you hold one that is.)" : ""}`;
+  return `${sh.icon} ${sh.name}: ${shufflerText(id, run.hero.shuffleDeal?.[id])}${run.hero.f.faces.length !== 6 ? " (Your die isn't six-sided: it waits until you hold one that is.)" : ""}`;
 }
 /** Carve the chosen rune into its face (the same rune there ranks up; another rune there is replaced). Null: no choice. */
 export function takeRune(run: Run, i: number | null): string | null {
