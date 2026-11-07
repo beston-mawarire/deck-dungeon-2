@@ -2462,7 +2462,9 @@ function dieMagik(r: Run) {
   const h = r.hero, sh = h.shuffle ? SHUFFLER_MAP.get(h.shuffle) : undefined;
   const faces = [1, 2, 3, 4, 5, 6].map(f => {
     const rn = h.runes?.[f], info = rn ? RUNE_MAP.get(rn.id) : undefined;
-    return `<div class="dm-face ${info ? "on" : ""}"><span class="rune-die"><b>${f}</b>${info ? `<i>${info.icon}</i>` : ""}</span><span class="dm-txt">${info ? `<b>${esc(info.name)}${rn!.rank > 1 ? ` ${NUMERALS[rn!.rank]}` : ""}</b><span>${esc(runeText(info, f, rn!.rank).replace(/^On a \d: /, ""))}</span>` : `<span class="dm-empty">No rune</span>`}</span></div>`;
+    // What this face of your main die does right now (after any Shuffler), on a six-sided die.
+    const dieFace = h.f.faces.length === 6 ? h.f.faces[f - 1] : undefined;
+    return `<div class="dm-face ${info ? "on" : ""}"><span class="rune-die"><b>${f}</b>${info ? `<i>${info.icon}</i>` : ""}</span><span class="dm-txt">${dieFace ? `<span class="dm-kind k-${dieFace.kind}">${esc(dieFace.name ?? dieFace.kind[0].toUpperCase() + dieFace.kind.slice(1))}</span>` : ""}${info ? `<b>${esc(info.name)}${rn!.rank > 1 ? ` ${NUMERALS[rn!.rank]}` : ""}</b><span>${esc(runeText(info, f, rn!.rank).replace(/^On a \d: /, ""))}</span>` : `<span class="dm-empty">No rune</span>`}</span></div>`;
   }).join("");
   return `<h3 class="center dm-h">🎲 Your die</h3>
     <div class="dm-grid">${faces}</div>

@@ -420,6 +420,8 @@ export function recompute(h: Hero) {
   f.faces = tarotFaces(h, f.faces);
   // A Shuffler rewrites a six-sided die.
   f.faces = shuffleFaces(h.shuffle, f.faces, h.shuffle ? h.shuffleDeal?.[h.shuffle] : undefined);
+  // (The fight reads this: Focus, Clarity and Chill go by your faces, not their numbers, while a Shuffler is on your die.)
+  if (h.shuffle && f.faces.length === 6) f.persist["shuffled"] = 1; else delete f.persist["shuffled"];
   eachHook(f, "stats", (hk, n) => hk(s, n, f));
   if (items["l_mountain"]) s.armor *= 2;
   // Unified with a Dragon Heart: every stat +50%.

@@ -132,10 +132,10 @@ describe("each run deals a Shuffler its own numbers", () => {
       for (let k = 0; k < 60; k++) {
         const d = dealShuffler(sh.id, makeRng(1000 + k)), faces = shufflerFaces(sh.id, d);
         expect(Object.values(faces).sort()).toEqual(Object.values(sh.faces).sort());
-        expect(Object.entries(faces).some(([f, kind]) => REF[Number(f) - 1] !== kind)).toBe(true);
+        if (!sh.mode) expect(Object.entries(faces).some(([f, kind]) => REF[Number(f) - 1] !== kind)).toBe(true);
         where.add(JSON.stringify(faces));
       }
-      if (sh.id !== "even_keel") expect(where.size).toBeGreaterThan(3);
+      if (!sh.mode && sh.id !== "even_keel" && sh.id !== "coin_flip") expect(where.size).toBeGreaterThan(3);
     }
   });
   it("a run keeps the numbers it was dealt, and the die uses them", () => {

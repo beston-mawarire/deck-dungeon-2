@@ -3119,3 +3119,5 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
 .ci-btns { display: flex; justify-content: center; gap: 12px; padding: 0 14px; }
 .ci-btns .plank-btn[disabled] { opacity: .45; }
 .ci-off { display: block; margin: 10px auto 0; background: none !important; border: 0 !important; box-shadow: none !important; padding: 4px 8px !important; color: rgba(241,226,196,.6); text-decoration: underline; font-size: 13px; cursor: pointer; }
+.dm-kind { font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; color: #cbb38a; }
+.dm-kind.k-crit { color: #ffb347; } .dm-kind.k-miss { color: #d9776a; } .dm-kind.k-graze { color: #c9b27a; } .dm-kind.k-hit { color: #e9dcc0; }

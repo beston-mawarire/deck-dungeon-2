@@ -51,7 +51,10 @@ export interface ShufflerInfo { id: string; name: string; icon: string;
   /** What it does, with {n} (or {a,b}) for the faces it rewrites, by their number on the template below. */
   tpl: string;
   /** The template faces (each run deals its own numbers: see dealShuffler). */
-  faces: Partial<Record<number, FaceKind>>; critDmg?: number }
+  faces: Partial<Record<number, FaceKind>>; critDmg?: number;
+  /** A Shuffler that moves whole faces (spells and all) instead of rewriting them: the die runs backwards, two faces trade
+   *  places, or every face steps up one (a Miss to a Graze, a Graze to a Hit). */
+  mode?: "reverse" | "swap" | "step" }
 export const SHUFFLERS: ShufflerInfo[] = [
   { id: "low_roller", name: "Low Roller", icon: "🔄", tpl: "Your {1} Crit, and your {6} Hit.", faces: { 1: "crit", 6: "hit" } },
   { id: "twin_crowns", name: "Twin Crowns", icon: "👑", tpl: "Your {2,6} both Crit, but Crits deal 50% less.", faces: { 2: "crit", 6: "crit" }, critDmg: -50 },
@@ -61,6 +64,10 @@ export const SHUFFLERS: ShufflerInfo[] = [
   { id: "glass_edge", name: "Glass Edge", icon: "🔪", tpl: "Your {3} Crit, but your {2} Miss.", faces: { 2: "miss", 3: "crit" } },
   { id: "steady_two", name: "Steady Two", icon: "✌️", tpl: "Your {1,2,6} Hit.", faces: { 1: "hit", 2: "hit", 6: "hit" } },
   { id: "lucky_odds", name: "Lucky Odds", icon: "🍀", tpl: "Your {1,3} Hit and your {5} Crit, but your {4} Graze.", faces: { 1: "hit", 3: "hit", 4: "graze", 5: "crit" } },
+  { id: "upside_down", name: "Upside Down", icon: "🙃", tpl: "Your die runs backwards: your 1s are what your 6s were, your 2s what your 5s were, and so on (spells and all).", faces: {}, mode: "reverse" },
+  { id: "trade_places", name: "Trade Places", icon: "🔁", tpl: "Your {1} and {2} trade places, spells and all.", faces: {}, mode: "swap" },
+  { id: "honed", name: "Honed", icon: "🪨", tpl: "No more misses: your Misses Graze and your Grazes Hit, but Crits deal 25% less.", faces: {}, mode: "step", critDmg: -25 },
+  { id: "coin_flip", name: "Coin Flip", icon: "🪙", tpl: "Your {1,2,3} Crit, but your {4,5,6} Miss. Crits deal 20% less.", faces: { 1: "crit", 2: "crit", 3: "crit", 4: "miss", 5: "miss", 6: "miss" }, critDmg: -20 },
 ];
 export const SHUFFLER_MAP = new Map(SHUFFLERS.map(x => [x.id, x]));
 /** A Shuffler's faces for one run: which number each of its template faces landed on. */
@@ -72,6 +79,16 @@ const REF: FaceKind[] = ["miss", "graze", "hit", "hit", "hit", "crit"];
 export function dealShuffler(id: string, rng: () => number): ShuffleDeal {
   const sh = SHUFFLER_MAP.get(id), same: ShuffleDeal = {};
   if (!sh) return same;
+  // Trade Places: two faces, any two that aren't alike on a usual die.
+  if (sh.mode === "swap") {
+    for (let tries = 0; tries < 40; tries++) {
+      const a = 1 + Math.floor(rng() * 6), b = 1 + Math.floor(rng() * 6);
+      if (a !== b && REF[a - 1] !== REF[b - 1]) return { 1: a, 2: b };
+    }
+    return { 1: 1, 2: 6 };
+  }
+  // (The die running backwards, or every face stepping up, is the same every run.)
+  if (sh.mode) return same;
   const keys = Object.keys(sh.faces).map(Number);
   for (const k of keys) same[k] = k;
   for (let tries = 0; tries < 40; tries++) {
@@ -100,7 +117,15 @@ export function shufflerText(id: string, deal?: ShuffleDeal): string {
 }
 /** Rewrite a six-sided die by the Shuffler, with the faces it was dealt this run (spells keep their spell, with the new kind). */
 export function shuffleFaces(id: string | undefined, faces: FaceSpec[], deal?: ShuffleDeal): FaceSpec[] {
-  if (!id || !SHUFFLER_MAP.has(id) || faces.length !== 6) return faces;
+  const sh = id ? SHUFFLER_MAP.get(id) : undefined;
+  if (!id || !sh || faces.length !== 6) return faces;
+  if (sh.mode === "reverse") return [...faces].reverse();
+  if (sh.mode === "swap") {
+    const a = (deal?.[1] ?? 1) - 1, b = (deal?.[2] ?? 6) - 1, out = [...faces];
+    [out[a], out[b]] = [out[b], out[a]];
+    return out;
+  }
+  if (sh.mode === "step") return faces.map(sp => sp.kind === "miss" ? { ...sp, kind: "graze" as const, name: sp.run ? sp.name : undefined } : sp.kind === "graze" ? { ...sp, kind: "hit" as const, name: sp.run ? sp.name : undefined } : sp);
   const map = shufflerFaces(id, deal);
   return faces.map((sp, i) => { const k = map[i + 1]; return k && k !== sp.kind ? { ...sp, kind: k, name: sp.run ? sp.name : undefined } : sp; });
 }

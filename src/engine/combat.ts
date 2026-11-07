@@ -247,17 +247,26 @@ export function armorOf(f: Fighter): number {
 }
 
 /** Roll a die for a fighter, with Focus, Chill and roll-changing items. */
-export function rollFor(b: Battle, f: Fighter, sides: number): number {
+/** How good a face is: its kind, and a spell on it counts for a little more. */
+const FACE_WORTH: Record<string, number> = { miss: 0, graze: 2, hit: 4, crit: 6 };
+const worth = (faces: FaceSpec[], r: number) => { const sp = faces[r - 1]; return sp ? FACE_WORTH[sp.kind] + (sp.run ? 1 : 0) : 0; };
+/** The better of two rolls on this die: the better face (the higher number on a tie). */
+const better = (faces: FaceSpec[], a: number, c: number) => (worth(faces, c) > worth(faces, a) || (worth(faces, c) === worth(faces, a) && c > a) ? c : a);
+export function rollFor(b: Battle, f: Fighter, sides: number, faces?: FaceSpec[]): number {
   let r = rollDie(b.rng, sides);
+  // A Shuffler can put good faces on low numbers, so Focus, Clarity and Chill go by the faces themselves
+  // (on a die no Shuffler has touched, the higher number is the better face, as it always was).
+  const sorted = !!faces && faces.length === sides && !!f.persist["shuffled"];
   if (st(f, "focus") > 0) {
-    r = Math.max(r, rollDie(b.rng, sides));
+    const r2 = rollDie(b.rng, sides);
+    r = sorted ? better(faces!, r, r2) : Math.max(r, r2);
     f.statuses.focus = 0;
   }
   if (f.flags["clarity"]) {
-    r = sides;
+    r = sorted ? Array.from({ length: sides }, (_, i) => i + 1).reduce((x, y) => better(faces!, x, y)) : sides;
     f.flags["clarity"] = 0;
   }
-  if (st(f, "chill") > 0 && r > 1) r -= 1;
+  if (st(f, "chill") > 0 && r > 1 && (!sorted || worth(faces!, r - 1) <= worth(faces!, r))) r -= 1;
   eachHook(f, "modifyRoll", (h, s) => (r = h(b, f, r, s)));
   // Roll caps (heavy weapons, shackles): this die can't roll above the cap.
   if (f.flags["rollCap"]) r = Math.min(r, f.flags["rollCap"]);
@@ -302,7 +311,7 @@ export function ambushStrike(b: Battle) {
 /** One attack with the main die (or the off-hand die). */
 export function attack(b: Battle, a: Fighter, d: Fighter, offhand = false) {
   const faces = (offhand ? a.offFaces : a.faces) ?? PLAIN_FACES;
-  const face = rollFor(b, a, faces.length);
+  const face = rollFor(b, a, faces.length, offhand ? undefined : faces);
   resolveFace(b, a, d, face, offhand);
 }
 

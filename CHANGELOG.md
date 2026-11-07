@@ -9,6 +9,12 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.9.0
+- **Four new Shufflers**: 🙃 **Upside Down** runs your die backwards (your 1s are what your 6s were, spells and all); 🔁 **Trade Places** swaps two of your faces, spells and all (which two is dealt each run); 🪨 **Honed** turns Misses into Grazes and Grazes into Hits, but Crits deal 25% less; 🪙 **Coin Flip** makes three random faces Crit and the other three Miss, with Crits 20% weaker.
+- **Focus, Clarity and Chill read your faces while a Shuffler is on your die**: Focus keeps the better face (not the higher number), Clarity lands on your best face, and Chill never drops you onto a better face. With no Shuffler they work exactly as before.
+- 🎒 → Magik now shows what each face of your die does this run (Miss, Graze, Hit, Crit or its spell), next to its rune.
+- Runes and Shufflers tested together across every weapon, armour, off-hand, trinket and skill.
+
 ## 2.8.1
 - **Shufflers are dealt at random each run**: the same Shuffler's rule lands on different faces every run. Twin Crowns might Crit on your 2s and 6s one run and your 1s and 4s the next; what was on your 1s could be on your 4s. A run keeps the faces it was dealt, and the text always shows this run's numbers. (A deal always changes something on your die.)
 - Face Runes keep landing on any face of your die.
