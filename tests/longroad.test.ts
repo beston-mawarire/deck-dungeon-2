@@ -26,7 +26,10 @@ describe("the passive tree", () => {
     const b = passiveTree()[0];
     const row = (t: number) => b.nodes.filter(n => n.tier === t);
     expect(spendNode(m, "warrior", row(0)[0].key)).toMatch(/opens/);
+    // (The tree also waits for every class to be unlocked: the Mage has to have beaten a layer too.)
     m.layersBeaten = { warrior: TREE_LAYERS };
+    expect(spendNode(m, "warrior", row(0)[0].key)).toMatch(/every class/);
+    m.layersBeaten = { warrior: TREE_LAYERS, mage: 1 };
     expect(spendNode(m, "warrior", row(1)[0].key)).toMatch(/first/);
     expect(spendNode(m, "warrior", row(0)[0].key)).toBeNull();
     expect(spendNode(m, "warrior", row(0)[1].key)).toBeNull();
@@ -39,14 +42,14 @@ describe("the passive tree", () => {
     expect(treePointsFor(0)).toBe(0);
   });
   it("spent nodes come along as talents, one rank each", () => {
-    const m = meta(); m.layersBeaten = { warrior: 5 };
+    const m = meta(); m.layersBeaten = { warrior: 5, mage: 1 };
     const n = passiveTree()[0].nodes[0];
     treeOf(m, "warrior").spent[n.key] = 1;
     const r = newRun("warrior", 3); startCrawl(r); applyHall(m, r);
     expect(r.hero.talents[n.talent]).toBe(1);
   });
   it("each branch opens with small attribute nodes that add to the hero's attributes", () => {
-    const m = meta(); m.layersBeaten = { warrior: 5 };
+    const m = meta(); m.layersBeaten = { warrior: 5, mage: 1 };
     const b = passiveTree()[0];
     const top = b.nodes.filter(n => n.tier === 0);
     expect(top.every(n => n.talent.startsWith("ta_"))).toBe(true);

@@ -123,7 +123,11 @@ export function treeOf(m: Meta, origin: string): ClassTree {
   for (const k of Object.keys(t.spent)) if (!treeNode(k)) { if (t.spent[k]) t.points++; delete t.spent[k]; }
   return t;
 }
-export const treeOpen = (m: Meta, origin: string) => (m.layersBeaten?.[origin] ?? 0) >= TREE_LAYERS;
+/** Every class unlocked: the Cleric (beat layer 1 as the Mage) and the Rogue (beat it as the Warrior). Mirrors meta's CLASS_UNLOCK.
+ *  The Daily Dungeon and the Passive Tree wait for this. */
+export const allClassesOpen = (m: Meta) => (m.layersBeaten?.["mage"] ?? 0) >= 1 && (m.layersBeaten?.["warrior"] ?? 0) >= 1;
+/** A class's tree opens once every class is unlocked and that class has beaten a layer. */
+export const treeOpen = (m: Meta, origin: string) => allClassesOpen(m) && (m.layersBeaten?.[origin] ?? 0) >= TREE_LAYERS;
 export const branchSpent = (t: ClassTree, b: TreeBranch) => b.nodes.reduce((a, n) => a + (t.spent[n.key] ? 1 : 0), 0);
 /** Is this tier of a branch open (enough points spent lower down)? */
 export const tierOpen = (t: ClassTree, b: TreeBranch, tier: number) => branchSpent(t, b) >= tier * TIER_STEP;
@@ -131,6 +135,7 @@ export const tierOpen = (t: ClassTree, b: TreeBranch, tier: number) => branchSpe
 export function nodeBlock(m: Meta, origin: string, key: string): string | null {
   const n = treeNode(key);
   if (!n) return "No such node.";
+  if (!allClassesOpen(m)) return "The tree opens once you've unlocked every class.";
   if (!treeOpen(m, origin)) return `The tree opens once this class has beaten layer ${TREE_LAYERS}.`;
   const t = treeOf(m, origin);
   if (t.spent[key]) return "You've taken this one.";

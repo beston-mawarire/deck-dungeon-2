@@ -35,7 +35,7 @@ import {
 import { fortunePips } from "../game/loot";
 import { layerFloors } from "../game/grid";
 import { isThrow, readyThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
-import { branchSpent, isTreeRelic, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
+import { allClassesOpen, branchSpent, isTreeRelic, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR, BASE_DMG_PER } from "../data/attributes";
 import { crawlKeys, isWalking, mountCrawl, stopWalk, walkToThing } from "./crawl";
@@ -423,7 +423,7 @@ function titleScreen() {
       <span class="crest-blurb">${esc(og.blurb)}</span>
     </button>`;
   }).join("")}</div>`;
-  const dailyOpenToday = meta.daily?.day !== utcDay();
+  const dailyOpenToday = allClassesOpen(meta) && meta.daily?.day !== utcDay();
   const infoRow = `<div class="menu-btns three info-row"><button class="info-btn" data-info>ℹ️ Info</button><button class="ch-btn" data-challenges>${dailyOpenToday ? `<b class="newdot" title="Today's Daily Dungeon is waiting"></b>` : ""}⚔️ Challenges</button><button class="lb-btn" data-lb>🏆 Leaderboards</button></div>`;
   const head = `<div class="row"><button class="small" data-home aria-label="Back to title">←</button><h1 class="grow">Deck Dungeon <span>2</span></h1><button class="small" data-mute>${isMuted() ? "🔇" : "🔊"}</button></div>`;
   void head;
@@ -599,8 +599,8 @@ function challengesPopup() {
     <button class="small closex closebtn" data-closechallenges aria-label="Close">✕</button>
     <h1 class="center bigname">⚔️ Challenges</h1>
   <div class="mini-rows">
-    <div class="mini-row daily-row"><span class="mr-ic">📅</span><span class="grow"><b>Daily Dungeon</b><span class="sub">${dailyDone ? `${dailyDone.done ? `Done today: floor ${dailyDone.floor}${dailyDone.won ? " · won" : ""}` : "Today's attempt has begun"}` : `Everyone's run today, as the ${ORIGIN_ICON[d.origin]} ${ORIGINS[d.origin].name}. One try.`}</span></span>
-      ${dailyDone ? `<span class="sub mr-side">${(() => { const ms = Date.parse(`${today}T00:00:00Z`) + 864e5 - Date.now(); return `${Math.floor(ms / 3600e3)}h ${Math.floor((ms % 3600e3) / 60e3)}m`; })()}</span>` : `<button class="small primary daily-go" data-daily>${dailyArmed ? "Replace save?" : "Play"}</button>`}</div>
+    <div class="mini-row daily-row"><span class="mr-ic">📅</span><span class="grow"><b>Daily Dungeon</b><span class="sub">${!allClassesOpen(meta) ? "🔒 Opens once you've unlocked every class." : dailyDone ? `${dailyDone.done ? `Done today: floor ${dailyDone.floor}${dailyDone.won ? " · won" : ""}` : "Today's attempt has begun"}` : `Everyone's run today, as the ${ORIGIN_ICON[d.origin]} ${ORIGINS[d.origin].name}. One try.`}</span></span>
+      ${!allClassesOpen(meta) ? `<span class="sub mr-side">🔒</span>` : dailyDone ? `<span class="sub mr-side">${(() => { const ms = Date.parse(`${today}T00:00:00Z`) + 864e5 - Date.now(); return `${Math.floor(ms / 3600e3)}h ${Math.floor((ms % 3600e3) / 60e3)}m`; })()}</span>` : `<button class="small primary daily-go" data-daily>${dailyArmed ? "Replace save?" : "Play"}</button>`}</div>
     ${meta.nemesis ? `<div class="mini-row nemesis-row"><span class="mr-ic">😈</span><span class="grow"><b>Your Nemesis: ${esc(meta.nemesis.name)}</b><span class="sub">${meta.nemesis.level > 1 ? `Beaten you ${meta.nemesis.level}×. ` : ""}Waits in your next Campaign run. Bounty on its head.</span></span></div>` : ""}
     <div class="mini-row heat-row"><span class="mr-ic">🔥</span><span class="grow"><b>Heat ${meta.wins ? pactHeat(meta.pact ?? {}) || "off" : "locked"}</b><span class="sub">${meta.wins ? "Make your pact at the Enter Dungeon door. Each class has bounties up to Heat 10." : "Beat the dungeon's last layer once to make a pact: harder, richer runs."}</span></span></div>
     <div class="mini-row"><span class="mr-ic">🎯</span><span class="grow"><b>Drills</b><span class="sub">${(() => { const d = meta.drills ?? {}, n = Object.values(d).filter(c => c.length).length; return n ? `${n}/${DRILLS.length} cleared · ${Object.values(d).filter(c => c.length >= 4).length} 🥇. In the Camp's Drills yard.` : "Ten short challenge runs, one rule each. In the Camp's Drills yard, once any class beats the 1st Layer."; })()}</span></span></div>
@@ -1234,7 +1234,7 @@ function treeScreen(o: OriginId) {
   });
   const won = meta.layersBeaten?.[o] ?? 0;
   return `<div class="tree-screen">
-    <div class="ts-bar"><b>🌳 The Passive Tree</b><span class="ts-pts">${open ? `<b>${t.points}</b> point${t.points === 1 ? "" : "s"} to spend · 1 for every layer beaten` : `🔒 Opens once the ${esc(ORIGINS[o].name)} has beaten layer ${TREE_LAYERS} (best so far: ${won})`}</span>
+    <div class="ts-bar"><b>🌳 The Passive Tree</b><span class="ts-pts">${open ? `<b>${t.points}</b> point${t.points === 1 ? "" : "s"} to spend · 1 for every layer beaten` : !allClassesOpen(meta) ? "🔒 Opens once you've unlocked every class (the Rogue and the Cleric wait in the Tavern)" : `🔒 Opens once the ${esc(ORIGINS[o].name)} has beaten layer ${TREE_LAYERS} (best so far: ${won})`}</span>
       ${open && Object.keys(t.spent).length ? `<button class="plank-btn small" data-treereset>Take every point back</button>` : ""}<button class="plank-btn small" data-closeroom>Back to the Camp</button></div>
     <div class="ts-scroll"><div class="ts-sky" style="width:${W}px;height:${H}px">
       <svg class="ts-links" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines.join("")}</svg>
@@ -3053,7 +3053,7 @@ function render3() {
   if (!run) {
     app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${tipBubble(null)}${treeNode ? treeNodePopup(camp) : ""}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "Deck Dungeon 3 is here, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
-    if (camp) mountCampMap({ open: id => { campRoom = id as CampTab; campTab = id as CampTab; render(); }, origin: () => camp ?? "warrior", locked: id => id === "abyss" && !abyssUnlocked(meta), sfx: k => sfx(k as never) });
+    if (camp) mountCampMap({ open: id => { campRoom = id as CampTab; campTab = id as CampTab; render(); }, origin: () => camp ?? "warrior", locked: id => (id === "abyss" && !abyssUnlocked(meta)) || (id === "tree" && !allClassesOpen(meta)), sfx: k => sfx(k as never) });
     return;
   }
   const r = run;
@@ -3457,6 +3457,7 @@ function bind() {
     on("[data-abyssintro]", () => { abyssIntroOpen = true; });
     on("[data-closeabyssintro]", () => { abyssIntroOpen = false; try { localStorage.setItem("dd2-abyss-intro", "1"); } catch { /* ignore */ } });
     on("[data-daily]", () => {
+      if (!allClassesOpen(meta)) return;
       const today = utcDay();
       if (meta.daily?.day === today) return;
       if (liveSave() && !dailyArmed) { dailyArmed = true; return; }

@@ -9,6 +9,10 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.4.0
+- The Daily Dungeon opens once you've unlocked every class (the Rogue by beating layer 1 as the Warrior, the Cleric by beating it as the Mage). Until then it shows 🔒 in Challenges, with no "new today" dot.
+- The Passive Tree waits for the same thing. A class's tree opens once every class is unlocked and that class has beaten a layer. Its spot in the Camp is shaded as locked until then, and the tree says what's missing.
+
 ## 2.3.6
 - Champions glow brighter on the map: a wider, stronger orange aura, a brighter outline and a faint pulsing ring, so they don't blend into the torchlit floor.
 
