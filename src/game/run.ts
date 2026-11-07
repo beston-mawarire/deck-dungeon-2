@@ -2419,12 +2419,12 @@ export function sellItem(run: Run, uid: number): string | null {
 }
 
 /** Shop prices grow with the floor: +12% per floor below the first. */
-/** Odds that a beaten normal monster transforms into a Champion: 0 until 14 plain fights in a row,
+/** Odds that a beaten normal monster transforms into a Champion: 0 until 17 plain fights in a row,
  *  then 10%, rising 10% with every plain fight after that (up to 90%). */
 export function transformationChance(streak: number): number {
   return streak < TRANSFORM_STREAK ? 0 : Math.min(0.9, 0.1 + 0.1 * (streak - TRANSFORM_STREAK));
 }
-export const TRANSFORM_STREAK = 14;
+export const TRANSFORM_STREAK = 17;
 function rollTransformation(run: Run): boolean {
   if (run.rng() >= transformationChance(run.normalStreak ?? 0)) return false;
   run.normalStreak = 0;

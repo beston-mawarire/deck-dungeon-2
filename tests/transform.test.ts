@@ -20,7 +20,7 @@ it("normal fights in a row build the streak; anything else resets it", () => {
   expect(run.normalStreak).toBe(0); // …but fighting anything else does
 });
 
-it("transformation odds: none before 14 in a row, then rare and rising", () => {
+it("transformation odds: none before 17 in a row, then rare and rising", () => {
   expect(transformationChance(TRANSFORM_STREAK - 1)).toBe(0);
   expect(transformationChance(TRANSFORM_STREAK)).toBeCloseTo(0.1);
   expect(transformationChance(TRANSFORM_STREAK + 4)).toBeCloseTo(0.5);

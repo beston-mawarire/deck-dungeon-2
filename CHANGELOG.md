@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.4.5
+- A beaten monster only rises again as a Champion after 17 plain fights in a row (was 14). The odds then start at 10% and rise 10% with each plain fight after that, as before.
+
 ## 2.4.4
 - On small screens the backpack has room to breathe. The Gear tab's backpack area lists your throwables, and your backpack gear moves to the 🛡️ Armoury: a page of its own, one full-width card per row, each with Equip and ⚖️ Compare, and Back to return. Wider screens are unchanged.
 
