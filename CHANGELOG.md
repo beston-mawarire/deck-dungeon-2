@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.9.1
+- 🎒 → Magik now has two tabs: **🎲 Perks** (your die's Face Runes and Shuffler) and **🃏 Tarots** (your Tarot cards, or the Abyss's Omens).
+
 ## 2.9.0
 - **Four new Shufflers**: 🙃 **Upside Down** runs your die backwards (your 1s are what your 6s were, spells and all); 🔁 **Trade Places** swaps two of your faces, spells and all (which two is dealt each run); 🪨 **Honed** turns Misses into Grazes and Grazes into Hits, but Crits deal 25% less; 🪙 **Coin Flip** makes three random faces Crit and the other three Miss, with Crits 20% weaker.
 - **Focus, Clarity and Chill read your faces while a Shuffler is on your die**: Focus keeps the better face (not the higher number), Clarity lands on your best face, and Chill never drops you onto a better face. With no Shuffler they work exactly as before.

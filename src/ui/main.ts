@@ -2451,11 +2451,22 @@ function skillSection(r: Run) {
   return `<div class="sk-sec ${h.level >= SKILL_LEVEL ? "" : "dim"}">${head}<div class="sk-cards">${p.skills.map(id => card(id, h.level >= SKILL_LEVEL)).join("")}</div></div>`;
 }
 /** The Magik tab: the Tarot cards you carry this run. */
+/** The Magik tab's two halves: Perks (your die's runes and Shuffler) and Tarots (your cards, or the Abyss's Omens). */
+let magikSub: "perks" | "tarots" = "perks";
 function magikTab(r: Run) {
   const h = r.hero, cards = h.tarot ?? [];
-  const die = dieMagik(r);
-  if (!cards.length) return `${die}<p class="sub center">${r.mode === "abyss" ? "No Tarot in the Abyss: its Omens are your magik down here." : "You carry no Tarot cards this run. They come from the Abyss; carry two from the Camp's Tarot room."}</p>${omenList(r)}`;
-  return `${die}<div class="tarot-grid">${cards.map(c => tarotCardView(c.id, c.lvl, c.rev)).join("")}</div>${omenList(r)}`;
+  const nPerks = Object.keys(h.runes ?? {}).length + (h.shuffle ? 1 : 0), nTarot = cards.length + Object.keys(h.omens ?? {}).length;
+  const subs = `<div class="mg-subs">
+    <button class="${magikSub === "perks" ? "on" : ""}" data-magiksub="perks">🎲 Perks${nPerks ? ` <i>${nPerks}</i>` : ""}</button>
+    <button class="${magikSub === "tarots" ? "on" : ""}" data-magiksub="tarots">🃏 Tarots${nTarot ? ` <i>${nTarot}</i>` : ""}</button></div>`;
+  if (magikSub === "perks") return `${subs}${dieMagik(r)}`;
+  return `${subs}${tarotMagik(r)}`;
+}
+/** Your Tarot cards this run (and, in the Abyss, its Omens). */
+function tarotMagik(r: Run) {
+  const cards = r.hero.tarot ?? [];
+  if (!cards.length) return `<p class="sub center">${r.mode === "abyss" ? "No Tarot in the Abyss: its Omens are your magik down here." : "You carry no Tarot cards this run. They come from the Abyss; carry two from the Camp's Tarot room."}</p>${omenList(r)}`;
+  return `<div class="tarot-grid">${cards.map(c => tarotCardView(c.id, c.lvl, c.rev)).join("")}</div>${omenList(r)}`;
 }
 /** Your die this run: the Face Runes carved into it and its Shuffler. */
 function dieMagik(r: Run) {
@@ -3824,6 +3835,7 @@ function bind() {
   on("[data-climb]", el => { const v = el.dataset.climb ?? "none"; say(climbOut(r, v === "none" ? null : v.startsWith("item:") ? { item: Number(v.slice(5)) } : v === "gold" ? { gold: true } : v === "potions" ? { potions: true } : { pouch: true })); sfx("win"); });
   on("[data-rune]", el => { say(takeRune(r, Number(el.dataset.rune))); sfx("epic"); });
   on("[data-runeskip]", () => { takeRune(r, null); });
+  on("[data-magiksub]", el => { magikSub = el.dataset.magiksub as typeof magikSub; });
   on("[data-shuffle]", el => { say(takeShuffle(r, el.dataset.shuffle!)); sfx("epic"); });
   on("[data-armouryclose]", () => { armouryOpen = false; });
   on("[data-scrapfound]", el => { compareOpen = null; scrapFound(r, Number(el.dataset.scrapfound)); lootDone(); });
