@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.4.3
+- Backpack gear has a ⚖️ Compare button. It opens the Compare page with the item beside what you wear in that slot, your stats before and after, and what changes. You can equip it from there, or go Back to the backpack. In a fight you can still compare, just not equip.
+
 ## 2.4.2
 - A class's base attribute (★: Strength for the Warrior, Intellect for the Mage, and so on) gives +1 base Damage for every 2 points, down from every 3.
 

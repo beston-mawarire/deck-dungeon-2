@@ -2278,7 +2278,12 @@ function crawlBag(r: Run) {
     // Materials and scrolls sit in the backpack too (they take no slot).
     const mats = [[h.azure ?? 0, "💠 Azure"]].filter(([n]) => (n as number) > 0)
       .map(([n, l]) => `<span class="mer-chip mat"><b>${l}</b><span>×${n}</span></span>`).join("");
-    const cards = h.backpack.map(it => `<div class="inv-card">${itemCard(it, inCombat ? "" : `${slotsFor(it, h).map(sl => `<button class="small primary" data-equip="${it.uid}" data-slot="${sl}" ${it.reqLevel && h.level < it.reqLevel ? "disabled" : ""}>Equip${slotsFor(it, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("")}${revealBtn(r, it)}`, !inCombat)}</div>`).join("");
+    const cards = h.backpack.map(it => {
+      const equipBtns = inCombat ? "" : slotsFor(it, h).map(sl => `<button class="small primary" data-equip="${it.uid}" data-slot="${sl}" ${it.reqLevel && h.level < it.reqLevel ? "disabled" : ""}>Equip${slotsFor(it, h).length > 1 ? ` (${SLOT_SHORT[sl].toLowerCase()})` : ""}</button>`).join("");
+      // Compare: a page with this item beside what you wear in its slot.
+      const cmpBtn = slotsFor(it, h).length ? `<button class="small inv-cmp" data-compare="${it.uid}">⚖️ Compare</button>` : "";
+      return `<div class="inv-card">${itemCard(it, `${equipBtns}${inCombat ? "" : revealBtn(r, it)}${cmpBtn}`, !inCombat)}</div>`;
+    }).join("");
     // Throwables: half-height blocks, two to a column, after your gear (they don't take backpack slots).
     const held = THROWS.filter(t => (h.f.persist[THROW_INFO[t].key] ?? 0) > 0);
     const throwCard = (t: Throw) => `<div class="throw-card"><span class="tc-ic">${THROW_INFO[t].icon}</span><div class="tc-txt"><b>${esc(THROW_INFO[t].name)} <em>×${h.f.persist[THROW_INFO[t].key]}</em></b><span>${esc(THROW_INFO[t].text)}.</span></div></div>`;
@@ -2598,10 +2603,13 @@ function musicSliders(only?: Track, toggle = true) {
 
 /** Side-by-side comparison: the find against what's in that slot now, every stat before and after, and every effect gained or lost. */
 let compareOpen: { uid: number; slot?: EquipSlot } | null = null;
-function findForCompare(r: Run, uid: number): { it: GearItem; takeable: boolean } | null {
+function findForCompare(r: Run, uid: number): { it: GearItem; takeable: boolean; bag?: boolean } | null {
   const s = r.scene;
   if (s.t === "loot" || s.t === "pick") { const it = s.items.find(i => i.uid === uid); if (it) return { it, takeable: true }; }
   if (s.t === "shop") { const e = s.stock.find(x => x.item?.uid === uid); if (e?.item) return { it: e.item, takeable: false }; }
+  // Gear in your backpack: compared with what you wear, and you can equip it from here.
+  const own = r.hero.backpack.find(i => i.uid === uid);
+  if (own) return { it: own, takeable: false, bag: true };
   return null;
 }
 function comparePopup(r: Run): string {
@@ -2625,7 +2633,7 @@ function comparePopup(r: Run): string {
     <div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">⚖️ Compare · ${esc(label)}</div></div>
     <div class="grit-body cmp-body">
       <div class="cmp-cols">
-        <div class="cmp-new"><div class="cmp-tag new">${found.takeable ? "New find" : "For sale"}</div>${itemCard(it)}</div>
+        <div class="cmp-new"><div class="cmp-tag new">${found.bag ? "In your backpack" : found.takeable ? "New find" : "For sale"}</div>${itemCard(it)}</div>
         <div><div class="cmp-tag">${cur ? `Equipped · ${esc(label)}` : esc(label)}</div>${cur ? itemCard(cur) : `<div class="item empty-slot"><div class="nm">Empty</div><p class="sub">Nothing in your ${esc(label.toLowerCase())} yet.</p></div>`}</div>
       </div>
       <h3 class="cmp-h">Your stats</h3>
@@ -2633,7 +2641,7 @@ function comparePopup(r: Run): string {
       <h3 class="cmp-h">What changes</h3>
       ${compareHtml(h, it, slot, true) || `<p class="sub">Nothing changes.</p>`}
     </div>
-    <div class="cmp-foot">${found.takeable ? `<button class="take-equip" data-take="${it.uid}" data-how="equip" data-slot="${slot}">✔ Equip ${esc(label.toLowerCase())}</button><button class="take-pack" data-take="${it.uid}" data-how="pack">🎒 Add to backpack</button><button class="take-scrap" data-scrapfound="${it.uid}">${r.gridMode ? "Leave it" : `Scrap (+${scrapValue(h, it)} ⚙️)`}</button>` : ""}<button class="plank-btn" data-compareclose>← Back</button></div>
+    <div class="cmp-foot">${found.takeable ? `<button class="take-equip" data-take="${it.uid}" data-how="equip" data-slot="${slot}">✔ Equip ${esc(label.toLowerCase())}</button><button class="take-pack" data-take="${it.uid}" data-how="pack">🎒 Add to backpack</button><button class="take-scrap" data-scrapfound="${it.uid}">${r.gridMode ? "Leave it" : `Scrap (+${scrapValue(h, it)} ⚙️)`}</button>` : ""}${found.bag && !(r.scene.t === "combat") ? `<button class="take-equip" data-equip="${it.uid}" data-slot="${slot}" ${it.reqLevel && h.level < it.reqLevel ? "disabled" : ""}>✔ Equip ${esc(label.toLowerCase())}</button>` : ""}<button class="plank-btn" data-compareclose>← Back</button></div>
   </div></div>`;
 }
 
@@ -3732,7 +3740,7 @@ function bind() {
   on("[data-newrun]", () => { clearSave(); camp = r.mode === "campaign" || r.mode === "endless" ? r.hero.origin : null; campTab = r.drill ? "drills" : "expedition"; campRoom = r.drill ? "drills" : null; resetCampWalk(); campOffers = null; campQuest = null; view = "title"; run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
   on("[data-endless]", () => { if (run) { run.submitted = false; run.lbDone = false; run.endRecord = undefined; } lbResult = null; continueEndless(r); recorded = null; });
   on("[data-unequip]", el => { const sl = el.dataset.unequip as EquipSlot, uid = r.hero.equip[sl]?.uid; const err = unequip(r.hero, sl); say(err); if (!err && uid !== undefined) { invPick = { k: "bp", uid }; sfx("equip"); } });
-  on("[data-equip]", el => { const uid = Number(el.dataset.equip); const it = r.hero.backpack.find(i => i.uid === uid); if (!it) return; const err = equipItem(r.hero, it, el.dataset.slot as EquipSlot); say(err); if (!err) { const sl = EQUIP_SLOTS.find(k => r.hero.equip[k]?.uid === uid); if (sl) invPick = { k: "eq", slot: sl }; sfx("equip"); } });
+  on("[data-equip]", el => { compareOpen = null; const uid = Number(el.dataset.equip); const it = r.hero.backpack.find(i => i.uid === uid); if (!it) return; const err = equipItem(r.hero, it, el.dataset.slot as EquipSlot); say(err); if (!err) { const sl = EQUIP_SLOTS.find(k => r.hero.equip[k]?.uid === uid); if (sl) invPick = { k: "eq", slot: sl }; sfx("equip"); } });
   on("[data-forgescrap]", el => { const u = Number(el.dataset.forgescrap); if (worn(u)) forgeAsk = { kind: "scrap", uid: u }; else doScrap(u); });
   on("[data-salvage]", el => { const before = materials(r.hero); const n = salvage(r.hero, Number(el.dataset.salvage)); say(`+${n} Scrap${salvageNote(before, r.hero)}`, false); });
   on("[data-reveal]", el => { const err = reveal(r.hero, Number(el.dataset.reveal)); say(err ?? "The Legendary reveals its true power!", !!err); if (!err) celebrate("legendary", "REVEALED"); });
