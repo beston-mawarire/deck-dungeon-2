@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.3.4
+- Weapons no longer carry the 🪨 Heavy rule. A big weapon doesn't halve your Dodge or block Evade and Haste, and it no longer hits 15% harder. Heavy armour and heavy shields keep the rule (half Dodge, no Evade or Haste, 30% more Armor). The 🔨 Stagger of hammers and mauls is unchanged.
+
 ## 2.3.3
 - Hide, Bone Dust and Cult Sigils drop less often: a normal foe 20% (was 35%), an Elite 45% (was 70%) with a smaller chance of a second, and a Champion 1–2 (was 2–3). Cogs and the boss handfuls are unchanged.
 - The Merchant's Ledger (Knowledge Table) now takes 30% off Merchants' prices (was 10%).

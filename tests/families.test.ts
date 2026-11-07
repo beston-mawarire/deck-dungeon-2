@@ -36,3 +36,12 @@ it("heavy gear: no Dodge, Evade or Haste", () => {
   expect(st(h.f, "evade")).toBe(0);
   expect(st(h.f, "haste")).toBe(0);
 });
+
+it("heavy weapons don't carry the Heavy rule (only armour and shields do)", () => {
+  const h = newHero("warrior");
+  const hw = GEAR_BASES.find(b => b.kind === "weapon" && classify(b).load === "heavy" && !b.onlyRarity && !b.legendary)!;
+  equipItem(h, { uid: 901, base: hw.id, rarity: "common", level: 1, bonuses: {}, revealed: true });
+  delete h.equip.armour; delete h.equip.off;
+  recompute(h);
+  expect(h.f.heavyGear).toBe(false);
+});

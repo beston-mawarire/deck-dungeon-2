@@ -96,4 +96,5 @@ export function familyLine(b: GearBase): string {
   return [FAMILY_NAME[c.family], LOAD_NAME[c.load], c.strike ? STRIKE_NAME[c.strike] : null].filter(Boolean).join(" · ");
 }
 
-export const isHeavy = (b: GearBase) => classify(b).load === "heavy" && classify(b).family !== "focus";
+/** Heavy armour and shields: half Dodge and no Evade or Haste while worn, for 30% more Armor. (Weapons don't carry this any more.) */
+export const isHeavy = (b: GearBase) => b.kind !== "weapon" && classify(b).load === "heavy" && classify(b).family !== "focus";

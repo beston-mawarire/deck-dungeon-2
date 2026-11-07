@@ -126,7 +126,7 @@ describe("origins and gear", () => {
     expect(equipItem(h, axe)).toBeNull();
     expect(h.equip.off).toBeUndefined();
     expect(h.backpack.map(i => i.base)).toEqual(["w_sword", "o_wooden_shield"]);
-    expect(h.f.damage).toBe(7); // 6, and heavy weapons hit 15% harder
+    expect(h.f.damage).toBe(6); // (weapons no longer carry the Heavy bonus)
   });
 
   it("rarity is the number of affix lines: Uncommon 1, Rare 2, Epic 3", () => {
@@ -151,7 +151,7 @@ describe("origins and gear", () => {
     const h = newHero("warrior");
     equipItem(h, { uid: 51, base: "l_worldsplitter", rarity: "legendary", level: 3, bonuses: {}, revealed: true });
     expect(h.f.faces.length).toBe(12);
-    expect(weaponDamage(h.equip.main!)).toBe(13); // (8 base + 2 levels + 1 Legendary) × 1.15, a heavy weapon
+    expect(weaponDamage(h.equip.main!)).toBe(11); // 8 base + 2 levels + 1 Legendary
   });
 
   it("salvage turns gear into Scrap", () => {
