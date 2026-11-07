@@ -2923,3 +2923,17 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
 :is(.crawl-pop, .inv-detail, .mer-detail, .grit-body) .compare .cmp.down { color: #a32424 !important; background: rgba(210,60,60,.15) !important; border-color: rgba(180,50,50,.55) !important; }
 :is(.crawl-pop, .inv-detail):is(.pg-legendary, .pg-epic) .compare .cmp.up { color: #9be8ac !important; background: rgba(80,200,110,.16) !important; border-color: rgba(120,220,140,.5) !important; }
 :is(.crawl-pop, .inv-detail):is(.pg-legendary, .pg-epic) .compare .cmp.down { color: #ffa0a0 !important; background: rgba(230,90,90,.16) !important; border-color: rgba(255,120,120,.5) !important; }
+
+/* 2.3.2: the Gear tab's equipped list on parchment. */
+.inv-body .inv-slots { background: radial-gradient(ellipse at 30% 0%, rgba(255,250,235,.55), transparent 60%), linear-gradient(180deg, #efe2c3 0%, #e4d2a9 100%); border: 2px solid #8a6a40; box-shadow: inset 0 0 18px rgba(120,80,30,.25), 0 3px 0 #2a1a0d; }
+.inv-body .inv-slots .inv-slot, .inv-body .inv-slots .inv-slot.empty { border-bottom-color: #b49868; color: #3a2614; }
+.inv-body .inv-slots .inv-slot > span { color: #7a5c36 !important; }
+.inv-body .inv-slots .inv-slot > b { color: #2e1d0e !important; }
+.inv-body .inv-slots .inv-slot.empty > b { color: #9a8462 !important; font-weight: 600; }
+.inv-body .inv-slots .inv-slot.r-uncommon > b { color: #23743f !important; }
+.inv-body .inv-slots .inv-slot.r-rare > b { color: #1f5fa8 !important; }
+.inv-body .inv-slots .inv-slot.r-epic > b { color: #6a2fb0 !important; }
+.inv-body .inv-slots .inv-slot.r-legendary > b { color: #b35a08 !important; }
+.inv-body .inv-slots .inv-slot:is(.r-crimson, .r-epic_crimson, .r-legendary_crimson) > b { color: #a8162a !important; }
+.inv-body .inv-slots .inv-slot:hover, .inv-body .inv-slots .inv-slot:active { background: rgba(120,80,30,.08); }
+.inv-body .inv-slots .inv-slot.on { background: rgba(120,80,30,.14); }

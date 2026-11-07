@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.3.2
+- The backpack's Gear tab shows your equipped items on parchment, with names in darker rarity colours so they read well on the light background.
+
 ## 2.3.1
 - Toxic sludge pools poison you for 2 steps after you leave them, not 4. Lava still burns for 4.
 - The doors to Something Strange glow a pale, otherworldly blue, like the special foes do in their own colours.
