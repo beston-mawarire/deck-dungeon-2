@@ -63,3 +63,13 @@ describe("attributes", () => {
   });
   it(`each level is worth ${ATTR_PER_LEVEL} point`, () => expect(ATTR_PER_LEVEL).toBe(1));
 });
+
+describe("level locks", () => {
+  it("go away once you reach the level", () => {
+    const r = newRun("warrior", 5); startCrawl(r);
+    const it = { uid: 4242, base: "w_sword", rarity: "common" as const, level: 1, bonuses: {}, revealed: true, reqLevel: r.hero.level + 1 };
+    r.hero.backpack.push(it);
+    gainXp(r, xpToLevel(r.hero.level));
+    expect(it.reqLevel).toBeUndefined();
+  });
+});

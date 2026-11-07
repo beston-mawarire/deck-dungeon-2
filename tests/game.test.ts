@@ -748,6 +748,9 @@ describe("class actions and new stats", () => {
 
   it("Elemental Barrier: a full block throws the element back", () => {
     const h = newHero("mage");
+    // (2.2.4: Common charms no longer lash; a Rare one does.)
+    expect(h.f.barrierElement).toBeUndefined();
+    equipItem(h, { uid: 778, base: "k_heart_of_embers", rarity: "rare", level: 1, bonuses: {}, revealed: true });
     expect(h.f.barrierElement).toBe("burn");
     const e = foe(10);
     const b = startBattle(h.f, e, 53);
@@ -1074,6 +1077,7 @@ describe("class actions and new stats", () => {
 
   it("a 1–2 Elemental Barrier blocks nothing but still throws 2 stacks back", () => {
     const h = newHero("mage");
+    equipItem(h, { uid: 779, base: "k_heart_of_embers", rarity: "rare", level: 1, bonuses: {}, revealed: true });
     const e = foe(10);
     const b = startBattle(h.f, e, 53);
     b.round = 1;

@@ -62,14 +62,10 @@ export const CHARM_CRIMSON: GearBase[] = [
 
 // ---------- Single-element charms: one element each, at every rarity ----------
 export const SINGLE_CHARMS: GearBase[] = [
-  only("common", { id: "ch_spark", kind: "off", slot: "off", name: "Spark Charm", tags: ["Arcane", "Storm"], barrierElement: "static",
-    text: "On a 5: apply 2 Static.", hooks: { face: [on(5, hexIt("static", 2))] } }),
-  only("common", { id: "ch_venom", kind: "off", slot: "off", name: "Venom Charm", tags: ["Arcane", "Poison"], barrierElement: "poison",
-    text: "On a 3: apply 2 Poison.", hooks: { face: [on(3, hexIt("poison", 2))] } }),
-  only("uncommon", { id: "ch_frost", kind: "off", slot: "off", name: "Frost Charm", tags: ["Arcane", "Frost"], barrierElement: "chill",
-    text: "On a 3 or a 4: apply 1 Chill.", hooks: { face: [on(3, hexIt("chill", 1)), on(4, hexIt("chill", 1))] } }),
-  only("uncommon", { id: "ch_tide", kind: "off", slot: "off", name: "Tide Charm", tags: ["Arcane", "Frost", "Storm"], barrierElement: "soaked",
-    text: "On a 1 or a 2: apply 2 Soaked.", hooks: { face: [on(1, hexIt("soaked", 2)), on(2, hexIt("soaked", 2))] } }),
+  only("common", { id: "ch_spark", kind: "off", slot: "off", name: "Spark Charm", tags: ["Arcane", "Storm"], text: "On a 5: apply 2 Static.", hooks: { face: [on(5, hexIt("static", 2))] } }),
+  only("common", { id: "ch_venom", kind: "off", slot: "off", name: "Venom Charm", tags: ["Arcane", "Poison"], text: "On a 3: apply 2 Poison.", hooks: { face: [on(3, hexIt("poison", 2))] } }),
+  only("uncommon", { id: "ch_frost", kind: "off", slot: "off", name: "Frost Charm", tags: ["Arcane", "Frost"], text: "On a 3 or a 4: apply 1 Chill.", hooks: { face: [on(3, hexIt("chill", 1)), on(4, hexIt("chill", 1))] } }),
+  only("uncommon", { id: "ch_tide", kind: "off", slot: "off", name: "Tide Charm", tags: ["Arcane", "Frost", "Storm"], text: "On a 1 or a 2: apply 2 Soaked.", hooks: { face: [on(1, hexIt("soaked", 2)), on(2, hexIt("soaked", 2))] } }),
   only("rare", { id: "ch_blaze", kind: "off", slot: "off", name: "Blaze Charm", tags: ["Arcane", "Burn"], barrierElement: "burn",
     text: "On a 2 or a 5: apply 3 Burn.", hooks: { face: [on(2, hexIt("burn", 3)), on(5, hexIt("burn", 3))] } }),
   only("rare", { id: "ch_thunder", kind: "off", slot: "off", name: "Thunder Charm", tags: ["Arcane", "Storm"], barrierElement: "static",

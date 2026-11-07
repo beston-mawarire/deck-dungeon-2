@@ -43,7 +43,7 @@ import { mountCampMap, resetCampWalk } from "./campmap";
 import { CAMP_BITE, CAMP_CASTS, CAMP_DEEP, CAMP_EMPTY, type CastPlan, FISH, fishById, planCast, POND_BITE, rollCatch, TANK_CATCHES } from "../game/fishing";
 import { ELITE_ONLY, MONSTERS } from "../data/monsters";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
-import { gearAttr, spendAttr, TYPE_MARK, treeAttr, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
+import { gearAttr, setViewLevel, spendAttr, TYPE_MARK, treeAttr, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
 import { BREWS, type BrewKind, INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
@@ -3038,6 +3038,7 @@ function keepScroll(): () => void {
   return () => { for (const [sel, l, t] of saved) { const el = document.querySelector<HTMLElement>(sel); if (el) { el.scrollLeft = l; el.scrollTop = t; } } };
 }
 function render2() {
+  setViewLevel(run?.hero.level ?? 0);
   const restore = keepScroll();
   render3();
   restore();

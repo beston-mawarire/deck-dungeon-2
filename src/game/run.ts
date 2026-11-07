@@ -2158,6 +2158,8 @@ export function gainXp(run: Run, n: number) {
   while (h.xp >= xpToLevel(h.level)) {
     h.xp -= xpToLevel(h.level);
     h.level++;
+    // Gear you were waiting to grow into is yours now: its level lock goes.
+    for (const it of [...Object.values(h.equip), ...h.backpack]) if (it?.reqLevel && h.level >= it.reqLevel) delete it.reqLevel;
     // Every level-up heals a little: a fifth of Max HP (healing curses still apply).
     const healed = restore(h, Math.round(h.f.maxHp * LEVEL_HEAL));
     // The Crawl: attribute points instead of talents.

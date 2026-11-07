@@ -199,7 +199,7 @@ export function itemLines(item: GearItem): string[] {
   const b = baseOf(item.base);
   const eb = effectiveBase(item);
   const lines: string[] = [];
-  if (item.reqLevel) lines.push(`🔒 Requires level ${item.reqLevel}`);
+  if (item.reqLevel && item.reqLevel > viewLevel) lines.push(`🔒 Requires level ${item.reqLevel}`);
   lines.push(`${TYPE_MARK}${familyLine(eb)}`);
   if (isHeavy(eb)) lines.push(`🪨 Heavy: half Dodge and no Evade or Haste while you wear it, but ${eb.kind === "weapon" ? "it hits 15% harder" : "it carries 30% more Armor"}.`);
   if (eb.damage !== undefined) lines.push(`Damage ${weaponDamage(item)}${eb.twoHanded ? " · two-handed" : ""}${eb.offDamage ? ` · off-hand ${weaponDamage(item, true)}${offhandPenalty(item) ? " (clumsy: 60%)" : ""}` : ""}`);
@@ -258,7 +258,12 @@ export function spendAttr(h: Hero, a: Attr): string | null {
   return null;
 }
 
+/** The level of the hero looking at items (set when the screen is drawn): a level requirement they've reached isn't shown. */
+let viewLevel = 0;
+export const setViewLevel = (n: number) => { viewLevel = n; };
 export function recompute(h: Hero) {
+  // A level requirement you've reached is gone for good.
+  for (const it of [...Object.values(h.equip), ...h.backpack]) if (it?.reqLevel && h.level >= it.reqLevel) delete it.reqLevel;
   // (2.2: Legendaries are always revealed: gear from older saves, the Camp or anywhere else is shown in full.)
   for (const it of [...Object.values(h.equip), ...h.backpack]) if (it && !it.revealed) it.revealed = true;
   h.scrolls = 0;

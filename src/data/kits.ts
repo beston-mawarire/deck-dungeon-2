@@ -41,7 +41,7 @@ export const KIT_UPGRADES: GearBase[] = [
   g(R, { id: "k_archmages_staff", kind: "weapon", slot: "main", name: "Archmage's Staff", tags: ["Arcane", "Burn", "Frost", "Storm"], text: "The finest Apprentice Staff. Every face is a spell.", damage: 6,
     faces: [cast("Venom Dart", "graze", hex("poison", 3)), cast("Fire Bolt", "hit", hex("burn", 4)), cast("Frost Lance", "hit", hex("chill", 3)), cast("Arc", "hit", hex("static", 3)), cast("Hex Bolt", "hit", hex("exposed", 2)),
       cast("Starfire", "crit", (b, c) => { applyStatus(b, c.attacker, c.defender, "burn", 5); applyStatus(b, c.attacker, c.defender, "shock", 1); })], hooks: {} }),
-  g(U, { id: "k_ember_talisman", barrierElement: "burn", kind: "off", slot: "off", name: "Ember Talisman", tags: ["Burn", "Arcane"], text: "A greater Ember Charm. On a 2 or a 5: apply 2 Burn.",
+  g(U, { id: "k_ember_talisman", kind: "off", slot: "off", name: "Ember Talisman", tags: ["Burn", "Arcane"], text: "A greater Ember Charm. On a 2 or a 5: apply 2 Burn.",
     hooks: { face: [on(2, (b, c) => applyStatus(b, c.attacker, c.defender, "burn", 2)), on(5, (b, c) => applyStatus(b, c.attacker, c.defender, "burn", 2))] } }),
   g(R, { id: "k_heart_of_embers", barrierElement: "burn", kind: "off", slot: "off", name: "Heart of Embers", tags: ["Burn", "Arcane"], text: "On a 2 or a 5: apply 3 Burn. Burn you apply gets +1.",
     hooks: { face: [on(2, (b, c) => applyStatus(b, c.attacker, c.defender, "burn", 3)), on(5, (b, c) => applyStatus(b, c.attacker, c.defender, "burn", 3))],
