@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.3.5
+- Two-handed weapons hit 20% harder, to make up for the off-hand they shut out. Their damage line reads "two-handed (+20%)". This is for every two-handed weapon (axes, hammers, greatswords, greatstaves, bows), heavy or not.
+
 ## 2.3.4
 - Weapons no longer carry the 🪨 Heavy rule. A big weapon doesn't halve your Dodge or block Evade and Haste, and it no longer hits 15% harder. Heavy armour and heavy shields keep the rule (half Dodge, no Evade or Haste, 30% more Armor). The 🔨 Stagger of hammers and mauls is unchanged.
 

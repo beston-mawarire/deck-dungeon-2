@@ -157,6 +157,8 @@ export function effectiveBase(item: GearItem): GearBase {
 
 /** Heavy gear's pay-off: heavy weapons deal this much more, heavy armour and shields carry this much more Armor. */
 export const HEAVY_DAMAGE = 1.15;
+/** Two-handed weapons hit this much harder (no off-hand to go with them). */
+export const TWO_HAND_DAMAGE = 1.2;
 export const HEAVY_ARMOR = 1.3;
 /** An item's Armor: its base, half its levels, and more for heavy armour and shields. */
 export const itemArmor = (eb: GearBase, level: number) => (eb.armor ? Math.round((eb.armor + Math.floor((level - 1) / 2)) * (isHeavy(eb) ? HEAVY_ARMOR : 1)) : 0);
@@ -180,8 +182,8 @@ export function weaponDamage(item: GearItem, offhand = false): number {
   const thrown = !!base.weaponType && THROWN_TYPES.includes(base.weaponType);
   const d = offhand ? base.offDamage ?? 0 : thrown ? Math.max(1, (base.offDamage ?? base.damage ?? 0) - 1) : base.damage ?? 0;
   const hidden = false;
-  // Heavy weapons pay for losing Dodge, Evade and Haste: they hit harder.
-  const full = Math.round((d + (item.level - 1) + (hidden ? 0 : RARITY_DAMAGE[item.rarity])) * (isHeavy(base) ? HEAVY_DAMAGE : 1));
+  // Two-handed weapons pay for the off-hand they shut out: they hit 20% harder.
+  const full = Math.round((d + (item.level - 1) + (hidden ? 0 : RARITY_DAMAGE[item.rarity])) * (base.twoHanded && !offhand ? TWO_HAND_DAMAGE : 1));
   return offhand && offhandPenalty(item) ? Math.max(1, Math.floor(full * 0.6)) : full;
 }
 
@@ -211,7 +213,7 @@ export function itemLines(item: GearItem): string[] {
   if (item.reqLevel && item.reqLevel > viewLevel) lines.push(`🔒 Requires level ${item.reqLevel}`);
   lines.push(`${TYPE_MARK}${familyLine(eb)}`);
   if (isHeavy(eb)) lines.push("🪨 Heavy: half Dodge and no Evade or Haste while you wear it, but it carries 30% more Armor.");
-  if (eb.damage !== undefined) lines.push(`Damage ${weaponDamage(item)}${eb.twoHanded ? " · two-handed" : ""}${eb.offDamage ? ` · off-hand ${weaponDamage(item, true)}${offhandPenalty(item) ? " (clumsy: 60%)" : ""}` : ""}`);
+  if (eb.damage !== undefined) lines.push(`Damage ${weaponDamage(item)}${eb.twoHanded ? " · two-handed (+20%)" : ""}${eb.offDamage ? ` · off-hand ${weaponDamage(item, true)}${offhandPenalty(item) ? " (clumsy: 60%)" : ""}` : ""}`);
   const armor = itemArmor(eb, item.level);
   if (armor) lines.push(`Armor ${armor}`);
   if (item.attr) lines.push(`${ATTR_INFO[item.attr.a].icon} +${item.attr.n} ${ATTR_INFO[item.attr.a].name}`);
