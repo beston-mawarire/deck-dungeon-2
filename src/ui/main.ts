@@ -2308,8 +2308,8 @@ function crawlBag(r: Run) {
       <div class="mer-panel inv-pack"><div class="mer-label">Backpack ${h.backpack.length}/${packSize(h)}</div>${mats ? `<div class="inv-mats">${mats}</div>` : ""}
         <div class="inv-cards inv-cards-wide">${cards || throwCols ? `${cards}${throwCols}` : `<span class="mer-none">No gear in your pack.</span>`}</div>
         <div class="inv-small">
-          <button class="armoury-btn" data-armoury><span>🛡️</span><b>Armoury</b><em>${h.backpack.length ? `${h.backpack.length} item${h.backpack.length === 1 ? "" : "s"}` : "empty"}</em></button>
-          ${throwCols ? `<div class="mer-label">Throwables</div><div class="inv-cards inv-throw-row">${throwCols}</div>` : ""}
+          <div class="throw-box">${throwCols ? `<div class="inv-cards inv-throw-row">${throwCols}</div>` : `<span class="tb-ph">Throwables</span>`}</div>
+          <div class="arm-wrap"><button class="armoury-btn" data-armoury><span>🛡️</span><b>Armoury</b></button></div>
         </div></div>${eqPop}${armouryOpen ? armouryPage(h, cards) : ""}`;
   } else if (bagTab === "attrs") {
     const baseA = BASE_ATTR[h.origin as keyof typeof BASE_ATTR];

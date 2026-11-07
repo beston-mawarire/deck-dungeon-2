@@ -2989,3 +2989,11 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
   .inv-small .inv-throw-row .inv-card.inv-throws { display: contents; }
   .inv-small .inv-throw-row .throw-card { min-height: 92px; }
 }
+/* 2.4.6: small screens: the top half of the backpack is a dotted box for throwables; the Armoury button sits centred below. */
+@media (max-width: 520px) {
+  .inv-small { overflow: hidden; gap: 10px; }
+  .inv-small .throw-box { flex: 1 1 50%; min-height: 0; overflow-y: auto; scrollbar-width: none; border: 2px dotted #8a6a40; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; }
+  .inv-small .throw-box .tb-ph { margin: auto; color: #7a6248; font-size: .95rem; letter-spacing: .08em; text-transform: uppercase; }
+  .inv-small .arm-wrap { flex: 1 1 50%; display: flex; align-items: center; justify-content: center; }
+  .inv-small .armoury-btn { width: auto; padding: 10px 26px; }
+}

@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.4.6
+- Small screens: the top half of the backpack area is a dotted box for your throwables (it reads "Throwables" when you have none). The 🛡️ Armoury button sits centred in the bottom half.
+
 ## 2.4.5
 - A beaten monster only rises again as a Champion after 17 plain fights in a row (was 14). The odds then start at 10% and rise 10% with each plain fight after that, as before.
 
