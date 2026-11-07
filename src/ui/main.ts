@@ -11,7 +11,7 @@ const FUSABLE_RELICS = new Set(FUSION_RECIPES.flatMap(r => [r.a, r.b]));
 import { ORIGINS } from "../data/origins";
 import { ambushPending, ambushStrike, armorOf, armorReduction, beginRound, tollOf, enemyPhase, endRound, heroPhase, isUnholy, type Action, wieldsHoly, streakOf, hasStreak, BLESSINGS, isSkill, MANA_COST } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
-import { REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
+import { isNegative, REACTIONS, STATUS_INFO, THRESHOLDS } from "../engine/statuses";
 import type { Battle, Fighter, Fx, GearItem, OriginId, StatusId } from "../engine/types";
 import { NEGATIVE_STATUSES, rarityLabel } from "../engine/types";
 import {
@@ -27,7 +27,7 @@ import { chosenPath, LEDGER_MARKS, carriedTarot, flipTarot, takeTarot, toggleTar
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
+  sellItem, sellPrice, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, drinkCleanse, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   drinkDraught, startCrawl, startDrill, tavernGift, takeGift, GIFTS, type GiftId, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, chooseOmen, chooseSkill, omensTaken, setOut, ABYSS_LAYER, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
@@ -43,7 +43,7 @@ import { mountCampMap, resetCampWalk } from "./campmap";
 import { CAMP_BITE, CAMP_CASTS, CAMP_DEEP, CAMP_EMPTY, type CastPlan, FISH, fishById, planCast, POND_BITE, rollCatch, TANK_CATCHES } from "../game/fishing";
 import { ELITE_ONLY, MONSTERS } from "../data/monsters";
 import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRITE } from "./sprites";
-import { gearAttr, setViewLevel, spendAttr, TYPE_MARK, treeAttr, potionCap, potionsPerFight, manaPotionCap, newHero, heroTags } from "../game/hero";
+import { gearAttr, setViewLevel, spendAttr, TYPE_MARK, treeAttr, potionCap, potionsPerFight, manaPotionCap, CLEANSE_POTION_CAP, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
 import { BREWS, type BrewKind, INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
@@ -761,6 +761,7 @@ function potionCircle(r: Run) {
     <div class="cz-drawer ${potDrawer ? "open" : ""}">
       <button class="cz-pot" data-potion ${canHeal ? "" : "disabled"} title="Healing Potion">🧪<b>${h.potions}</b></button>
       ${h.manaPotions ? `<button class="cz-pot ${inFight ? "" : "off"}" ${inFight ? `data-mana ${(f.mana ?? 0) >= (f.maxMana ?? 0) || busy ? "disabled" : ""}` : fightOnly("Mana Potions")} title="Mana Potion">🔷<b>${h.manaPotions}</b></button>` : ""}
+      ${h.cleansePotions ? `<button class="cz-pot ${inFight ? "" : "off"}" ${inFight ? `data-cleanse ${busy || !Object.entries(f.statuses).some(([id, n]) => (n ?? 0) > 0 && isNegative(id as StatusId)) ? "disabled" : ""}` : fightOnly("Cleansing Potions")} title="Cleansing Potion: removes your worst negative status">🫧<b>${h.cleansePotions}</b></button>` : ""}
       ${tonics.map(([id, n]) => `<button class="cz-pot ${inFight ? "" : "off"}" ${inFight ? `data-tonic="${id}" ${busy ? "disabled" : ""}` : fightOnly("Tonics")} title="${esc(TONICS[id].name)}: ${esc(TONICS[id].text)}">${TONICS[id].icon}<b>${n}</b></button>`).join("")}
     </div>`;
 }
@@ -848,6 +849,7 @@ const RARITY_INK: Record<string, string> = { common: "#c9c2b4", uncommon: "#6fd0
 function stockLabel(r: Run, e: ShopEntry): { name: string; icon: string; text: string; ink: string } {
   if (e.kind === "item" && e.item) return { name: itemName(e.item), icon: "", text: "", ink: RARITY_INK[e.item.rarity] ?? "#e9d6b0" };
   if (e.kind === "potion") return { name: "Healing Potion", icon: "🧪", text: `Heals ${r.gridMode ? CRAWL_POTION_HEAL : 12} HP. Drink it from your potion drawer, in a fight or out of one.`, ink: "#f08a7a" };
+  if (e.kind === "cleanse") return { name: "Cleansing Potion", icon: "🫧", text: `Rare. Drink it in a fight to wash away your worst negative status (the one with the most stacks). You can carry ${CLEANSE_POTION_CAP}.`, ink: "#9fe3e0" };
   if (e.kind === "mana") return { name: "Mana Potion", icon: "🔷", text: `Drink it in a fight to refill your mana. You can carry ${manaPotionCap(r.hero)}.`, ink: "#7ab8ff" };
   if (e.kind === "scroll") return { name: "Scroll of Revelation", icon: "📜", text: "Reveals a Legendary's hidden power.", ink: "#f0d28a" };
   if (e.kind === "seed" && e.plant) { const pl = PLANTS[e.plant], bw = BREWS[pl.brew]; return { name: pl.seed, icon: pl.seedIcon, text: `For the Camp's Garden: it grows into ${pl.name} in ${pl.runs} run${pl.runs === 1 ? "" : "s"}, and ${pl.name} brews ${bw.name} (${bw.text.toLowerCase()}${bw.floors ? ` for ${bw.floors} floor${bw.floors === 1 ? "" : "s"}` : ""}).`, ink: "#9fd08a" }; }
@@ -1531,7 +1533,7 @@ function shopScene(r: Run) {
       const cmp = e.sold ? "" : compareBtns(it);
       return itemCard(it, btn + cmp, !e.sold);
     }
-    const label = e.kind === "potion" ? "🧪 Healing Potion — heal 12" : e.kind === "mana" ? `🔷 Mana Potion — drink in a fight to refill your mana (carry ${manaPotionCap(r.hero)})` : e.kind === "scroll" ? "📜 Scroll of Revelation — reveals a Legendary" : e.relic ? `💎 ${getItem(e.relic).name} — ${getItem(e.relic).text}` : "";
+    const label = e.kind === "potion" ? "🧪 Healing Potion — heal 12" : e.kind === "mana" ? `🔷 Mana Potion — drink in a fight to refill your mana (carry ${manaPotionCap(r.hero)})` : e.kind === "cleanse" ? `🫧 Cleansing Potion — drink in a fight to remove your worst negative status (carry ${CLEANSE_POTION_CAP})` : e.kind === "scroll" ? "📜 Scroll of Revelation — reveals a Legendary" : e.relic ? `💎 ${getItem(e.relic).name} — ${getItem(e.relic).text}` : "";
     return `<div class="item"><div class="nm">${esc(label)}</div><div class="row" style="margin-top:8px">${btn}</div></div>`;
   }).join("")}</div>
   <p class="shop-text">Bought gear goes to your backpack; equip it from 🎒.</p>
@@ -2348,6 +2350,7 @@ function crawlArtefacts(r: Run) {
     tile("🔶", "Orilium", h.orilium ?? 0, "From scrapped Epic gear. The Masterwork wants it.", h.orilium ? "" : "dim"),
     tile("⚙️", "Scrap", h.scrap, "Upgrades at the Forge.", h.scrap ? "" : "dim"),
     ...(h.azure ? [tile("💠", "Azure", h.azure, "A rare crystal from Elites and Champions.")] : []),
+    ...(h.cleansePotions ? [tile("🫧", "Cleansing Potions", h.cleansePotions, `Rare. In a fight, drink one to wash away your worst negative status. Carry ${CLEANSE_POTION_CAP}.`)] : []),
     ...(h.crimsonKeys ? [tile("🩸", "Crimson Keys", h.crimsonKeys, "A Crimson Vault waits somewhere below.", "crimson")] : []),
     ...(h.crucible ? [tile("⚗️", "Transmuter's Crucible", null, `At a Forge: a Common item and ${TRANSMUTE_COST} Starmetal become a Legendary.`, "gold")] : []),
     ...(h.dragonHeart ? [tile("🫀", "Dragon Heart", `level ${h.dragonHeart.level}`, h.dragonHeart.unified ? "Unified: every one of your stats is 50% stronger." : "Still beating. A Dragon Sanctum could bind it to you.", "crimson")] : []),
@@ -3625,6 +3628,7 @@ function bind() {
   on("[data-chooseskill]", el => { const err = chooseSkill(r, el.dataset.chooseskill!); say(err); if (!err) sfx("legendary"); });
   on("[data-omen]", el => { chooseOmen(r, el.dataset.omen || null); sfx(el.dataset.omen ? "reaction" : "click"); });
   on("[data-ready]", el => { if (r.scene.t === "combat" && !busy) readyThrow(r.scene.battle, el.dataset.ready as Throw); });
+  on("[data-cleanse]", () => { const n = r.hero.cleansePotions ?? 0; say(drinkCleanse(r)); if ((r.hero.cleansePotions ?? 0) < n) sfx("drink"); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); else render(); });
   on("[data-mana]", () => { const n = r.hero.manaPotions ?? 0; say(drinkMana(r)); if ((r.hero.manaPotions ?? 0) < n) sfx("drink"); if (r.scene.t === "combat") void playFx(r.scene.battle).then(render); });
   on("[data-keepsake]", () => { say(takeKeepsake(r), false); sfx("legendary"); });
   on("[data-choosetalent]", () => { ackedTalentScene = r.scene; });

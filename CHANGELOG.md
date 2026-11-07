@@ -9,6 +9,10 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.3.0
+- New: the Cleansing Potion 🫧. Drink it in a fight to wash away your worst negative status (the one with the most stacks). It uses your action, like any potion, and you can carry 2. It's in your potion drawer, and in the Artefacts tab when you have one.
+- It's rare: Elites drop one 4% of the time, Champions 10%, urns 1%. About one Merchant in three stocks it, at 80 Gold before the shop's price modifier (a Mana Potion is 35).
+
 ## 2.2.5
 - The mini comparison on item pages is always in colour: green for ▲ gains, red for ▼ losses. This covers chest finds, shop items and the backpack, on parchment and on the Epic and Legendary pages.
 

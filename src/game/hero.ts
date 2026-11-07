@@ -47,6 +47,13 @@ export function potionCap(h: Hero): number {
   return Math.max(1, n);
 }
 export const potionsPerFight = potionCap;
+/** Cleansing Potions (rare): drink one in a fight to shake off your worst negative status. Carry 2. */
+export const CLEANSE_POTION_CAP = 2;
+export function gainCleansePotions(h: Hero, n: number): number {
+  const got = Math.max(0, Math.min(n, CLEANSE_POTION_CAP - (h.cleansePotions ?? 0)));
+  h.cleansePotions = (h.cleansePotions ?? 0) + got;
+  return got;
+}
 /** Mana Potions: carry 2 (some relics add more). */
 export const BASE_MANA_POTION_CAP = 2;
 export function manaPotionCap(h: Hero): number {
@@ -100,6 +107,8 @@ export interface Hero {
   crimsonKeys: number;
   /** Mana Potions: spells hit harder for the rest of a fight. */
   manaPotions: number;
+  /** Cleansing Potions (rare): remove one negative status in a fight. */
+  cleansePotions?: number;
   /** Crafting materials: Azure dust (from scrapping Rares) and Orilium (from scrapping Epics). */
   azure?: number;
   orilium?: number;

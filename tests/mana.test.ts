@@ -107,3 +107,23 @@ it("an Ambush doesn't leave you in a Counter stance", () => {
   ambushStrike(b);
   expect(h.f.flags["counter"] === b.round).toBe(false);
 });
+
+it("Cleansing Potions (rare) wash away your worst negative status, in a fight only; you carry 2", async () => {
+  const { drinkCleanse } = await import("../src/game/run");
+  const { gainCleansePotions, CLEANSE_POTION_CAP } = await import("../src/game/hero");
+  const run: Run = newRun("rogue", 9);
+  const h = run.hero;
+  expect(CLEANSE_POTION_CAP).toBe(2);
+  expect(gainCleansePotions(h, 5)).toBe(2);
+  expect(drinkCleanse(run)).toMatch(/only work in a fight/);
+  chooseRoom(run, "fight");
+  if (run.scene.t !== "combat") throw new Error("no fight");
+  run.scene.battle.enemy.hp = run.scene.battle.enemy.maxHp = 9999;
+  expect(drinkCleanse(run)).toMatch(/Nothing to cleanse/);
+  h.f.statuses.poison = 5; h.f.statuses.weak = 2; h.f.statuses.might = 3;
+  expect(drinkCleanse(run)).toBeNull();
+  expect(st(h.f, "poison")).toBe(0);   // the worst one goes
+  expect(st(h.f, "weak")).toBe(2);     // the rest stay
+  expect(st(h.f, "might")).toBe(3);    // good statuses are never touched
+  expect(h.cleansePotions).toBe(1);
+});

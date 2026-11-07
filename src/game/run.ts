@@ -13,12 +13,12 @@ import { ELITE_ONLY, MONSTERS, makeDragon, makeGoblin, makeMonster, makeNemesis,
 import { type Action, actionToll, BLESSINGS, BREWED_THROWS, isSkill, isUnholy, MANA_MAX, playRound, startBattle, THROW_INFO, THROWS, type Throw } from "../engine/combat";
 import { eachHook, getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
-import { applyStatus, heal as healF } from "../engine/statuses";
-import type { Battle, Fighter, GearItem, OriginId, Rarity } from "../engine/types";
+import { applyStatus, heal as healF, isNegative, STATUS_INFO } from "../engine/statuses";
+import type { Battle, Fighter, GearItem, OriginId, Rarity, StatusId } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { autoBattleWins } from "./auto";
 import { BOUNTY_BOARD_CHANCE, bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "./bounty";
-import { attrOf, slotsFor, type EquipSlot, type Sigil, SIGIL_BAG_SIZE, sigilSlots, removeItem, gainPotions, potionCap, potionsPerFight, manaPotionCap, gainManaPotions, addToBackpack, canGuard, EQUIP_SLOTS, itemName, packSize, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
+import { attrOf, slotsFor, type EquipSlot, type Sigil, SIGIL_BAG_SIZE, sigilSlots, removeItem, gainPotions, potionCap, potionsPerFight, manaPotionCap, gainCleansePotions, CLEANSE_POTION_CAP, gainManaPotions, addToBackpack, canGuard, EQUIP_SLOTS, itemName, packSize, baseOf, effectiveBase, equipItem, findItem, type Hero, heroTags, newHero, recompute, removeGear, rerollCost, gouge, MAX_REROLLS, scrapValue, upgradeCost, xpToLevel } from "./hero";
 import { abyssMod, heatOf } from "./progress";
 import { generate, genName, setGenLuck } from "./gen";
 import { GEN_MINORS } from "../data/genparts";
@@ -209,7 +209,7 @@ export const ABYSS_ROOM_INFO: Partial<Record<RoomType, { name: string; icon: str
   boss: { name: "Uber boss", icon: "☠️", text: "The master of this depth, empowered. Its hoard is the richest in the Abyss." }
 };
 
-export interface ShopEntry { kind: "item" | "potion" | "mana" | "scroll" | "relic" | "throw" | "seed"; item?: GearItem; relic?: string; throw?: Throw; plant?: Plant; price: number; sold?: boolean }
+export interface ShopEntry { kind: "item" | "potion" | "mana" | "cleanse" | "scroll" | "relic" | "throw" | "seed"; item?: GearItem; relic?: string; throw?: Throw; plant?: Plant; price: number; sold?: boolean }
 
 export type Scene =
   | { t: "map" }
@@ -1199,13 +1199,16 @@ export const ELITE_SEED = 0.08;
 export const BEAST_SEED = 0.05, URN_SEED = 0.03, SHOP_SEED = 0.45;
 
 /** Urns: mostly a few coins, now and then a Mana Potion, very rarely a Healing Potion. Smashed, they're gone. */
-export const URN_MANA = 0.03, URN_HEAL = 0.01;
+export const URN_MANA = 0.03, URN_HEAL = 0.01, URN_CLEANSE = 0.01;
+/** Cleansing Potions are rare: an Elite or Champion only sometimes carries one. */
+export const ELITE_CLEANSE = 0.04, CHAMPION_CLEANSE = 0.1;
 export function smashUrn(run: Run, t: number) {
   const m = run.grid!, h = run.hero;
   m.things[t].done = true;
   const x = run.rng();
   if (x < URN_HEAL && h.potions < potionCap(h)) { gainPotions(h, 1); run.message = "🏺 The urn shatters. A Healing Potion rolls out! 🧪"; return; }
   if (x < URN_HEAL + URN_MANA && gainManaPotions(h, 1)) { run.message = "🏺 The urn shatters. A Mana Potion! 🔷"; return; }
+  if (x < URN_HEAL + URN_MANA + URN_CLEANSE && gainCleansePotions(h, 1)) { run.message = "🏺 The urn shatters. A Cleansing Potion! 🫧"; return; }
   if (x < 0.07) { const t = randomThrow(run); if (gainThrow(run, t)) { run.message = `🏺 The urn shatters. Inside: ${THROW_INFO[t].icon} a ${THROW_INFO[t].name}!`; return; } }
   if (!run.drill && run.rng() < URN_SEED) { const pl = seedDrop(run); run.message = `🏺 The urn shatters. In the dust: ${PLANTS[pl].seedIcon} a ${PLANTS[pl].seed}, for the Camp's Garden.`; return; }
   if (x < 0.68) { const g = 1 + Math.floor(run.rng() * (2 + run.floor)); h.f.gold += g; run.message = `🏺 The urn shatters: ${g} Gold.`; return; }
@@ -1695,6 +1698,24 @@ export function drinkMana(run: Run): string | null {
   return null;
 }
 
+/** Cleansing Potion: removes your worst negative status (the one with the most stacks). Uses your action, like any potion. */
+export function drinkCleanse(run: Run): string | null {
+  const h = run.hero;
+  if (run.scene.t !== "combat" || run.scene.battle.over || h.f.hp <= 0) return "Cleansing Potions only work in a fight.";
+  if ((h.cleansePotions ?? 0) <= 0) return null;
+  if (isParched(h)) return "🏜️ Parched: the potion turns to dust on your tongue. You can't drink potions.";
+  const bad = Object.entries(h.f.statuses).filter(([id, n]) => (n ?? 0) > 0 && isNegative(id as StatusId)).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0));
+  if (!bad.length) return "Nothing to cleanse: no negative status on you.";
+  const [id] = bad[0];
+  h.cleansePotions = (h.cleansePotions ?? 0) - 1;
+  delete h.f.statuses[id as StatusId];
+  actionToll(run.scene.battle, h.f);
+  const name = STATUS_INFO[id as StatusId]?.name ?? id;
+  run.scene.battle.fx.push({ who: "player", kind: "text", text: `${name} washed away!`, icon: "🫧" });
+  run.scene.battle.log.push(`🫧 You drink a Cleansing Potion: your ${name} is gone.`);
+  return null;
+}
+
 /** Take the Keepsake on offer (you can only hold one: it replaces yours). */
 export function takeKeepsake(run: Run): string | null {
   const s = run.scene;
@@ -2080,6 +2101,7 @@ function afterFight(run: Run) {
     if (cm && cn && !run.drill) { campGain(run, cm, cn); mats += `${mats ? " · " : ""}+${cn} ${MATS[cm].icon} ${MATS[cm].name}`; }
     // Scrolls of Knowledge, for the Camp's Knowledge Table: Champions sometimes carry one.
     if (rank === "champion" && !run.drill && run.rng() < 0.25) { campGain(run, null, 0, 0, 1); mats += `${mats ? " · " : ""}+1 📜 Scroll of Knowledge`; }
+    if (run.rng() < (rank === "champion" ? CHAMPION_CLEANSE : rank === "elite" ? ELITE_CLEANSE : 0) && gainCleansePotions(h, 1)) mats += `${mats ? " · " : ""}🫧 Cleansing Potion`;
     // Seeds for the Camp's Garden: only Champions carry them, and not often.
     if (!run.drill && run.rng() < (rank === "champion" ? CHAMPION_SEED : rank === "elite" ? ELITE_SEED : b.enemy.family === "Beast" ? BEAST_SEED : 0)) { const pl = seedDrop(run); mats += `${mats ? " · " : ""}${PLANTS[pl].seedIcon} ${PLANTS[pl].seed}`; }
   }
@@ -2314,6 +2336,8 @@ function shopStock(run: Run): ShopEntry[] {
   if (shopRelic) stock.push({ kind: "relic", relic: shopRelic, price: Math.round((({ common: 70, uncommon: 100, rare: 150, legendary: 280 } as Record<string, number>)[getItem(shopRelic).rarity ?? "common"] ?? 90) * shopMult(run)) });
   stock.push({ kind: "potion", price: Math.round(15 * shopMult(run)) });
   stock.push({ kind: "mana", price: Math.round(35 * shopMult(run)) });
+  // Cleansing Potions: rare and dear (about one Merchant in three).
+  if (run.rng() < 0.35) stock.push({ kind: "cleanse", price: Math.round(80 * shopMult(run)) });
   // The Crawl's Merchants also sell something to throw (one or two kinds).
   if (run.gridMode) {
     const kinds = [...FINDABLE_THROWS].sort(() => run.rng() - 0.5).slice(0, run.rng() < 0.5 ? 3 : 2);
@@ -2335,6 +2359,7 @@ export function buy(run: Run, i: number): string | null {
   if (h.f.gold < e.price) return "Not enough Gold.";
   if (e.kind === "potion" && h.potions >= potionCap(h)) return `You can't carry more than ${potionCap(h)} Healing Potions.`;
   if (e.kind === "mana" && h.manaPotions >= manaPotionCap(h)) return `You can't carry more than ${manaPotionCap(h)} Mana Potions.`;
+  if (e.kind === "cleanse" && (h.cleansePotions ?? 0) >= CLEANSE_POTION_CAP) return `You can't carry more than ${CLEANSE_POTION_CAP} Cleansing Potions.`;
   if (e.kind === "throw" && e.throw && (h.f.persist[THROW_INFO[e.throw].key] ?? 0) >= THROW_CAP) return `You can't carry more than ${THROW_CAP}.`;
   if (e.kind === "item" && e.item) {
     const err = addToBackpack(h, e.item);
@@ -2342,6 +2367,7 @@ export function buy(run: Run, i: number): string | null {
   }
   if (e.kind === "potion") gainPotions(h, 1);
   if (e.kind === "mana") gainManaPotions(h, 1);
+  if (e.kind === "cleanse") gainCleansePotions(h, 1);
   if (e.kind === "scroll") h.scrolls++;
   if (e.kind === "throw" && e.throw) gainThrow(run, e.throw);
   if (e.kind === "seed" && e.plant) seedDrop(run, e.plant);
