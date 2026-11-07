@@ -27,7 +27,7 @@ import { chosenPath, LEDGER_MARKS, carriedTarot, flipTarot, takeTarot, toggleTar
 import {
   advance, themeOf, availableFusions, buy, chooseEvent, chooseRoom, chooseTalent, skipTalent, claimResplendent, confirmRisk, continueEndless, drinkPotion,
   eventOptionAvailable, finishLoot, FLOORS, forgeReroll, forgeUpgrade, fuse, type Mode, newRun, pickResplendent, rerollShop, rest,
-  sellItem, sellOffer, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, drinkCleanse, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
+  sellItem, sellOffer, THROW_CAP, CRAWL_POTION_HEAL, beginAtLayer, layerStartLevel, retireRun, fishCast, eatFish, sellFish, availableActions, drinkMana, drinkCleanse, takeRune, climbOut, retireToExtract, dropDeeper, extractionHaul, stayOnFloor, takeKeepsake, forgeCombine, forgeOffer, forgeTransmute, offeringOdds, offeringValue, shopRerollCost, MAX_SHOP_REROLLS, TRANSMUTE_COST,
   ROOM_INFO, ABYSS_ROOM_INFO, AUTO_BATTLE_FLOOR, chooseRelic, goldMult, sigilName, wearSigil, removeSigil, scrapSigil, dailyFor, newDailyRun, utcDay, depth, type Run, floorName, scrapFound, settleCombat, shopMult, STEPS_PER_FLOOR, takeItem, WALL_FLOOR, DEATH_FLOOR, END_FLOOR,
   drinkDraught, startCrawl, startDrill, tavernGift, takeGift, GIFTS, type GiftId, ordinal, type RoomType, type ShopEntry, TREASURE_DEPTH,
   abandonRun, smithUpgrade, runSummary, trackGold, trackMarks, autoBattle, canAutoBattle, jewelCost, jewelPlace, jewelUpgrade, chooseOmen, chooseSkill, omensTaken, setOut, ABYSS_LAYER, jewelClear, jewelFuse, jewelCheck, jewelMode, JEWEL_TRIES, type JewelSlot, TONICS, buyTonic, useTonic, tributeCost, payTribute, restPct, takeBounty, unifyHeart, bountyDone,
@@ -37,6 +37,7 @@ import { layerFloors } from "../game/grid";
 import { GUARD_FLAT, isThrow, readyThrow, MANA_MAX, THROW_INFO, THROWS, type Throw } from "../engine/combat";
 import { allClassesOpen, branchSpent, isTreeRelic, isTreeSigil, MASTERY_FAMILIES, nodeBlock, nodeName, nodeRanks, nodeText, NUMERAL, passiveTree, resetTree, spendNode, TIER_WIDTH, tierOpen, TREE_LAYERS, treeNode as treeNodeOf, treeOf, treeOpen, WM_MAX, WM_PERK, wmLevel, wmNext } from "../game/longroad";
 import { familyOpenCount } from "../game/loot";
+import { NUMERALS, RUNE_MAP, RUNE_MAX_RANK, runeText } from "../data/runes";
 import { ATTR_INFO, ATTR_MAX, ATTR_PER_LEVEL, ATTRS, attrPower, type Attr, BASE_ATTR, BASE_DMG_PER } from "../data/attributes";
 import { crawlKeys, isWalking, mountCrawl, stopWalk, walkToThing } from "./crawl";
 import { mountCampMap, resetCampWalk } from "./campmap";
@@ -1195,6 +1196,7 @@ function expeditionScreen(o: OriginId) {
       <div class="cb-torch r"><i class="glow"></i><i class="flame"></i><i class="flame f2"></i><i class="sconce"></i></div>
       <div class="exp-arch"><div class="exp-dark">
         <div class="exp-btns">
+          <p class="exp-deeper">The deeper you go, the more you can climb out with.${meta.obsidian ? `<br>🖤 ${esc(itemName(meta.obsidian))} waits in the Obsidian Chest.` : ""}</p>
           <button class="plank-btn exp-go" data-descend><span class="eg-arrow">▼</span>Descend<span class="eg-arrow eg-r">▼</span></button>
           <button class="plank-btn" data-exppop="layer">Layer · ${ordinal(Math.min(startLayer, maxStartLayer(o)))}</button>
           <button class="plank-btn" data-exppop="heat">Heat${heat ? ` · ${heat}` : ""}</button>
@@ -1761,12 +1763,13 @@ function crawlOver(r: Run) {
     ? endStage("won", `<div class="es-boss">${spriteHtml("chest_gold_open", 4, "es-chest")}${hero}${spriteHtml("coin", 3, "es-coin c1")}${spriteHtml("coin", 3, "es-coin c2")}${spriteHtml("coin", 3, "es-coin c3")}</div>`)
     : endStage("fallen", `<div class="es-boss">${hero}${spriteHtml("skull", 3, "es-skull")}</div>${killer ? `<div class="es-killer">${killer}</div>` : ""}`);
   const dr = r.drill ? DRILL_MAP.get(r.drill) : undefined;
-  const title = dr ? (won ? `${dr.icon} ${dr.name}: Drill cleared!` : `${dr.icon} ${dr.name}: the Drill beat you this time.`) : r.finale ? "Nothing remains. You won everything." : won && r.mode === "abyss" ? "The Abyss's warden falls. The Abyss gives you a card." : won ? "The last guardian falls. You win!" : r.retired ? `Home from the ${ordinal(r.floor)} Layer, victorious.` : r.abandoned ? "You gave up the run." : "You have fallen.";
+  const title = dr ? (won ? `${dr.icon} ${dr.name}: Drill cleared!` : `${dr.icon} ${dr.name}: the Drill beat you this time.`) : r.finale ? "Nothing remains. You won everything." : won && r.mode === "abyss" ? "The Abyss's warden falls. The Abyss gives you a card." : won ? "The last guardian falls. You win!" : r.extracted ? `You climbed out from floor ${r.extracted.floors}.` : r.retired ? `Home from the ${ordinal(r.floor)} Layer, victorious.` : r.abandoned ? "You gave up the run." : "You have fallen.";
   const gear = EQUIP_SLOTS.map(sl => h.equip[sl]).filter((x): x is GearItem => !!x);
   return `${stage}
     <h2 class="end-title ${won || r.retired ? "won" : "lost"}">${title}</h2>
     ${!won && k && !r.abandoned ? `<p class="end-line">Slain by <b class="cl-boss">${esc(k.name)}</b>${k.title ? ` <span class="sub">${esc(k.title)}</span>` : ""}, with ${big(k.hp)}/${big(k.maxHp)} HP left.</p>` : ""}
     ${endStats(r)}
+    ${r.extracted ? `<div class="end-box ex-end"><p>🧗 <b>Your haul:</b> ${r.extracted.mats} Camp material${r.extracted.mats === 1 ? "" : "s"}${r.extracted.crowns ? ` and ${r.extracted.crowns} 👑 Crown Shard${r.extracted.crowns === 1 ? "" : "s"}` : ""}, sent to the Camp.</p>${r.extracted.item ? `<p>🖤 <b>${esc(itemName(r.extracted.item))}</b> is sealed in the Obsidian Chest. It waits in the Entrance of your next run.</p>` : ""}</div>` : ""}
     ${recorded?.achievements.length ? `<div class="end-box">${recorded.achievements.map(id => { const a = ACHIEVEMENTS.find(x => x.id === id)!; return `<p>🏆 <b>${esc(a.name)}</b>: ${esc(a.text)}${a.title ? ` <span class="sub">(title “${esc(a.title)}”)</span>` : ""}</p>`; }).join("")}</div>` : ""}
     ${dr && won ? `<div class="end-box"><p>${drillMedal((meta.drills?.[dr.id] ?? []).length)} <b>${esc(dr.name)}</b> cleared with the ${esc(ORIGINS[h.origin].name)}.${r.drillFirst ? ` First clear: 👑 ${DRILL_CROWNS} Crown Shards, sent to the Camp.` : ""}</p></div>` : ""}
     ${r.bounties?.length ? `<div class="end-box bounty-box"><p>🏅 <b>Heat bounties</b> for the ${esc(ORIGINS[h.origin].name)}: ${r.bounties.map(b => `Heat ${b.heat} (👑 ${b.crowns}${b.scrolls ? " · 📜 1" : ""})`).join(", ")}. Sent to the Camp.</p></div>` : ""}
@@ -2002,6 +2005,52 @@ function armouryPage(h: Hero, cards: string) {
       <div class="inv-cards arm-list">${cards || `<p class="mer-none">No gear in your pack.</p>`}</div></div>
     <button class="mer-leave plank-btn" data-armouryclose>← Back</button>
   </div></div>`;
+}
+/** At a trapdoor: drop deeper, climb out with the haul, or not yet. Climbing out picks one item to seal in the Obsidian Chest. */
+function extractScene(r: Run) {
+  if (r.scene.t !== "extract") return "";
+  const h = r.hero, haul = extractionHaul(r), next = extractionHaul(r, haul.floors + 1);
+  const haulLine = (x: { mats: number; crowns: number }) => `${x.mats} Camp material${x.mats === 1 ? "" : "s"}${x.crowns ? ` and ${x.crowns} 👑 Crown Shard${x.crowns === 1 ? "" : "s"}` : ""}`;
+  const sealed = meta.obsidian;
+  if (r.scene.pick) {
+    const gear = [...EQUIP_SLOTS.map(sl => h.equip[sl]), ...h.backpack].filter((x): x is GearItem => !!x);
+    return `<div class="ex-pop"><h2 class="ex-title">🖤 Seal one item</h2>
+      <p class="ex-sub">It waits for you in the Obsidian Chest, in the Entrance of your next run.${sealed ? ` <b>This replaces ${esc(itemName(sealed))}</b>, sealed there now.` : ""}</p>
+      <div class="ex-items">${gear.map(it => `<button class="ex-item r-${it.rarity}" data-climb="${it.uid}"><b>${esc(itemName(it))}</b><span>${esc(itemRarity(it))} · ${esc(SLOT_SHORT[baseOf(it.base).slot as EquipSlot] ?? "")}</span></button>`).join("")}</div>
+      <div class="ex-btns"><button class="plank-btn" data-climb="none">Seal nothing${sealed ? ` (keep ${esc(itemName(sealed))})` : ""}</button><button class="ex-back" data-exback>← Back</button></div></div>`;
+  }
+  return `<div class="ex-pop"><div class="ex-hole">🕳️</div>
+    <h2 class="ex-title">The trapdoor</h2>
+    <p class="ex-sub">Drop deeper, or climb out with what you've found.</p>
+    <div class="ex-haul"><p><b>🧗 Climb out now:</b> ${haulLine(haul)}, and seal one item for your next run. Dying brings none of it.</p>
+      <p class="ex-more">🕳️ One floor deeper: ${haulLine(next)}.</p></div>
+    <div class="ex-btns"><button class="big dg-gold" data-dropdeeper>🕳️ Descend</button><button class="plank-btn" data-climbout>🧗 Climb out</button><button class="ex-back" data-exstay>Not yet</button></div></div>`;
+}
+
+/** The Face Rune offer: three runes, each for one face of your die. */
+function runePopup(r: Run) {
+  const h = r.hero, offer = r.runeOffer ?? [];
+  const cards = offer.map((o, i) => {
+    const info = RUNE_MAP.get(o.id)!, cur = h.runes?.[o.face], curInfo = cur ? RUNE_MAP.get(cur.id) : undefined;
+    const rank = cur && cur.id === o.id ? Math.min(RUNE_MAX_RANK, cur.rank + 1) : 1;
+    const maxed = !!cur && cur.id === o.id && cur.rank >= RUNE_MAX_RANK;
+    const note = cur && cur.id === o.id ? (maxed ? "Already at its highest rank" : `Ranks up to ${NUMERALS[rank]}`) : curInfo ? `Replaces ${curInfo.icon} ${curInfo.name}` : "An empty face";
+    return `<button class="rune-card" data-rune="${i}" ${maxed ? "disabled" : ""}>
+      <span class="rune-die"><b>${o.face}</b><i>${info.icon}</i></span>
+      <span class="rune-txt"><b>${esc(info.name)} Rune${rank > 1 ? ` ${NUMERALS[rank]}` : ""}</b><span>${esc(runeText(info, o.face, rank))}</span><em>${esc(note)}</em></span></button>`;
+  }).join("");
+  return `<div class="overlay popup-wrap rune-wrap"><div class="popup rune-pop">
+    <h2 class="rune-title">Carve a Face Rune</h2>
+    <p class="rune-sub">It stays on that face of your die for the rest of the run, whatever weapon you hold.</p>
+    <div class="rune-list">${cards}</div>
+    <button class="plank-btn rune-skip" data-runeskip>Leave them</button>
+  </div></div>`;
+}
+/** A great find (Epic, Legendary, any Crimson) lights the screen's edges in its colour, with embers rising from the bottom. */
+function edgeGlow(items: readonly GearItem[]) {
+  const best = items.map(i => i.rarity).find(r => r.includes("crimson")) ?? items.map(i => i.rarity).find(r => r === "legendary") ?? items.map(i => i.rarity).find(r => r === "epic");
+  if (!best) return "";
+  return `edge-glow ${best.includes("crimson") ? "edge-crimson" : best === "legendary" ? "edge-legendary" : "edge-epic"}`;
 }
 /** An item page shows one Epic or Legendary find: its page takes that rarity's colours. */
 function pageTint(items: readonly (GearItem | undefined)[]) {
@@ -2373,6 +2422,7 @@ function crawlArtefacts(r: Run) {
     tile("✴️", "Starmetal", h.starmetal, "From scrapped Legendary and Crimson gear. Jewellers and the Crucible want it.", h.starmetal ? "" : "dim"),
     tile("🔶", "Orilium", h.orilium ?? 0, "From scrapped Epic gear. The Masterwork wants it.", h.orilium ? "" : "dim"),
     tile("⚙️", "Scrap", h.scrap, "Upgrades at the Forge.", h.scrap ? "" : "dim"),
+    ...Object.entries(h.runes ?? {}).sort(([a], [b]) => Number(a) - Number(b)).map(([face, rn]) => { const info = RUNE_MAP.get(rn.id); return info ? tile(info.icon, `${info.name} Rune${rn.rank > 1 ? ` ${NUMERALS[rn.rank]}` : ""}`, `on ${face}`, runeText(info, Number(face), rn.rank)) : ""; }),
     ...(h.azure ? [tile("💠", "Azure", h.azure, "A rare crystal from Elites and Champions.")] : []),
     ...(h.cleansePotions ? [tile("🫧", "Cleansing Potions", h.cleansePotions, `Rare. In a fight, drink one to wash away your worst negative status. Carry ${CLEANSE_POTION_CAP}.`)] : []),
     ...(h.crimsonKeys ? [tile("🩸", "Crimson Keys", h.crimsonKeys, "A Crimson Vault waits somewhere below.", "crimson")] : []),
@@ -2514,6 +2564,9 @@ function helpGlossary() {
   ${group("📊 Your stats", [
     row("⚔️", "Damage", "Added to every hit, then multiplied by the face: Graze ×½, Hit ×1, Crit ×2"),
     row("🛡️", "Armor", "Stops part of each hit: 3 Armor stops 21%, 10 stops 45%, 20 stops 60%, 30 stops 68%, 60 stops 77%. No cap, but each extra point counts for a little less. Crits and spells ignore it"),
+    row("🎲", "Face Runes", "Beat an Elite, a Champion or a boss and you're offered three: carve one into a face of your die for the rest of the run. The same rune again on its face ranks it up (to III)"),
+    row("🧗", "Climbing out", "At any trapdoor below the Entrance you can climb out: a Camp material for every floor you've reached, a Crown Shard for every four, and one item sealed for your next run. Dying brings none of it"),
+    row("🖤", "Obsidian Chest", "Holds the item you sealed when you last climbed out. It waits in the Entrance of your next run; opening it empties it"),
     row("🧱", "Guard", "Needs a shield (Warriors can also Guard with a two-hander). Doubles your Armor (+2) this round, and your next attack hits 25% harder (Riposte)"),
     row("💨", "Dodge", "A % chance to avoid a hit entirely (max 60%). Not the same as Evade: Dodge bonuses and Evade bonuses don't trigger each other"),
     row("💥", "Crit damage", "A % boost to the damage of your Crits (on top of the usual double)"),
@@ -3106,6 +3159,9 @@ function render3() {
 
   // Crown Shards and Camp materials go to the Camp the moment they're found.
   if (!r.drill && bankCamp(meta, r)) saveMeta(meta);
+  // The Obsidian Chest: opening it empties it; climbing out seals a new item (one at a time).
+  if (r.obsidianTaken && meta.obsidian && r.obsidian && meta.obsidian.uid === r.obsidian.uid) { delete meta.obsidian; saveMeta(meta); }
+  if (r.extracted && !r.extracted.banked) { r.extracted.banked = true; if (r.extracted.item) meta.obsidian = structuredClone(r.extracted.item); saveMeta(meta); }
   // The leaderboard server keeps its own record of how far this run has got.
   if (r.sid && r.floor !== r.reportedFloor && s.t !== "over") void reportFloor(r);
   if (s.t === "over" && !recorded && r.endRecord) recorded = r.endRecord;
@@ -3122,6 +3178,7 @@ function render3() {
     s.t === "map" ? mapScene(r) : s.t === "combat" ? combatScene(r) : s.t === "loot" ? lootScene(r) : s.t === "pick" ? pickScene(r) : s.t === "gift" ? giftScene()
     : s.t === "resplendent" ? mapScene(r) : s.t === "talent" ? talentScene(r) : s.t === "shop" ? shopScene(r) : s.t === "forge" ? forgeScene(r) : s.t === "offering" ? forgeScene(r, true) : s.t === "fishing" ? `${fishingPanel("run")}<div class="fish-btns" style="margin:10px auto 0"><button class="plank-btn" data-leave>Leave the pool</button></div>` : s.t === "masterwork" ? masterworkScene(r)
     : s.t === "cleared" ? clearedScene(r)
+    : s.t === "extract" ? extractScene(r)
     : s.t === "omen" ? omenScene(r)
     : s.t === "smith" ? smithScene(r)
     : s.t === "alchemist" ? alchemistScene(r)
@@ -3154,7 +3211,7 @@ function render3() {
     }
   }
   // The Crawl: finds and encounters pop up over the map; every other scene sits in the dungeon's stone frame.
-  const POPS = ["gift", "loot", "pick", "event", "confirm", "rest", "tribute"];
+  const POPS = ["gift", "loot", "pick", "event", "confirm", "rest", "tribute", "extract"];
   // Something Strange: its event plays in a dark room of its own, not over the map.
   // (The Abyss's Omens play in a dark room too.)
   const strange = (s.t === "event" && !!s.strange && !!r.gridMode) || s.t === "omen";
@@ -3168,7 +3225,7 @@ function render3() {
   // Compare equipped is a page of its own: nothing else is drawn, so nothing can sit on top of it.
   const cmpPage = compareOpen ? comparePopup(r) : "";
   if (cmpPage) { app.innerHTML = cmpPage; bind(); stopWalk(); window.scrollTo(0, 0); return; }
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat(r.gridMode ? { icon: "👑", title: "Victory!", text: "The last guardian lies still, and the dungeon's deepest door stands open behind it. Whatever was waiting down here has met its end. Take what it kept: it's yours now." } : { icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${strange ? `<div class="strange-screen"><div class="strange-room"></div><div class="crawl-pop-wrap strange-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div></div>` : crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap ${s.t === "loot" || s.t === "pick" ? "item-page" : ""}"><div class="crawl-pop ${pageTint(s.t === "loot" || s.t === "pick" ? s.items : [])}">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode && invPick?.k !== "eq" && !armouryOpen ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}${levelPopup || winPopup || compareOpen ? "" : tipBubble(r)}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat(r.gridMode ? { icon: "👑", title: "Victory!", text: "The last guardian lies still, and the dungeon's deepest door stands open behind it. Whatever was waiting down here has met its end. Take what it kept: it's yours now." } : { icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${!relicNow && !r.popup && !levelPopup && !winPopup && s.t === "map" && r.runeOffer ? runePopup(r) : ""}${strange ? `<div class="strange-screen"><div class="strange-room"></div><div class="crawl-pop-wrap strange-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div></div>` : crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap ${s.t === "loot" || s.t === "pick" ? `item-page ${edgeGlow(s.items)}` : ""}"><div class="crawl-pop ${pageTint(s.t === "loot" || s.t === "pick" ? s.items : [])}">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode && invPick?.k !== "eq" && !armouryOpen ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}${levelPopup || winPopup || compareOpen ? "" : tipBubble(r)}`;
   bind();
   // Bookmarks that scroll sideways: keep the open one in view.
   document.querySelectorAll<HTMLElement>(".bm-tabs > .on, .mer-tabs > .on").forEach(el => { const p = el.parentElement!; if (p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, el.offsetLeft - 24); });
@@ -3564,6 +3621,8 @@ function bind() {
       run = nr; void startSession(nr);
     }
     function startCampaign() { mode = "campaign"; lbResult = null; lbNaming = false; const o = pendingOrigin; if (!o) return; pendingOrigin = null; recorded = null; celebrated.clear(); banked = 0; ackedTalentScene = null; winSeen = false; const nr = newRun(o, Date.now() & 0x7fffffff, mode, lockedIds(meta)); nr.nemesis = meta.nemesis; recompute(nr.hero); nr.legendaryDue = (meta.dryRuns ?? 0) >= 4;
+      // The Obsidian Chest: the item sealed by your last extraction waits in this run's Entrance.
+      if (meta.obsidian) nr.obsidian = structuredClone(meta.obsidian);
       // The Crawl is the game now; it sets out with the Hall's upgrades.
       startCrawl(nr);
       applyHall(meta, nr);
@@ -3637,11 +3696,18 @@ function bind() {
   on("[data-fisheat]", el => { const t = eatFish(r, el.dataset.fisheat!); fishCaught = null; if (t) { fishNote = t; sfx("heal"); } });
   on("[data-fishsell]", el => { const t = sellFish(r, el.dataset.fishsell!); fishCaught = null; if (t) { fishNote = t; sfx("coins"); } });
   on("[data-fishkeep]", () => { fishCaught = null; fishNote = "You wrap it up and stow it. It'll go home with you."; });
-  on("[data-retire]", () => { retireRun(r); });
+  on("[data-retire]", () => { if (!retireToExtract(r)) retireRun(r); });
   on("[data-take]", el => { compareOpen = null; const err = takeItem(r, Number(el.dataset.take), el.dataset.how as "equip" | "pack", el.dataset.slot as EquipSlot | undefined); say(err); if (!err) lootDone(); });
   on("[data-compare]", el => { compareOpen = { uid: Number(el.dataset.compare), slot: el.dataset.slot as EquipSlot | undefined }; });
   on("[data-compareclose]", () => { compareOpen = null; });
   on("[data-armoury]", () => { armouryOpen = true; });
+  on("[data-dropdeeper]", () => { dropDeeper(r); sfx("step"); });
+  on("[data-climbout]", () => { if (r.scene.t === "extract") r.scene = { t: "extract", pick: true }; });
+  on("[data-exback]", () => { if (r.scene.t === "extract") r.scene = r.scene.fromCleared ? { t: "cleared", ...r.scene.fromCleared } : { t: "extract" }; });
+  on("[data-exstay]", () => { stayOnFloor(r); });
+  on("[data-climb]", el => { const v = el.dataset.climb; say(climbOut(r, v === "none" ? null : Number(v))); sfx("win"); });
+  on("[data-rune]", el => { say(takeRune(r, Number(el.dataset.rune))); sfx("epic"); });
+  on("[data-runeskip]", () => { takeRune(r, null); });
   on("[data-armouryclose]", () => { armouryOpen = false; });
   on("[data-scrapfound]", el => { compareOpen = null; scrapFound(r, Number(el.dataset.scrapfound)); lootDone(); });
   on("[data-finish]", () => { r.message = ""; finishLoot(r); });

@@ -116,6 +116,8 @@ export interface Hero {
   powerScrolls?: PowerScroll[];
   /** One Keepsake at a time (from bosses after floor 5). */
   keepsake?: string;
+  /** Face Runes carved into the die this run: face (1–6) → the rune and its rank. */
+  runes?: Record<string, { id: string; rank: number }>;
   /** The Transmuter's Crucible: an artefact (not a relic). With it, the Forge can turn a Common into a Legendary. */
   crucible?: boolean;
   /** Torn from a slain dragon. Each further dragon slain raises its level. Unified at a Dragon Sanctum: every stat +50%. */
@@ -301,6 +303,8 @@ export function recompute(h: Hero) {
   f.persist["curseCount"] = curseCount;
   if (curseCount > 0) f.persist["everCursed"] = 1;
   if (h.keepsake) add(h.keepsake);
+  // Face Runes: each carved face adds its rune's hook, at its rank.
+  for (const [face, rn] of Object.entries(h.runes ?? {})) add(`rune_${rn.id}_${face}`, rn.rank);
   // Attributes (the Crawl): each one's passives, at their power.
   for (const a of ATTRS) { const n = attrOf(h, a); if (n > 0) add(`attr_${a}`, n); }
   if (!hasThirdTrinket(h) && h.equip.trinket3) { h.backpack.push(h.equip.trinket3); delete h.equip.trinket3; }

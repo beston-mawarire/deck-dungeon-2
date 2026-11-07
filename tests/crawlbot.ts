@@ -1,6 +1,6 @@
 // A bot that walks the Crawl: it explores, meets what it finds (skipping risky rooms), and heads for the boss once it's ready.
 import { idx, inside, isFloor, isSeenTile, pathTo, type FloorMap } from "../src/game/grid";
-import { confirmRisk, gridStep, type Run } from "../src/game/run";
+import { confirmRisk, dropDeeper, gridStep, takeRune, type Run } from "../src/game/run";
 import { botStep } from "./bot";
 import { spendAttr } from "../src/game/hero";
 
@@ -49,6 +49,7 @@ export function crawlStep(run: Run, rushAfter = 2) {
   // Spend attribute points as they come: Vitality and Strength, turn about.
   while ((run.hero.attrPoints ?? 0) > 0) spendAttr(run.hero, (run.hero.attrs?.vit ?? 0) > (run.hero.attrs?.str ?? 0) ? "str" : "vit");
   run.popup = undefined;
+  if (run.runeOffer) takeRune(run, 0);
   if (run.scene.t === "map") {
     const p = crawlTarget(run, rushAfter);
     for (const [x, y] of p) {
@@ -58,5 +59,7 @@ export function crawlStep(run: Run, rushAfter = 2) {
     return;
   }
   if (run.scene.t === "confirm") return confirmRisk(run, true);
+  // The trapdoor's choice: the bot always goes deeper. Face Runes: it takes the first.
+  if (run.scene.t === "extract") return dropDeeper(run);
   botStep(run);
 }

@@ -1950,7 +1950,7 @@ body.crawl-on { overflow: hidden; }
 .pick-spr { vertical-align: middle; }
 
 /* ---------- Dungeon buttons: dark wood and old bronze, nothing bright. Popups, events, the Merchant, the framed screens and the inventory. ---------- */
-:is(.crawl-pop, .grit-inner, .mer-screen, .inv-screen, .cz-pick) button:not(.attr-plus):not(.camp-quest):not(.gift-opt):not(.shop-tile):not(.shop-jar):not(.inv-slot):not(.at-name):not(.at-plus):not(.at-choose):not(.mer-chip):not([data-bagtab]):not([data-forgetab]):not([data-mwtab]):not([data-minv]):not(.forge-side):not(.cz-x):not(.plot):not(.garden-seed):not([data-achtab]) {
+:is(.crawl-pop, .grit-inner, .mer-screen, .inv-screen, .cz-pick) button:not(.attr-plus):not(.camp-quest):not(.gift-opt):not(.shop-tile):not(.shop-jar):not(.inv-slot):not(.at-name):not(.at-plus):not(.at-choose):not(.mer-chip):not([data-bagtab]):not([data-forgetab]):not([data-mwtab]):not([data-minv]):not(.forge-side):not(.cz-x):not(.plot):not(.garden-seed):not([data-achtab]):not(.ex-item):not(.ex-back) {
   background: linear-gradient(180deg, #3b2b1d, #261a10) !important; color: #ead7b3 !important; border: 2px solid #6b4c2c !important; border-radius: 7px !important;
   box-shadow: inset 0 1px 0 rgba(255,220,160,.10), 0 2px 0 #0d0805 !important; text-shadow: 0 1px 0 rgba(0,0,0,.6); font-weight: 700; }
 :is(.crawl-pop, .grit-inner, .mer-screen, .inv-screen, .cz-pick) button:is(.primary, .take-equip, .mer-act.primary, .cz-act):not(:disabled) {
@@ -2997,3 +2997,64 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
   .inv-small .arm-wrap { flex: 1 1 50%; display: flex; align-items: center; justify-content: center; }
   .inv-small .armoury-btn { width: auto; padding: 10px 26px; }
 }
+
+/* 2.6.0: a great find lights the screen: the edges glow in its rarity's colour, and embers drift up from the bottom. */
+.edge-glow { --eg: 170,100,255; }
+.edge-glow.edge-legendary { --eg: 255,150,40; } .edge-glow.edge-crimson { --eg: 255,40,70; }
+.crawl-pop-wrap.edge-glow::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  box-shadow: inset 0 0 0 2px rgba(var(--eg),.55), inset 0 0 38px 8px rgba(var(--eg),.45), inset 0 -60px 90px -20px rgba(var(--eg),.55);
+  animation: egPulse 2.4s ease-in-out infinite; }
+.crawl-pop-wrap.edge-glow::after { content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: 70vh; pointer-events: none; z-index: 0;
+  background-image:
+    radial-gradient(4px 4px at 8% 90%, rgba(var(--eg),.95), transparent 60%), radial-gradient(5px 5px at 17% 70%, rgba(255,230,180,.9), transparent 60%),
+    radial-gradient(4px 4px at 26% 85%, rgba(var(--eg),.9), transparent 60%), radial-gradient(4px 4px at 35% 60%, rgba(var(--eg),.8), transparent 60%),
+    radial-gradient(5px 5px at 44% 92%, rgba(255,230,180,.85), transparent 60%), radial-gradient(4px 4px at 53% 75%, rgba(var(--eg),.9), transparent 60%),
+    radial-gradient(4px 4px at 62% 88%, rgba(var(--eg),.85), transparent 60%), radial-gradient(5px 5px at 71% 66%, rgba(255,230,180,.8), transparent 60%),
+    radial-gradient(4px 4px at 80% 94%, rgba(var(--eg),.95), transparent 60%), radial-gradient(4px 4px at 89% 72%, rgba(var(--eg),.85), transparent 60%),
+    radial-gradient(4px 4px at 96% 86%, rgba(255,230,180,.85), transparent 60%), radial-gradient(4px 4px at 4% 64%, rgba(var(--eg),.75), transparent 60%);
+  background-size: 100% 100%; background-repeat: repeat-y;
+  -webkit-mask-image: linear-gradient(to top, #000 0%, rgba(0,0,0,.7) 35%, transparent 100%); mask-image: linear-gradient(to top, #000 0%, rgba(0,0,0,.7) 35%, transparent 100%);
+  animation: egRise 3.2s linear infinite; }
+.crawl-pop-wrap.edge-glow > .crawl-pop { position: relative; z-index: 1; }
+@keyframes egRise { from { background-position: 0 0; } to { background-position: 0 -70vh; } }
+@keyframes egPulse { 0%, 100% { opacity: .8; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .crawl-pop-wrap.edge-glow::before, .crawl-pop-wrap.edge-glow::after { animation: none; } }
+
+/* 2.6.0: the Face Rune offer. */
+.rune-wrap { z-index: 65; }
+.rune-pop { max-width: 440px; text-align: center; }
+.rune-pop .rune-title { margin: 2px 0 4px; font-family: Georgia, "Times New Roman", serif; color: #f3d58a; letter-spacing: .03em; }
+.rune-pop .rune-sub { margin: 0 0 12px; font-size: .85rem; color: #c9b48c; }
+.rune-list { display: flex; flex-direction: column; gap: 10px; }
+.popup .rune-card { display: flex; gap: 12px; align-items: center; text-align: left; width: 100%; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(180deg, #3a2716, #2a1b0e) !important; border: 2px dotted #c49a5a !important; color: #ead7b3 !important; box-shadow: 0 3px 0 #0d0805; }
+.popup .rune-card:hover:not([disabled]) { border-style: solid !important; box-shadow: 0 3px 0 #0d0805, 0 0 14px rgba(240,200,110,.35); }
+.popup .rune-card[disabled] { opacity: .45; cursor: default; }
+.rune-die { position: relative; flex: none; width: 54px; height: 54px; border-radius: 12px; display: grid; place-items: center;
+  background: linear-gradient(160deg, #f6ead0, #d9c294); box-shadow: inset 0 -3px 0 rgba(0,0,0,.25), 0 2px 6px rgba(0,0,0,.5); }
+.rune-die b { font-size: 1.6rem; color: #2a1708; font-family: Georgia, serif; }
+.rune-die i { position: absolute; right: -6px; bottom: -6px; font-style: normal; font-size: 1.2rem; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+.rune-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rune-txt b { color: #f3d58a; font-size: .98rem; } .rune-txt span { font-size: .86rem; } .rune-txt em { font-style: normal; font-size: .76rem; color: #a8916c; }
+.rune-skip { margin-top: 12px; }
+
+/* 2.6.0: the trapdoor's choice: descend, climb out, or not yet. */
+.ex-pop { text-align: center; }
+.ex-pop .ex-hole { display: flex; justify-content: center; margin: 4px 0 6px; filter: drop-shadow(0 0 14px rgba(255,210,120,.45)); }
+.ex-pop .ex-title { margin: 4px 0; font-family: Georgia, "Times New Roman", serif; color: #3a2210; }
+.ex-pop .ex-sub { margin: 0 0 10px; color: #5a3e22; }
+.ex-pop .ex-haul { text-align: left; background: rgba(60,35,15,.1); border: 2px dashed #8a6a40; border-radius: 12px; padding: 10px 12px; margin: 0 0 12px; }
+.ex-pop .ex-haul p { margin: 0 0 6px; color: #3a2210; } .ex-pop .ex-haul p:last-child { margin: 0; }
+.ex-pop .ex-more { color: #6a4a1a !important; font-weight: 600; }
+.ex-pop .ex-btns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; }
+.ex-pop .ex-btns .dg-gold { min-width: 150px; }
+.crawl-pop .ex-pop button.ex-back { background: none !important; border: none !important; box-shadow: none !important; color: #6a4a2a !important; text-decoration: underline; font-weight: 600; min-height: 0; padding: 6px 10px; }
+.ex-items { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; }
+.crawl-pop .ex-items button.ex-item { --rk: #7a6a52; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 8px 10px; border-radius: 10px;
+  background: rgba(255,250,236,.55) !important; border: 2px dotted var(--rk) !important; color: #2e1d0e !important; box-shadow: none !important; min-height: 0; }
+.crawl-pop .ex-items button.ex-item b { font-size: .88rem; } .crawl-pop .ex-items button.ex-item span { font-size: .72rem; color: #6a5236; }
+.ex-items .ex-item.r-uncommon { --rk: #2f8a4c; } .ex-items .ex-item.r-rare { --rk: #2a6fb8; } .ex-items .ex-item.r-epic { --rk: #7c3fc0; } .ex-items .ex-item.r-legendary { --rk: #c46a12; }
+.ex-items .ex-item:is(.r-crimson, .r-epic_crimson, .r-legendary_crimson) { --rk: #b8202f; }
+.exp-deeper { margin: 6px 0 2px; text-align: center; color: #f3d58a; font-size: .9rem; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+.ex-pop .ex-hole { font-size: 3rem; line-height: 1; filter: drop-shadow(0 0 12px rgba(255,200,110,.55)); }
+.exp-btns .exp-deeper { width: 100%; max-width: 260px; margin: 0 auto 8px; line-height: 1.35; }

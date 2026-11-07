@@ -9,6 +9,7 @@ import { BOUNTY_CAP, bountyReward } from "./pact";
 import { TAROT_MAP, TAROT_MAX_LEVEL, TAROT_SLOTS, tarotOffer, type TarotSlot } from "./tarot";
 import { OMENS_FOR_FOUR } from "./omens";
 import { makeRng } from "../engine/rng";
+import type { GearItem } from "../engine/types";
 import { DRILL_CROWNS } from "./drills";
 import { omensTaken } from "./run";
 import { ACHIEVEMENTS, heatOf, HEAT_RENOWN, type Kit, masteryFor, masteryLevel, MASTERY_MAX } from "./progress";
@@ -34,6 +35,8 @@ export interface HistoryEntry {
 export const HISTORY_SIZE = 10;
 
 export interface Meta {
+  /** The Obsidian Chest: one item sealed by your last extraction, waiting in the next run's Entrance. */
+  obsidian?: GearItem;
   /** The Camp's stores (Crown Shards, materials) and the Hall's upgrades. */
   camp?: import("./camp").CampStore;
   /** The Crawl: how many layers each class has beaten (its best run). Opens other classes and more of its loot. */

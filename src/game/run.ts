@@ -14,6 +14,7 @@ import { type Action, actionToll, BLESSINGS, BREWED_THROWS, isSkill, isUnholy, M
 import { eachHook, getItem } from "../engine/registry";
 import { makeRng } from "../engine/rng";
 import { applyStatus, heal as healF, isNegative, STATUS_INFO } from "../engine/statuses";
+import { NUMERALS, RUNE_MAP, RUNE_MAX_RANK, RUNES } from "../data/runes";
 import type { Battle, Fighter, GearItem, OriginId, Rarity, StatusId } from "../engine/types";
 import { RARITIES } from "../engine/types";
 import { autoBattleWins } from "./auto";
@@ -157,12 +158,13 @@ export const RUIN_FLOOR = 20;
 export const PLATE_CHANCE = 0.25;
 const tables = (run: Run): Record<keyof typeof ABYSS_TABLES, Partial<Record<Rarity, number>>> => (run.gridMode ? crawlTables(run.floor) : run.mode === "abyss" ? ABYSS_TABLES : { ...TABLES, uber: TABLES.boss });
 
-export type RoomType = "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller" | "masterwork" | "oath" | "secret" | "offering" | "pond";
+export type RoomType = "obsidian" | "doppelganger" | "sacred_spring" | "fallen_adventurer" | "starving_pilgrim" | "alchemist" | "blacksmith" | "gambling_den" | "fortune_teller" | "mirror_pool" | "card_sharp" | "sanguine" | "cleansing" | "nemesis" | "fight" | "elite" | "champion" | "wooden" | "iron" | "vault" | "altar" | "shrine" | "shop" | "forge" | "rest" | "event" | "boss" | "crimson_elite" | "crimson_vault" | "unique" | "goblin" | "sanctum" | "bounty" | "crossroads" | "jeweller" | "masterwork" | "oath" | "secret" | "offering" | "pond";
 
 export const ROOM_INFO: Record<RoomType, { name: string; icon: string; text: string }> = {
   fight: { name: "Monster", icon: "⚔️", text: "A fight. Gold, XP, maybe a drop." },
   elite: { name: "Elite", icon: "💀", text: "A tougher fight. Always drops an item." },
   champion: { name: "Champion", icon: "👹", text: "Very dangerous. Rare loot, often better." },
+  obsidian: { name: "Obsidian Chest", icon: "🖤", text: "The item you sealed when you last climbed out. It waits here for you." },
   wooden: { name: "Wooden Chest", icon: "📦", text: "An old wooden chest." },
   iron: { name: "Iron Chest", icon: "🧰", text: "A heavy chest, bound in iron." },
   vault: { name: "Guarded Vault", icon: "🏛️", text: "Beat a Champion, then open a Resplendent chest." },
@@ -243,6 +245,8 @@ export type Scene =
   /** Holy Tribute: pay Gold to lift curses one at a time, each costing more than the last. */
   | { t: "tribute"; paid: number }
   | { t: "cleared"; floor: number; boss: string }
+  /** At a trapdoor: drop deeper, or climb out with the haul (and, choosing, seal one item for the next run). */
+  | { t: "extract"; pick?: boolean; fromCleared?: { floor: number; boss: string } }
   | { t: "over"; won: boolean };
 
 export interface Run {
@@ -351,6 +355,13 @@ export interface Run {
   nextFoe?: string;
   /** The boss's rewards, waiting in the chest of its treasure room; and the drop out of that room under way. */
   bossChest?: Scene;
+  /** The item sealed in the Obsidian Chest by your last extraction (it waits in this run's Entrance), and whether it's been taken. */
+  obsidian?: GearItem;
+  obsidianTaken?: boolean;
+  /** Climbed out: the haul, and the item sealed for the next run. */
+  extracted?: { mats: number; crowns: number; floors: number; item?: GearItem; banked?: boolean };
+  /** Face Runes on offer (after an Elite, Champion or boss): pick one, or skip. */
+  runeOffer?: { id: string; face: number }[];
   gridDescend?: boolean;
   /** Which floor of this layer each service turns up on. */
   gridPlan?: Partial<Record<RoomType, number>>;
@@ -945,6 +956,8 @@ function makeEntrance(run: Run, explored: number): FloorMap {
   const corners: [number, number][] = [[7, 7], [11, 7], [7, 11], [11, 11]];
   const [tx, ty] = corners[Math.floor(rng() * corners.length)];
   m.things.push({ x: tx, y: ty, room: "trapdoor" });
+  // The Obsidian Chest: the item you sealed when you last climbed out, here in the Entrance with the Merchant.
+  if (run.obsidian && !run.obsidianTaken && run.floor === 1 && run.mode === "campaign") placeObsidian(m);
   m.torches = [(room.y - 1) * MAP_W + room.x + 1, (room.y - 1) * MAP_W + room.x + 3];
   look(m);
   return m;
@@ -1103,7 +1116,11 @@ export function gridStep(run: Run, x: number, y: number): { ok: true; entered: b
 function gridMeet(run: Run, t: number, seen: number[]): { ok: true; entered: boolean; seen: number[] } {
   const m = run.grid!;
   m.sel = undefined;
-  if (m.things[t].room === "trapdoor") { descend(run); return { ok: true, entered: true, seen }; }
+  // A trapdoor: drop deeper, or (below the Entrance) climb out with what you've got.
+  if (m.things[t].room === "trapdoor") {
+    if (canExtract(run)) { run.scene = { t: "extract" }; return { ok: true, entered: true, seen }; }
+    descend(run); return { ok: true, entered: true, seen };
+  }
   if (m.things[t].room === "urn") { smashUrn(run, t); m.px = m.bx!; m.py = m.by!; return { ok: true, entered: false, seen }; }
   if (m.things[t].room === "bosschest") {
     m.things[t].done = true;
@@ -1273,7 +1290,7 @@ export function descend(run: Run) {
 }
 
 /** Chests: once opened they stay on the map, empty. */
-export const CHEST_ROOMS = ["wooden", "iron", "vault", "secret", "crimson_vault", "bosschest"];
+export const CHEST_ROOMS = ["obsidian", "wooden", "iron", "vault", "secret", "crimson_vault", "bosschest"];
 /** Springs, altars, fountains, the Forge and other fixtures stay on the map once used, spent (you step back off them). */
 export const FIXTURE_ROOMS = ["sacred_spring", "mirror_pool", "cleansing", "sanguine", "altar", "oath", "shrine", "offering", "forge", "masterwork", "jeweller", "bounty", "sanctum", "pond", "rest", "event", "crossroads"];
 
@@ -1372,6 +1389,14 @@ function enterRoom(run: Run, room: RoomType) {
       if (h.crimsonKeys <= 0) return advance(run);
       h.crimsonKeys--;
       return fight(run, "boss", "crimson");
+    case "obsidian": {
+      // The Obsidian Chest: the item you sealed when you last climbed out.
+      run.obsidianTaken = true;
+      const it = run.obsidian;
+      if (!it) { run.message = "🖤 The Obsidian Chest is empty."; return; }
+      run.scene = { t: "loot", title: "Obsidian Chest", items: [it], gold: 0, scrolls: 0, potions: 0 };
+      return;
+    }
     case "wooden": {
       setGenLuck(genLuck(run));
       // The Crawl: a chest holds one item and nothing else.
@@ -1721,6 +1746,101 @@ export function drinkCleanse(run: Run): string | null {
   return null;
 }
 
+// ---------- Extraction ----------
+
+/** The Obsidian Chest goes on a free floor tile close to where you start (as close as can be, never on top of you). */
+function placeObsidian(m: FloorMap) {
+  const busy = new Set(m.things.map(t => idx(m, t.x, t.y)));
+  // (Walkable from where you stand, so it's never sealed off behind a wall.)
+  const canReach = reachable(m, m.px, m.py, busy);
+  let best = -1, bestD = Infinity;
+  for (let i = 0; i < m.tiles.length; i++) {
+    if (m.tiles[i] !== 1 || busy.has(i) || !canReach[i]) continue;
+    const x = i % m.w, y = Math.floor(i / m.w), d = Math.abs(x - m.px) + Math.abs(y - m.py);
+    if (d >= 2 && d < bestD) { best = i; bestD = d; }
+  }
+  if (best >= 0) m.things.push({ x: best % m.w, y: Math.floor(best / m.w), room: "obsidian" });
+}
+
+/** You can climb out at any trapdoor below the Entrance (and from the boss's treasure room), in the Crawl's campaign:
+ *  not in Drills, the Daily Dungeon or the Abyss. */
+export function canExtract(run: Run): boolean {
+  const m = run.grid;
+  return !!m && !!run.gridMode && run.mode === "campaign" && !run.drill && !run.daily && (m.depth >= 1 || m.depth === TREASURE_DEPTH);
+}
+/** After a layer's boss, heading back to the Camp is climbing out too: the haul, and an item to seal. */
+export function retireToExtract(run: Run): boolean {
+  if (run.scene.t !== "cleared" || !canExtract(run)) return false;
+  run.scene = { t: "extract", pick: true, fromCleared: { floor: run.scene.floor, boss: run.scene.boss } };
+  return true;
+}
+/** Floors reached this run (every layer counts its floors; the boss's treasure room counts as the bottom). */
+export function floorsReached(run: Run): number {
+  const m = run.grid, lf = layerFloors(run);
+  const d = !m ? 0 : m.depth === TREASURE_DEPTH ? lf : Math.min(m.depth, lf);
+  return (run.floor - 1) * lf + d;
+}
+/** What climbing out pays: a Camp material per floor reached, a Crown Shard for every four. */
+export function extractionHaul(run: Run, floors = floorsReached(run)) {
+  return { mats: floors, crowns: Math.floor(floors / 4), floors };
+}
+/** Climb out: the run ends as a success, the haul goes to the Camp, and one item you carry (or none) is sealed for next time. */
+export function climbOut(run: Run, uid: number | null): string | null {
+  if (run.scene.t !== "extract" || !canExtract(run)) return "You can't climb out from here.";
+  const haul = extractionHaul(run);
+  const h = run.hero;
+  const it = uid === null ? undefined : [...Object.values(h.equip), ...h.backpack].find(i => i?.uid === uid);
+  const keys = Object.keys(MATS) as Mat[];
+  for (let k = 0; k < haul.mats; k++) campGain(run, keys[Math.floor(run.rng() * keys.length)], 1);
+  if (haul.crowns) campGain(run, null, 0, haul.crowns);
+  run.extracted = { ...haul, item: it ? structuredClone(it) : undefined };
+  run.retired = true;
+  run.popup = undefined;
+  run.scene = { t: "over", won: false };
+  return null;
+}
+/** Not yet: step back off the trapdoor and keep exploring. */
+export function stayOnFloor(run: Run) {
+  const m = run.grid;
+  if (run.scene.t !== "extract" || !m) return;
+  if (m.bx !== undefined && m.by !== undefined) { m.px = m.bx; m.py = m.by; }
+  run.scene = { t: "map" };
+}
+/** Drop through the trapdoor after all. */
+export function dropDeeper(run: Run) {
+  if (run.scene.t !== "extract") return;
+  run.scene = { t: "map" };
+  descend(run);
+}
+
+/** Three Face Runes to choose from: three different runes, each on a face of the die (a face whose rune can rank up turns up now and then). */
+export function rollRuneOffer(run: Run): { id: string; face: number }[] {
+  const h = run.hero, ids = RUNES.map(r => r.id);
+  for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(run.rng() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+  return ids.slice(0, 3).map(id => {
+    const carved = Object.entries(h.runes ?? {}).find(([, v]) => v.id === id && v.rank < RUNE_MAX_RANK);
+    const face = carved && run.rng() < 0.5 ? Number(carved[0]) : 1 + Math.floor(run.rng() * 6);
+    return { id, face };
+  });
+}
+/** Carve the chosen rune into its face (the same rune there ranks up; another rune there is replaced). Null: no choice. */
+export function takeRune(run: Run, i: number | null): string | null {
+  const offer = run.runeOffer;
+  if (!offer) return null;
+  run.runeOffer = undefined;
+  if (i === null) return null;
+  const pick = offer[i];
+  if (!pick) return null;
+  const h = run.hero, runes = (h.runes ??= {});
+  const cur = runes[pick.face];
+  const info = RUNE_MAP.get(pick.id)!;
+  if (cur && cur.id === pick.id) cur.rank = Math.min(RUNE_MAX_RANK, cur.rank + 1);
+  else runes[pick.face] = { id: pick.id, rank: 1 };
+  recompute(h);
+  const rk = runes[pick.face].rank;
+  return `${info.icon} ${info.name} Rune${rk > 1 ? ` ${NUMERALS[rk]}` : ""} carved into your ${pick.face}s.`;
+}
+
 /** Take the Keepsake on offer (you can only hold one: it replaces yours). */
 export function takeKeepsake(run: Run): string | null {
   const s = run.scene;
@@ -1893,6 +2013,8 @@ function afterFight(run: Run) {
   if (death.on && b.round <= 3) h.f.persist["reaping"] = Math.min(Math.round(10 * death.boon), (h.f.persist["reaping"] ?? 0) + 1);
   // In the Crawl, foes only give XP (bosses still pay out, in their treasure room).
   const crawlFoe = run.gridMode && rank !== "boss" && (!then || then === "transformed" || then === "resplendent");
+  // Face Runes: beating an Elite, a Champion or a boss in the Crawl offers one.
+  if (run.gridMode && (rank === "elite" || rank === "champion" || rank === "boss" || rank === "crimson")) run.runeOffer = rollRuneOffer(run);
   // The Bestiary: every kind of foe beaten in the Crawl (and the toughest one of each seen).
   if (run.gridMode) {
     const e = b.enemy, k = ((run.kills ??= {})[e.name] ??= { n: 0, hp: 0, power: 0 });

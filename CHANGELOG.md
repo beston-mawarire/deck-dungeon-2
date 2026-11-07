@@ -9,6 +9,13 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.6.0
+- New: Face Runes. Beat an Elite, a Champion or a boss and you're offered three. Carve one into a face of your die for the rest of the run, whatever weapon you hold: Ember, Frost, Venom, Storm, Ward, Focus, Fury or Leech. One rune per face; the same rune again ranks it up to III. A banner shows each time one fires, and the Artefacts tab lists your carved faces.
+- New: climbing out. Every trapdoor below the Entrance asks: descend, or climb out? Climbing out ends the run as a success, with a Camp material for each floor you've reached, a Crown Shard for every four, and one item sealed for your next run. The screen shows what one more floor would add, and dying brings none of it. Heading back to the Camp after a boss works the same way.
+- New: the Obsidian Chest. It glows violet in the Entrance of your next run and holds your sealed item. Only one item at a time, and a new seal replaces the old one (you're warned first).
+- The Enter Dungeon screen says it plainly: the deeper you go, the more you can climb out with.
+- Great finds light up the screen. An Epic, Legendary or Crimson item's page glows at the screen's edges in its colour, with embers rising from the bottom.
+
 ## 2.5.1
 - About one run in three, the dungeon's wall torches burn the catacomb kind: a cold white-blue fire with a cool blue glow. Other runs keep the warm firelight. The mood holds for the whole run.
 
