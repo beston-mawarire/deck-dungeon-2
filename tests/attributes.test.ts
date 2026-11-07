@@ -43,13 +43,13 @@ describe("attributes", () => {
   it("a class's base attribute raises its base Damage", () => {
     const r = newRun("mage", 8); startCrawl(r);
     const dmg = r.hero.f.damage;
-    r.hero.attrs = { int: 3, str: 3 };
+    r.hero.attrs = { int: 2, str: 3 };
     recompute(r.hero);
-    // +1 base Damage for every 3 points.
+    // +1 base Damage for every 2 points (Strength does nothing for a Mage's base Damage).
     expect(r.hero.f.damage).toBe(dmg + 1);
     r.hero.attrs = { int: 5, str: 3 };
     recompute(r.hero);
-    expect(r.hero.f.damage).toBe(dmg + 1);
+    expect(r.hero.f.damage).toBe(dmg + 2);
     expect(attrOf(r.hero, "int")).toBe(5);
   });
   it("Intellect: +1 Max Mana for every 3 points, and mana carries over between fights", () => {

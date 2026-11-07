@@ -19,7 +19,7 @@ export const attrPower = (points: number, _base = false) => points;
 export const RESIST_CAP = 40;
 const pct = (n: number, per: number, cap = 100) => Math.min(cap, +(per * n).toFixed(1));
 /** Base-attribute points per +1 base Damage. */
-export const BASE_DMG_PER = 3;
+export const BASE_DMG_PER = 2;
 /** Intellect points per +1 Max Mana. */
 export const INT_MANA_PER = 3;
 /** Per point (kept small: a level is two points, and a run is many levels). */

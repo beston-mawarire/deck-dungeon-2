@@ -2456,7 +2456,7 @@ function helpPopup() {
       "Guardians show their next move. Plan around it."])}
     ${sec("Levels and attributes", [
       "Every level gives <b>1 attribute point</b> to spend in 🎒 → Attributes. Six attributes: Strength, Agility, Intellect, Faith, Vitality and Fortune. Tap one's name to see what it gives, and what one more point would.",
-      "Your class's own attribute (★) also adds +1 base Damage for every 3 points, by itself."])}
+      "Your class's own attribute (★) also adds +1 base Damage for every 2 points, by itself."])}
     ${sec("Statuses and reactions", [
       "Burn, Poison, Bleed, Chill, Shock, Static and more pile up on foes (and on you). Two statuses on the same fighter can <b>react</b>: Burn and Poison make Combustion, Static and Shock set off all the Static at once.",
       "Pile up enough Chill, Bleed or Poison and it <b>bursts</b>. Open 🎒 mid-fight to see what's active."])}

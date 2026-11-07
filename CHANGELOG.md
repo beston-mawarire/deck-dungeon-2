@@ -9,6 +9,9 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.4.2
+- A class's base attribute (★: Strength for the Warrior, Intellect for the Mage, and so on) gives +1 base Damage for every 2 points, down from every 3.
+
 ## 2.4.1
 - Throwables have their own blocks in the backpack instead of a chip in the materials row. They're half-height, two stacked per column, after your gear. Each shows its icon, name, how many you hold and what it does. They don't use backpack slots.
 
