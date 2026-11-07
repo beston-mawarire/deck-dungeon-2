@@ -86,6 +86,8 @@ export type Hazard = "spike" | "lava" | "sludge";
 /** What a spike trap costs each time you step on it, and how many steps a pool's burn lasts. */
 export const SPIKE_DMG = 2;
 export const POOL_STEPS = 4;
+/** Sludge (the toxic pools) chokes you for only 2 steps. */
+export const SLUDGE_STEPS = 2;
 /** Doors and cracked walls: you can't see past them until they're open. */
 const OPAQUE = ["locked", "crack"];
 const opaqueAt = (m: FloorMap, x: number, y: number) => m.things.some(t => !t.done && t.x === x && t.y === y && OPAQUE.includes(t.room));

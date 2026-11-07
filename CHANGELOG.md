@@ -9,6 +9,11 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.3.1
+- Toxic sludge pools poison you for 2 steps after you leave them, not 4. Lava still burns for 4.
+- The doors to Something Strange glow a pale, otherworldly blue, like the special foes do in their own colours.
+- The Merchant buys gear at 80% of its value (it was 40%), plus a little for the item's level.
+
 ## 2.3.0
 - New: the Cleansing Potion 🫧. Drink it in a fight to wash away your worst negative status (the one with the most stacks). It uses your action, like any potion, and you can carry 2. It's in your potion drawer, and in the Artefacts tab when you have one.
 - It's rare: Elites drop one 4% of the time, Champions 10%, urns 1%. About one Merchant in three stocks it, at 80 Gold before the shop's price modifier (a Mana Potion is 35).

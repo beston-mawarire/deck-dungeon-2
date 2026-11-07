@@ -34,7 +34,7 @@ import { classify } from "./families";
 import { tarotOf, tarotHeat, TAROT_MAP } from "./tarot";
 import { OMENS, OMEN_MAP } from "./omens";
 import { HEAT_LOOT_CAP, HEAT_LOOT_PER, PACT_MAP, pactHeat } from "./pact";
-import { openedAt, SIGHT, type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, type Hazard, idx, isFloor, isSeenTile, LAYER_FLOORS, layerFloors, layerOf, look, POOL_STEPS, SPIKE_DMG, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
+import { openedAt, SIGHT, type Tile, carve, dangerOf, DANGER_DMG, DANGER_HP, digPocket, GRID_DMG, GRID_HP, type Hazard, idx, isFloor, isSeenTile, LAYER_FLOORS, layerFloors, layerOf, look, POOL_STEPS, SLUDGE_STEPS, SPIKE_DMG, MAP_H, MAP_W, reachable, type FloorMap, type Rect, roomCenter, thingAt, walkDistances } from "./grid";
 
 /** Every floor has a name, so going deeper feels like going somewhere. */
 const FLOOR_NAMES = ["The Upper Halls", "The Flooded Crypts", "The Sunken Galleries", "The Bone Vaults", "The Source of the Darkness"];
@@ -915,7 +915,7 @@ export function hazardStep(run: Run): number {
   if (m.burn && m.burn > 0) { dmg += 1; m.burn--; if (!m.burn) m.burnKind = undefined; }
   const hz = m.haz?.[idx(m, m.px, m.py)];
   if (hz === "spike") dmg += Math.max(1, SPIKE_DMG - tough);
-  else if (hz === "lava" || hz === "sludge") { m.burn = Math.max(1, POOL_STEPS - tough); m.burnKind = hz; }
+  else if (hz === "lava" || hz === "sludge") { m.burn = Math.max(1, (hz === "sludge" ? SLUDGE_STEPS : POOL_STEPS) - tough); m.burnKind = hz; }
   if (!dmg) return 0;
   const was = h.f.hp;
   h.f.hp = Math.max(1, h.f.hp - dmg);
@@ -2380,8 +2380,10 @@ export function buy(run: Run, i: number): string | null {
 }
 
 /** What a Merchant pays for an item: 40% of its shop price, plus a little per level. */
+export const SELL_SHARE = 0.8;
 export const sellPrice = (item: GearItem, h?: Hero) => {
-  const n = Math.round(PRICE[item.rarity] * 0.4) + 2 * (item.level - 1);
+  // The Merchant pays 80% of an item's value (its base shop price), plus a little for its level.
+  const n = Math.round(PRICE[item.rarity] * SELL_SHARE) + 2 * (item.level - 1);
   return (h?.curses["c_tarnished"] ?? 0) > 0 ? Math.ceil(n / 2) : n;
 };
 

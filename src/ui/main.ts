@@ -906,7 +906,7 @@ function merchantScreen(r: Run, msg: string[], bad: boolean) {
       <section class="shop-sec"><h3 class="shop-h">Wares</h3><div class="shop-grid">${wareTiles || `<span class="mer-none">Sold out.</span>`}</div></section>
       ${shelfTiles ? `<section class="shop-sec"><h3 class="shop-h">Shelf</h3><div class="shop-shelf">${shelfTiles}</div></section>` : ""}
       ${reroll ? `<div class="shop-rr">${reroll}</div>` : ""}
-      <section class="shop-sec shop-sell"><h3 class="shop-h">Sell <span>The Merchant pays 40% of an item's price</span></h3>
+      <section class="shop-sec shop-sell"><h3 class="shop-h">Sell <span>The Merchant pays 80% of an item's value</span></h3>
         <div class="shop-tabs"><button class="${merInv === "equipped" ? "on" : ""}" data-minv="equipped">🛡️ Equipped</button><button class="${merInv === "backpack" ? "on" : ""}" data-minv="backpack">🎒 Backpack ${h.backpack.length}/${packSize(h)}</button></div>
         <div class="shop-grid">${mine}</div></section>
     </div>
@@ -2537,7 +2537,7 @@ function helpGlossary() {
     row("⚒️", "Masterwork", "From floor 2. Rework one line of an item; Extract an item's lines into a Scroll of Power (the item turns Common); Empower a Common of the same family with a scroll; Refine a Common so it holds more lines (up to 4). Materials: Scrap, 💠 Azure dust (scrap Rares), 🔶 Orilium (scrap Epics) and ✴️ Starmetal"),
     row("🩸", "Sanguine Altar", "Pay a share of your Max HP for Gold, Max HP, upgrades, gear or a fresh start from curses; the bigger the price, the better the gift"),
     row("⛲", "Cleansing", "The Well of Cleansing or a Holy Tribute: a way to lift your curses, for a price"),
-    row("🪙", "Merchant", "Buy gear, potions and throwables, and sell as much as you like (40% of its price)"),
+    row("🪙", "Merchant", "Buy gear, potions and throwables, and sell as much as you like (80% of its value)"),
     row("💍", "Jeweller", "Takes turns with the Forge. Fuse two Rare-or-better trinkets (costs Starmetal), infuse a trinket into your gear, or upgrade a trinket: the only place that can"),
     row("⚒", "Forged by chance", "Half of all gear is made fresh: a material (Iron, Frost-forged, Dragonscale…), a form, and effects. Rarer items get more effects, and some carry a drawback (⛓️). ✦ Greater, ✦✦ Grand and ✦✦✦ Mythic rolls are much stronger, and ⚡ Overcharged items are rare, wild and very strong"),
     row("🔮", "Talisman", "Sigils sit beside your gear (Gear → Sigils). Wear pieces of the same set for 2-, 3- and 4-piece bonuses. 2 slots to start, more on floors 3, 6, 10 and 15"),

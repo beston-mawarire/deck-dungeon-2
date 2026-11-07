@@ -128,7 +128,7 @@ function drawWall(ctx: CanvasRenderingContext2D, m: FloorMap, x: number, y: numb
 }
 
 /** The glow special foes wear (r,g,b). */
-const FOE_GLOW: Record<string, string> = { elite: "190,120,255", champion: "255,130,50", crimson_elite: "255,40,120", unique: "255,205,70", nemesis: "220,30,30", goblin: "200,230,80", doppelganger: "90,220,255" };
+const FOE_GLOW: Record<string, string> = { event: "130,205,255", elite: "190,120,255", champion: "255,130,50", crimson_elite: "255,40,120", unique: "255,205,70", nemesis: "220,30,30", goblin: "200,230,80", doppelganger: "90,220,255" };
 /** The trapdoor: a black square hole with a thin, softly glowing yellow rim, so it stands out. */
 function drawTrapdoor(ctx: CanvasRenderingContext2D, cx: number, cy: number, ts: number, boss = false) {
   const sz = ts * 0.86, x = cx - sz / 2, y = cy - sz / 2;
@@ -268,7 +268,8 @@ export function drawCrawl() {
       const sz = sk ? spriteSize(sk) : null;
       const scale = sz && sz.h > 24 && !big ? Math.min(ts / 16, (ts * 1.45) / sz.h) : ts / 16;
       // Special foes glow: an aura behind them, and their outline lit in the same colour (Elites violet, Champions orange,
-      // Crimson foes red-magenta, named Uniques gold, your Nemesis blood-red, Treasure Goblins green-gold, the Changeling cyan).
+      // Crimson foes red-magenta, named Uniques gold, your Nemesis blood-red, Treasure Goblins green-gold, the Changeling cyan;
+      // and the doors to Something Strange, a pale otherworldly blue).
       const glow = !t.done ? FOE_GLOW[t.room] : undefined;
       if (glow) {
         const pulse = 0.65 + 0.35 * Math.sin(now / 420 + t.x);
