@@ -49,7 +49,7 @@ export function crawlStep(run: Run, rushAfter = 2) {
   // Spend attribute points as they come: Vitality and Strength, turn about.
   while ((run.hero.attrPoints ?? 0) > 0) spendAttr(run.hero, (run.hero.attrs?.vit ?? 0) > (run.hero.attrs?.str ?? 0) ? "str" : "vit");
   run.popup = undefined;
-  if (run.runeOffer) takeRune(run, 0);
+  if (run.runeOffer || run.shuffleOffer) takeRune(run, run.runeOffer ? 0 : null);
   if (run.scene.t === "map") {
     const p = crawlTarget(run, rushAfter);
     for (const [x, y] of p) {

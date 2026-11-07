@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadLibrary } from "../src/data";
 import { canExtract, chooseRoom, climbOut, extractionHaul, floorsReached, gridStep, makeGrid, newRun, startCrawl } from "../src/game/run";
-import { bankCamp, campOf, unpackPouch } from "../src/game/camp";
+import { bankCamp, campOf } from "../src/game/camp";
 import type { Meta } from "../src/game/meta";
 loadLibrary();
 const meta = (): Meta => ({ renown: 0, runs: 0, wins: 0, bestFloor: 0, found: [] } as unknown as Meta);
@@ -55,7 +55,7 @@ describe("Climbing out and the Obsidian Chest", () => {
     expect(Object.values(campOf(m).mats).reduce((a, n) => a + (n ?? 0), 0)).toBe(0);
     expect(campOf(m).pouch).toBeUndefined();
   });
-  it("the pouch takes the run's materials to a chest in the Garden, to unpack", () => {
+  it("the pouch takes the run's materials straight into the Storehouse", () => {
     const r = newRun("rogue", 14); startCrawl(r);
     r.mode = "campaign";
     r.grid = makeGrid(r, 3, 0);
@@ -64,10 +64,15 @@ describe("Climbing out and the Obsidian Chest", () => {
     const m = meta();
     bankCamp(m, r);
     const c = campOf(m);
-    expect(Object.values(c.pouch!.mats).reduce((a, n) => a + (n ?? 0), 0)).toBe(3);
-    expect(unpackPouch(m)).toBe(true);
-    expect(Object.values(c.mats).reduce((a, n) => a + (n ?? 0), 0)).toBe(3);
     expect(c.pouch).toBeUndefined();
+    expect(Object.values(c.mats).reduce((a, n) => a + (n ?? 0), 0)).toBe(3);
+  });
+  it("an old save's unopened pouch goes into the Storehouse", () => {
+    const m = { renown: 0, runs: 0, wins: 0, camp: { crowns: 0, mats: { bone: 1 }, hall: {}, pouch: { mats: { bone: 2, hide: 1 }, seeds: { heartleaf: 1 } } } } as never;
+    const c = campOf(m);
+    expect(c.pouch).toBeUndefined();
+    expect(c.mats).toEqual({ bone: 3, hide: 1 });
+    expect(c.seeds?.heartleaf).toBe(1);
   });
   it("dying brings home nothing", () => {
     const r = newRun("mage", 15); startCrawl(r);

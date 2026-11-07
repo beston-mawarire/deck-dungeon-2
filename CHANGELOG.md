@@ -9,6 +9,13 @@ Versions follow MAJOR.MINOR.PATCH:
 
 
 
+## 2.8.0
+- **One gift per drop**: every trapdoor (the first one from the Entrance too) now brings a single gift for your die, either a Face Rune or, now and then, a Shuffler. Accept it or leave it.
+- **📦 The Storehouse**: a new room in the Camp, off the Quest Board, that keeps your materials, seeds, herbs and bottled brews in one place.
+- The 👝 Pouch now goes straight into the Storehouse when you climb out: no more unpacking in the Garden (a pouch you hadn't unpacked yet has been put away for you).
+- Climbing out ends on an **Escape** screen.
+- **New in the crawl**: slides explaining the new mechanics (Face Runes, Shufflers, The Way Up, taking one thing home, dying, the Storehouse, the new plants) each time you enter the Camp. Swipe through them, or switch them off (also in Options).
+
 ## 2.7.0
 - **Face Runes or a Shuffler after every descent**, the first drop from the Entrance included. Pick a rune for one face of your die, or a Shuffler that rewrites which faces Miss, Graze, Hit or Crit (Twin Crowns: 2s and 6s Crit for half damage; Low Roller: 1s Crit; and more). One Shuffler at a time; six-sided dice only, so a Legendary's bigger die keeps its own faces.
 - **More rune effects**, and not only elemental: +2 Gold, 2 Bleed, 10% Stun chance, +2 Damage, 2 Spikes, 1 Exposed, +1 Mana, alongside the old ones.

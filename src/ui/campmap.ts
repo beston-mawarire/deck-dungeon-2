@@ -13,7 +13,9 @@ const ROOMS: { id: string; name: string; cx: number; cy: number; side: "n" | "s"
   // The Tarot room: off the Weapon Mastery room, through a short passage (side "x": no passage of its own to the hall).
   { id: "tarot", name: "Tarot Room", cx: 19, cy: 22, side: "x" },
   // The Drills yard: off the Passive Tree's room, the same way.
-  { id: "drills", name: "Drills", cx: 3, cy: 22, side: "x" }
+  { id: "drills", name: "Drills", cx: 3, cy: 22, side: "x" },
+  // The Storehouse: off the Quest Board's room, the same way (crates, sacks and a seed chest).
+  { id: "storehouse", name: "Storehouse", cx: 3, cy: 2, side: "x", tiles: [[3, 2], [2, 2]] }
 ];
 /** Where everything stands (x, y). */
 export const CAMP_SPOTS: CampSpot[] = [...ROOMS.map(r => ({ id: r.id, name: r.name, tiles: r.tiles ?? [[r.cx, r.cy]] as [number, number][] })), { id: "pond", name: "Still Pool", tiles: [[14, 15], [15, 15]] }];
@@ -28,6 +30,7 @@ const FLOOR = (() => {
   dig(HUB.x0, HUB.y0, HUB.x1, HUB.y1);
   dig(17, 22, 17, 22);
   dig(5, 22, 5, 22);
+  dig(5, 2, 5, 2);
   for (const r of ROOMS) {
     dig(r.cx - 1, r.cy - 1, r.cx + 1, r.cy + 1);
     if (r.side === "n") dig(r.cx, r.cy + 2, r.cx, HUB.y0 - 1);
@@ -209,6 +212,19 @@ function drawSpot(ctx: CanvasRenderingContext2D, s: CampSpot, ts: number, ox: nu
         ctx.strokeStyle = "#e8c066"; ctx.lineWidth = Math.max(1, ts / 32); ctx.strokeRect(cx + k * ts * 0.22 - ts * 0.09, cy - ts * 0.26, ts * 0.18, ts * 0.27); ctx.restore();
       }
       ctx.fillStyle = `rgba(255,240,190,${0.6 + 0.4 * glow})`; ctx.beginPath(); ctx.arc(cx, cy - ts * 0.13, ts * 0.035, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+    case "storehouse": {
+      // Stacked crates, a bulging sack and a little seed chest.
+      shadow(0.4);
+      drawSprite(ctx, "crate", cx - ts * 0.16, by, sc * 0.95);
+      drawSprite(ctx, "crate", cx - ts * 0.16, by - ts * 0.5, sc * 0.8);
+      ctx.fillStyle = "#8a6a3a"; ctx.beginPath(); ctx.ellipse(cx + ts * 0.26, cy + ts * 0.22, ts * 0.2, ts * 0.22, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#6e5129"; ctx.beginPath(); ctx.ellipse(cx + ts * 0.26, cy + ts * 0.02, ts * 0.08, ts * 0.05, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#4a3418"; ctx.lineWidth = Math.max(1, ts / 28); ctx.beginPath(); ctx.moveTo(cx + ts * 0.18, cy + ts * 0.06); ctx.lineTo(cx + ts * 0.34, cy + ts * 0.06); ctx.stroke();
+      const [x2, y2] = at(s.tiles[1][0], s.tiles[1][1], ts, ox, oy);
+      drawSprite(ctx, "chest_wood", x2 + ts * 0.5, y2 + ts - ts * 0.06, sc * 0.9);
+      ctx.fillStyle = "#7cc04a"; ctx.beginPath(); ctx.ellipse(x2 + ts * 0.62, y2 + ts * 0.42, ts * 0.07, ts * 0.04, -0.6, 0, Math.PI * 2); ctx.fill();
       break;
     }
     case "abyss": {

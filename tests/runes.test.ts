@@ -82,3 +82,31 @@ describe("Shufflers", () => {
     for (let k = 0; k < 20; k++) { const o = rollShuffleOffer(r); expect(o).toHaveLength(2); expect(o).not.toContain("all_in"); }
   });
 });
+
+import { rollDescentGift, SHUFFLE_GIFT_CHANCE } from "../src/game/run";
+describe("the gift on a drop", () => {
+  it("is one Face Rune or one Shuffler, never both, and a Shuffler comes now and then", () => {
+    const r = newRun("warrior", 91); startCrawl(r);
+    let shuf = 0;
+    for (let k = 0; k < 400; k++) {
+      rollDescentGift(r);
+      const runes = r.runeOffer?.length ?? 0, shufs = r.shuffleOffer?.length ?? 0;
+      expect(runes + shufs).toBe(1);
+      if (shufs) shuf++;
+    }
+    expect(shuf / 400).toBeGreaterThan(SHUFFLE_GIFT_CHANCE - 0.1);
+    expect(shuf / 400).toBeLessThan(SHUFFLE_GIFT_CHANCE + 0.1);
+  });
+  it("leaving it clears it, whether it was a rune or a Shuffler", () => {
+    const r = newRun("warrior", 92); startCrawl(r);
+    r.runeOffer = undefined; r.shuffleOffer = ["low_roller"];
+    expect(takeRune(r, null)).toBeNull();
+    expect(r.shuffleOffer).toBeUndefined();
+    expect(r.hero.shuffle).toBeUndefined();
+  });
+  it("never offers a rune already at its highest rank on that face", () => {
+    const r = newRun("warrior", 93); startCrawl(r);
+    r.hero.runes = Object.fromEntries([1, 2, 3, 4, 5, 6].map(f => [f, { id: "ember", rank: 3 }]));
+    for (let k = 0; k < 200; k++) { rollDescentGift(r); const o = r.runeOffer?.[0]; if (o) expect(o.id).not.toBe("ember"); }
+  });
+});

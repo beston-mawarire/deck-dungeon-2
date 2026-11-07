@@ -1292,8 +1292,8 @@ export function descend(run: Run) {
   const hf2 = run.hero.f, back = Math.min(hf2.maxHp - hf2.hp, Math.round(hf2.maxHp * (run.floor === 1 && run.mode !== "abyss" ? DROP_HEAL_FIRST : DROP_HEAL)));
   if (back > 0 && hf2.hp > 0) hf2.hp += back;
   run.grid = makeGrid(run, m.depth + 1, m.explored);
-  // Every drop offers a choice: a Face Rune, or a Shuffler (not in Drills or the Abyss).
-  if (run.mode !== "abyss" && !run.drill) { run.runeOffer = rollRuneOffer(run); run.shuffleOffer = rollShuffleOffer(run); }
+  // Every drop brings one gift for your die: a Face Rune, or now and then a Shuffler. Take it or leave it (not in Drills or the Abyss).
+  if (run.mode !== "abyss" && !run.drill) rollDescentGift(run);
   if (run.floor === 1) run.hero.f.persist["l1depth"] = Math.max(run.hero.f.persist["l1depth"] ?? 0, m.depth + 1);
   // Still burning from the floor above: it carries on down.
   if (m.burn) { run.grid.burn = m.burn; run.grid.burnKind = m.burnKind; }
@@ -1842,6 +1842,18 @@ export function dropDeeper(run: Run) {
   descend(run);
 }
 
+/** How often a drop brings a Shuffler instead of a Face Rune. */
+export const SHUFFLE_GIFT_CHANCE = 0.3;
+/** The gift for your die on a drop: one Face Rune (never one that's already at its highest rank on that face), or one Shuffler. */
+export function rollDescentGift(run: Run) {
+  run.runeOffer = undefined;
+  run.shuffleOffer = undefined;
+  if (run.rng() < SHUFFLE_GIFT_CHANCE) { run.shuffleOffer = rollShuffleOffer(run).slice(0, 1); return; }
+  for (let k = 0; k < 8; k++) {
+    const o = rollRuneOffer(run).find(x => { const cur = run.hero.runes?.[x.face]; return !(cur && cur.id === x.id && cur.rank >= RUNE_MAX_RANK); });
+    if (o) { run.runeOffer = [o]; return; }
+  }
+}
 /** Three Face Runes to choose from: three different runes, each on a face of the die (a face whose rune can rank up turns up now and then). */
 export function rollRuneOffer(run: Run): { id: string; face: number }[] {
   const h = run.hero, ids = RUNES.map(r => r.id);
@@ -1871,10 +1883,9 @@ export function takeShuffle(run: Run, id: string): string | null {
 /** Carve the chosen rune into its face (the same rune there ranks up; another rune there is replaced). Null: no choice. */
 export function takeRune(run: Run, i: number | null): string | null {
   const offer = run.runeOffer;
-  if (!offer) return null;
   run.runeOffer = undefined;
   run.shuffleOffer = undefined;
-  if (i === null) return null;
+  if (!offer || i === null) return null;
   const pick = offer[i];
   if (!pick) return null;
   const h = run.hero, runes = (h.runes ??= {});

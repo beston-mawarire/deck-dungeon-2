@@ -47,7 +47,7 @@ import { CLASS_SPRITE, foeSprite, hasSprite, spriteHtml, spriteSize, THING_SPRIT
 import { gearAttr, setViewLevel, spendAttr, TYPE_MARK, treeAttr, potionCap, potionsPerFight, manaPotionCap, CLEANSE_POTION_CAP, newHero, heroTags } from "../game/hero";
 import { bountyProgress, bountyText, makeOffers, rewardText, type Bounty } from "../game/bounty";
 import { makeRng } from "../engine/rng";
-import { unpackPouch, BREWS, type BrewKind, INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
+import { BREWS, type BrewKind, INSIGHTS, learn, applyHall, bankCamp, bottle, BREW_HERBS, brewBand, buyHall, campOf, gardenPlots, HALL, hallRank, harvest, MATS, PLANTS, sow, startBrew, stir, type Brew, type Mat, type Plant } from "../game/camp";
 import { pingSession } from "./leaderboard";
 import { classify, FAMILY_NAME } from "../game/families";
 import { applyRework, canAfford, canEmpowerTarget, costText, empower, empowerBlock, extract, extractBlock, MAX_REFINE, refine, refineBlock, refineCost, rework, reworkBlock, reworkCost, SCROLL_SLOTS, scrapScroll, scrollName, scrollScrapValue } from "../game/masterwork";
@@ -917,7 +917,7 @@ function merchantScreen(r: Run, msg: string[], bad: boolean) {
 
 /** The Camp's tabs, as stone archways in a row (it scrolls sideways on a phone). */
 const CAMP_TABS: { id: CampTab; icon: string; name: string }[] = [
-  { id: "expedition", icon: "🗺️", name: "Enter Dungeon" }, { id: "quests", icon: "📋", name: "Quest Board" }, { id: "hall", icon: "🏛️", name: "Hall" },
+  { id: "expedition", icon: "🗺️", name: "Enter Dungeon" }, { id: "storehouse", icon: "📦", name: "Storehouse" }, { id: "quests", icon: "📋", name: "Quest Board" }, { id: "hall", icon: "🏛️", name: "Hall" },
   { id: "skills", icon: "🧭", name: "Paths" }, { id: "garden", icon: "🌱", name: "Garden" }, { id: "brewery", icon: "⚗️", name: "Brewery" },
   { id: "knowledge", icon: "📚", name: "Knowledge" }, { id: "tree", icon: "🌳", name: "Passive Tree" }, { id: "weapons", icon: "⚔️", name: "Weapon Mastery" },
   { id: "pond", icon: "🎣", name: "Still Pool" }, { id: "trophies", icon: "🏆", name: "Trophy Room" }, { id: "bestiary", icon: "📖", name: "Bestiary" },
@@ -960,14 +960,29 @@ function campBody(o: OriginId, tab: CampTab): string {
         </div>`;
       }).join("")}</div>`;
   }
+  if (tab === "storehouse") {
+    // Everything the Camp keeps from the dungeon: materials, seeds, herbs from the Garden, and bottles waiting for your next run.
+    const c = campOf(meta), all = Object.keys(PLANTS) as Plant[];
+    const cell = (icon: string, n: number, name: string, sub = "") => `<div class="store-cell ${n ? "" : "none"}"><span class="sc-ic">${icon}</span><b>${n}</b><span class="sc-nm">${esc(name)}${sub ? `<em>${esc(sub)}</em>` : ""}</span></div>`;
+    const shelf = (title: string, cells: string, empty: string) => `<h3 class="store-h">${title}</h3>${cells ? `<div class="store-grid">${cells}</div>` : `<p class="sub center">${empty}</p>`}`;
+    const mats = (Object.keys(MATS) as Mat[]).map(k => cell(MATS[k].icon, c.mats[k] ?? 0, MATS[k].name, `from ${MATS[k].family} foes`)).join("");
+    const seeds = all.filter(k => (c.seeds?.[k] ?? 0) > 0).map(k => cell(PLANTS[k].seedIcon, c.seeds![k]!, PLANTS[k].seed)).join("");
+    const herbs = all.filter(k => (c.herbs?.[k] ?? 0) > 0).map(k => cell(PLANTS[k].icon, c.herbs![k]!, PLANTS[k].name, "for the Brewery")).join("");
+    const bottles = (Object.keys(c.brews ?? {}) as BrewKind[]).filter(k => (c.brews![k] ?? 0) > 0).map(k => cell(BREWS[k].icon, c.brews![k]!, BREWS[k].name, "goes with you next run")).join("");
+    return `<p>Everything you've carried home from the dungeon is kept here. Materials pay for the Hall's upgrades; seeds go to the Garden, herbs to the Brewery.</p>
+      <div class="store-crowns">👑 <b>${c.crowns}</b> Crown Shard${c.crowns === 1 ? "" : "s"}${c.scrolls ? ` · 📜 <b>${c.scrolls}</b> Scroll${c.scrolls === 1 ? "" : "s"} of Knowledge` : ""}</div>
+      ${shelf("🧺 Materials", mats, "")}
+      ${shelf("🌰 Seeds", seeds, "No seeds. Champions and Elites carry them, and now and then one hides in a chest.")}
+      ${shelf("🌿 Herbs", herbs, "No herbs. Grow some in the Garden.")}
+      ${shelf("🧪 Bottled", bottles, "Nothing bottled. Brew something in the Brewery.")}
+      <p class="sub center">Die in the dungeon and what you were carrying stays down there. Climb out with your 👝 Pouch to bring its materials and seeds here.</p>`;
+  }
   if (tab === "garden") {
     const c = campOf(meta), plots = gardenPlots(meta);
     const all = Object.keys(PLANTS) as Plant[];
     const seeds = all.filter(k => (c.seeds?.[k] ?? 0) > 0).map(k => `<button class="garden-seed ${sowing === k ? "on" : ""}" data-sow="${k}">${PLANTS[k].seedIcon} <b>${c.seeds?.[k] ?? 0}</b> ${esc(PLANTS[k].seed)}<span>${PLANTS[k].runs} run${PLANTS[k].runs === 1 ? "" : "s"} · ${PLANTS[k].weapon ? "grows into a weapon" : `brews ${esc(BREWS[PLANTS[k].brew].name)}`}</span></button>`).join("");
     const herbs = all.filter(k => (c.herbs?.[k] ?? 0) > 0).map(k => `${PLANTS[k].icon} ${c.herbs![k]} ${esc(PLANTS[k].name)}`).join(" · ");
-    const pouch = c.pouch, pouchList = pouch ? [...Object.entries(pouch.mats).map(([k, n]) => `${MATS[k as Mat].icon} ${n} ${MATS[k as Mat].name}`), ...Object.entries(pouch.seeds).map(([k, n]) => `${PLANTS[k as Plant].seedIcon} ${n} ${PLANTS[k as Plant].seed}`)].join(" · ") : "";
-    const pouchBox = pouch ? `<div class="pouch-box"><span class="pb-ic">👝</span><div class="pb-txt"><b>Your pouch from the dungeon</b><span>${pouchList || "Empty"}</span></div><button class="plank-btn" data-unpack>Unpack</button></div>` : "";
-    return `${pouchBox}<p>Seeds turn up below: Champions and Elites carry them, and now and then one hides in a chest. Sow them here; they grow while you're down in the dungeon, a run or two, and give two or three herbs for the Brewery.</p>
+    return `<p>Seeds turn up below: Champions and Elites carry them, and now and then one hides in a chest. Sow them here; they grow while you're down in the dungeon, a run or two, and give two or three herbs for the Brewery.</p>
       ${seeds ? `<div class="garden-seeds">${seeds}</div>` : `<p class="sub center">No seeds in store. Bring some home from the dungeon.</p>`}
       ${sowing ? `<p class="sub center">Now tap an empty plot to sow your ${esc(PLANTS[sowing].seed)}.</p>` : ""}
       <div class="garden-plots">${plots.map((p, i) => !p
@@ -2010,7 +2025,7 @@ function armouryPage(h: Hero, cards: string) {
 }
 /** What a climb out took home, in words. */
 function sealText(seal: ObsidianSeal | undefined, pouch?: boolean) {
-  if (pouch) return "your pouch of materials and seeds, waiting in a chest in the Camp's Garden";
+  if (pouch) return "your pouch of materials and seeds, in the Camp's Storehouse";
   if (seal?.item) return `${itemName(seal.item)}, sealed in the Obsidian Chest for your next run`;
   if (seal?.gold !== undefined) return `${seal.gold} Gold, sealed in the Obsidian Chest for your next run`;
   if (seal?.potions) return `your potions (${seal.potions.heal} 🧪 · ${seal.potions.mana} 🔷 · ${seal.potions.cleanse} 🫧), sealed in the Obsidian Chest for your next run`;
@@ -2032,7 +2047,7 @@ function extractScene(r: Run) {
     return `<div class="ex-pop"><h2 class="ex-title">Take one thing with you</h2>
       <p class="ex-sub">Everything else stays in the dark.${replaces}</p>
       <div class="ex-items">
-        ${opt("pouch", "👝", "Your pouch", `${mats} material${mats === 1 ? "" : "s"}${seeds ? ` · ${seeds} seed${seeds === 1 ? "" : "s"}` : ""}: into a chest in the Garden`, mats + seeds > 0)}
+        ${opt("pouch", "👝", "Your pouch", `${mats} material${mats === 1 ? "" : "s"}${seeds ? ` · ${seeds} seed${seeds === 1 ? "" : "s"}` : ""}: into the Camp's Storehouse`, mats + seeds > 0)}
         ${opt("gold", "🪙", `${h.f.gold} Gold`, "Sealed for your next run", h.f.gold > 0)}
         ${opt("potions", "🧪", "Your potions", `${h.potions} 🧪 · ${h.manaPotions} 🔷 · ${h.cleansePotions ?? 0} 🫧: sealed for your next run`, pots > 0)}
       </div>
@@ -2048,28 +2063,33 @@ function extractScene(r: Run) {
     <div class="ex-btns"><button class="plank-btn" data-climbout>🧗 Climb out</button><button class="ex-back" data-exstay>Not yet</button></div></div>`;
 }
 
-/** The Face Rune offer: three runes, each for one face of your die. */
+/** The gift on a drop: one Face Rune or one Shuffler, to take or leave. */
 function runePopup(r: Run) {
-  const h = r.hero, offer = r.runeOffer ?? [];
-  const cards = offer.map((o, i) => {
+  const h = r.hero, o = r.runeOffer?.[0], shId = r.shuffleOffer?.[0];
+  let card = "", take = "", title = "";
+  if (o) {
     const info = RUNE_MAP.get(o.id)!, cur = h.runes?.[o.face], curInfo = cur ? RUNE_MAP.get(cur.id) : undefined;
     const rank = cur && cur.id === o.id ? Math.min(RUNE_MAX_RANK, cur.rank + 1) : 1;
-    const maxed = !!cur && cur.id === o.id && cur.rank >= RUNE_MAX_RANK;
-    const note = cur && cur.id === o.id ? (maxed ? "Already at its highest rank" : `Ranks up to ${NUMERALS[rank]}`) : curInfo ? `Replaces ${curInfo.icon} ${curInfo.name}` : "An empty face";
-    return `<button class="rune-card" data-rune="${i}" ${maxed ? "disabled" : ""}>
+    const note = cur && cur.id === o.id ? `Ranks up to ${NUMERALS[rank]}` : curInfo ? `Replaces ${curInfo.icon} ${curInfo.name} on your ${o.face}s` : `Your ${o.face}s have no rune yet`;
+    title = "🎲 A Face Rune";
+    card = `<div class="rune-card rune-one">
       <span class="rune-die"><b>${o.face}</b><i>${info.icon}</i></span>
-      <span class="rune-txt"><b>${esc(info.name)} Rune${rank > 1 ? ` ${NUMERALS[rank]}` : ""}</b><span>${esc(runeText(info, o.face, rank))}</span><em>${esc(note)}</em></span></button>`;
-  }).join("");
-  const shufs = (r.shuffleOffer ?? []).map(id => { const sh = SHUFFLER_MAP.get(id)!; return `<button class="rune-card shuf-card" data-shuffle="${id}">
+      <span class="rune-txt"><b>${esc(info.name)} Rune${rank > 1 ? ` ${NUMERALS[rank]}` : ""}</b><span>${esc(runeText(info, o.face, rank))}</span><em>${esc(note)}</em></span></div>`;
+    take = `data-rune="0"`;
+  } else if (shId) {
+    const sh = SHUFFLER_MAP.get(shId)!;
+    title = "🔀 A Shuffler";
+    card = `<div class="rune-card shuf-card rune-one">
       <span class="rune-die shuf-die">${sh.icon}</span>
-      <span class="rune-txt"><b>${esc(sh.name)}</b><span>${esc(sh.text)}</span><em>${h.shuffle ? `Replaces ${esc(SHUFFLER_MAP.get(h.shuffle)?.name ?? "")}` : "A Shuffler for your die"}</em></span></button>`; }).join("");
+      <span class="rune-txt"><b>${esc(sh.name)}</b><span>${esc(sh.text)}</span><em>${h.shuffle ? `Replaces ${esc(SHUFFLER_MAP.get(h.shuffle)?.name ?? "")}` : "It rewrites your die's faces"}</em></span></div>`;
+    take = `data-shuffle="${shId}"`;
+  } else return "";
   return `<div class="overlay popup-wrap rune-wrap"><div class="popup rune-pop">
-    <h2 class="rune-title">Deeper down: pick one</h2>
-    <p class="rune-sub">It stays with your die for the rest of the run, whatever weapon you hold.</p>
-    <h3 class="rune-h">🎲 A Face Rune</h3>
-    <div class="rune-list">${cards}</div>
-    ${shufs ? `<h3 class="rune-h">🔀 Or a Shuffler</h3><div class="rune-list">${shufs}</div>` : ""}
-    <button class="plank-btn rune-skip" data-runeskip>Leave them</button>
+    <h2 class="rune-title">Deeper down</h2>
+    <p class="rune-sub">Something for your die. It stays for the rest of the run, whatever weapon you hold.</p>
+    <h3 class="rune-h">${title}</h3>
+    <div class="rune-list">${card}</div>
+    <div class="rune-btns"><button class="plank-btn rune-skip" data-runeskip>Leave it</button><button class="plank-btn rune-take" ${take}>Accept</button></div>
   </div></div>`;
 }
 /** A great find (Epic, Legendary, any Crimson) lights the screen's edges in its colour, with embers rising from the bottom. */
@@ -2447,7 +2467,7 @@ function dieMagik(r: Run) {
   return `<h3 class="center dm-h">🎲 Your die</h3>
     <div class="dm-grid">${faces}</div>
     ${sh ? `<div class="af-tile dm-shuf"><span class="af-ic">${sh.icon}</span><div class="af-txt"><b>${esc(sh.name)} <em>Shuffler</em></b><span>${esc(sh.text)}${h.f.faces.length !== 6 ? " (Waiting: your die isn't six-sided.)" : ""}</span></div></div>` : ""}
-    <p class="sub center dm-note">Each drop through a trapdoor offers a Face Rune or a Shuffler.</p>`;
+    <p class="sub center dm-note">Each drop through a trapdoor brings a Face Rune or a Shuffler: take it or leave it.</p>`;
 }
 const omenList = (r: Run) => Object.keys(r.hero.omens ?? {}).length ? `<h3 class="center">👁️ Omens</h3><div class="af-list">${Object.entries(r.hero.omens!).map(([id, n]) => { const o = OMEN_MAP.get(id)!; return `<div class="af-tile"><span class="af-ic">${o.icon}</span><div class="af-txt"><b>${esc(o.name)}${n > 1 ? ` <em>×${n}</em>` : ""}</b><span>✦ ${esc(o.boon)} · ✖ ${esc(o.bane)}</span></div></div>`; }).join("")}</div>` : "";
 
@@ -2571,7 +2591,7 @@ function helpPopup() {
       "Rarities: Common, <span style='color:var(--uncommon)'>Uncommon</span>, <span style='color:var(--rare)'>Rare</span>, <span style='color:var(--epic)'>Epic</span>, <span style='color:var(--legendary)'>Legendary</span> and <span style='color:var(--crimson)'>Crimson</span>. Finds get richer layer by layer; every chest has a small Epic and Legendary chance, growing to its best on the last floor. Some gear needs a level before you can wear it, and some arrives hidden: a 📜 Scroll of Revelation shows what it does.",
       "Chests, Elites, Champions, named Unique foes, guardians, the Merchant, the Forge and stranger places along the way all give gear. What turns up leans toward your class."])}
     ${sec("The Camp", [
-      "Between runs, the Camp keeps what you bring home: the Hall's upgrades, the Garden and the Brewery, Scrolls of Knowledge, the Bestiary, the Trophy Room (with the Ledger of every path), the Still Pool and Weapon Mastery.",
+      "Between runs, the Camp keeps what you bring home: the 📦 Storehouse holds your materials, seeds and herbs. There's the Hall's upgrades, the Garden and the Brewery, Scrolls of Knowledge, the Bestiary, the Trophy Room (with the Ledger of every path), the Still Pool and Weapon Mastery.",
       "Beat the 1st Layer and a class's <b>Passive Tree</b> opens: one point for every layer beaten. Beat the whole dungeon to make a <b>Heat</b> pact (harder runs, richer loot), and to find the <b>Abyss</b>, whose warden gives <b>Tarot</b> cards: carry two into a run from the Tarot Room.",
       "The <b>Drills</b> yard holds ten short challenge runs with one rule each, for medals and titles."])}
     ${sec("Tips", [
@@ -2602,10 +2622,10 @@ function helpGlossary() {
   ${group("📊 Your stats", [
     row("⚔️", "Damage", "Added to every hit, then multiplied by the face: Graze ×½, Hit ×1, Crit ×2"),
     row("🛡️", "Armor", "Stops part of each hit: 3 Armor stops 21%, 10 stops 45%, 20 stops 60%, 30 stops 68%, 60 stops 77%. No cap, but each extra point counts for a little less. Crits and spells ignore it"),
-    row("🎲", "Face Runes", "Every drop through a trapdoor (the first one from the Entrance too) offers three: carve one into a face of your die for the rest of the run (Burn, Bleed, Stun chance, +2 Gold, +2 Damage, Mana and more). The same rune again on its face ranks it up (to III). See them in 🎒 → Magik"),
-    row("🔀", "Shufflers", "Offered beside the runes: a Shuffler rewrites which faces of your die Miss, Graze, Hit or Crit (say, 1s Crit too, or 2s and 6s Crit for half damage). One at a time; a new one replaces the old. Only six-sided dice; a Legendary's bigger die keeps its own faces"),
+    row("🎲", "Face Runes", "Every drop through a trapdoor (the first one from the Entrance too) brings one gift for your die: a Face Rune, or now and then a Shuffler. Accept it or leave it. A rune is carved into one face of your die for the rest of the run (Burn, Bleed, Stun chance, +2 Gold, +2 Damage, Mana and more). The same rune again on its face ranks it up (to III). See them in 🎒 → Magik"),
+    row("🔀", "Shufflers", "Sometimes a drop brings a Shuffler instead of a rune: it rewrites which faces of your die Miss, Graze, Hit or Crit (say, 1s Crit too, or 2s and 6s Crit for half damage). One at a time; a new one replaces the old. Only six-sided dice; a Legendary's bigger die keeps its own faces"),
     row("🧗", "Climbing out", "At The Way Up you can climb out: a Crown Shard for every four floors you've reached, your Scrolls of Knowledge, and one thing sealed in the Obsidian Chest: an item, the Gold you carry, your potions, or your 👝 Pouch. Die down there and you keep none of it"),
-    row("👝", "Pouch", "Seal your Pouch when you climb out and all the materials and seeds you found that run come home, waiting in a pouch in the Garden. Without it they stay down there"),
+    row("👝", "Pouch", "Seal your Pouch when you climb out and all the materials and seeds you found that run go home to the Camp's 📦 Storehouse. Without it they stay down there"),
     row("🖤", "Obsidian Chest", "Holds what you sealed when you last climbed out (an item, your Gold or your potions). It waits in the Entrance of your next run; opening it empties it, and so does dying before you open it"),
     row("🌱", "The Garden's harvest", "Grow herbs for the Brewery: potions and draughts, and fight tonics that don't use your turn (Sweetroot heals a little, Stoutroot adds 25% Max HP for the fight, Frostmoss Salve blocks elemental statuses for 4 rounds, Banewort weakens and exposes Elites, Champions and bosses). Treadleaf Tea makes floor hazards harmless for 2 floors. Steelvine grows into a weapon, and sometimes a very good one"),
     row("🧱", "Guard", "Needs a shield (Warriors can also Guard with a two-hander). Doubles your Armor (+2) this round, and your next attack hits 25% harder (Riposte)"),
@@ -2795,7 +2815,8 @@ function optionsPopup() {
       ${musicSliders(undefined, false)}`)}
     ${sec("⚔️", "Gameplay", `
       ${opt("Combat speed", "How fast dice roll and blows land.", `<div class="seg">${sp(1, "Normal")}${sp(0.5, "Fast")}${sp(0.2, "Very fast")}</div>`)}
-      ${opt("Tips", "A short tip the first time each thing happens.", `<div class="seg"><button class="small ${meta.tipsOff ? "" : "primary"}" data-tipstoggle>${meta.tipsOff ? "Off" : "On"}</button><button class="small" data-tipsreset>Show again</button></div>`)}`)}
+      ${opt("Tips", "A short tip the first time each thing happens.", `<div class="seg"><button class="small ${meta.tipsOff ? "" : "primary"}" data-tipstoggle>${meta.tipsOff ? "Off" : "On"}</button><button class="small" data-tipsreset>Show again</button></div>`)}
+      ${opt("New in the crawl", "The slides on the new crawl mechanics, each time you enter the Camp.", `<div class="seg"><button class="small ${meta.campIntroOff ? "" : "primary"}" data-citoggle>${meta.campIntroOff ? "Off" : "On"}</button></div>`)}`)}
     ${sec("💾", "Progress & backup", `
       <p class="sub">Your Camp, the Codex and any saved run are kept in this browser${leaderboardOn() ? ", with a copy online" : ""}.</p>
       ${backupPanel()}`)}
@@ -2867,7 +2888,53 @@ function masteryPanel(_o: OriginId) {
 let kitPick: KitSlot | null = null;
 /** The Camp: the hero you've brought there, the tab open, and the contract taken at its Quest Board. */
 let camp: OriginId | null = null;
-type CampTab = "expedition" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "tree" | "weapons" | "abyss" | "trophies" | "bestiary" | "pond" | "tarot" | "drills";
+/** The "new in the crawl" slides, shown each time you walk into the Camp (unless switched off). */
+let campIntro = false;
+/** The new crawl mechanics, a page each: a picture and a few lines. */
+function campIntroPopup(o: OriginId) {
+  const die = (n: number, icon: string) => `<span class="rune-die ci-die"><b>${n}</b><i>${icon}</i></span>`;
+  const chip = (icon: string, t: string) => `<span class="ci-chip">${icon} ${esc(t)}</span>`;
+  const hero = hasSprite(CLASS_SPRITE[o]) ? spriteHtml(CLASS_SPRITE[o], 4) : "";
+  const ri = (id: string) => RUNE_MAP.get(id)?.icon ?? "✨";
+  const tw = SHUFFLER_MAP.get("twin_crowns");
+  const pages: { art: string; title: string; text: string }[] = [
+    { art: `<div class="ci-row">${die(6, ri("ember"))}${die(2, ri("rend"))}${die(4, ri("gild"))}</div>`, title: "🎲 Face Runes",
+      text: "Every time you drop through a trapdoor, the dungeon offers your die a gift. A Face Rune gives one face an effect: Burn, Bleed, a Stun chance, +2 Gold, +2 Damage and more. Get the same rune again on that face and it ranks up." },
+    { art: `<div class="ci-row"><span class="rune-die shuf-die ci-die">${tw?.icon ?? "🔀"}</span><span class="ci-arrow">→</span>${chip("2", "Crit")}${chip("6", "Crit")}</div>`, title: "🔀 Shufflers",
+      text: "Sometimes the gift is a Shuffler instead. It rewrites your die: 1s that Crit, or 2s and 6s that both Crit for half damage. You get one gift per drop: accept it or leave it." },
+    { art: `<div class="ci-row ci-glow">${spriteHtml("floor_ladder", 5)}${hero}</div>`, title: "🧗 The Way Up",
+      text: "Below the Entrance, most floors have a ladder in a nook of its own. Climb it to end the run and go home with something. Trapdoors only go down." },
+    { art: `<div class="ci-row ci-violet">${spriteHtml("chest_arcane", 5)}</div><div class="ci-row">${chip("🗡️", "Gear")}${chip("🪙", "Gold")}${chip("🧪", "Potions")}${chip("👝", "Pouch")}</div>`, title: "🖤 Take one thing",
+      text: "Climbing out, you take one thing with you: a piece of gear, your Gold or your potions waits in the Obsidian Chest at your next run's Entrance. Or take your Pouch to bring home every material and seed you found." },
+    { art: `<div class="ci-row ci-red">${spriteHtml("skull", 5)}</div>`, title: "💀 Die, and keep nothing",
+      text: "Fall down there and it all stays down there: materials, seeds, and anything you'd have taken home. The deeper you go, the better the finds. Know when to climb." },
+    { art: `<div class="ci-row">${spriteHtml("crate", 4)}${spriteHtml("crate", 4)}${spriteHtml("chest_wood", 4)}</div>`, title: "📦 The Storehouse",
+      text: "Everything you bring home is kept in the Camp's new Storehouse, off the Quest Board: materials for the Hall, seeds for the Garden, herbs for the Brewery, and bottles for your next run." },
+    { art: `<div class="ci-row ci-plants">${(["sweetroot", "stoutroot", "frostmoss", "banewort", "treadleaf", "steelvine"] as Plant[]).map(k => `<span>${PLANTS[k].icon}</span>`).join("")}</div>`, title: "🌱 New plants",
+      text: "Sweetroot heals a little in a fight. Stoutroot gives +25% Max HP for a fight. Frostmoss blocks elemental statuses for 4 rounds. Banewort weakens Elites, Champions and bosses. Treadleaf Tea makes hazards harmless. Steelvine grows into a weapon." }
+  ];
+  return `<div class="ci-wrap"><div class="ci-pop">
+    <div class="ci-head"><h2>New in the crawl</h2><button class="ci-x" data-ciclose aria-label="Close">✕</button></div>
+    <div class="ci-track">${pages.map((p, i) => `<section class="ci-page" data-cipage="${i}"><div class="ci-art">${p.art}</div><h3>${p.title}</h3><p>${p.text}</p></section>`).join("")}</div>
+    <div class="ci-dots">${pages.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div>
+    <div class="ci-btns"><button class="plank-btn ci-prev" disabled>Back</button><button class="plank-btn ci-next">Next</button></div>
+    <button class="ci-off" data-cioff>Don't show this again</button>
+  </div></div>`;
+}
+/** Swipe (or Back / Next) through the slides; the dots follow. */
+function mountCampIntro() {
+  const tr = app.querySelector<HTMLElement>(".ci-track");
+  if (!tr) return;
+  const n = tr.children.length, dots = [...app.querySelectorAll<HTMLElement>(".ci-dots i")];
+  const prev = app.querySelector<HTMLButtonElement>(".ci-prev")!, next = app.querySelector<HTMLButtonElement>(".ci-next")!;
+  const page = () => Math.round(tr.scrollLeft / Math.max(1, tr.clientWidth));
+  const sync = () => { const i = page(); dots.forEach((d, k) => d.classList.toggle("on", k === i)); prev.disabled = i === 0; next.textContent = i >= n - 1 ? "Into the Camp" : "Next"; };
+  tr.addEventListener("scroll", sync, { passive: true });
+  prev.onclick = ev => { ev.stopPropagation(); sfx("click"); tr.scrollTo({ left: (page() - 1) * tr.clientWidth, behavior: "smooth" }); };
+  next.onclick = ev => { ev.stopPropagation(); sfx("click"); if (page() >= n - 1) { campIntro = false; render(); return; } tr.scrollTo({ left: (page() + 1) * tr.clientWidth, behavior: "smooth" }); };
+  dots.forEach((d, k) => (d.onclick = () => tr.scrollTo({ left: k * tr.clientWidth, behavior: "smooth" })));
+}
+type CampTab = "expedition" | "storehouse" | "quests" | "hall" | "skills" | "garden" | "brewery" | "knowledge" | "tree" | "weapons" | "abyss" | "trophies" | "bestiary" | "pond" | "tarot" | "drills";
 let campTab: CampTab = "expedition";
 let campOffers: Bounty[] | null = null;
 let campQuest: number | null = null;
@@ -3172,8 +3239,9 @@ function render3() {
   if (!run && updateReady()) applyUpdate();
   playMusic(run ? "game" : "title", musicPlace(), run?.grid ? `${run.floor}:${run.grid.depth}` : "");
   if (!run) {
-    app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${tipBubble(null)}${treeNode ? treeNodePopup(camp) : ""}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "Deck Dungeon 3 is here, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
+    app.innerHTML = camp && view === "title" ? `${campScreen(camp)}${campIntro ? campIntroPopup(camp) : tipBubble(null)}${treeNode ? treeNodePopup(camp) : ""}${camp && kitPick ? kitPopup(camp, kitPick) : ""}${helpOpen ? helpPopup() : ""}` : view === "splash" && optionsOpen ? optionsPage() : view === "splash" ? `${splashScreen()}${resetPopup ? storyBeat({ icon: "🌅", title: "The Great Reset", text: "Deck Dungeon 3 is here, so every hero starts afresh. Your old progress has been cleared and the leaderboards are empty: the climb begins again, for everyone. Good luck!" }, "data-closereset") : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}` : view === "codex" ? codexScreen() : view === "changes" ? changesScreen() : `${titleScreen()}${abyssIntroOpen ? abyssIntro() : ""}${challengesOpen ? challengesPopup() : ""}${infoOpen && !helpOpen && !historyOpen && !achOpen ? infoPopup() : ""}${historyOpen ? historyPopup() : ""}${achOpen ? achievementsPopup() : ""}${pendingOrigin ? originPopup(pendingOrigin) : ""}${pendingOrigin && kitPick ? kitPopup(pendingOrigin, kitPick) : ""}${storyOpen ? storyPopup(storyOpen) : ""}${helpOpen ? helpPopup() : ""}${lbOpen ? leaderboardPopup() : ""}`;
     bind();
+    if (camp && campIntro) mountCampIntro();
     if (camp) mountCampMap({ open: id => { campRoom = id as CampTab; campTab = id as CampTab; render(); }, origin: () => camp ?? "warrior", locked: id => (id === "abyss" && !abyssUnlocked(meta)) || (id === "tree" && !allClassesOpen(meta)), sfx: k => sfx(k as never) });
     return;
   }
@@ -3258,7 +3326,7 @@ function render3() {
   const strange = (s.t === "event" && !!s.strange && !!r.gridMode) || s.t === "omen";
   const crawlPop = !!r.gridMode && !!r.grid && POPS.includes(s.t) && !strange;
   const crawlView = (s.t === "map" || s.t === "resplendent" || crawlPop) && !!r.gridMode && !!r.grid;
-  const FRAMED: Record<string, string> = { forge: "Forge", offering: "Offering Altar", fishing: "Still Pool", masterwork: "Masterwork", jeweller: "Jeweller", alchemist: "Alchemist", smith: "Blacksmith", sanctum: "Dragon Sanctum", bounty: "Bounty Board", talent: "Level Up", cleared: "Layer Conquered", over: r.scene.t === "over" && (r.scene.won || r.retired) ? "Victory" : "Fallen" };
+  const FRAMED: Record<string, string> = { forge: "Forge", offering: "Offering Altar", fishing: "Still Pool", masterwork: "Masterwork", jeweller: "Jeweller", alchemist: "Alchemist", smith: "Blacksmith", sanctum: "Dragon Sanctum", bounty: "Bounty Board", talent: "Level Up", cleared: "Layer Conquered", over: r.scene.t === "over" && r.extracted ? "Escape" : r.scene.t === "over" && (r.scene.won || r.retired) ? "Victory" : "Fallen" };
   const crawlFrame = !!r.gridMode && !!FRAMED[s.t];
   const crawlFight = s.t === "combat" && !!r.gridMode;
   const crawlShop = s.t === "shop" && !!r.gridMode;
@@ -3266,7 +3334,7 @@ function render3() {
   // Compare equipped is a page of its own: nothing else is drawn, so nothing can sit on top of it.
   const cmpPage = compareOpen ? comparePopup(r) : "";
   if (cmpPage) { app.innerHTML = cmpPage; bind(); stopWalk(); window.scrollTo(0, 0); return; }
-  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat(r.gridMode ? { icon: "👑", title: "Victory!", text: "The last guardian lies still, and the dungeon's deepest door stands open behind it. Whatever was waiting down here has met its end. Take what it kept: it's yours now." } : { icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${!relicNow && !r.popup && !levelPopup && !winPopup && s.t === "map" && r.runeOffer ? runePopup(r) : ""}${strange ? `<div class="strange-screen"><div class="strange-room"></div><div class="crawl-pop-wrap strange-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div></div>` : crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap ${s.t === "loot" || s.t === "pick" ? `item-page ${edgeGlow(s.items)}` : ""}"><div class="crawl-pop ${pageTint(s.t === "loot" || s.t === "pick" ? s.items : [])}">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode && invPick?.k !== "eq" && !armouryOpen ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}${levelPopup || winPopup || compareOpen ? "" : tipBubble(r)}`;
+  app.innerHTML = `${lbOpen ? leaderboardPopup() : ""}${helpOpen ? helpPopup() : ""}${r.popup && !levelPopup ? storyBeat(r.popup) : ""}${winPopup ? storyBeat(r.gridMode ? { icon: "👑", title: "Victory!", text: "The last guardian lies still, and the dungeon's deepest door stands open behind it. Whatever was waiting down here has met its end. Take what it kept: it's yours now." } : { icon: "👑", title: "Victory!", text: "Your efforts have proven true! The gates of darkness have been shut. The kingdom has been saved!" }, "data-closewin") : ""}${levelPopup ? levelUpPopup(r) : ""}${relicNow ? relicPopup(relicNow, r.relicNews!.length - 1) : !levelPopup && !winPopup && s.t !== "combat" && r.relicChoice ? relicChoicePopup(r) : !levelPopup && !winPopup && s.t !== "combat" && nextLore(r) ? lorePopup(nextLore(r)!) : ""}${!relicNow && !r.popup && !levelPopup && !winPopup && s.t === "map" && (r.runeOffer || r.shuffleOffer) ? runePopup(r) : ""}${strange ? `<div class="strange-screen"><div class="strange-room"></div><div class="crawl-pop-wrap strange-wrap"><div class="crawl-pop">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div></div>` : crawlView ? crawlScreen(r, crawlPop ? [] : msg, noteBad && !!note) + (crawlPop ? `<div class="crawl-pop-wrap ${s.t === "loot" || s.t === "pick" ? `item-page ${edgeGlow(s.items)}` : ""}"><div class="crawl-pop ${pageTint(s.t === "loot" || s.t === "pick" ? s.items : [])}">${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}</div></div>` : "") : crawlFrame ? `<div class="cb-screen grit-screen"><div class="mer-inner grit-inner"><div class="mer-sign"><i class="chain l"></i><i class="chain r"></i><div class="plank">${FRAMED[s.t]}</div></div>${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}<div class="grit-body">${body}</div></div></div>` : crawlFight ? crawlCombat(r, msg, noteBad && !!note) : crawlShop ? merchantScreen(r, msg, noteBad && !!note) : `${sideEquip(r)}${hud(r)}${msg.map((m, i) => `<div class="toast ${i === msg.length - 1 && noteBad && note ? "err" : ""}">${esc(m)}</div>`).join("")}${body}<p class="version">${VERSION}</p>`}${s.t === "resplendent" ? resplendentScene(r) : ""}${bagOpen ? (r.gridMode ? crawlBag(r) : bag(r)) : ""}${bagOpen && r.gridMode && invPick?.k !== "eq" && !armouryOpen ? `<button class="cz-circle big cz-bagx" data-closebag aria-label="Close the inventory">✕</button>` : ""}${bountyOpen && r.bounty ? bountyPopup(r) : ""}${menuOpen ? runMenu(r) : ""}${forgeAsk && (s.t === "forge" || s.t === "offering") ? forgeAskPopup(r) : ""}${levelPopup || winPopup || compareOpen ? "" : tipBubble(r)}`;
   bind();
   // Bookmarks that scroll sideways: keep the open one in view.
   document.querySelectorAll<HTMLElement>(".bm-tabs > .on, .mer-tabs > .on").forEach(el => { const p = el.parentElement!; if (p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, el.offsetLeft - 24); });
@@ -3479,6 +3547,7 @@ function bind() {
   on("[data-mute]", () => toggleMute());
   on("[data-tipok]", el => { (meta.tips ??= []).push(el.dataset.tipok!); saveMeta(meta); });
   on("[data-tipsoff]", () => { meta.tipsOff = true; saveMeta(meta); });
+  on("[data-citoggle]", () => { meta.campIntroOff = !meta.campIntroOff; saveMeta(meta); });
   on("[data-tipstoggle]", () => { meta.tipsOff = !meta.tipsOff; saveMeta(meta); });
   on("[data-tipsreset]", () => { meta.tips = []; meta.tipsOff = false; saveMeta(meta); });
   on("[data-togglemusic]", () => toggleMusic());
@@ -3603,17 +3672,18 @@ function bind() {
     on("[data-continue]", () => { stopWalk(); const l = loadRun(); if (!l) { say("That saved run couldn't be loaded."); clearSave(); return; } run = l.run; banked = l.banked; recorded = null; celebrated.clear(); winSeen = false; ackedTalentScene = null; mode = run.mode;
       // A finished run that never reached the leaderboard is sent now.
       if (run.scene.t === "over" && !run.lbDone) { run.submitted = false; lbResult = null; if (playerName()) sendRun(run); } });
-    on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; tavLine = null; campTab = "expedition"; campRoom = null; resetCampWalk(); campOffers = null; campQuest = null; });
+    on("[data-tocamp]", () => { const o = pendingOrigin; if (!o) return; pendingOrigin = null; camp = o; campIntro = !meta.campIntroOff; tavLine = null; campTab = "expedition"; campRoom = null; resetCampWalk(); campOffers = null; campQuest = null; });
     on("[data-closeroom]", () => { campRoom = null; expPop = null; trapIntro = false; fishCaught = null; fishNote = ""; if (fishLine) { for (const t of fishLine.timers) clearTimeout(t); fishLine = null; } });
     on("[data-fishcast]", () => fishStart());
     on("[data-fishstrike]", () => fishStrike());
     on("[data-exppop]", el => { expPop = (el.dataset.exppop || null) as typeof expPop; });
     on("[data-startlayer]", el => { startLayer = Number(el.dataset.startlayer); expPop = null; });
     on("[data-campback]", () => { camp = null; kitPick = null; });
+    on("[data-ciclose]", () => { campIntro = false; });
+    on("[data-cioff]", () => { campIntro = false; meta.campIntroOff = true; saveMeta(meta); });
     on("[data-camptab]", el => { campTab = el.dataset.camptab as CampTab; });
     on("[data-learn]", el => { const err = learn(meta, el.dataset.learn!); if (err) say(err); else { saveMeta(meta); sfx("chest"); } });
     on("[data-sow]", el => { const k = el.dataset.sow as Plant; sowing = sowing === k ? null : k; });
-    on("[data-unpack]", () => { if (unpackPouch(meta)) { saveMeta(meta); say("👝 Unpacked: the materials and seeds are in the Camp's stores."); sfx("chest"); } });
     on("[data-plot]", el => {
       const i = Number(el.dataset.plot), p = gardenPlots(meta)[i];
       if (!p && sowing) { const err = sow(meta, i, sowing); if (err) say(err); else { saveMeta(meta); sfx("status"); if (!(campOf(meta).seeds?.[sowing] ?? 0)) sowing = null; } return; }
@@ -3864,7 +3934,7 @@ function bind() {
   on("[data-rest]", () => say(rest(r, "heal")));
   on("[data-risk]", el => confirmRisk(r, el.dataset.risk === "yes"));
   on("[data-event]", el => chooseEvent(r, Number(el.dataset.event)));
-  on("[data-newrun]", () => { clearSave(); camp = r.mode === "campaign" || r.mode === "endless" ? r.hero.origin : null; campTab = r.drill ? "drills" : "expedition"; campRoom = r.drill ? "drills" : null; resetCampWalk(); campOffers = null; campQuest = null; view = "title"; run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
+  on("[data-newrun]", () => { clearSave(); camp = r.mode === "campaign" || r.mode === "endless" ? r.hero.origin : null; campIntro = !!camp && !r.drill && !meta.campIntroOff; campTab = r.drill ? "drills" : "expedition"; campRoom = r.drill ? "drills" : null; resetCampWalk(); campOffers = null; campQuest = null; view = "title"; run = null; bagOpen = false; meta = loadMeta(); lbResult = null; lbNaming = false; });
   on("[data-endless]", () => { if (run) { run.submitted = false; run.lbDone = false; run.endRecord = undefined; } lbResult = null; continueEndless(r); recorded = null; });
   on("[data-unequip]", el => { const sl = el.dataset.unequip as EquipSlot, uid = r.hero.equip[sl]?.uid; const err = unequip(r.hero, sl); say(err); if (!err && uid !== undefined) { invPick = { k: "bp", uid }; sfx("equip"); } });
   on("[data-equip]", el => { compareOpen = null; const uid = Number(el.dataset.equip); const it = r.hero.backpack.find(i => i.uid === uid); if (!it) return; const err = equipItem(r.hero, it, el.dataset.slot as EquipSlot); say(err); if (!err) { const sl = EQUIP_SLOTS.find(k => r.hero.equip[k]?.uid === uid); if (sl) invPick = { k: "eq", slot: sl }; sfx("equip"); } });

@@ -35,6 +35,8 @@ export interface HistoryEntry {
 export const HISTORY_SIZE = 10;
 
 export interface Meta {
+  /** The Camp's "new in the crawl" slides were switched off. */
+  campIntroOff?: boolean;
   /** The Obsidian Chest: the one thing sealed by your last climb out (an item, your potions or your gold), waiting in the next run's Entrance. */
   obsidian?: ObsidianSeal;
   /** The Camp's stores (Crown Shards, materials) and the Hall's upgrades. */

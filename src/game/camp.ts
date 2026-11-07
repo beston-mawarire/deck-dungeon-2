@@ -62,7 +62,7 @@ export interface CampStore {
   seeds?: Partial<Record<Plant, number>>; herbs?: Partial<Record<Plant, number>>;
   /** Weapons grown on Steelvine (their rarity), waiting to go in your pack on the next run. */
   sprouts?: ("uncommon" | "rare" | "epic" | "legendary")[];
-  /** The pouch from the dungeon: materials and seeds brought home by climbing out with it, waiting in the Garden to be unpacked. */
+  /** (Old saves only: a pouch waiting to be unpacked. campOf moves it into the Storehouse.) */
   pouch?: { mats: Partial<Record<Mat, number>>; seeds: Partial<Record<Plant, number>> };
   /** Garden plots (null = empty), and potions brewed and waiting to be taken on the next run. */
   plots?: (Plot | null)[];
@@ -71,7 +71,16 @@ export interface CampStore {
   scrolls?: number;
   insights?: Record<string, number>;
 }
-export const campOf = (m: Meta): CampStore => (m.camp ??= { crowns: 0, mats: {}, hall: {} });
+export const campOf = (m: Meta): CampStore => {
+  const c = (m.camp ??= { crowns: 0, mats: {}, hall: {} });
+  // (A pouch from 2.7.0, still waiting to be unpacked: it goes straight into the Storehouse now.)
+  if (c.pouch) {
+    for (const [k, n] of Object.entries(c.pouch.mats) as [Mat, number][]) c.mats[k] = (c.mats[k] ?? 0) + n;
+    for (const [k, n] of Object.entries(c.pouch.seeds) as [Plant, number][]) (c.seeds ??= {})[k] = (c.seeds[k] ?? 0) + n;
+    delete c.pouch;
+  }
+  return c;
+};
 
 export interface HallUpgrade {
   id: string; name: string; icon: string; ranks: number;
@@ -145,7 +154,7 @@ export function applyHall(m: Meta, run: Run) {
 
 /** What a run found for the Camp, banked when the run ends well; a death brings home nothing.
  *  Crown Shards and Scrolls of Knowledge come home on any success. Materials and seeds: everything on a victory;
- *  after climbing out, only if you took the pouch (and then into the Garden's pouch chest, to be unpacked). */
+ *  after climbing out, only if you took the pouch. Either way they go straight into the Storehouse. */
 export function bankCamp(m: Meta, run: Run): boolean {
   const l = run.campLoot;
   if (!l || run.scene.t !== "over") return false;
@@ -158,30 +167,18 @@ export function bankCamp(m: Meta, run: Run): boolean {
   let changed = false;
   if ((l.scrolls ?? 0) > (b.scrolls ?? 0)) { c.scrolls = (c.scrolls ?? 0) + (l.scrolls! - (b.scrolls ?? 0)); b.scrolls = l.scrolls; changed = true; }
   if (l.crowns > b.crowns) { c.crowns += l.crowns - b.crowns; b.crowns = l.crowns; changed = true; }
-  const pouch = toPouch && run.extracted!.pouch ? (c.pouch ??= { mats: {}, seeds: {} }) : undefined;
   for (const k of Object.keys(l.seeds ?? {}) as Plant[]) {
     const d = (l.seeds![k] ?? 0) - (b.seeds?.[k] ?? 0);
-    if (d > 0) { const into = pouch ? pouch.seeds : (c.seeds ??= {}); into[k] = (into[k] ?? 0) + d; (b.seeds ??= {})[k] = l.seeds![k]; changed = true; }
+    if (d > 0) { const into = (c.seeds ??= {}); into[k] = (into[k] ?? 0) + d; (b.seeds ??= {})[k] = l.seeds![k]; changed = true; }
   }
   for (const k of Object.keys(l.mats) as Mat[]) {
     const d = (l.mats[k] ?? 0) - (b.mats[k] ?? 0);
-    if (d > 0) { const into = pouch ? pouch.mats : c.mats; into[k] = (into[k] ?? 0) + d; b.mats[k] = l.mats[k]; changed = true; }
+    if (d > 0) { const into = c.mats; into[k] = (into[k] ?? 0) + d; b.mats[k] = l.mats[k]; changed = true; }
   }
   return changed;
 }
 
 // ---------- The Garden ----------
-
-/** Unpack the dungeon pouch in the Garden: its materials and seeds go into the Camp's stores. */
-export function unpackPouch(m: Meta): boolean {
-  const c = campOf(m), p = c.pouch;
-  if (!p) return false;
-  for (const [k, n] of Object.entries(p.mats) as [Mat, number][]) c.mats[k] = (c.mats[k] ?? 0) + n;
-  for (const [k, n] of Object.entries(p.seeds) as [Plant, number][]) (c.seeds ??= {})[k] = (c.seeds[k] ?? 0) + n;
-  delete c.pouch;
-  return true;
-}
-
 
 export const GARDEN_PLOTS = 2;
 /** The Garden's plots (two, more from Green Thumb). */

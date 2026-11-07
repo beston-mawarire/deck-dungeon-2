@@ -3076,3 +3076,46 @@ body .popup.trap-in { max-width: 380px; text-align: center; }
 .pouch-box { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; border: 2px dotted #c49a5a; background: rgba(0,0,0,.25); }
 .pouch-box .pb-ic { font-size: 1.8rem; } .pouch-box .pb-txt { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .pouch-box .pb-txt b { color: #f3d58a; } .pouch-box .pb-txt span { font-size: .82rem; color: #ead7b3; }
+/* The one gift on a drop: a card to read, then Leave it / Accept. */
+.popup .rune-card.rune-one { cursor: default; }
+.rune-btns { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
+.rune-btns .rune-skip { margin-top: 0; }
+.rune-take { --dk: 0; filter: saturate(1.25) brightness(1.08); }
+/* The Storehouse: what the Camp keeps, shelf by shelf. */
+.store-crowns { text-align: center; margin: 4px 0 10px; font-size: 15px; }
+.store-h { margin: 14px 0 6px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #e8c88a; }
+.store-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.store-cell { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(20,12,6,.45); border: 1px solid rgba(232,200,138,.22); }
+.store-cell.none { opacity: .45; }
+.store-cell .sc-ic { font-size: 20px; }
+.store-cell b { font-size: 16px; min-width: 1.2em; }
+.store-cell .sc-nm { display: flex; flex-direction: column; font-size: 13px; line-height: 1.2; }
+.store-cell .sc-nm em { font-style: normal; font-size: 11px; opacity: .7; }
+/* "New in the crawl": a page per mechanic, swiped sideways. */
+.ci-wrap { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(6,3,1,.72); padding: 14px; }
+.ci-pop { width: min(440px, calc(100vw - 28px)); min-width: 0; max-height: 100%; box-sizing: border-box; display: flex; flex-direction: column; border-radius: 16px; padding: 14px 0 12px;
+  background: linear-gradient(#2b1a0d, #1a0f07); border: 2px solid #8a6436; box-shadow: 0 10px 40px rgba(0,0,0,.7), inset 0 0 30px rgba(0,0,0,.5); color: #f1e2c4; }
+.ci-head { display: flex; align-items: center; padding: 0 14px 6px; }
+.ci-head h2 { flex: 1; margin: 0; text-align: center; font-family: Georgia, serif; color: #f3cf7a; letter-spacing: .04em; padding-left: 32px; }
+.ci-x { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(232,200,138,.4); background: rgba(0,0,0,.3); color: #f1e2c4; cursor: pointer; padding: 0; }
+.ci-track { min-width: 0; width: 100%; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.ci-track::-webkit-scrollbar { display: none; }
+.ci-page { flex: 0 0 100%; scroll-snap-align: center; padding: 4px 22px; box-sizing: border-box; text-align: center; }
+.ci-page h3 { margin: 12px 0 6px; font-size: 19px; color: #f3cf7a; }
+.ci-page p { margin: 0; font-size: 15px; line-height: 1.45; }
+.ci-art { min-height: 150px; padding: 10px 6px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: 10px; border-radius: 12px;
+  background: radial-gradient(ellipse at center, rgba(255,200,110,.16), rgba(0,0,0,.35) 70%); border: 1px dashed rgba(232,200,138,.3); }
+.ci-row { display: flex; align-items: flex-end; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.ci-die { width: 58px; height: 58px; }
+.ci-arrow { font-size: 26px; align-self: center; color: #f3cf7a; }
+.ci-chip { padding: 5px 10px; border-radius: 999px; background: rgba(0,0,0,.4); border: 1px solid rgba(232,200,138,.35); font-size: 14px; align-self: center; }
+.ci-glow .spr:first-child { filter: drop-shadow(0 0 10px rgba(255,232,170,.9)); }
+.ci-violet .spr { filter: drop-shadow(0 0 12px rgba(180,110,255,.95)); }
+.ci-red .spr { filter: drop-shadow(0 0 12px rgba(220,60,50,.8)); }
+.ci-plants span { font-size: 34px; align-self: center; }
+.ci-dots { display: flex; justify-content: center; gap: 8px; margin: 12px 0 10px; }
+.ci-dots i { width: 9px; height: 9px; border-radius: 50%; background: rgba(232,200,138,.3); cursor: pointer; }
+.ci-dots i.on { background: #f3cf7a; transform: scale(1.25); }
+.ci-btns { display: flex; justify-content: center; gap: 12px; padding: 0 14px; }
+.ci-btns .plank-btn[disabled] { opacity: .45; }
+.ci-off { display: block; margin: 10px auto 0; background: none !important; border: 0 !important; box-shadow: none !important; padding: 4px 8px !important; color: rgba(241,226,196,.6); text-decoration: underline; font-size: 13px; cursor: pointer; }
